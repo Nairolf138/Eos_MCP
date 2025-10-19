@@ -3,6 +3,7 @@ import eosPingTool from './connection/eos_ping.js';
 import eosResetTool from './connection/eos_reset.js';
 import eosSubscribeTool from './connection/eos_subscribe.js';
 import commandTools from './commands/command_tools.js';
+import channelTools from './channels/index.js';
 import pingTool from './ping.js';
 import type { ToolDefinition } from './types.js';
 
@@ -12,7 +13,8 @@ export const toolDefinitions: ToolDefinition[] = [
   eosPingTool,
   eosResetTool,
   eosSubscribeTool,
-  ...commandTools
+  ...commandTools,
+  ...channelTools
 ];
 
 export default toolDefinitions;
