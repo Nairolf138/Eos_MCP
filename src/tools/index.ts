@@ -21,6 +21,7 @@ import pixelMapTools from './pixelMaps/index.js';
 import snapshotTools from './snapshots/index.js';
 import curveTools from './curves/index.js';
 import patchTools from './patch/index.js';
+import showControlTools from './showControl/index.js';
 import type { ToolDefinition } from './types.js';
 
 export const toolDefinitions: ToolDefinition[] = [
@@ -46,7 +47,8 @@ export const toolDefinitions: ToolDefinition[] = [
   ...pixelMapTools,
   ...curveTools,
   ...patchTools,
-  ...snapshotTools
+  ...snapshotTools,
+  ...showControlTools
 ];
 
 export default toolDefinitions;
