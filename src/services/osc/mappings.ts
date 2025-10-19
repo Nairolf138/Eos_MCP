@@ -36,6 +36,11 @@ export const oscMappings = {
     select: '/eos/preset/select',
     info: '/eos/get/preset'
   },
+  macros: {
+    fire: '/eos/macro/fire',
+    select: '/eos/macro/select',
+    info: '/eos/get/macro'
+  },
   faders: {
     base: '/eos/fader',
     bankCreate: '/eos/fader/bank/create',
