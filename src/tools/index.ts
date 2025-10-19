@@ -8,6 +8,7 @@ import groupTools from './groups/index.js';
 import pingTool from './ping.js';
 import cueTools from './cues/index.js';
 import paletteTools from './palettes/index.js';
+import presetTools from './presets/index.js';
 import type { ToolDefinition } from './types.js';
 
 export const toolDefinitions: ToolDefinition[] = [
@@ -20,7 +21,8 @@ export const toolDefinitions: ToolDefinition[] = [
   ...channelTools,
   ...groupTools,
   ...cueTools,
-  ...paletteTools
+  ...paletteTools,
+  ...presetTools
 ];
 
 export default toolDefinitions;
