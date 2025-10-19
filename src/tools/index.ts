@@ -19,6 +19,7 @@ import directSelectTools from './directSelects/index.js';
 import magicSheetTools from './magicSheets/index.js';
 import pixelMapTools from './pixelMaps/index.js';
 import snapshotTools from './snapshots/index.js';
+import curveTools from './curves/index.js';
 import type { ToolDefinition } from './types.js';
 
 export const toolDefinitions: ToolDefinition[] = [
@@ -42,6 +43,7 @@ export const toolDefinitions: ToolDefinition[] = [
   ...directSelectTools,
   ...magicSheetTools,
   ...pixelMapTools,
+  ...curveTools,
   ...snapshotTools
 ];
 

@@ -45,6 +45,10 @@ export const oscMappings = {
     recall: '/eos/snapshot/recall',
     info: '/eos/get/snapshot'
   },
+  curves: {
+    select: '/eos/curve/select',
+    info: '/eos/get/curve'
+  },
   effects: {
     select: '/eos/effect/select',
     stop: '/eos/effect/stop',
