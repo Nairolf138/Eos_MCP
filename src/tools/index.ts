@@ -10,6 +10,7 @@ import cueTools from './cues/index.js';
 import paletteTools from './palettes/index.js';
 import presetTools from './presets/index.js';
 import submasterTools from './submasters/index.js';
+import faderTools from './faders/index.js';
 import type { ToolDefinition } from './types.js';
 
 export const toolDefinitions: ToolDefinition[] = [
@@ -24,7 +25,8 @@ export const toolDefinitions: ToolDefinition[] = [
   ...cueTools,
   ...paletteTools,
   ...presetTools,
-  ...submasterTools
+  ...submasterTools,
+  ...faderTools
 ];
 
 export default toolDefinitions;
