@@ -36,6 +36,10 @@ export const oscMappings = {
     select: '/eos/preset/select',
     info: '/eos/get/preset'
   },
+  submasters: {
+    base: '/eos/sub',
+    info: '/eos/get/submaster'
+  },
   cues: {
     fire: '/eos/cue/fire',
     go: '/eos/cue/go',
