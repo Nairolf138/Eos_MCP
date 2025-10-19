@@ -1,0 +1,59 @@
+import { z, type ZodRawShape } from 'zod';
+import { getOscClient } from '../../services/osc/client';
+import { oscMappings } from '../../services/osc/mappings';
+import type { ToolDefinition } from '../types';
+import {
+  buildCueCommandPayload,
+  buildJsonArgs,
+  createCueCommandResult,
+  createCueIdentifierFromOptions,
+  cuelistNumberSchema,
+  extractTargetOptions,
+  formatCueDescription,
+  targetOptionsSchema
+} from './common';
+
+const stopBackInputSchema = {
+  cuelist_number: cuelistNumberSchema,
+  back: z.boolean().optional(),
+  ...targetOptionsSchema
+} satisfies ZodRawShape;
+
+export const eosCueStopBackTool: ToolDefinition<typeof stopBackInputSchema> = {
+  name: 'eos_cue_stop_back',
+  config: {
+    title: 'Stop ou Back sur liste de cues',
+    description: 'Stoppe la lecture de la liste ou effectue un back selon l\'option fournie.',
+    inputSchema: stopBackInputSchema,
+    annotations: {
+      mapping: {
+        osc: oscMappings.cues.stopBack
+      }
+    }
+  },
+  handler: async (args) => {
+    const schema = z.object(stopBackInputSchema).strict();
+    const options = schema.parse(args ?? {});
+    const client = getOscClient();
+    const identifier = createCueIdentifierFromOptions(options);
+    const payload = buildCueCommandPayload(identifier);
+
+    if (options.back === true) {
+      payload.back = true;
+    }
+
+    client.sendMessage(oscMappings.cues.stopBack, buildJsonArgs(payload), extractTargetOptions(options));
+
+    return createCueCommandResult(
+      options.back ? 'cue_back' : 'cue_stop',
+      identifier,
+      payload,
+      oscMappings.cues.stopBack,
+      {
+        summary: `${options.back ? 'Back' : 'Stop'} sur ${formatCueDescription(identifier)}`
+      }
+    );
+  }
+};
+
+export default eosCueStopBackTool;
