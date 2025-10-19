@@ -16,6 +16,7 @@ import effectTools from './effects/index.js';
 import parameterTools from './parameters/index.js';
 import keyTools from './keys/index.js';
 import directSelectTools from './directSelects/index.js';
+import magicSheetTools from './magicSheets/index.js';
 import type { ToolDefinition } from './types.js';
 
 export const toolDefinitions: ToolDefinition[] = [
@@ -36,7 +37,8 @@ export const toolDefinitions: ToolDefinition[] = [
   ...effectTools,
   ...parameterTools,
   ...keyTools,
-  ...directSelectTools
+  ...directSelectTools,
+  ...magicSheetTools
 ];
 
 export default toolDefinitions;
