@@ -65,6 +65,11 @@ export const oscMappings = {
     bankCreate: '/eos/direct_select/bank/create',
     bankPage: '/eos/direct_select/bank/page'
   },
+  magicSheets: {
+    open: '/eos/magic_sheet/open',
+    sendString: '/eos/magic_sheet/send_string',
+    info: '/eos/get/magic_sheet'
+  },
   submasters: {
     base: '/eos/sub',
     info: '/eos/get/submaster'
