@@ -127,6 +127,19 @@ export interface CommandLineState {
   error?: string;
 }
 
+export interface OscJsonRequestOptions extends TargetOptions {
+  payload?: Record<string, unknown>;
+  responseAddress?: string;
+  timeoutMs?: number;
+}
+
+export interface OscJsonResponse {
+  status: StepStatus;
+  data: unknown;
+  payload: unknown;
+  error?: string;
+}
+
 export class OscClient {
   constructor(private readonly gateway: OscGateway, private readonly config: OscClientConfig = {}) {}
 
@@ -290,6 +303,65 @@ export class OscClient {
 
   public sendNewCommand(command: string, options: CommandSendOptions = {}): void {
     this.dispatchCommand(command, 'replace', options);
+  }
+
+  public sendMessage(address: string, args: OscMessageArgument[] = [], options: TargetOptions = {}): void {
+    const message: OscMessage = { address };
+    if (args.length > 0) {
+      message.args = args;
+    }
+    this.send(message, options);
+  }
+
+  public async requestJson(address: string, options: OscJsonRequestOptions = {}): Promise<OscJsonResponse> {
+    const targetOptions: TargetOptions = {
+      targetAddress: options.targetAddress,
+      targetPort: options.targetPort
+    };
+    const timeoutMs = options.timeoutMs ?? this.config.defaultTimeoutMs ?? DEFAULT_OPERATION_TIMEOUT_MS;
+    const responseAddress = options.responseAddress ?? address;
+    const payload = options.payload ?? {};
+    const hasPayload = Object.keys(payload).length > 0;
+
+    const message: OscMessage = { address };
+    if (hasPayload) {
+      message.args = [
+        {
+          type: 's',
+          value: JSON.stringify(payload)
+        }
+      ];
+    } else {
+      message.args = [];
+    }
+
+    this.send(message, targetOptions);
+
+    try {
+      const response = await this.waitForResponse(
+        (incoming) => (incoming.address === responseAddress ? incoming : null),
+        timeoutMs,
+        `Aucune reponse pour ${responseAddress} recue avant expiration`
+      );
+
+      const data = this.extractPayload(response);
+
+      return {
+        status: this.normaliseStatus(data),
+        data,
+        payload: response
+      };
+    } catch (error) {
+      if (error instanceof OscTimeoutError) {
+        return {
+          status: 'timeout',
+          data: null,
+          payload: null,
+          error: error.message
+        };
+      }
+      throw error;
+    }
   }
 
   public async getCommandLine(options: CommandLineRequestOptions = {}): Promise<CommandLineState> {
