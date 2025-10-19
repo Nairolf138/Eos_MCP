@@ -46,6 +46,15 @@ export const oscMappings = {
     stop: '/eos/effect/stop',
     info: '/eos/get/effect'
   },
+  parameters: {
+    wheelTick: '/eos/param/wheel/tick',
+    wheelRate: '/eos/param/wheel/rate',
+    colorHs: '/eos/param/color/hs',
+    colorRgb: '/eos/param/color/rgb',
+    positionXY: '/eos/param/position/xy',
+    positionXYZ: '/eos/param/position/xyz',
+    activeWheels: '/eos/get/active/wheels'
+  },
   faders: {
     base: '/eos/fader',
     bankCreate: '/eos/fader/bank/create',
