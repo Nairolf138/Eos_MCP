@@ -12,6 +12,7 @@ import presetTools from './presets/index.js';
 import submasterTools from './submasters/index.js';
 import faderTools from './faders/index.js';
 import macroTools from './macros/index.js';
+import effectTools from './effects/index.js';
 import type { ToolDefinition } from './types.js';
 
 export const toolDefinitions: ToolDefinition[] = [
@@ -28,7 +29,8 @@ export const toolDefinitions: ToolDefinition[] = [
   ...presetTools,
   ...submasterTools,
   ...faderTools,
-  ...macroTools
+  ...macroTools,
+  ...effectTools
 ];
 
 export default toolDefinitions;
