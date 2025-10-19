@@ -12,6 +12,25 @@ export const oscMappings = {
     info: '/eos/group/info',
     list: '/eos/group/list'
   },
+  palettes: {
+    info: '/eos/get/palette',
+    intensity: {
+      fire: '/eos/ip/fire',
+      info: '/eos/get/ip'
+    },
+    focus: {
+      fire: '/eos/fp/fire',
+      info: '/eos/get/fp'
+    },
+    color: {
+      fire: '/eos/cp/fire',
+      info: '/eos/get/cp'
+    },
+    beam: {
+      fire: '/eos/bp/fire',
+      info: '/eos/get/bp'
+    }
+  },
   cues: {
     fire: '/eos/cue/fire',
     go: '/eos/cue/go',
