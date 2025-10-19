@@ -9,6 +9,7 @@ import pingTool from './ping.js';
 import cueTools from './cues/index.js';
 import paletteTools from './palettes/index.js';
 import presetTools from './presets/index.js';
+import submasterTools from './submasters/index.js';
 import type { ToolDefinition } from './types.js';
 
 export const toolDefinitions: ToolDefinition[] = [
@@ -22,7 +23,8 @@ export const toolDefinitions: ToolDefinition[] = [
   ...groupTools,
   ...cueTools,
   ...paletteTools,
-  ...presetTools
+  ...presetTools,
+  ...submasterTools
 ];
 
 export default toolDefinitions;
