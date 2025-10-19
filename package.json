@@ -1,0 +1,37 @@
+{
+  "name": "eos_mcp",
+  "version": "1.0.0",
+  "description": "Bootstrap project for an MCP-compatible OSC service",
+  "main": "dist/server/index.js",
+  "scripts": {
+    "build": "tsc",
+    "lint": "eslint \"src/**/*.ts\"",
+    "test": "jest --passWithNoTests",
+    "start": "node dist/server/index.js",
+    "start:dev": "ts-node src/server/index.ts"
+  },
+  "keywords": [
+    "mcp",
+    "osc",
+    "typescript"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.20.1",
+    "osc": "^2.4.5"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.8.1",
+    "@typescript-eslint/eslint-plugin": "^8.46.1",
+    "@typescript-eslint/parser": "^8.46.1",
+    "eslint": "^9.38.0",
+    "globals": "^16.4.0",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}
