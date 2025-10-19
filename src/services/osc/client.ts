@@ -1,4 +1,4 @@
-import type { OscMessage, OscService } from './index.js';
+import type { OscMessage, OscMessageArgument, OscService } from './index.js';
 
 const HANDSHAKE_REQUEST = '/eos/handshake';
 const HANDSHAKE_REPLY = '/eos/handshake/reply';
@@ -10,6 +10,10 @@ const RESET_REQUEST = '/eos/reset';
 const RESET_REPLY = '/eos/reset/reply';
 const SUBSCRIBE_REQUEST = '/eos/subscribe';
 const SUBSCRIBE_REPLY = '/eos/subscribe/reply';
+const COMMAND_REQUEST = '/eos/cmd';
+const NEW_COMMAND_REQUEST = '/eos/newcmd';
+const COMMAND_LINE_GET_REQUEST = '/eos/get/cmd_line';
+const COMMAND_LINE_GET_REPLY = '/eos/get/cmd_line';
 
 const DEFAULT_OPERATION_TIMEOUT_MS = 1500;
 const DEFAULT_HANDSHAKE_TIMEOUT_MS = 2000;
@@ -99,6 +103,26 @@ export interface SubscribeOptions extends TargetOptions {
 export interface SubscribeResult {
   status: StepStatus;
   path: string;
+  payload: unknown;
+  error?: string;
+}
+
+export type CommandSendMode = 'append' | 'replace';
+
+export interface CommandSendOptions extends TargetOptions {
+  user?: number;
+  mode?: CommandSendMode;
+}
+
+export interface CommandLineRequestOptions extends TargetOptions {
+  user?: number;
+  timeoutMs?: number;
+}
+
+export interface CommandLineState {
+  status: StepStatus;
+  text: string;
+  user: number | null;
   payload: unknown;
   error?: string;
 }
@@ -259,8 +283,93 @@ export class OscClient {
     }
   }
 
+  public sendCommand(command: string, options: CommandSendOptions = {}): void {
+    const mode = options.mode ?? 'append';
+    this.dispatchCommand(command, mode, options);
+  }
+
+  public sendNewCommand(command: string, options: CommandSendOptions = {}): void {
+    this.dispatchCommand(command, 'replace', options);
+  }
+
+  public async getCommandLine(options: CommandLineRequestOptions = {}): Promise<CommandLineState> {
+    const timeoutMs = options.timeoutMs ?? this.config.defaultTimeoutMs ?? DEFAULT_OPERATION_TIMEOUT_MS;
+    const requestPayload: Record<string, unknown> = {};
+
+    if (typeof options.user === 'number' && Number.isFinite(options.user)) {
+      requestPayload.user = Math.trunc(options.user);
+    }
+
+    this.send(
+      {
+        address: COMMAND_LINE_GET_REQUEST,
+        args: [
+          {
+            type: 's',
+            value: JSON.stringify(requestPayload)
+          }
+        ]
+      },
+      options
+    );
+
+    try {
+      const response = await this.waitForResponse(
+        (incoming) => (incoming.address === COMMAND_LINE_GET_REPLY ? incoming : null),
+        timeoutMs,
+        'Aucun etat de ligne de commande recu avant expiration'
+      );
+
+      const payload = this.extractPayload(response);
+      const decoded = this.parseCommandLinePayload(payload);
+
+      return {
+        status: 'ok',
+        text: decoded.text,
+        user: decoded.user,
+        payload
+      };
+    } catch (error) {
+      if (error instanceof OscTimeoutError) {
+        return {
+          status: 'timeout',
+          text: '',
+          user: null,
+          payload: null,
+          error: error.message
+        };
+      }
+      throw error;
+    }
+  }
+
   private send(message: OscMessage, options: TargetOptions): void {
     this.gateway.send(message, options.targetAddress, options.targetPort);
+  }
+
+  private dispatchCommand(command: string, mode: CommandSendMode, options: CommandSendOptions): void {
+    const address = mode === 'replace' ? NEW_COMMAND_REQUEST : COMMAND_REQUEST;
+    const args = this.buildCommandArgs(command, options.user);
+
+    this.send(
+      {
+        address,
+        args
+      },
+      options
+    );
+  }
+
+  private buildCommandArgs(command: string, user?: number): OscMessageArgument[] {
+    const args: OscMessageArgument[] = [
+      { type: 's', value: command }
+    ];
+
+    if (typeof user === 'number' && Number.isFinite(user)) {
+      args.push({ type: 'i', value: Math.trunc(user) });
+    }
+
+    return args;
   }
 
   private async performHandshake(options: ConnectOptions, timeout: number): Promise<HandshakeData> {
@@ -388,6 +497,59 @@ export class OscClient {
       }
     }
     return firstArg ?? null;
+  }
+
+  private parseCommandLinePayload(payload: unknown): { text: string; user: number | null } {
+    if (payload && typeof payload === 'object') {
+      return this.normaliseCommandLinePayload(payload as Record<string, unknown>);
+    }
+
+    if (typeof payload === 'string') {
+      try {
+        const parsed = JSON.parse(payload) as Record<string, unknown>;
+        return this.normaliseCommandLinePayload(parsed);
+      } catch (error) {
+        return { text: payload, user: null };
+      }
+    }
+
+    if (typeof payload === 'number' || typeof payload === 'boolean') {
+      return { text: String(payload), user: null };
+    }
+
+    return { text: '', user: null };
+  }
+
+  private normaliseCommandLinePayload(payload: Record<string, unknown>): { text: string; user: number | null } {
+    const textValue = payload.text ?? payload.command ?? payload.value ?? '';
+    let text = '';
+
+    if (Array.isArray(textValue)) {
+      text = textValue.map((item) => (item == null ? '' : String(item))).join('');
+    } else if (textValue != null) {
+      text = String(textValue);
+    }
+
+    const userValue = payload.user ?? payload.userId ?? payload.user_id ?? payload.operator ?? payload.owner ?? null;
+    const user = this.decodeUser(userValue);
+
+    return { text, user };
+  }
+
+  private decodeUser(value: unknown): number | null {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return Math.trunc(value);
+    }
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      const match = trimmed.match(/(-?\d+)/);
+      if (match) {
+        return Number.parseInt(match[1] ?? '', 10);
+      }
+    }
+
+    return null;
   }
 
   private extractEcho(payload: unknown): string | null {
