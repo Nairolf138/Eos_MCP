@@ -103,6 +103,13 @@ export const oscMappings = {
     bankPage: '/eos/cuelist/bank/page',
     active: '/eos/get/active/cue',
     pending: '/eos/get/pending/cue'
+  },
+  showControl: {
+    showName: '/eos/get/show/name',
+    liveBlindState: '/eos/get/live/blind',
+    toggleStagingMode: '/eos/toggle/staging_mode',
+    setCueSendString: '/eos/set/cue/send_string',
+    setCueReceiveString: '/eos/set/cue/receive_string'
   }
 } as const;
 
