@@ -17,6 +17,7 @@ import parameterTools from './parameters/index.js';
 import keyTools from './keys/index.js';
 import directSelectTools from './directSelects/index.js';
 import magicSheetTools from './magicSheets/index.js';
+import pixelMapTools from './pixelMaps/index.js';
 import type { ToolDefinition } from './types.js';
 
 export const toolDefinitions: ToolDefinition[] = [
@@ -38,7 +39,8 @@ export const toolDefinitions: ToolDefinition[] = [
   ...parameterTools,
   ...keyTools,
   ...directSelectTools,
-  ...magicSheetTools
+  ...magicSheetTools,
+  ...pixelMapTools
 ];
 
 export default toolDefinitions;

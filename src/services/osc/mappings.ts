@@ -65,6 +65,10 @@ export const oscMappings = {
     bankCreate: '/eos/direct_select/bank/create',
     bankPage: '/eos/direct_select/bank/page'
   },
+  pixelMaps: {
+    select: '/eos/pixmap/select',
+    info: '/eos/get/pixmap'
+  },
   magicSheets: {
     open: '/eos/magic_sheet/open',
     sendString: '/eos/magic_sheet/send_string',

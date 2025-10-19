@@ -1,0 +1,81 @@
+{
+  "status": "ok",
+  "pixmap": {
+    "pixmap_number": "205",
+    "name": "Backdrop Main",
+    "server_channel": "5",
+    "interface": "sACN 3",
+    "dimensions": {
+      "width": "192",
+      "height": "64"
+    },
+    "size": "192x64",
+    "pixel_count": "12288",
+    "fixture_count": "4",
+    "fixtures": [
+      {
+        "channel": "101",
+        "label": "Left Wall",
+        "segments": [
+          {
+            "start_pixel": "1",
+            "end_pixel": "1024",
+            "pixel_count": 1024,
+            "universe": "1",
+            "address": "1",
+            "string_number": "1"
+          },
+          {
+            "start": 1025,
+            "count": 1024,
+            "uni": 1,
+            "addr": 513,
+            "string": 2
+          }
+        ]
+      },
+      {
+        "channel": "102",
+        "label": "Center Wall",
+        "pixel_range": {
+          "start": 2049,
+          "end": 4096
+        },
+        "universe": "2",
+        "start_address": "1"
+      },
+      {
+        "channel": "103",
+        "label": "Right Wall",
+        "strings": [
+          {
+            "string_number": 1,
+            "start_pixel": 4097,
+            "pixel_count": 4096,
+            "universe": 3,
+            "start_address": 1
+          }
+        ]
+      },
+      {
+        "channel": "104",
+        "label": "Floor Strip",
+        "segments": [
+          {
+            "pixel_start": 8193,
+            "pixel_end": 10240,
+            "universe": 4,
+            "address": 1
+          },
+          {
+            "start": 10241,
+            "count": 2048,
+            "universe": 4,
+            "addr": 513,
+            "string_number": 4
+          }
+        ]
+      }
+    ]
+  }
+}
