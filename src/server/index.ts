@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type { ToolCallback } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { createOscServiceFromEnv, OscService } from '../services/osc/index.js';
+import { initializeOscClient } from '../services/osc/client.js';
 import { toolDefinitions } from '../tools/index.js';
 import type {
   ToolDefinition,
@@ -78,6 +79,7 @@ interface BootstrapContext {
 async function bootstrap(): Promise<BootstrapContext> {
   const tcpPort = Number.parseInt(process.env.MCP_TCP_PORT ?? '3032', 10);
   const oscService = createOscServiceFromEnv();
+  initializeOscClient(oscService);
 
   const server = new McpServer({
     name: 'eos-mcp-server',
