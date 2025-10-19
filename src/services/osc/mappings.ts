@@ -82,6 +82,11 @@ export const oscMappings = {
     sendString: '/eos/magic_sheet/send_string',
     info: '/eos/get/magic_sheet'
   },
+  patch: {
+    channelInfo: '/eos/get/patch/chan_info',
+    augment3dPosition: '/eos/get/patch/chan_pos',
+    augment3dBeam: '/eos/get/patch/chan_beam'
+  },
   submasters: {
     base: '/eos/sub',
     info: '/eos/get/submaster'
