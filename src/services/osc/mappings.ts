@@ -60,6 +60,11 @@ export const oscMappings = {
     bankCreate: '/eos/fader/bank/create',
     bankPage: '/eos/fader/bank/page'
   },
+  directSelects: {
+    base: '/eos/direct_select/bank',
+    bankCreate: '/eos/direct_select/bank/create',
+    bankPage: '/eos/direct_select/bank/page'
+  },
   submasters: {
     base: '/eos/sub',
     info: '/eos/get/submaster'
