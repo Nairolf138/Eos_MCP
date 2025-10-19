@@ -41,6 +41,10 @@ export const oscMappings = {
     select: '/eos/macro/select',
     info: '/eos/get/macro'
   },
+  snapshots: {
+    recall: '/eos/snapshot/recall',
+    info: '/eos/get/snapshot'
+  },
   effects: {
     select: '/eos/effect/select',
     stop: '/eos/effect/stop',
