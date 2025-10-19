@@ -1,5 +1,17 @@
 import { UDPPort } from 'osc';
 
+export interface OscMessageArgument {
+  type: string;
+  value: unknown;
+}
+
+export interface OscMessage {
+  address: string;
+  args?: OscMessageArgument[];
+}
+
+export type OscMessageListener = (message: OscMessage) => void;
+
 export interface OscServiceConfig {
   localAddress?: string;
   localPort: number;
@@ -9,6 +21,8 @@ export interface OscServiceConfig {
 
 export class OscService {
   private readonly port: UDPPort;
+
+  private readonly listeners = new Set<OscMessageListener>();
 
   constructor(private readonly config: OscServiceConfig) {
     this.port = new UDPPort({
@@ -23,19 +37,34 @@ export class OscService {
       console.info(`OSC UDP port ouvert sur ${config.localAddress ?? '0.0.0.0'}:${config.localPort}`);
     });
 
-    this.port.on('message', (message) => {
+    this.port.on('message', (message: OscMessage) => {
       console.debug('[OSC] message recu', message);
+      this.listeners.forEach((listener) => {
+        try {
+          listener(message);
+        } catch (error) {
+          console.error('[OSC] Erreur lors du traitement du message', error);
+        }
+      });
     });
 
     this.port.open();
   }
 
-  public send(message: unknown, targetAddress?: string, targetPort?: number): void {
+  public send(message: OscMessage, targetAddress?: string, targetPort?: number): void {
     this.port.send(message, targetAddress ?? this.config.remoteAddress, targetPort ?? this.config.remotePort);
+  }
+
+  public onMessage(listener: OscMessageListener): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
   }
 
   public close(): void {
     this.port.close();
+    this.listeners.clear();
   }
 }
 
