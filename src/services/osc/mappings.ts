@@ -31,6 +31,11 @@ export const oscMappings = {
       info: '/eos/get/bp'
     }
   },
+  presets: {
+    fire: '/eos/preset/fire',
+    select: '/eos/preset/select',
+    info: '/eos/get/preset'
+  },
   cues: {
     fire: '/eos/cue/fire',
     go: '/eos/cue/go',
