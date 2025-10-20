@@ -4,6 +4,7 @@ import type { ToolCallback } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { createOscServiceFromEnv, OscService } from '../services/osc/index.js';
 import { initializeOscClient } from '../services/osc/client.js';
 import { toolDefinitions } from '../tools/index.js';
+import { registerToolSchemas } from '../schemas/index.js';
 import type {
   ToolDefinition,
   ToolExecutionResult,
@@ -89,6 +90,7 @@ async function bootstrap(): Promise<BootstrapContext> {
   console.info(`Port TCP MCP reserve sur ${tcpPort}`);
 
   const registry = new ToolRegistry(server);
+  registerToolSchemas(server);
   const tools = await loadToolDefinitions();
   registry.registerMany(tools);
 
