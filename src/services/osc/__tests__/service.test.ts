@@ -128,4 +128,54 @@ describe('OscService diagnostics', () => {
       service.close();
     }
   });
+
+  it('ferme et recree le port lors de la reconfiguration', async () => {
+    const { service, port } = createService();
+
+    try {
+      const initialInstanceCount = oscModule.__mock.instances.length;
+
+      await service.reconfigure({
+        remoteAddress: '10.0.0.5',
+        remotePort: 9100,
+        localPort: 9200
+      });
+
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.stringContaining('Reconfiguration OSC demandee')
+      );
+
+      expect(port.close).toHaveBeenCalledTimes(1);
+      expect(oscModule.__mock.instances.length).toBe(initialInstanceCount + 1);
+
+      const newPort = oscModule.__mock.instances[oscModule.__mock.instances.length - 1];
+      expect(newPort).not.toBe(port);
+      expect(newPort.options).toMatchObject({
+        localAddress: '0.0.0.0',
+        localPort: 9200,
+        remoteAddress: '10.0.0.5',
+        remotePort: 9100,
+        metadata: true
+      });
+      expect(newPort.open).toHaveBeenCalledTimes(1);
+
+      await service.send({ address: '/after/reconfigure' });
+
+      expect(newPort.send).toHaveBeenCalledWith(
+        expect.objectContaining({ address: '/after/reconfigure' }),
+        '10.0.0.5',
+        9100
+      );
+
+      const diagnostics = service.getDiagnostics();
+      expect(diagnostics.config).toMatchObject({
+        localAddress: '0.0.0.0',
+        localPort: 9200,
+        remoteAddress: '10.0.0.5',
+        remotePort: 9100
+      });
+    } finally {
+      service.close();
+    }
+  });
 });

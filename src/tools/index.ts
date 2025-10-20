@@ -1,4 +1,5 @@
 import eosConnectTool from './connection/eos_connect.js';
+import eosConfigureTool from './connection/eos_configure.js';
 import eosPingTool from './connection/eos_ping.js';
 import eosResetTool from './connection/eos_reset.js';
 import eosSubscribeTool from './connection/eos_subscribe.js';
@@ -32,6 +33,7 @@ import type { ToolDefinition } from './types.js';
 const definitions = [
   pingTool,
   eosConnectTool,
+  eosConfigureTool,
   eosPingTool,
   eosResetTool,
   eosSubscribeTool,
