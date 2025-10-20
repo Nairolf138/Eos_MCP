@@ -5,6 +5,8 @@
 
 Chaque outil expose son nom MCP, une description, la liste des arguments attendus ainsi qu'un exemple d'appel en CLI et par OSC.
 
+> Nouvelle passerelle HTTP/WS : définissez `MCP_TCP_PORT` pour appeler les outils via `POST /tools/:name` ou WebSocket (`/ws`).
+
 <a id="eos-address-select"></a>
 ## Selection d'adresse DMX (`eos_address_select`)
 
