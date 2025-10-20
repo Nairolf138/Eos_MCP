@@ -80,7 +80,7 @@ interface DirectionStats {
 }
 
 export class OscService {
-  private readonly port: UDPPort;
+  private port: UDPPort;
 
   private readonly logger: OscLogger;
 
@@ -95,46 +95,14 @@ export class OscService {
 
   private readonly startedAt = Date.now();
 
-  constructor(private readonly config: OscServiceConfig) {
+  private config: OscServiceConfig;
+
+  constructor(config: OscServiceConfig) {
     this.logger = config.logger ?? createLogger('osc-service');
+    this.config = { ...config };
 
-    this.port = new UDPPort({
-      localAddress: config.localAddress ?? '0.0.0.0',
-      localPort: config.localPort,
-      remoteAddress: config.remoteAddress,
-      remotePort: config.remotePort,
-      metadata: true
-    });
-
-    this.port.on('ready', () => {
-      this.logger.info(
-        `OSC UDP port ouvert sur ${config.localAddress ?? '0.0.0.0'}:${config.localPort}`
-      );
-    });
-
-    this.port.on('message', (rawMessage: unknown) => {
-      const message = this.normaliseIncomingMessage(rawMessage);
-      if (!message) {
-        this.logger.error('[OSC] Message recu dans un format inattendu', rawMessage);
-        return;
-      }
-
-      const summary = this.createMessageSummary(message);
-      this.updateStats('incoming', summary);
-
-      if (this.loggingState.incoming) {
-        this.logger.debug(`[OSC] <- ${summary.address}`, summary.args);
-      }
-
-      this.listeners.forEach((listener) => {
-        try {
-          listener(message);
-        } catch (error) {
-          this.logger.error('[OSC] Erreur lors du traitement du message', error);
-        }
-      });
-    });
-
+    this.port = this.createUdpPort(this.config);
+    this.attachPortEvents(this.port, this.config);
     this.port.open();
   }
 
@@ -207,9 +175,78 @@ export class OscService {
     };
   }
 
+  public async reconfigure({
+    remoteAddress,
+    remotePort,
+    localPort
+  }: {
+    remoteAddress: string;
+    remotePort: number;
+    localPort: number;
+  }): Promise<void> {
+    const nextConfig: OscServiceConfig = {
+      ...this.config,
+      remoteAddress,
+      remotePort,
+      localPort
+    };
+
+    this.logger.info(
+      `Reconfiguration OSC demandee: local ${nextConfig.localAddress ?? '0.0.0.0'}:${nextConfig.localPort} -> remote ${nextConfig.remoteAddress}:${nextConfig.remotePort}`
+    );
+
+    this.port.close();
+
+    this.port = this.createUdpPort(nextConfig);
+    this.attachPortEvents(this.port, nextConfig);
+    this.config = nextConfig;
+    this.port.open();
+  }
+
   public close(): void {
     this.port.close();
     this.listeners.clear();
+  }
+
+  private createUdpPort(config: OscServiceConfig): UDPPort {
+    return new UDPPort({
+      localAddress: config.localAddress ?? '0.0.0.0',
+      localPort: config.localPort,
+      remoteAddress: config.remoteAddress,
+      remotePort: config.remotePort,
+      metadata: true
+    });
+  }
+
+  private attachPortEvents(port: UDPPort, config: OscServiceConfig): void {
+    port.on('ready', () => {
+      this.logger.info(
+        `OSC UDP port ouvert sur ${config.localAddress ?? '0.0.0.0'}:${config.localPort}`
+      );
+    });
+
+    port.on('message', (rawMessage: unknown) => {
+      const message = this.normaliseIncomingMessage(rawMessage);
+      if (!message) {
+        this.logger.error('[OSC] Message recu dans un format inattendu', rawMessage);
+        return;
+      }
+
+      const summary = this.createMessageSummary(message);
+      this.updateStats('incoming', summary);
+
+      if (this.loggingState.incoming) {
+        this.logger.debug(`[OSC] <- ${summary.address}`, summary.args);
+      }
+
+      this.listeners.forEach((listener) => {
+        try {
+          listener(message);
+        } catch (error) {
+          this.logger.error('[OSC] Erreur lors du traitement du message', error);
+        }
+      });
+    });
   }
 
   private createMessageSummary(message: OscMessage): OscMessageSummary {

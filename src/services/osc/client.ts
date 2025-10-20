@@ -1070,10 +1070,15 @@ export class OscClient {
 }
 
 let sharedClient: OscClient | null = null;
+let sharedService: OscService | null = null;
+let sharedClientConfig: OscClientConfig = {};
 let cacheListenerDispose: (() => void) | null = null;
 
 export function initializeOscClient(service: OscService, config: OscClientConfig = {}): OscClient {
   cacheListenerDispose?.();
+  sharedService = service;
+  sharedClientConfig = { ...config };
+
   cacheListenerDispose = service.onMessage((message) => {
     getResourceCache().handleOscMessage(message);
   });
@@ -1082,12 +1087,29 @@ export function initializeOscClient(service: OscService, config: OscClientConfig
   return sharedClient;
 }
 
+export function resetOscClient(
+  service: OscService,
+  config: OscClientConfig = sharedClientConfig
+): OscClient {
+  setOscClient(null);
+  return initializeOscClient(service, config);
+}
+
 export function setOscClient(client: OscClient | null): void {
   sharedClient = client;
   if (client === null && cacheListenerDispose) {
     cacheListenerDispose();
     cacheListenerDispose = null;
   }
+}
+
+export function getOscService(): OscService {
+  if (!sharedService) {
+    throw new Error(
+      "Le service OSC n'est pas initialise. Appelez initializeOscClient avant d'utiliser les outils."
+    );
+  }
+  return sharedService;
 }
 
 export function getOscClient(): OscClient {

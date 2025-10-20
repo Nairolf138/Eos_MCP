@@ -5,8 +5,6 @@
 
 Chaque outil expose son nom MCP, une description, la liste des arguments attendus ainsi qu'un exemple d'appel en CLI et par OSC.
 
-> Nouvelle passerelle HTTP/WS : définissez `MCP_TCP_PORT` pour appeler les outils via `POST /tools/:name` ou WebSocket (`/ws`).
-
 <a id="eos-address-select"></a>
 ## Selection d'adresse DMX (`eos_address_select`)
 
@@ -350,6 +348,33 @@ _OSC_
 # Exemple d'envoi OSC via oscsend
 oscsend 127.0.0.1 8001 /eos/cmd s:'{"template":"exemple"}'
 ```
+
+<a id="eos-configure"></a>
+## Reconfiguration OSC EOS (`eos_configure`)
+
+**Description :** Met a jour la configuration reseau OSC (ports, adresse) et recree le client partage.
+
+**Arguments :**
+
+| Nom | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `localPort` | number | Oui | — |
+| `remoteAddress` | string | Oui | — |
+| `remotePort` | number | Oui | — |
+
+**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+
+**Exemples :**
+
+_CLI_
+
+```bash
+npx @modelcontextprotocol/cli call --tool eos_configure --args '{"remoteAddress":"exemple","remotePort":1,"localPort":1}'
+```
+
+_OSC_
+
+_Pas de mapping OSC documenté._
 
 <a id="eos-connect"></a>
 ## Connexion OSC EOS (`eos_connect`)
