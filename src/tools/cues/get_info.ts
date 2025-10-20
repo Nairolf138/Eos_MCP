@@ -30,6 +30,15 @@ function formatCueInfoText(details: CueDetails): string {
   return `Cue ${formatCueDescription(details.identifier)} ${label} (Up ${up} / Down ${down})`;
 }
 
+/**
+ * @tool eos_cue_get_info
+ * @summary Informations de cue
+ * @description Recupere les informations detaillees d'une cue (timings, flags, notes...).
+ * @arguments Voir docs/tools.md#eos-cue-get-info pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-cue-get-info pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-cue-get-info pour un exemple OSC.
+ */
 export const eosCueGetInfoTool: ToolDefinition<typeof getInfoInputSchema> = {
   name: 'eos_cue_get_info',
   config: {

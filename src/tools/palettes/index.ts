@@ -381,6 +381,15 @@ function getInfoMappingForType(type: PaletteType): string {
   }
 }
 
+/**
+ * @tool eos_intensity_palette_fire
+ * @summary eos_intensity_palette_fire
+ * @description Declenche une palette d'intensite sur la console Eos.
+ * @arguments Voir docs/tools.md#eos-intensity-palette-fire pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-intensity-palette-fire pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-intensity-palette-fire pour un exemple OSC.
+ */
 export const eosIntensityPaletteFireTool = createPaletteFireTool({
   type: 'ip',
   name: 'eos_intensity_palette_fire',
@@ -389,6 +398,15 @@ export const eosIntensityPaletteFireTool = createPaletteFireTool({
   mapping: oscMappings.palettes.intensity.fire
 });
 
+/**
+ * @tool eos_focus_palette_fire
+ * @summary eos_focus_palette_fire
+ * @description Declenche une palette de focus sur la console Eos.
+ * @arguments Voir docs/tools.md#eos-focus-palette-fire pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-focus-palette-fire pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-focus-palette-fire pour un exemple OSC.
+ */
 export const eosFocusPaletteFireTool = createPaletteFireTool({
   type: 'fp',
   name: 'eos_focus_palette_fire',
@@ -397,6 +415,15 @@ export const eosFocusPaletteFireTool = createPaletteFireTool({
   mapping: oscMappings.palettes.focus.fire
 });
 
+/**
+ * @tool eos_color_palette_fire
+ * @summary eos_color_palette_fire
+ * @description Declenche une palette de couleur sur la console Eos.
+ * @arguments Voir docs/tools.md#eos-color-palette-fire pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-color-palette-fire pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-color-palette-fire pour un exemple OSC.
+ */
 export const eosColorPaletteFireTool = createPaletteFireTool({
   type: 'cp',
   name: 'eos_color_palette_fire',
@@ -405,6 +432,15 @@ export const eosColorPaletteFireTool = createPaletteFireTool({
   mapping: oscMappings.palettes.color.fire
 });
 
+/**
+ * @tool eos_beam_palette_fire
+ * @summary eos_beam_palette_fire
+ * @description Declenche une palette de beam sur la console Eos.
+ * @arguments Voir docs/tools.md#eos-beam-palette-fire pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-beam-palette-fire pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-beam-palette-fire pour un exemple OSC.
+ */
 export const eosBeamPaletteFireTool = createPaletteFireTool({
   type: 'bp',
   name: 'eos_beam_palette_fire',
@@ -413,6 +449,15 @@ export const eosBeamPaletteFireTool = createPaletteFireTool({
   mapping: oscMappings.palettes.beam.fire
 });
 
+/**
+ * @tool eos_palette_get_info
+ * @summary Informations de palette
+ * @description Recupere les informations detaillees pour une palette donnee.
+ * @arguments Voir docs/tools.md#eos-palette-get-info pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-palette-get-info pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-palette-get-info pour un exemple OSC.
+ */
 export const eosPaletteGetInfoTool: ToolDefinition<typeof paletteGetInfoInputSchema> = {
   name: 'eos_palette_get_info',
   config: {

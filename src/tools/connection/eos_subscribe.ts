@@ -11,6 +11,15 @@ const inputSchema = {
   targetPort: z.number().int().min(1).max(65535).optional()
 };
 
+/**
+ * @tool eos_subscribe
+ * @summary Souscription OSC EOS
+ * @description Active ou desactive une souscription OSC sur la console EOS.
+ * @arguments Voir docs/tools.md#eos-subscribe pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-subscribe pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-subscribe pour un exemple OSC.
+ */
 export const eosSubscribeTool: ToolDefinition<typeof inputSchema> = {
   name: 'eos_subscribe',
   config: {

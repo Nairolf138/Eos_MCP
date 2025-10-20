@@ -456,6 +456,15 @@ function formatPresetDescription(info: PresetInfo): string {
   return `Preset ${info.preset_number} ${label} (${mode}, ${lockState}, canaux: ${channels}, ${effectsSummary})`;
 }
 
+/**
+ * @tool eos_preset_fire
+ * @summary Declenchement de preset
+ * @description Declenche un preset sur la console Eos.
+ * @arguments Voir docs/tools.md#eos-preset-fire pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-preset-fire pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-preset-fire pour un exemple OSC.
+ */
 export const eosPresetFireTool: ToolDefinition<typeof presetFireInputSchema> = {
   name: 'eos_preset_fire',
   config: {
@@ -485,6 +494,15 @@ export const eosPresetFireTool: ToolDefinition<typeof presetFireInputSchema> = {
   }
 } satisfies ToolDefinition<typeof presetFireInputSchema>;
 
+/**
+ * @tool eos_preset_select
+ * @summary Selection de preset
+ * @description Selectionne un preset sur la console Eos.
+ * @arguments Voir docs/tools.md#eos-preset-select pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-preset-select pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-preset-select pour un exemple OSC.
+ */
 export const eosPresetSelectTool: ToolDefinition<typeof presetFireInputSchema> = {
   name: 'eos_preset_select',
   config: {
@@ -514,6 +532,15 @@ export const eosPresetSelectTool: ToolDefinition<typeof presetFireInputSchema> =
   }
 } satisfies ToolDefinition<typeof presetFireInputSchema>;
 
+/**
+ * @tool eos_preset_get_info
+ * @summary Informations de preset
+ * @description Recupere les informations detaillees pour un preset donne.
+ * @arguments Voir docs/tools.md#eos-preset-get-info pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-preset-get-info pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-preset-get-info pour un exemple OSC.
+ */
 export const eosPresetGetInfoTool: ToolDefinition<typeof presetGetInfoInputSchema> = {
   name: 'eos_preset_get_info',
   config: {

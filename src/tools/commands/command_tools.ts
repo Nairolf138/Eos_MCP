@@ -114,6 +114,15 @@ const commandInputSchema = {
   ...targetOptionsSchema
 };
 
+/**
+ * @tool eos_command
+ * @summary Commande EOS
+ * @description Envoie du texte sur la ligne de commande existante de la console.
+ * @arguments Voir docs/tools.md#eos-command pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-command pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-command pour un exemple OSC.
+ */
 export const eosCommandTool: ToolDefinition<typeof commandInputSchema> = {
   name: 'eos_command',
   config: {
@@ -149,6 +158,15 @@ const newCommandInputSchema = {
   ...targetOptionsSchema
 };
 
+/**
+ * @tool eos_new_command
+ * @summary Nouvelle commande EOS
+ * @description Efface optionnellement la ligne de commande puis envoie le texte fourni.
+ * @arguments Voir docs/tools.md#eos-new-command pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-new-command pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-new-command pour un exemple OSC.
+ */
 export const eosNewCommandTool: ToolDefinition<typeof newCommandInputSchema> = {
   name: 'eos_new_command',
   config: {
@@ -194,6 +212,15 @@ const substitutionCommandInputSchema = {
   ...targetOptionsSchema
 };
 
+/**
+ * @tool eos_command_with_substitution
+ * @summary Commande avec substitution
+ * @description Applique des substitutions %1, %2, ... puis envoie la commande.
+ * @arguments Voir docs/tools.md#eos-command-with-substitution pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-command-with-substitution pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-command-with-substitution pour un exemple OSC.
+ */
 export const eosCommandWithSubstitutionTool: ToolDefinition<typeof substitutionCommandInputSchema> = {
   name: 'eos_command_with_substitution',
   config: {
@@ -227,6 +254,15 @@ const commandLineInputSchema = {
   ...targetOptionsSchema
 };
 
+/**
+ * @tool eos_get_command_line
+ * @summary Lecture de la ligne de commande EOS
+ * @description Recupere le contenu courant de la ligne de commande via OSC Get.
+ * @arguments Voir docs/tools.md#eos-get-command-line pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-get-command-line pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-get-command-line pour un exemple OSC.
+ */
 export const eosGetCommandLineTool: ToolDefinition<typeof commandLineInputSchema> = {
   name: 'eos_get_command_line',
   config: {

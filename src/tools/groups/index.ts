@@ -217,6 +217,15 @@ const listAllInputSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
+/**
+ * @tool eos_group_select
+ * @summary Selection de groupe
+ * @description Selectionne un groupe sur la console Eos.
+ * @arguments Voir docs/tools.md#eos-group-select pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-group-select pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-group-select pour un exemple OSC.
+ */
 export const eosGroupSelectTool: ToolDefinition<typeof selectInputSchema> = {
   name: 'eos_group_select',
   config: {
@@ -253,6 +262,15 @@ export const eosGroupSelectTool: ToolDefinition<typeof selectInputSchema> = {
   }
 };
 
+/**
+ * @tool eos_group_set_level
+ * @summary Reglage de niveau de groupe
+ * @description Ajuste le niveau d'un groupe sur une echelle de 0 a 100.
+ * @arguments Voir docs/tools.md#eos-group-set-level pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-group-set-level pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-group-set-level pour un exemple OSC.
+ */
 export const eosGroupSetLevelTool: ToolDefinition<typeof setLevelInputSchema> = {
   name: 'eos_group_set_level',
   config: {
@@ -297,6 +315,15 @@ export const eosGroupSetLevelTool: ToolDefinition<typeof setLevelInputSchema> = 
   }
 };
 
+/**
+ * @tool eos_group_get_info
+ * @summary Informations sur un groupe
+ * @description Recupere les informations detaillees pour un groupe donne.
+ * @arguments Voir docs/tools.md#eos-group-get-info pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-group-get-info pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-group-get-info pour un exemple OSC.
+ */
 export const eosGroupGetInfoTool: ToolDefinition<typeof getInfoInputSchema> = {
   name: 'eos_group_get_info',
   config: {
@@ -355,6 +382,15 @@ export const eosGroupGetInfoTool: ToolDefinition<typeof getInfoInputSchema> = {
   }
 };
 
+/**
+ * @tool eos_group_list_all
+ * @summary Liste des groupes
+ * @description Recupere la liste des groupes disponibles avec leurs membres.
+ * @arguments Voir docs/tools.md#eos-group-list-all pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-group-list-all pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-group-list-all pour un exemple OSC.
+ */
 export const eosGroupListAllTool: ToolDefinition<typeof listAllInputSchema> = {
   name: 'eos_group_list_all',
   config: {

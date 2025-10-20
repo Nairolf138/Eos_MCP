@@ -24,6 +24,15 @@ const setCurrentUserInputSchema = {
   user: z.number().int().min(0, "L'identifiant utilisateur doit etre positif")
 };
 
+/**
+ * @tool session_set_current_user
+ * @summary Definir utilisateur courant
+ * @description Stocke en local le numero utilisateur EOS a utiliser par defaut.
+ * @arguments Voir docs/tools.md#session-set-current-user pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#session-set-current-user pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#session-set-current-user pour un exemple OSC.
+ */
 export const sessionSetCurrentUserTool: ToolDefinition<typeof setCurrentUserInputSchema> = {
   name: 'session_set_current_user',
   config: {
@@ -54,6 +63,15 @@ export const sessionSetCurrentUserTool: ToolDefinition<typeof setCurrentUserInpu
   }
 };
 
+/**
+ * @tool session_get_current_user
+ * @summary Utilisateur courant
+ * @description Renvoie le numero utilisateur EOS memorise localement.
+ * @arguments Voir docs/tools.md#session-get-current-user pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#session-get-current-user pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#session-get-current-user pour un exemple OSC.
+ */
 export const sessionGetCurrentUserTool: ToolDefinition = {
   name: 'session_get_current_user',
   config: {

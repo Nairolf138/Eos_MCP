@@ -348,6 +348,15 @@ const getActiveWheelsSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
+/**
+ * @tool eos_wheel_tick
+ * @summary Rotation d'encodeur
+ * @description Simule une rotation d'encodeur pour un parametre donne.
+ * @arguments Voir docs/tools.md#eos-wheel-tick pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-wheel-tick pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-wheel-tick pour un exemple OSC.
+ */
 export const eosWheelTickTool: ToolDefinition<typeof wheelTickInputSchema> = {
   name: 'eos_wheel_tick',
   config: {
@@ -388,6 +397,15 @@ export const eosWheelTickTool: ToolDefinition<typeof wheelTickInputSchema> = {
   }
 };
 
+/**
+ * @tool eos_switch_continuous
+ * @summary Mouvement continu
+ * @description Active un mouvement continu d'encodeur sur un parametre.
+ * @arguments Voir docs/tools.md#eos-switch-continuous pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-switch-continuous pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-switch-continuous pour un exemple OSC.
+ */
 export const eosWheelSwitchContinuousTool: ToolDefinition<typeof wheelRateInputSchema> = {
   name: 'eos_switch_continuous',
   config: {
@@ -425,6 +443,15 @@ export const eosWheelSwitchContinuousTool: ToolDefinition<typeof wheelRateInputS
   }
 };
 
+/**
+ * @tool eos_set_color_hs
+ * @summary Couleur HS
+ * @description Definit une couleur via Hue/Saturation.
+ * @arguments Voir docs/tools.md#eos-set-color-hs pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-set-color-hs pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-set-color-hs pour un exemple OSC.
+ */
 export const eosSetColorHsTool: ToolDefinition<typeof colorHsInputSchema> = {
   name: 'eos_set_color_hs',
   config: {
@@ -460,6 +487,15 @@ export const eosSetColorHsTool: ToolDefinition<typeof colorHsInputSchema> = {
   }
 };
 
+/**
+ * @tool eos_set_color_rgb
+ * @summary Couleur RGB
+ * @description Definit une couleur via valeurs RGB (0-1).
+ * @arguments Voir docs/tools.md#eos-set-color-rgb pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-set-color-rgb pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-set-color-rgb pour un exemple OSC.
+ */
 export const eosSetColorRgbTool: ToolDefinition<typeof colorRgbInputSchema> = {
   name: 'eos_set_color_rgb',
   config: {
@@ -495,6 +531,15 @@ export const eosSetColorRgbTool: ToolDefinition<typeof colorRgbInputSchema> = {
   }
 };
 
+/**
+ * @tool eos_set_pantilt_xy
+ * @summary Position Pan/Tilt XY
+ * @description Definit une position normalisee sur le plan XY (0-1).
+ * @arguments Voir docs/tools.md#eos-set-pantilt-xy pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-set-pantilt-xy pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-set-pantilt-xy pour un exemple OSC.
+ */
 export const eosSetPanTiltXYTool: ToolDefinition<typeof panTiltInputSchema> = {
   name: 'eos_set_pantilt_xy',
   config: {
@@ -529,6 +574,15 @@ export const eosSetPanTiltXYTool: ToolDefinition<typeof panTiltInputSchema> = {
   }
 };
 
+/**
+ * @tool eos_set_xyz_position
+ * @summary Position XYZ
+ * @description Definit une position XYZ en metres.
+ * @arguments Voir docs/tools.md#eos-set-xyz-position pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-set-xyz-position pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-set-xyz-position pour un exemple OSC.
+ */
 export const eosSetXYZPositionTool: ToolDefinition<typeof xyzInputSchema> = {
   name: 'eos_set_xyz_position',
   config: {
@@ -564,6 +618,15 @@ export const eosSetXYZPositionTool: ToolDefinition<typeof xyzInputSchema> = {
   }
 };
 
+/**
+ * @tool eos_get_active_wheels
+ * @summary Encodeurs actifs
+ * @description Recupere et normalise la liste des encodeurs actifs.
+ * @arguments Voir docs/tools.md#eos-get-active-wheels pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-get-active-wheels pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-get-active-wheels pour un exemple OSC.
+ */
 export const eosGetActiveWheelsTool: ToolDefinition<typeof getActiveWheelsSchema> = {
   name: 'eos_get_active_wheels',
   config: {

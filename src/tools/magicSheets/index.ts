@@ -293,6 +293,15 @@ function extractRole(extra: unknown): string | null {
   return null;
 }
 
+/**
+ * @tool eos_magic_sheet_open
+ * @summary Ouverture de magic sheet
+ * @description Ouvre un magic sheet specifique sur la console.
+ * @arguments Voir docs/tools.md#eos-magic-sheet-open pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-magic-sheet-open pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-magic-sheet-open pour un exemple OSC.
+ */
 export const eosMagicSheetOpenTool: ToolDefinition<typeof openInputSchema> = {
   name: 'eos_magic_sheet_open',
   config: {
@@ -337,6 +346,15 @@ export const eosMagicSheetOpenTool: ToolDefinition<typeof openInputSchema> = {
   }
 };
 
+/**
+ * @tool eos_magic_sheet_send_string
+ * @summary Envoi de commande via magic sheet
+ * @description Envoie une commande OSC via la fonctionnalite Magic Sheet.
+ * @arguments Voir docs/tools.md#eos-magic-sheet-send-string pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-magic-sheet-send-string pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-magic-sheet-send-string pour un exemple OSC.
+ */
 export const eosMagicSheetSendStringTool: ToolDefinition<typeof sendStringInputSchema> = {
   name: 'eos_magic_sheet_send_string',
   config: {
@@ -392,6 +410,15 @@ export const eosMagicSheetSendStringTool: ToolDefinition<typeof sendStringInputS
   }
 };
 
+/**
+ * @tool eos_magic_sheet_get_info
+ * @summary Informations de magic sheet
+ * @description Recupere le label et l'UID d'un magic sheet.
+ * @arguments Voir docs/tools.md#eos-magic-sheet-get-info pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-magic-sheet-get-info pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-magic-sheet-get-info pour un exemple OSC.
+ */
 export const eosMagicSheetGetInfoTool: ToolDefinition<typeof getInfoInputSchema> = {
   name: 'eos_magic_sheet_get_info',
   config: {

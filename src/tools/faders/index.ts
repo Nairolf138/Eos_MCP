@@ -189,6 +189,15 @@ function formatPercent(level: number): string {
   return Number.isInteger(percent) ? `${percent}%` : `${percent.toFixed(1)}%`;
 }
 
+/**
+ * @tool eos_fader_bank_create
+ * @summary Creation de bank de faders
+ * @description Cree un bank de faders OSC avec pagination optionnelle.
+ * @arguments Voir docs/tools.md#eos-fader-bank-create pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-fader-bank-create pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-fader-bank-create pour un exemple OSC.
+ */
 export const eosFaderBankCreateTool: ToolDefinition<typeof bankCreateInputSchema> = {
   name: 'eos_fader_bank_create',
   config: {
@@ -233,6 +242,15 @@ export const eosFaderBankCreateTool: ToolDefinition<typeof bankCreateInputSchema
   }
 };
 
+/**
+ * @tool eos_fader_set_level
+ * @summary Reglage de niveau de fader
+ * @description Definit le niveau (0-1 ou 0-100%) du fader cible.
+ * @arguments Voir docs/tools.md#eos-fader-set-level pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-fader-set-level pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-fader-set-level pour un exemple OSC.
+ */
 export const eosFaderSetLevelTool: ToolDefinition<typeof setLevelInputSchema> = {
   name: 'eos_fader_set_level',
   config: {
@@ -268,6 +286,15 @@ export const eosFaderSetLevelTool: ToolDefinition<typeof setLevelInputSchema> = 
   }
 };
 
+/**
+ * @tool eos_fader_load
+ * @summary Chargement de fader
+ * @description Charge le contenu courant sur le fader specifie.
+ * @arguments Voir docs/tools.md#eos-fader-load pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-fader-load pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-fader-load pour un exemple OSC.
+ */
 export const eosFaderLoadTool: ToolDefinition<typeof loadInputSchema> = {
   name: 'eos_fader_load',
   config: {
@@ -301,6 +328,15 @@ export const eosFaderLoadTool: ToolDefinition<typeof loadInputSchema> = {
   }
 };
 
+/**
+ * @tool eos_fader_unload
+ * @summary Dechargement de fader
+ * @description Decharge le contenu du fader specifie.
+ * @arguments Voir docs/tools.md#eos-fader-unload pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-fader-unload pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-fader-unload pour un exemple OSC.
+ */
 export const eosFaderUnloadTool: ToolDefinition<typeof loadInputSchema> = {
   name: 'eos_fader_unload',
   config: {
@@ -334,6 +370,15 @@ export const eosFaderUnloadTool: ToolDefinition<typeof loadInputSchema> = {
   }
 };
 
+/**
+ * @tool eos_fader_page
+ * @summary Navigation de bank de faders
+ * @description Change de page dans le bank en ajoutant le delta specifie.
+ * @arguments Voir docs/tools.md#eos-fader-page pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-fader-page pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-fader-page pour un exemple OSC.
+ */
 export const eosFaderPageTool: ToolDefinition<typeof pageInputSchema> = {
   name: 'eos_fader_page',
   config: {

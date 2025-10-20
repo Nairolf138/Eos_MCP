@@ -73,6 +73,15 @@ const formatDiagnostics = (diagnostics: OscDiagnostics): string => {
   return lines.join('\n');
 };
 
+/**
+ * @tool eos_enable_logging
+ * @summary Basculer le logging OSC
+ * @description Active ou desactive la journalisation des messages OSC entrants et sortants.
+ * @arguments Voir docs/tools.md#eos-enable-logging pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-enable-logging pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-enable-logging pour un exemple OSC.
+ */
 export const eosEnableLoggingTool: ToolDefinition<typeof loggingInputSchema> = {
   name: 'eos_enable_logging',
   config: {
@@ -102,6 +111,15 @@ export const eosEnableLoggingTool: ToolDefinition<typeof loggingInputSchema> = {
   }
 };
 
+/**
+ * @tool eos_get_diagnostics
+ * @summary Diagnostics OSC
+ * @description Recupere les informations de diagnostic du service OSC.
+ * @arguments Voir docs/tools.md#eos-get-diagnostics pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-get-diagnostics pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-get-diagnostics pour un exemple OSC.
+ */
 export const eosGetDiagnosticsTool: ToolDefinition<typeof emptyInputSchema> = {
   name: 'eos_get_diagnostics',
   config: {

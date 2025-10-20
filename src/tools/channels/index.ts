@@ -169,6 +169,15 @@ const getInfoSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
+/**
+ * @tool eos_channel_select
+ * @summary Selection de canaux
+ * @description Selectionne un ou plusieurs canaux sur la console.
+ * @arguments Voir docs/tools.md#eos-channel-select pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-channel-select pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-channel-select pour un exemple OSC.
+ */
 export const eosChannelSelectTool: ToolDefinition<typeof selectInputSchema> = {
   name: 'eos_channel_select',
   config: {
@@ -201,6 +210,15 @@ export const eosChannelSelectTool: ToolDefinition<typeof selectInputSchema> = {
   }
 };
 
+/**
+ * @tool eos_channel_set_level
+ * @summary Reglage de niveau
+ * @description Ajuste le niveau intensite de canaux specifiques (0-100).
+ * @arguments Voir docs/tools.md#eos-channel-set-level pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-channel-set-level pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-channel-set-level pour un exemple OSC.
+ */
 export const eosChannelSetLevelTool: ToolDefinition<typeof setLevelSchema> = {
   name: 'eos_channel_set_level',
   config: {
@@ -236,6 +254,15 @@ export const eosChannelSetLevelTool: ToolDefinition<typeof setLevelSchema> = {
   }
 };
 
+/**
+ * @tool eos_set_dmx
+ * @summary Reglage DMX
+ * @description Fixe une valeur DMX (0-255) sur une ou plusieurs adresses.
+ * @arguments Voir docs/tools.md#eos-set-dmx pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-set-dmx pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-set-dmx pour un exemple OSC.
+ */
 export const eosSetDmxTool: ToolDefinition<typeof setDmxSchema> = {
   name: 'eos_set_dmx',
   config: {
@@ -269,6 +296,15 @@ export const eosSetDmxTool: ToolDefinition<typeof setDmxSchema> = {
   }
 };
 
+/**
+ * @tool eos_channel_set_parameter
+ * @summary Reglage de parametre
+ * @description Ajuste un parametre de canal sur une echelle de 0 a 100.
+ * @arguments Voir docs/tools.md#eos-channel-set-parameter pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-channel-set-parameter pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-channel-set-parameter pour un exemple OSC.
+ */
 export const eosChannelSetParameterTool: ToolDefinition<typeof setParameterSchema> = {
   name: 'eos_channel_set_parameter',
   config: {
@@ -304,6 +340,15 @@ export const eosChannelSetParameterTool: ToolDefinition<typeof setParameterSchem
   }
 };
 
+/**
+ * @tool eos_channel_get_info
+ * @summary Informations de canaux
+ * @description Recupere des informations sur les canaux depuis la console.
+ * @arguments Voir docs/tools.md#eos-channel-get-info pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-channel-get-info pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-channel-get-info pour un exemple OSC.
+ */
 export const eosChannelGetInfoTool: ToolDefinition<typeof getInfoSchema> = {
   name: 'eos_channel_get_info',
   config: {

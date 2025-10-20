@@ -661,6 +661,15 @@ function extractTargetOptions(options: { targetAddress?: string; targetPort?: nu
   return target;
 }
 
+/**
+ * @tool eos_fpe_get_set_count
+ * @summary Compter les sets FPE
+ * @description Recupere le nombre total de sets Focus Palette Encoder.
+ * @arguments Voir docs/tools.md#eos-fpe-get-set-count pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-fpe-get-set-count pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-fpe-get-set-count pour un exemple OSC.
+ */
 export const eosFpeGetSetCountTool: ToolDefinition<typeof getSetCountInputSchema> = {
   name: 'eos_fpe_get_set_count',
   config: {
@@ -683,6 +692,15 @@ export const eosFpeGetSetCountTool: ToolDefinition<typeof getSetCountInputSchema
   }
 };
 
+/**
+ * @tool eos_fpe_get_set_info
+ * @summary Informations set FPE
+ * @description Recupere les informations detaillees pour un set Focus Palette Encoder.
+ * @arguments Voir docs/tools.md#eos-fpe-get-set-info pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-fpe-get-set-info pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-fpe-get-set-info pour un exemple OSC.
+ */
 export const eosFpeGetSetInfoTool: ToolDefinition<typeof getSetInfoInputSchema> = {
   name: 'eos_fpe_get_set_info',
   config: {
@@ -707,6 +725,15 @@ export const eosFpeGetSetInfoTool: ToolDefinition<typeof getSetInfoInputSchema> 
   }
 };
 
+/**
+ * @tool eos_fpe_get_point_info
+ * @summary Informations point FPE
+ * @description Recupere les informations detaillees pour un point Focus Palette Encoder.
+ * @arguments Voir docs/tools.md#eos-fpe-get-point-info pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-fpe-get-point-info pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-fpe-get-point-info pour un exemple OSC.
+ */
 export const eosFpeGetPointInfoTool: ToolDefinition<typeof getPointInfoInputSchema> = {
   name: 'eos_fpe_get_point_info',
   config: {

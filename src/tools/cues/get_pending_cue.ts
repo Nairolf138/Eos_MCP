@@ -17,6 +17,15 @@ const getPendingCueInputSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
+/**
+ * @tool eos_get_pending_cue
+ * @summary Cue en attente
+ * @description Recupere la prochaine cue en attente sur la liste specifiee (ou principale).
+ * @arguments Voir docs/tools.md#eos-get-pending-cue pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-get-pending-cue pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-get-pending-cue pour un exemple OSC.
+ */
 export const eosGetPendingCueTool: ToolDefinition<typeof getPendingCueInputSchema> = {
   name: 'eos_get_pending_cue',
   config: {

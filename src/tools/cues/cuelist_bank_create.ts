@@ -21,6 +21,15 @@ const bankCreateInputSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
+/**
+ * @tool eos_cuelist_bank_create
+ * @summary Creation de bank de cuelist
+ * @description Configure un bank OSC pour surveiller une liste de cues.
+ * @arguments Voir docs/tools.md#eos-cuelist-bank-create pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-cuelist-bank-create pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-cuelist-bank-create pour un exemple OSC.
+ */
 export const eosCuelistBankCreateTool: ToolDefinition<typeof bankCreateInputSchema> = {
   name: 'eos_cuelist_bank_create',
   config: {

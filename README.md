@@ -15,6 +15,24 @@ npm install
 - `npm test` : exécute la suite de tests (Jest).
 - `npm start` : lance le serveur MCP compilé en mode stdio.
 - `npm run start:dev` : lance le serveur MCP directement avec `ts-node`.
+- `npm run docs:generate` : régénère la documentation complète des outils MCP et les commentaires JSDoc.
+- `npm run docs:check` : vérifie que `docs/tools.md` est synchronisé avec le code source.
+
+## Documentation des outils
+
+La description détaillée de chaque outil MCP est disponible dans [`docs/tools.md`](docs/tools.md). Le fichier est généré automatiquement à partir des schémas Zod déclarés dans `src/tools/**`. Utilisez :
+
+```bash
+npm run docs:generate
+```
+
+pour mettre à jour la documentation et les commentaires JSDoc, puis :
+
+```bash
+npm run docs:check
+```
+
+dans votre CI pour garantir que la documentation est à jour.
 
 ## Configuration réseau
 
@@ -46,3 +64,25 @@ npm start
 ```
 
 Le serveur démarre sur le transport stdio du SDK MCP et initialisera un service OSC écoutant sur les ports configurés.
+
+## Utilisation
+
+### Appel via la CLI MCP
+
+Après avoir démarré le serveur (`npm run start:dev`), vous pouvez déclencher un outil directement avec le client officiel :
+
+```bash
+npx @modelcontextprotocol/cli call --tool ping --args '{"message":"Bonjour"}'
+```
+
+Les arguments attendus et d'autres exemples sont listés dans [`docs/tools.md`](docs/tools.md).
+
+### Appel via OSC
+
+Chaque outil documente également le chemin OSC correspondant. Par exemple, pour reproduire le `ping` via OSC :
+
+```bash
+oscsend 127.0.0.1 8001 /eos/ping s:'{"message":"Bonjour"}'
+```
+
+Adaptez le chemin et la charge utile selon la section dédiée dans la documentation des outils.

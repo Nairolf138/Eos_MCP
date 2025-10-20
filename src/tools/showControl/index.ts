@@ -207,6 +207,15 @@ const setCueReceiveStringInputSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
+/**
+ * @tool eos_get_show_name
+ * @summary Nom du show
+ * @description Recupere le nom du show actuellement charge sur la console.
+ * @arguments Voir docs/tools.md#eos-get-show-name pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-get-show-name pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-get-show-name pour un exemple OSC.
+ */
 export const eosGetShowNameTool: ToolDefinition<typeof getShowNameInputSchema> = {
   name: 'eos_get_show_name',
   config: {
@@ -255,6 +264,15 @@ export const eosGetShowNameTool: ToolDefinition<typeof getShowNameInputSchema> =
   }
 };
 
+/**
+ * @tool eos_get_live_blind_state
+ * @summary Etat Live/Blind
+ * @description Indique si la console est en mode Live ou Blind.
+ * @arguments Voir docs/tools.md#eos-get-live-blind-state pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-get-live-blind-state pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-get-live-blind-state pour un exemple OSC.
+ */
 export const eosGetLiveBlindStateTool: ToolDefinition<typeof getLiveBlindStateInputSchema> = {
   name: 'eos_get_live_blind_state',
   config: {
@@ -306,6 +324,15 @@ export const eosGetLiveBlindStateTool: ToolDefinition<typeof getLiveBlindStateIn
   }
 };
 
+/**
+ * @tool eos_toggle_staging_mode
+ * @summary Toggle Staging Mode
+ * @description Active ou desactive le mode Staging de la console.
+ * @arguments Voir docs/tools.md#eos-toggle-staging-mode pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-toggle-staging-mode pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-toggle-staging-mode pour un exemple OSC.
+ */
 export const eosToggleStagingModeTool: ToolDefinition<typeof targetOptionsSchema> = {
   name: 'eos_toggle_staging_mode',
   config: {
@@ -339,6 +366,15 @@ export const eosToggleStagingModeTool: ToolDefinition<typeof targetOptionsSchema
   }
 };
 
+/**
+ * @tool eos_set_cue_send_string
+ * @summary Format d'envoi des cues
+ * @description Configure le format d'envoi OSC des cues (placeholders %1-%5).
+ * @arguments Voir docs/tools.md#eos-set-cue-send-string pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-set-cue-send-string pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-set-cue-send-string pour un exemple OSC.
+ */
 export const eosSetCueSendStringTool: ToolDefinition<typeof setCueSendStringInputSchema> = {
   name: 'eos_set_cue_send_string',
   config: {
@@ -376,6 +412,15 @@ export const eosSetCueSendStringTool: ToolDefinition<typeof setCueSendStringInpu
   }
 };
 
+/**
+ * @tool eos_set_cue_receive_string
+ * @summary Format de reception des cues
+ * @description Configure le format de reception OSC des cues (placeholders %1-%2).
+ * @arguments Voir docs/tools.md#eos-set-cue-receive-string pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-set-cue-receive-string pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-set-cue-receive-string pour un exemple OSC.
+ */
 export const eosSetCueReceiveStringTool: ToolDefinition<typeof setCueReceiveStringInputSchema> = {
   name: 'eos_set_cue_receive_string',
   config: {

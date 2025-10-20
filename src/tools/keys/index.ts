@@ -183,6 +183,15 @@ function buildSoftkeyLabelsResult(
   });
 }
 
+/**
+ * @tool eos_key_press
+ * @summary Appui sur touche
+ * @description Simule l'appui ou le relachement d'une touche du clavier EOS.
+ * @arguments Voir docs/tools.md#eos-key-press pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-key-press pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-key-press pour un exemple OSC.
+ */
 export const eosKeyPressTool: ToolDefinition<typeof keyPressInputSchema> = {
   name: 'eos_key_press',
   config: {
@@ -222,6 +231,15 @@ export const eosKeyPressTool: ToolDefinition<typeof keyPressInputSchema> = {
   }
 };
 
+/**
+ * @tool eos_softkey_press
+ * @summary Appui sur softkey
+ * @description Simule l'appui ou le relachement d'une softkey (1-12).
+ * @arguments Voir docs/tools.md#eos-softkey-press pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-softkey-press pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-softkey-press pour un exemple OSC.
+ */
 export const eosSoftkeyPressTool: ToolDefinition<typeof softkeyPressInputSchema> = {
   name: 'eos_softkey_press',
   config: {
@@ -259,6 +277,15 @@ export const eosSoftkeyPressTool: ToolDefinition<typeof softkeyPressInputSchema>
   }
 };
 
+/**
+ * @tool eos_get_softkey_labels
+ * @summary Libelles des softkeys
+ * @description Recupere les libelles affiches des softkeys 1-12.
+ * @arguments Voir docs/tools.md#eos-get-softkey-labels pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-get-softkey-labels pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-get-softkey-labels pour un exemple OSC.
+ */
 export const eosGetSoftkeyLabelsTool: ToolDefinition<typeof softkeyLabelsInputSchema> = {
   name: 'eos_get_softkey_labels',
   config: {

@@ -362,6 +362,15 @@ function normaliseSubmasterInfo(raw: unknown, fallbackNumber: number): Submaster
   };
 }
 
+/**
+ * @tool eos_submaster_set_level
+ * @summary Reglage de submaster
+ * @description Ajuste le niveau d'un submaster sur une echelle de 0.0 a 1.0.
+ * @arguments Voir docs/tools.md#eos-submaster-set-level pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-submaster-set-level pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-submaster-set-level pour un exemple OSC.
+ */
 export const eosSubmasterSetLevelTool: ToolDefinition<typeof setLevelInputSchema> = {
   name: 'eos_submaster_set_level',
   config: {
@@ -391,6 +400,15 @@ export const eosSubmasterSetLevelTool: ToolDefinition<typeof setLevelInputSchema
   }
 };
 
+/**
+ * @tool eos_submaster_bump
+ * @summary Commande de bump
+ * @description Active ou desactive le bump d'un submaster.
+ * @arguments Voir docs/tools.md#eos-submaster-bump pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-submaster-bump pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-submaster-bump pour un exemple OSC.
+ */
 export const eosSubmasterBumpTool: ToolDefinition<typeof bumpInputSchema> = {
   name: 'eos_submaster_bump',
   config: {
@@ -421,6 +439,15 @@ export const eosSubmasterBumpTool: ToolDefinition<typeof bumpInputSchema> = {
   }
 };
 
+/**
+ * @tool eos_submaster_get_info
+ * @summary Informations sur un submaster
+ * @description Recupere et normalise les informations d'un submaster.
+ * @arguments Voir docs/tools.md#eos-submaster-get-info pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-submaster-get-info pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-submaster-get-info pour un exemple OSC.
+ */
 export const eosSubmasterGetInfoTool: ToolDefinition<typeof getInfoInputSchema> = {
   name: 'eos_submaster_get_info',
   config: {

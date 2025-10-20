@@ -11,6 +11,15 @@ const inputSchema = {
   clientId: z.string().min(1).optional()
 };
 
+/**
+ * @tool eos_connect
+ * @summary Connexion OSC EOS
+ * @description Initie un handshake OSC avec la console EOS, choisit un protocole et retourne la version detectee.
+ * @arguments Voir docs/tools.md#eos-connect pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-connect pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-connect pour un exemple OSC.
+ */
 export const eosConnectTool: ToolDefinition<typeof inputSchema> = {
   name: 'eos_connect',
   config: {

@@ -280,6 +280,15 @@ function buildSnapshotInfoResult(
   } as ToolExecutionResult;
 }
 
+/**
+ * @tool eos_snapshot_recall
+ * @summary Rappel de snapshot
+ * @description Rappelle un snapshot en envoyant son numero a la console.
+ * @arguments Voir docs/tools.md#eos-snapshot-recall pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-snapshot-recall pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-snapshot-recall pour un exemple OSC.
+ */
 export const eosSnapshotRecallTool: ToolDefinition<typeof recallInputSchema> = {
   name: 'eos_snapshot_recall',
   config: {
@@ -306,6 +315,15 @@ export const eosSnapshotRecallTool: ToolDefinition<typeof recallInputSchema> = {
   }
 };
 
+/**
+ * @tool eos_snapshot_get_info
+ * @summary Lecture des informations de snapshot
+ * @description Recupere les informations d'un snapshot, incluant label et UID.
+ * @arguments Voir docs/tools.md#eos-snapshot-get-info pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-snapshot-get-info pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-snapshot-get-info pour un exemple OSC.
+ */
 export const eosSnapshotGetInfoTool: ToolDefinition<typeof getInfoInputSchema> = {
   name: 'eos_snapshot_get_info',
   config: {

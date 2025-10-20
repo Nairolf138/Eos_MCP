@@ -666,6 +666,15 @@ const augment3dInputSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
+/**
+ * @tool eos_patch_get_channel_info
+ * @summary Informations de patch
+ * @description Recupere les informations de patch pour un canal donne.
+ * @arguments Voir docs/tools.md#eos-patch-get-channel-info pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-patch-get-channel-info pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-patch-get-channel-info pour un exemple OSC.
+ */
 export const eosPatchGetChannelInfoTool: ToolDefinition<typeof channelInfoInputSchema> = {
   name: 'eos_patch_get_channel_info',
   config: {
@@ -715,6 +724,15 @@ export const eosPatchGetChannelInfoTool: ToolDefinition<typeof channelInfoInputS
   }
 };
 
+/**
+ * @tool eos_patch_get_augment3d_position
+ * @summary Position Augment3d
+ * @description Recupere la position Augment3d d'une partie de canal.
+ * @arguments Voir docs/tools.md#eos-patch-get-augment3d-position pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-patch-get-augment3d-position pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-patch-get-augment3d-position pour un exemple OSC.
+ */
 export const eosPatchGetAugment3dPositionTool: ToolDefinition<typeof augment3dInputSchema> = {
   name: 'eos_patch_get_augment3d_position',
   config: {
@@ -764,6 +782,15 @@ export const eosPatchGetAugment3dPositionTool: ToolDefinition<typeof augment3dIn
   }
 };
 
+/**
+ * @tool eos_patch_get_augment3d_beam
+ * @summary Faisceau Augment3d
+ * @description Recupere les informations de faisceau Augment3d pour une partie de canal.
+ * @arguments Voir docs/tools.md#eos-patch-get-augment3d-beam pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-patch-get-augment3d-beam pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-patch-get-augment3d-beam pour un exemple OSC.
+ */
 export const eosPatchGetAugment3dBeamTool: ToolDefinition<typeof augment3dInputSchema> = {
   name: 'eos_patch_get_augment3d_beam',
   config: {

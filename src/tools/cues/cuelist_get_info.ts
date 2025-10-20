@@ -17,6 +17,15 @@ const cuelistInfoInputSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
+/**
+ * @tool eos_cuelist_get_info
+ * @summary Informations de cuelist
+ * @description Recupere les attributs d'une liste de cues (modes, flags...).
+ * @arguments Voir docs/tools.md#eos-cuelist-get-info pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-cuelist-get-info pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-cuelist-get-info pour un exemple OSC.
+ */
 export const eosCuelistGetInfoTool: ToolDefinition<typeof cuelistInfoInputSchema> = {
   name: 'eos_cuelist_get_info',
   config: {

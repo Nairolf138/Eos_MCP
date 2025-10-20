@@ -521,6 +521,15 @@ function buildEffectInfoResult(
   } as ToolExecutionResult;
 }
 
+/**
+ * @tool eos_effect_select
+ * @summary Selection d'effet
+ * @description Selectionne un effet sans le lancer.
+ * @arguments Voir docs/tools.md#eos-effect-select pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-effect-select pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-effect-select pour un exemple OSC.
+ */
 export const eosEffectSelectTool: ToolDefinition<typeof selectInputSchema> = {
   name: 'eos_effect_select',
   config: {
@@ -560,6 +569,15 @@ export const eosEffectSelectTool: ToolDefinition<typeof selectInputSchema> = {
   }
 };
 
+/**
+ * @tool eos_effect_stop
+ * @summary Arret d'effet
+ * @description Stoppe un effet actif sur la selection.
+ * @arguments Voir docs/tools.md#eos-effect-stop pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-effect-stop pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-effect-stop pour un exemple OSC.
+ */
 export const eosEffectStopTool: ToolDefinition<typeof stopInputSchema> = {
   name: 'eos_effect_stop',
   config: {
@@ -604,6 +622,15 @@ export const eosEffectStopTool: ToolDefinition<typeof stopInputSchema> = {
   }
 };
 
+/**
+ * @tool eos_effect_get_info
+ * @summary Informations d'effet
+ * @description Recupere les informations detaillees d'un effet.
+ * @arguments Voir docs/tools.md#eos-effect-get-info pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-effect-get-info pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-effect-get-info pour un exemple OSC.
+ */
 export const eosEffectGetInfoTool: ToolDefinition<typeof getInfoInputSchema> = {
   name: 'eos_effect_get_info',
   config: {
