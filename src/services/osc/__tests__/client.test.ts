@@ -77,7 +77,8 @@ describe('OscClient', () => {
     await expect(promise).resolves.toMatchObject<Partial<ConnectResult>>({
       status: 'timeout',
       availableProtocols: [],
-      version: null
+      version: null,
+      error: expect.stringContaining('expire')
     });
   });
 
@@ -116,7 +117,34 @@ describe('OscClient', () => {
 
     jest.advanceTimersByTime(6);
 
-    await expect(promise).resolves.toMatchObject({ status: 'timeout' });
+    await expect(promise).resolves.toMatchObject({
+      status: 'timeout',
+      error: expect.stringContaining('expire')
+    });
+  });
+
+  it('signale une connexion perdue pendant un ping', async () => {
+    const service = new FakeOscService();
+    const client = new OscClient(service);
+
+    const pingPromise = client.ping();
+
+    queueMicrotask(() => {
+      service.emit({
+        address: '/eos/ping/reply',
+        args: [
+          {
+            type: 's',
+            value: JSON.stringify({ status: 'error', message: 'Connection lost to console' })
+          }
+        ]
+      });
+    });
+
+    await expect(pingPromise).resolves.toMatchObject({
+      status: 'error',
+      error: expect.stringContaining('Connexion OSC perdue')
+    });
   });
 
   it('confirme la souscription OSC', async () => {

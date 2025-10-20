@@ -1,4 +1,6 @@
 import { UDPPort } from 'osc';
+import type { Logger } from 'pino';
+import { createLogger } from '../../server/logger.js';
 
 export interface OscMessageArgument {
   type: string;
@@ -17,7 +19,7 @@ export interface OscMessageSummary {
 
 export type OscMessageListener = (message: OscMessage) => void;
 
-export type OscLogger = Pick<Console, 'info' | 'debug' | 'error'>;
+export type OscLogger = Pick<Logger, 'info' | 'debug' | 'error'>;
 
 export interface OscLoggingState {
   incoming: boolean;
@@ -94,7 +96,7 @@ export class OscService {
   private readonly startedAt = Date.now();
 
   constructor(private readonly config: OscServiceConfig) {
-    this.logger = config.logger ?? console;
+    this.logger = config.logger ?? createLogger('osc-service');
 
     this.port = new UDPPort({
       localAddress: config.localAddress ?? '0.0.0.0',
@@ -260,7 +262,7 @@ export class OscService {
   }
 }
 
-export function createOscServiceFromEnv(): OscService {
+export function createOscServiceFromEnv(logger?: OscLogger): OscService {
   const localPort = Number.parseInt(process.env.OSC_UDP_IN_PORT ?? '8000', 10);
   const remotePort = Number.parseInt(process.env.OSC_UDP_OUT_PORT ?? '8001', 10);
   const remoteAddress = process.env.OSC_REMOTE_ADDRESS ?? '127.0.0.1';
@@ -268,6 +270,7 @@ export function createOscServiceFromEnv(): OscService {
   return new OscService({
     localPort,
     remotePort,
-    remoteAddress
+    remoteAddress,
+    logger
   });
 }

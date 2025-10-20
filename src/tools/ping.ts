@@ -1,12 +1,15 @@
 import { z } from 'zod';
+import { createLogger } from '../server/logger.js';
 import type { ToolDefinition, ToolMiddleware } from './types.js';
 
 const inputSchema = {
   message: z.string().optional()
 };
 
+const logger = createLogger('tool:ping');
+
 const loggingMiddleware: ToolMiddleware = async (context, next) => {
-  console.debug(`[MCP] Execution du tool ${context.name}`);
+  logger.debug({ tool: context.name }, `[MCP] Execution du tool ${context.name}`);
   return next();
 };
 
