@@ -22,6 +22,7 @@ import snapshotTools from './snapshots/index.js';
 import curveTools from './curves/index.js';
 import patchTools from './patch/index.js';
 import showControlTools from './showControl/index.js';
+import queryTools from './queries/index.js';
 import type { ToolDefinition } from './types.js';
 
 export const toolDefinitions: ToolDefinition[] = [
@@ -48,7 +49,8 @@ export const toolDefinitions: ToolDefinition[] = [
   ...curveTools,
   ...patchTools,
   ...snapshotTools,
-  ...showControlTools
+  ...showControlTools,
+  ...queryTools
 ];
 
 export default toolDefinitions;
