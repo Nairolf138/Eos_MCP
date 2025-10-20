@@ -1,4 +1,10 @@
 import { z, type ZodRawShape } from 'zod';
+import {
+  createCacheKey,
+  createOscPrefixTag,
+  createResourceTag,
+  getResourceCache
+} from '../../services/cache/index';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
 import { oscMappings } from '../../services/osc/mappings';
@@ -480,34 +486,52 @@ export const eosSubmasterGetInfoTool: ToolDefinition<typeof getInfoInputSchema> 
     const options = schema.parse(args ?? {});
     const client = getOscClient();
     const payload = { submaster: options.submaster_number };
-
-    const response: OscJsonResponse = await client.requestJson(oscMappings.submasters.info, {
+    const cacheKey = createCacheKey({
+      address: oscMappings.submasters.info,
       payload,
-      timeoutMs: options.timeoutMs,
       targetAddress: options.targetAddress,
       targetPort: options.targetPort
     });
+    const cache = getResourceCache();
 
-    const info = normaliseSubmasterInfo(
-      (response.data as Record<string, unknown> | null)?.submaster ?? response.data,
-      options.submaster_number
-    );
+    return cache.fetch<ToolExecutionResult>({
+      resourceType: 'submasters',
+      key: cacheKey,
+      tags: [
+        createResourceTag('submasters'),
+        createResourceTag('submasters', String(options.submaster_number))
+      ],
+      prefixTags: [createOscPrefixTag('/eos/out/')],
+      fetcher: async () => {
+        const response: OscJsonResponse = await client.requestJson(oscMappings.submasters.info, {
+          payload,
+          timeoutMs: options.timeoutMs,
+          targetAddress: options.targetAddress,
+          targetPort: options.targetPort
+        });
 
-    const text =
-      response.status === 'ok'
-        ? `Informations recues pour le submaster ${info.submasterNumber}.`
-        : `Lecture des informations du submaster ${info.submasterNumber} terminee avec le statut ${response.status}.`;
+        const info = normaliseSubmasterInfo(
+          (response.data as Record<string, unknown> | null)?.submaster ?? response.data,
+          options.submaster_number
+        );
 
-    return createResult(text, {
-      action: 'submaster_get_info',
-      status: response.status,
-      request: payload,
-      submaster: info,
-      data: response.data,
-      error: response.error ?? null,
-      osc: {
-        address: oscMappings.submasters.info,
-        args: payload
+        const text =
+          response.status === 'ok'
+            ? `Informations recues pour le submaster ${info.submasterNumber}.`
+            : `Lecture des informations du submaster ${info.submasterNumber} terminee avec le statut ${response.status}.`;
+
+        return createResult(text, {
+          action: 'submaster_get_info',
+          status: response.status,
+          request: payload,
+          submaster: info,
+          data: response.data,
+          error: response.error ?? null,
+          osc: {
+            address: oscMappings.submasters.info,
+            args: payload
+          }
+        });
       }
     });
   }

@@ -1,4 +1,10 @@
 import { z, type ZodRawShape } from 'zod';
+import {
+  createCacheKey,
+  createOscPrefixTag,
+  createResourceTag,
+  getResourceCache
+} from '../../services/cache/index';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
 import { oscMappings } from '../../services/osc/mappings';
@@ -717,36 +723,54 @@ export const eosPixmapGetInfoTool: ToolDefinition<typeof getInfoInputSchema> = {
     const payload = {
       pixmap: options.pixmap_number
     };
-
-    const response: OscJsonResponse = await client.requestJson(oscMappings.pixelMaps.info, {
+    const cacheKey = createCacheKey({
+      address: oscMappings.pixelMaps.info,
       payload,
-      timeoutMs: options.timeoutMs,
       targetAddress: options.targetAddress,
       targetPort: options.targetPort
     });
+    const cache = getResourceCache();
 
-    const pixmapData = normalisePixelMapInfo(
-      (response.data as Record<string, unknown> | null)?.pixmap ?? response.data,
-      options.pixmap_number
-    );
+    return cache.fetch<ToolExecutionResult>({
+      resourceType: 'pixelMaps',
+      key: cacheKey,
+      tags: [
+        createResourceTag('pixelMaps'),
+        createResourceTag('pixelMaps', String(options.pixmap_number))
+      ],
+      prefixTags: [createOscPrefixTag('/eos/out/')],
+      fetcher: async () => {
+        const response: OscJsonResponse = await client.requestJson(oscMappings.pixelMaps.info, {
+          payload,
+          timeoutMs: options.timeoutMs,
+          targetAddress: options.targetAddress,
+          targetPort: options.targetPort
+        });
 
-    const validatedPixmap = pixelMapInfoOutputSchema.parse(pixmapData);
+        const pixmapData = normalisePixelMapInfo(
+          (response.data as Record<string, unknown> | null)?.pixmap ?? response.data,
+          options.pixmap_number
+        );
 
-    const baseText =
-      response.status === 'ok'
-        ? `Informations recues pour le pixel map ${validatedPixmap.pixmap_number}.`
-        : `Lecture des informations du pixel map ${validatedPixmap.pixmap_number} terminee avec le statut ${response.status}.`;
+        const validatedPixmap = pixelMapInfoOutputSchema.parse(pixmapData);
 
-    return createResult(baseText, {
-      action: 'get_info',
-      status: response.status,
-      request: payload,
-      pixmap: validatedPixmap,
-      data: response.data,
-      error: response.error ?? null,
-      osc: {
-        address: oscMappings.pixelMaps.info,
-        args: payload
+        const baseText =
+          response.status === 'ok'
+            ? `Informations recues pour le pixel map ${validatedPixmap.pixmap_number}.`
+            : `Lecture des informations du pixel map ${validatedPixmap.pixmap_number} terminee avec le statut ${response.status}.`;
+
+        return createResult(baseText, {
+          action: 'get_info',
+          status: response.status,
+          request: payload,
+          pixmap: validatedPixmap,
+          data: response.data,
+          error: response.error ?? null,
+          osc: {
+            address: oscMappings.pixelMaps.info,
+            args: payload
+          }
+        });
       }
     });
   }

@@ -1,4 +1,10 @@
 import { z, type ZodRawShape } from 'zod';
+import {
+  createCacheKey,
+  createOscPrefixTag,
+  createResourceTag,
+  getResourceCache
+} from '../../services/cache/index';
 import { getOscClient } from '../../services/osc/client';
 import { oscMappings } from '../../services/osc/mappings';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
@@ -49,36 +55,55 @@ export const eosCueListAllTool: ToolDefinition<typeof listAllInputSchema> = {
       cuePart: null
     });
 
-    const response = await client.requestJson(oscMappings.cues.list, {
+    const cacheKey = createCacheKey({
+      address: oscMappings.cues.list,
       payload,
-      ...extractTargetOptions(options)
+      targetAddress: options.targetAddress,
+      targetPort: options.targetPort
     });
+    const cache = getResourceCache();
 
-    const cues = mapCueList(response.data, identifier);
+    return cache.fetch<ToolExecutionResult>({
+      resourceType: 'cuelists',
+      key: cacheKey,
+      tags: [
+        createResourceTag('cuelists'),
+        createResourceTag('cuelists', String(identifier.cuelistNumber))
+      ],
+      prefixTags: [createOscPrefixTag('/eos/out/')],
+      fetcher: async () => {
+        const response = await client.requestJson(oscMappings.cues.list, {
+          payload,
+          ...extractTargetOptions(options)
+        });
 
-    const listLabel = formatCueDescription({ ...identifier, cueNumber: null, cuePart: null });
-    const text = `${listLabel}: ${cues.length} cue(s).`;
+        const cues = mapCueList(response.data, identifier);
 
-    const result: ToolExecutionResult = {
-      content: [
-        { type: 'text', text },
-        {
-          type: 'object',
-          data: {
-            action: 'cue_list_all',
-            status: response.status,
-            request: payload,
-            cues,
-            osc: {
-              address: oscMappings.cues.list,
-              response: response.payload
+        const listLabel = formatCueDescription({ ...identifier, cueNumber: null, cuePart: null });
+        const text = `${listLabel}: ${cues.length} cue(s).`;
+
+        const result: ToolExecutionResult = {
+          content: [
+            { type: 'text', text },
+            {
+              type: 'object',
+              data: {
+                action: 'cue_list_all',
+                status: response.status,
+                request: payload,
+                cues,
+                osc: {
+                  address: oscMappings.cues.list,
+                  response: response.payload
+                }
+              }
             }
-          }
-        }
-      ]
-    } as ToolExecutionResult;
+          ]
+        } as ToolExecutionResult;
 
-    return result;
+        return result;
+      }
+    });
   }
 };
 

@@ -1,5 +1,6 @@
 import type { OscMessage } from '../../../services/osc/index';
 import { OscClient, setOscClient, type OscGateway } from '../../../services/osc/client';
+import { getResourceCache } from '../../../services/cache/index';
 import { oscMappings } from '../../../services/osc/mappings';
 import {
   eosGroupSelectTool,
@@ -41,10 +42,12 @@ describe('group tools', () => {
     service = new FakeOscService();
     const client = new OscClient(service, { defaultTimeoutMs: 50 });
     setOscClient(client);
+    getResourceCache().clearAll();
   });
 
   afterEach(() => {
     setOscClient(null);
+    getResourceCache().clearAll();
   });
 
   it('envoie la selection de groupe avec le numero attendu', async () => {
@@ -164,5 +167,39 @@ describe('group tools', () => {
         }
       ]
     });
+  });
+
+  it('utilise le cache pour les requetes get_info consecutives', async () => {
+    const firstPromise = runTool(eosGroupGetInfoTool, { group_number: 7 });
+
+    queueMicrotask(() => {
+      service.emit({
+        address: oscMappings.groups.info,
+        args: [
+          {
+            type: 's',
+            value: JSON.stringify({
+              status: 'ok',
+              group: {
+                number: 7,
+                label: 'Cache Test',
+                members: [1]
+              }
+            })
+          }
+        ]
+      });
+    });
+
+    const firstResult = await firstPromise;
+    expect(service.sentMessages).toHaveLength(1);
+
+    const secondResult = await runTool(eosGroupGetInfoTool, { group_number: 7 });
+    expect(service.sentMessages).toHaveLength(1);
+    expect(secondResult).toBe(firstResult);
+
+    const stats = getResourceCache().getStats('groups');
+    expect(stats.hits).toBeGreaterThanOrEqual(1);
+    expect(stats.misses).toBeGreaterThanOrEqual(1);
   });
 });

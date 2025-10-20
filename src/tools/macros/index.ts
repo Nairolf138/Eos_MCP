@@ -1,4 +1,10 @@
 import { z, type ZodRawShape } from 'zod';
+import {
+  createCacheKey,
+  createOscPrefixTag,
+  createResourceTag,
+  getResourceCache
+} from '../../services/cache/index';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
 import { oscMappings } from '../../services/osc/mappings';
@@ -461,15 +467,33 @@ export const eosMacroGetInfoTool: ToolDefinition<typeof getInfoInputSchema> = {
     const payload = {
       macro: options.macro_number
     };
-
-    const response = await client.requestJson(oscMappings.macros.info, {
+    const cacheKey = createCacheKey({
+      address: oscMappings.macros.info,
       payload,
-      timeoutMs: options.timeoutMs,
       targetAddress: options.targetAddress,
       targetPort: options.targetPort
     });
+    const cache = getResourceCache();
 
-    return buildMacroInfoResult(response, options.macro_number, payload);
+    return cache.fetch<ToolExecutionResult>({
+      resourceType: 'macros',
+      key: cacheKey,
+      tags: [
+        createResourceTag('macros'),
+        createResourceTag('macros', String(options.macro_number))
+      ],
+      prefixTags: [createOscPrefixTag('/eos/out/')],
+      fetcher: async () => {
+        const response = await client.requestJson(oscMappings.macros.info, {
+          payload,
+          timeoutMs: options.timeoutMs,
+          targetAddress: options.targetAddress,
+          targetPort: options.targetPort
+        });
+
+        return buildMacroInfoResult(response, options.macro_number, payload);
+      }
+    });
   }
 };
 

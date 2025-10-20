@@ -1,4 +1,10 @@
 import { z, type ZodRawShape } from 'zod';
+import {
+  createCacheKey,
+  createOscPrefixTag,
+  createResourceTag,
+  getResourceCache
+} from '../../services/cache/index';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
 import { oscMappings } from '../../services/osc/mappings';
@@ -352,14 +358,33 @@ export const eosSnapshotGetInfoTool: ToolDefinition<typeof getInfoInputSchema> =
       payload.fields = options.fields;
     }
 
-    const response = await client.requestJson(oscMappings.snapshots.info, {
+    const cacheKey = createCacheKey({
+      address: oscMappings.snapshots.info,
       payload,
-      timeoutMs: options.timeoutMs,
       targetAddress: options.targetAddress,
       targetPort: options.targetPort
     });
+    const cache = getResourceCache();
 
-    return buildSnapshotInfoResult(response, options.snapshot_number, payload);
+    return cache.fetch<ToolExecutionResult>({
+      resourceType: 'snapshots',
+      key: cacheKey,
+      tags: [
+        createResourceTag('snapshots'),
+        createResourceTag('snapshots', String(options.snapshot_number))
+      ],
+      prefixTags: [createOscPrefixTag('/eos/out/')],
+      fetcher: async () => {
+        const response = await client.requestJson(oscMappings.snapshots.info, {
+          payload,
+          timeoutMs: options.timeoutMs,
+          targetAddress: options.targetAddress,
+          targetPort: options.targetPort
+        });
+
+        return buildSnapshotInfoResult(response, options.snapshot_number, payload);
+      }
+    });
   }
 };
 

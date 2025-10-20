@@ -1,4 +1,10 @@
 import { z, type ZodRawShape } from 'zod';
+import {
+  createCacheKey,
+  createOscPrefixTag,
+  createResourceTag,
+  getResourceCache
+} from '../../services/cache/index';
 import { getOscClient } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
 import { oscMappings } from '../../services/osc/mappings';
@@ -560,35 +566,54 @@ export const eosPresetGetInfoTool: ToolDefinition<typeof presetGetInfoInputSchem
       payload.fields = options.fields;
     }
 
-    const response = await client.requestJson(oscMappings.presets.info, {
+    const cacheKey = createCacheKey({
+      address: oscMappings.presets.info,
       payload,
-      timeoutMs: options.timeoutMs,
-      ...extractTargetOptions(options)
+      targetAddress: options.targetAddress,
+      targetPort: options.targetPort
     });
+    const cache = getResourceCache();
 
-    const info = mapPresetInfo(response.data, options.preset_number);
-    const text = formatPresetDescription(info);
+    return cache.fetch<ToolExecutionResult>({
+      resourceType: 'presets',
+      key: cacheKey,
+      tags: [
+        createResourceTag('presets'),
+        createResourceTag('presets', String(options.preset_number))
+      ],
+      prefixTags: [createOscPrefixTag('/eos/out/')],
+      fetcher: async () => {
+        const response = await client.requestJson(oscMappings.presets.info, {
+          payload,
+          timeoutMs: options.timeoutMs,
+          ...extractTargetOptions(options)
+        });
 
-    const result: ToolExecutionResult = {
-      content: [
-        { type: 'text', text },
-        {
-          type: 'object',
-          data: {
-            action: 'preset_get_info',
-            status: response.status,
-            request: payload,
-            preset: info,
-            osc: {
-              address: oscMappings.presets.info,
-              response: response.payload
+        const info = mapPresetInfo(response.data, options.preset_number);
+        const text = formatPresetDescription(info);
+
+        const result: ToolExecutionResult = {
+          content: [
+            { type: 'text', text },
+            {
+              type: 'object',
+              data: {
+                action: 'preset_get_info',
+                status: response.status,
+                request: payload,
+                preset: info,
+                osc: {
+                  address: oscMappings.presets.info,
+                  response: response.payload
+                }
+              }
             }
-          }
-        }
-      ]
-    } as ToolExecutionResult;
+          ]
+        } as ToolExecutionResult;
 
-    return result;
+        return result;
+      }
+    });
   }
 };
 

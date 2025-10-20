@@ -1,4 +1,10 @@
 import { z, type ZodRawShape } from 'zod';
+import {
+  createCacheKey,
+  createOscPrefixTag,
+  createResourceTag,
+  getResourceCache
+} from '../../services/cache/index';
 import { getOscClient } from '../../services/osc/client';
 import { oscMappings } from '../../services/osc/mappings';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
@@ -67,35 +73,54 @@ export const eosCueGetInfoTool: ToolDefinition<typeof getInfoInputSchema> = {
       payload.fields = options.fields;
     }
 
-    const response = await client.requestJson(oscMappings.cues.info, {
+    const cacheKey = createCacheKey({
+      address: oscMappings.cues.info,
       payload,
-      ...extractTargetOptions(options)
+      targetAddress: options.targetAddress,
+      targetPort: options.targetPort
     });
+    const cache = getResourceCache();
 
-    const details = mapCueDetails(response.data, identifier);
+    return cache.fetch<ToolExecutionResult>({
+      resourceType: 'cues',
+      key: cacheKey,
+      tags: [
+        createResourceTag('cues'),
+        createResourceTag('cues', `${identifier.cuelistNumber}:${identifier.cueNumber}:${identifier.cuePart}`)
+      ],
+      prefixTags: [createOscPrefixTag('/eos/out/')],
+      fetcher: async () => {
+        const response = await client.requestJson(oscMappings.cues.info, {
+          payload,
+          ...extractTargetOptions(options)
+        });
 
-    const text = formatCueInfoText(details);
+        const details = mapCueDetails(response.data, identifier);
 
-    const result: ToolExecutionResult = {
-      content: [
-        { type: 'text', text },
-        {
-          type: 'object',
-          data: {
-            action: 'cue_get_info',
-            status: response.status,
-            request: payload,
-            cue: details,
-            osc: {
-              address: oscMappings.cues.info,
-              response: response.payload
+        const text = formatCueInfoText(details);
+
+        const result: ToolExecutionResult = {
+          content: [
+            { type: 'text', text },
+            {
+              type: 'object',
+              data: {
+                action: 'cue_get_info',
+                status: response.status,
+                request: payload,
+                cue: details,
+                osc: {
+                  address: oscMappings.cues.info,
+                  response: response.payload
+                }
+              }
             }
-          }
-        }
-      ]
-    } as ToolExecutionResult;
+          ]
+        } as ToolExecutionResult;
 
-    return result;
+        return result;
+      }
+    });
   }
 };
 
