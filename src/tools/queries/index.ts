@@ -182,6 +182,15 @@ const listOutputSchema = {
   })
 } satisfies ZodRawShape;
 
+/**
+ * @tool eos_get_count
+ * @summary Compter les elements
+ * @description Recupere le nombre total d'elements pour un type donne.
+ * @arguments Voir docs/tools.md#eos-get-count pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-get-count pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-get-count pour un exemple OSC.
+ */
 export const eosGetCountTool: ToolDefinition<typeof countInputSchema> = {
   name: 'eos_get_count',
   config: {
@@ -225,6 +234,15 @@ export const eosGetCountTool: ToolDefinition<typeof countInputSchema> = {
   }
 };
 
+/**
+ * @tool eos_get_list_all
+ * @summary Lister tous les elements
+ * @description Recupere la liste complete des elements pour un type donne.
+ * @arguments Voir docs/tools.md#eos-get-list-all pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-get-list-all pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-get-list-all pour un exemple OSC.
+ */
 export const eosGetListAllTool: ToolDefinition<typeof listInputSchema> = {
   name: 'eos_get_list_all',
   config: {

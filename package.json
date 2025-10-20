@@ -8,7 +8,9 @@
     "lint": "eslint \"src/**/*.ts\"",
     "test": "jest --passWithNoTests",
     "start": "node dist/server/index.js",
-    "start:dev": "ts-node src/server/index.ts"
+    "start:dev": "ts-node src/server/index.ts",
+    "docs:generate": "ts-node --transpile-only --compiler-options '{\"allowImportingTsExtensions\":true}' scripts/toolDocs.ts",
+    "docs:check": "ts-node --transpile-only --compiler-options '{\"allowImportingTsExtensions\":true}' scripts/toolDocs.ts --check --skip-jsdoc"
   },
   "keywords": [
     "mcp",
@@ -35,6 +37,7 @@
     "globals": "^16.4.0",
     "jest": "^30.2.0",
     "ts-jest": "^29.4.5",
+    "ts-morph": "^27.0.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   }

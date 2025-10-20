@@ -174,6 +174,15 @@ const addressSetDmxInputSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
+/**
+ * @tool eos_address_select
+ * @summary Selection d'adresse DMX
+ * @description Selectionne une adresse DMX specifique sur la console.
+ * @arguments Voir docs/tools.md#eos-address-select pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-address-select pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-address-select pour un exemple OSC.
+ */
 export const eosAddressSelectTool: ToolDefinition<typeof addressSelectInputSchema> = {
   name: 'eos_address_select',
   config: {
@@ -207,6 +216,15 @@ export const eosAddressSelectTool: ToolDefinition<typeof addressSelectInputSchem
   }
 };
 
+/**
+ * @tool eos_address_set_level
+ * @summary Reglage de niveau d'adresse DMX
+ * @description Ajuste le niveau (0-100) pour une adresse DMX donnee.
+ * @arguments Voir docs/tools.md#eos-address-set-level pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-address-set-level pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-address-set-level pour un exemple OSC.
+ */
 export const eosAddressSetLevelTool: ToolDefinition<typeof addressSetLevelInputSchema> = {
   name: 'eos_address_set_level',
   config: {
@@ -242,6 +260,15 @@ export const eosAddressSetLevelTool: ToolDefinition<typeof addressSetLevelInputS
   }
 };
 
+/**
+ * @tool eos_address_set_dmx
+ * @summary Reglage DMX brut
+ * @description Fixe une valeur DMX brute (0-255) pour une adresse DMX.
+ * @arguments Voir docs/tools.md#eos-address-set-dmx pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-address-set-dmx pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-address-set-dmx pour un exemple OSC.
+ */
 export const eosAddressSetDmxTool: ToolDefinition<typeof addressSetDmxInputSchema> = {
   name: 'eos_address_set_dmx',
   config: {

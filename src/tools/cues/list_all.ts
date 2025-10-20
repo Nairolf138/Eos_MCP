@@ -17,6 +17,15 @@ const listAllInputSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
+/**
+ * @tool eos_cue_list_all
+ * @summary Liste des cues
+ * @description Recupere toutes les cues d'une liste avec leurs labels.
+ * @arguments Voir docs/tools.md#eos-cue-list-all pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-cue-list-all pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-cue-list-all pour un exemple OSC.
+ */
 export const eosCueListAllTool: ToolDefinition<typeof listAllInputSchema> = {
   name: 'eos_cue_list_all',
   config: {

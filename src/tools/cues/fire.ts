@@ -23,6 +23,15 @@ const fireInputSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
+/**
+ * @tool eos_cue_fire
+ * @summary Declenchement de cue
+ * @description Declenche immediatement une cue specifique dans une liste donnee.
+ * @arguments Voir docs/tools.md#eos-cue-fire pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-cue-fire pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-cue-fire pour un exemple OSC.
+ */
 export const eosCueFireTool: ToolDefinition<typeof fireInputSchema> = {
   name: 'eos_cue_fire',
   config: {

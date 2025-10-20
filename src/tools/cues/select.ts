@@ -22,6 +22,15 @@ const selectInputSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
+/**
+ * @tool eos_cue_select
+ * @summary Selection de cue
+ * @description Selectionne une cue dans la liste sans la declencher.
+ * @arguments Voir docs/tools.md#eos-cue-select pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-cue-select pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-cue-select pour un exemple OSC.
+ */
 export const eosCueSelectTool: ToolDefinition<typeof selectInputSchema> = {
   name: 'eos_cue_select',
   config: {

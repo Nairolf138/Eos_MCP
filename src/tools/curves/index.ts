@@ -344,6 +344,15 @@ function buildCurveInfoResult(
   } as ToolExecutionResult;
 }
 
+/**
+ * @tool eos_curve_select
+ * @summary Selection de courbe
+ * @description Selectionne une courbe en envoyant son numero a la console.
+ * @arguments Voir docs/tools.md#eos-curve-select pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-curve-select pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-curve-select pour un exemple OSC.
+ */
 export const eosCurveSelectTool: ToolDefinition<typeof selectInputSchema> = {
   name: 'eos_curve_select',
   config: {
@@ -369,6 +378,15 @@ export const eosCurveSelectTool: ToolDefinition<typeof selectInputSchema> = {
   }
 };
 
+/**
+ * @tool eos_curve_get_info
+ * @summary Lecture des informations de courbe
+ * @description Recupere les informations d'une courbe, incluant label et points.
+ * @arguments Voir docs/tools.md#eos-curve-get-info pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-curve-get-info pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-curve-get-info pour un exemple OSC.
+ */
 export const eosCurveGetInfoTool: ToolDefinition<typeof getInfoInputSchema> = {
   name: 'eos_curve_get_info',
   config: {

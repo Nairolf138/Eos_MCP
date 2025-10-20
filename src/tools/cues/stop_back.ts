@@ -19,6 +19,15 @@ const stopBackInputSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
+/**
+ * @tool eos_cue_stop_back
+ * @summary Stop ou Back sur liste de cues
+ * @description Stoppe la lecture de la liste ou effectue un back selon l'option fournie.
+ * @arguments Voir docs/tools.md#eos-cue-stop-back pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-cue-stop-back pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-cue-stop-back pour un exemple OSC.
+ */
 export const eosCueStopBackTool: ToolDefinition<typeof stopBackInputSchema> = {
   name: 'eos_cue_stop_back',
   config: {

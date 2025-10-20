@@ -647,6 +647,15 @@ function normalisePixelMapInfo(raw: unknown, fallbackNumber: number): PixelMapIn
   return info;
 }
 
+/**
+ * @tool eos_pixmap_select
+ * @summary Selection de pixel map
+ * @description Selectionne un pixel map sur la console Eos.
+ * @arguments Voir docs/tools.md#eos-pixmap-select pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-pixmap-select pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-pixmap-select pour un exemple OSC.
+ */
 export const eosPixmapSelectTool: ToolDefinition<typeof selectInputSchema> = {
   name: 'eos_pixmap_select',
   config: {
@@ -683,6 +692,15 @@ export const eosPixmapSelectTool: ToolDefinition<typeof selectInputSchema> = {
   }
 };
 
+/**
+ * @tool eos_pixmap_get_info
+ * @summary Informations sur un pixel map
+ * @description Recupere les informations detaillees pour un pixel map donne.
+ * @arguments Voir docs/tools.md#eos-pixmap-get-info pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-pixmap-get-info pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-pixmap-get-info pour un exemple OSC.
+ */
 export const eosPixmapGetInfoTool: ToolDefinition<typeof getInfoInputSchema> = {
   name: 'eos_pixmap_get_info',
   config: {

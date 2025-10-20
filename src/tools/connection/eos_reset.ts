@@ -9,6 +9,15 @@ const inputSchema = {
   targetPort: z.number().int().min(1).max(65535).optional()
 };
 
+/**
+ * @tool eos_reset
+ * @summary Reset OSC EOS
+ * @description Envoie une commande de reset a la console EOS.
+ * @arguments Voir docs/tools.md#eos-reset pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-reset pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-reset pour un exemple OSC.
+ */
 export const eosResetTool: ToolDefinition<typeof inputSchema> = {
   name: 'eos_reset',
   config: {

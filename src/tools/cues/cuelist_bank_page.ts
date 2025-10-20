@@ -10,6 +10,15 @@ const bankPageInputSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
+/**
+ * @tool eos_cuelist_bank_page
+ * @summary Navigation de bank de cuelist
+ * @description Change de page dans un bank de cues en ajoutant le delta specifie.
+ * @arguments Voir docs/tools.md#eos-cuelist-bank-page pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-cuelist-bank-page pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-cuelist-bank-page pour un exemple OSC.
+ */
 export const eosCuelistBankPageTool: ToolDefinition<typeof bankPageInputSchema> = {
   name: 'eos_cuelist_bank_page',
   config: {

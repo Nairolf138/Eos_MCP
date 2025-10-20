@@ -208,6 +208,15 @@ const pressSchema = z.object(pressInputSchema).strict();
 
 const pageSchema = z.object(pageInputSchema).strict();
 
+/**
+ * @tool eos_direct_select_bank_create
+ * @summary Creation de bank de direct selects
+ * @description Cree un bank de direct selects OSC avec configuration de cible et pagination.
+ * @arguments Voir docs/tools.md#eos-direct-select-bank-create pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-direct-select-bank-create pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-direct-select-bank-create pour un exemple OSC.
+ */
 export const eosDirectSelectBankCreateTool: ToolDefinition<typeof bankCreateInputSchema> = {
   name: 'eos_direct_select_bank_create',
   config: {
@@ -276,6 +285,15 @@ export const eosDirectSelectBankCreateTool: ToolDefinition<typeof bankCreateInpu
   }
 };
 
+/**
+ * @tool eos_direct_select_press
+ * @summary Appui de direct select
+ * @description Simule un appui ou relachement sur un bouton de direct select.
+ * @arguments Voir docs/tools.md#eos-direct-select-press pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-direct-select-press pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-direct-select-press pour un exemple OSC.
+ */
 export const eosDirectSelectPressTool: ToolDefinition<typeof pressInputSchema> = {
   name: 'eos_direct_select_press',
   config: {
@@ -319,6 +337,15 @@ export const eosDirectSelectPressTool: ToolDefinition<typeof pressInputSchema> =
   }
 };
 
+/**
+ * @tool eos_direct_select_page
+ * @summary Navigation de direct select
+ * @description Change la page active dans un bank de direct selects.
+ * @arguments Voir docs/tools.md#eos-direct-select-page pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-direct-select-page pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-direct-select-page pour un exemple OSC.
+ */
 export const eosDirectSelectPageTool: ToolDefinition<typeof pageInputSchema> = {
   name: 'eos_direct_select_page',
   config: {

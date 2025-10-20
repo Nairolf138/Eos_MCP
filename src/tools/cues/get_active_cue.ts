@@ -23,6 +23,15 @@ function formatActiveText(identifier: CueIdentifier, progress: number | null): s
   return `Cue active ${formatCueDescription(identifier)} (${progressText})`;
 }
 
+/**
+ * @tool eos_get_active_cue
+ * @summary Cue active
+ * @description Recupere la cue actuellement en lecture sur la liste specifiee (ou principale).
+ * @arguments Voir docs/tools.md#eos-get-active-cue pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-get-active-cue pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-get-active-cue pour un exemple OSC.
+ */
 export const eosGetActiveCueTool: ToolDefinition<typeof getActiveCueInputSchema> = {
   name: 'eos_get_active_cue',
   config: {

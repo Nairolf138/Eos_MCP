@@ -10,6 +10,15 @@ const inputSchema = {
   targetPort: optionalPortSchema
 };
 
+/**
+ * @tool eos_ping
+ * @summary Ping OSC EOS
+ * @description Envoie un ping OSC a la console EOS et retourne le statut.
+ * @arguments Voir docs/tools.md#eos-ping pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-ping pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-ping pour un exemple OSC.
+ */
 export const eosPingTool: ToolDefinition<typeof inputSchema> = {
   name: 'eos_ping',
   config: {

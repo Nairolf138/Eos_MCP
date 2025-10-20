@@ -333,6 +333,15 @@ function buildMacroInfoResult(
   } as ToolExecutionResult;
 }
 
+/**
+ * @tool eos_macro_fire
+ * @summary Declenchement de macro
+ * @description Declenche une macro en envoyant son numero a la console.
+ * @arguments Voir docs/tools.md#eos-macro-fire pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-macro-fire pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-macro-fire pour un exemple OSC.
+ */
 export const eosMacroFireTool: ToolDefinition<typeof fireInputSchema> = {
   name: 'eos_macro_fire',
   config: {
@@ -372,6 +381,15 @@ export const eosMacroFireTool: ToolDefinition<typeof fireInputSchema> = {
   }
 };
 
+/**
+ * @tool eos_macro_select
+ * @summary Selection de macro
+ * @description Selectionne une macro sans l'executer.
+ * @arguments Voir docs/tools.md#eos-macro-select pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-macro-select pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-macro-select pour un exemple OSC.
+ */
 export const eosMacroSelectTool: ToolDefinition<typeof selectInputSchema> = {
   name: 'eos_macro_select',
   config: {
@@ -411,6 +429,15 @@ export const eosMacroSelectTool: ToolDefinition<typeof selectInputSchema> = {
   }
 };
 
+/**
+ * @tool eos_macro_get_info
+ * @summary Informations de macro
+ * @description Recupere le libelle et le script d'une macro.
+ * @arguments Voir docs/tools.md#eos-macro-get-info pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-macro-get-info pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-macro-get-info pour un exemple OSC.
+ */
 export const eosMacroGetInfoTool: ToolDefinition<typeof getInfoInputSchema> = {
   name: 'eos_macro_get_info',
   config: {

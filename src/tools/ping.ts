@@ -13,6 +13,15 @@ const loggingMiddleware: ToolMiddleware = async (context, next) => {
   return next();
 };
 
+/**
+ * @tool ping
+ * @summary Ping tool
+ * @description Retourne un message de confirmation.
+ * @arguments Voir docs/tools.md#ping pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#ping pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#ping pour un exemple OSC.
+ */
 export const pingTool: ToolDefinition<typeof inputSchema> = {
   name: 'ping',
   config: {
