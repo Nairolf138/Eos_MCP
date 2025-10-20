@@ -29,7 +29,7 @@ import dmxTools from './dmx/index.js';
 import sessionTools from './session/index.js';
 import type { ToolDefinition } from './types.js';
 
-export const toolDefinitions: ToolDefinition[] = [
+const definitions = [
   pingTool,
   eosConnectTool,
   eosPingTool,
@@ -60,5 +60,7 @@ export const toolDefinitions: ToolDefinition[] = [
   ...dmxTools,
   ...sessionTools
 ];
+
+export const toolDefinitions = definitions as ToolDefinition[];
 
 export default toolDefinitions;
