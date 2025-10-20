@@ -8,7 +8,8 @@ const inputSchema = {
   preferredProtocols: z.array(z.string().min(1)).min(1).optional(),
   handshakeTimeoutMs: z.number().int().positive().optional(),
   protocolTimeoutMs: z.number().int().positive().optional(),
-  clientId: z.string().min(1).optional()
+  clientId: z.string().min(1).optional(),
+  transportPreference: z.enum(['reliability', 'speed', 'auto']).optional()
 };
 
 /**
@@ -31,7 +32,12 @@ export const eosConnectTool: ToolDefinition<typeof inputSchema> = {
     const schema = z.object(inputSchema).strict();
     const options = schema.parse(args ?? {});
     const client = getOscClient();
-    const result = await client.connect(options);
+    const { transportPreference, ...connectOptions } = options;
+    const result = await client.connect({
+      ...connectOptions,
+      toolId: 'eos_connect',
+      transportPreference
+    });
 
     const summaryParts = [
       `Handshake: ${result.status}`,

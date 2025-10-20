@@ -1,6 +1,6 @@
 import { ErrorCode } from '../../../server/errors';
 import { OscClient, type ConnectResult } from '../client';
-import type { OscGateway } from '../client';
+import type { OscGateway, OscGatewaySendOptions } from '../client';
 import type { OscMessage } from '../index';
 
 describe('OscClient', () => {
@@ -15,7 +15,7 @@ describe('OscClient', () => {
 
     public maxActiveSends = 0;
 
-    public async send(message: OscMessage, _targetAddress?: string, _targetPort?: number): Promise<void> {
+    public async send(message: OscMessage, _options?: OscGatewaySendOptions): Promise<void> {
       this.activeSends += 1;
       this.maxActiveSends = Math.max(this.maxActiveSends, this.activeSends);
       this.sentMessages.push(message);

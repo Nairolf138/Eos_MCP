@@ -3,9 +3,13 @@ import type {
   OscLoggingOptions,
   OscLoggingState,
   OscMessage,
-  OscMessageArgument,
-  OscService
+  OscMessageArgument
 } from './index.js';
+import type {
+  ToolTransportPreference,
+  TransportStatus
+} from './connectionManager.js';
+import { createOscGatewayFromEnv } from './gateway.js';
 import {
   AppError,
   ErrorCode,
@@ -38,11 +42,23 @@ type PredicateResult<T> = T | null;
 
 export type StepStatus = 'ok' | 'timeout' | 'error' | 'skipped';
 
+export interface OscGatewaySendOptions {
+  targetAddress?: string;
+  targetPort?: number;
+  toolId?: string;
+  transportPreference?: ToolTransportPreference;
+}
+
 export interface OscGateway {
-  send(message: OscMessage, targetAddress?: string, targetPort?: number): Promise<void>;
+  send(message: OscMessage, options?: OscGatewaySendOptions): Promise<void>;
   onMessage(listener: (message: OscMessage) => void): () => void;
   setLoggingOptions?(options: OscLoggingOptions): OscLoggingState;
   getDiagnostics?(): OscDiagnostics;
+  setToolPreference?(toolId: string, preference: ToolTransportPreference): void;
+  getToolPreference?(toolId: string): ToolTransportPreference;
+  removeTool?(toolId: string): void;
+  onStatus?(listener: (status: TransportStatus) => void): () => void;
+  close?(): void;
 }
 
 export interface OscClientConfig {
@@ -56,6 +72,8 @@ export interface OscClientConfig {
 export interface TargetOptions {
   targetAddress?: string;
   targetPort?: number;
+  toolId?: string;
+  transportPreference?: ToolTransportPreference;
 }
 
 export interface ConnectOptions extends TargetOptions {
@@ -559,6 +577,15 @@ export class OscClient {
     return this.gateway.getDiagnostics();
   }
 
+  public onTransportStatus(listener: (status: TransportStatus) => void): () => void {
+    if (typeof this.gateway.onStatus !== 'function') {
+      throw new Error(
+        'La passerelle OSC ne prend pas en charge la surveillance du statut des transports.'
+      );
+    }
+    return this.gateway.onStatus(listener);
+  }
+
   public async getCommandLine(options: CommandLineRequestOptions = {}): Promise<CommandLineState> {
     const timeoutMs = options.timeoutMs ?? this.config.defaultTimeoutMs ?? DEFAULT_OPERATION_TIMEOUT_MS;
     const requestPayload: Record<string, unknown> = {};
@@ -652,9 +679,20 @@ export class OscClient {
       ...(queueOptions.details ?? {})
     };
 
+    const gatewayOptions: OscGatewaySendOptions = {
+      targetAddress: options.targetAddress,
+      targetPort: options.targetPort,
+      toolId: options.toolId ?? message.address,
+      transportPreference: options.transportPreference
+    };
+
+    if (gatewayOptions.transportPreference && gatewayOptions.toolId) {
+      this.gateway.setToolPreference?.(gatewayOptions.toolId, gatewayOptions.transportPreference);
+    }
+
     await this.requestQueue.run(
       operation,
-      () => this.gateway.send(message, options.targetAddress, options.targetPort),
+      () => this.gateway.send(message, gatewayOptions),
       {
         timeoutMs,
         timeoutMessage: queueOptions.timeoutMessage,
@@ -1070,46 +1108,57 @@ export class OscClient {
 }
 
 let sharedClient: OscClient | null = null;
-let sharedService: OscService | null = null;
+let sharedGateway: OscGateway | null = null;
 let sharedClientConfig: OscClientConfig = {};
 let cacheListenerDispose: (() => void) | null = null;
 
-export function initializeOscClient(service: OscService, config: OscClientConfig = {}): OscClient {
+export function initializeOscClient(
+  gateway: OscGateway | null = null,
+  config: OscClientConfig = {}
+): OscClient {
   cacheListenerDispose?.();
-  sharedService = service;
+
+  if (!gateway) {
+    gateway = createOscGatewayFromEnv();
+  }
+
+  sharedGateway = gateway;
   sharedClientConfig = { ...config };
 
-  cacheListenerDispose = service.onMessage((message) => {
+  cacheListenerDispose = gateway.onMessage((message) => {
     getResourceCache().handleOscMessage(message);
   });
 
-  sharedClient = new OscClient(service, config);
+  sharedClient = new OscClient(gateway, config);
   return sharedClient;
 }
 
 export function resetOscClient(
-  service: OscService,
+  gateway: OscGateway | null = sharedGateway,
   config: OscClientConfig = sharedClientConfig
 ): OscClient {
   setOscClient(null);
-  return initializeOscClient(service, config);
+  return initializeOscClient(gateway, config);
 }
 
 export function setOscClient(client: OscClient | null): void {
   sharedClient = client;
+  if (client === null) {
+    sharedGateway = null;
+  }
   if (client === null && cacheListenerDispose) {
     cacheListenerDispose();
     cacheListenerDispose = null;
   }
 }
 
-export function getOscService(): OscService {
-  if (!sharedService) {
+export function getOscGateway(): OscGateway {
+  if (!sharedGateway) {
     throw new Error(
-      "Le service OSC n'est pas initialise. Appelez initializeOscClient avant d'utiliser les outils."
+      "La passerelle OSC n'est pas initialise. Appelez initializeOscClient avant d'utiliser les outils."
     );
   }
-  return sharedService;
+  return sharedGateway;
 }
 
 export function getOscClient(): OscClient {

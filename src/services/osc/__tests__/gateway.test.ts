@@ -1,0 +1,174 @@
+import { EventEmitter } from 'node:events';
+import osc from 'osc';
+import { createOscConnectionGateway } from '../gateway';
+import type { OscMessage } from '../index';
+import type { TransportStatus } from '../connectionManager';
+
+type TransportType = 'tcp' | 'udp';
+
+interface SendCall {
+  toolId: string;
+  transport: TransportType;
+  payload: Buffer;
+}
+
+const instances: Array<{
+  transportSequence: TransportType[];
+  toolPreferences: Map<string, string>;
+  sendCalls: SendCall[];
+  stopped: boolean;
+  emitMessage: (type: TransportType, data: Buffer) => void;
+  emitStatus: (status: TransportStatus) => void;
+}> = [];
+
+jest.mock('../connectionManager.js', () => {
+  const { EventEmitter } = require('node:events');
+
+  return {
+    OscConnectionManager: class extends EventEmitter {
+      public transportSequence: TransportType[] = [];
+
+      public readonly toolPreferences = new Map<string, string>();
+
+      public readonly sendCalls: SendCall[] = [];
+
+      public stopped = false;
+
+      public constructor(options: Record<string, unknown>) {
+        super();
+        Object.assign(this, { options });
+        instances.push(this);
+      }
+
+      public send(toolId: string, payload: Buffer): TransportType {
+        const transport = this.transportSequence.shift() ?? 'udp';
+        this.sendCalls.push({ toolId, transport, payload: Buffer.from(payload) });
+        return transport as TransportType;
+      }
+
+      public stop(): void {
+        this.stopped = true;
+      }
+
+      public setToolPreference(toolId: string, preference: string): void {
+        this.toolPreferences.set(toolId, preference);
+      }
+
+      public getToolPreference(toolId: string): string {
+        return this.toolPreferences.get(toolId) ?? 'auto';
+      }
+
+      public removeTool(toolId: string): void {
+        this.toolPreferences.delete(toolId);
+      }
+
+      public emitMessage(type: TransportType, data: Buffer): void {
+        this.emit('message', { type, data });
+      }
+
+      public emitStatus(status: TransportStatus): void {
+        this.emit('status', status);
+      }
+    }
+  };
+});
+
+describe('OscConnectionGateway', () => {
+  beforeEach(() => {
+    instances.length = 0;
+  });
+
+  it('bascule automatiquement vers un autre transport et emet les statuts', async () => {
+    const gateway = createOscConnectionGateway({
+      host: '127.0.0.1',
+      tcpPort: 3032,
+      udpPort: 8001,
+      localPort: 8000
+    });
+
+    const manager = instances.at(0);
+    if (!manager) {
+      throw new Error('Gestionnaire de connexion non initialise');
+    }
+
+    manager.transportSequence = ['tcp', 'udp'];
+
+    const statuses: TransportStatus[] = [];
+    gateway.onStatus?.((status) => {
+      statuses.push(status);
+    });
+
+    await gateway.send({ address: '/test' }, { toolId: 'tool', transportPreference: 'reliability' });
+    expect(manager.sendCalls).toHaveLength(1);
+    expect(manager.sendCalls[0]?.transport).toBe('tcp');
+    expect(manager.toolPreferences.get('tool')).toBe('reliability');
+
+    manager.emitStatus({
+      type: 'tcp',
+      state: 'disconnected',
+      lastHeartbeatAckAt: null,
+      lastHeartbeatSentAt: null,
+      consecutiveFailures: 1
+    });
+
+    manager.transportSequence = ['udp'];
+    await gateway.send({ address: '/test' }, { toolId: 'tool' });
+    expect(manager.sendCalls).toHaveLength(2);
+    expect(manager.sendCalls[1]?.transport).toBe('udp');
+
+    manager.emitStatus({
+      type: 'udp',
+      state: 'connected',
+      lastHeartbeatAckAt: Date.now(),
+      lastHeartbeatSentAt: Date.now(),
+      consecutiveFailures: 0
+    });
+
+    expect(statuses).toEqual([
+      expect.objectContaining({ type: 'tcp', state: 'disconnected' }),
+      expect.objectContaining({ type: 'udp', state: 'connected' })
+    ]);
+
+    gateway.close();
+  });
+
+  it('decode les messages OSC entrants et notifie les ecouteurs', async () => {
+    const gateway = createOscConnectionGateway({
+      host: '127.0.0.1',
+      tcpPort: 3032,
+      udpPort: 8001,
+      localPort: 8000
+    });
+
+    const manager = instances.at(-1);
+    if (!manager) {
+      throw new Error('Gestionnaire de connexion non initialise');
+    }
+
+    const received: OscMessage[] = [];
+    gateway.onMessage((message) => {
+      received.push(message);
+    });
+
+    const packet = {
+      address: '/demo',
+      args: [
+        {
+          type: 's' as const,
+          value: 'payload'
+        }
+      ]
+    };
+    const encoded = Buffer.from(osc.writePacket(packet, { metadata: true }) as Uint8Array);
+    manager.emitMessage('udp', encoded);
+
+    expect(received).toEqual([
+      {
+        address: '/demo',
+        args: [{ type: 's', value: 'payload' }]
+      }
+    ]);
+
+    gateway.close();
+  });
+});

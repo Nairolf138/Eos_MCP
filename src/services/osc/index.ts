@@ -331,3 +331,9 @@ export {
   type TransportStatus,
   type TransportType
 } from './connectionManager.js';
+export {
+  OscConnectionGateway,
+  createOscConnectionGateway,
+  type OscConnectionGatewayOptions,
+  createOscGatewayFromEnv
+} from './gateway.js';

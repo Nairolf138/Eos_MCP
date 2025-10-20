@@ -1,11 +1,14 @@
 import { z } from 'zod';
-import { getOscService, resetOscClient } from '../../services/osc/client.js';
+import { getOscGateway, resetOscClient } from '../../services/osc/client.js';
+import { createOscConnectionGateway } from '../../services/osc/index.js';
+import { createLogger } from '../../server/logger.js';
 import type { ToolDefinition } from '../types.js';
 
 const inputSchema = {
   remoteAddress: z.string().min(1, 'remoteAddress doit etre une adresse valide.'),
   remotePort: z.number().int().min(1).max(65535),
-  localPort: z.number().int().min(1).max(65535)
+  localPort: z.number().int().min(1).max(65535),
+  tcpPort: z.number().int().min(1).max(65535).optional()
 };
 
 /**
@@ -28,9 +31,19 @@ export const eosConfigureTool: ToolDefinition<typeof inputSchema> = {
     const schema = z.object(inputSchema).strict();
     const options = schema.parse(args ?? {});
 
-    const service = getOscService();
-    await service.reconfigure(options);
-    const client = resetOscClient(service);
+    const currentGateway = getOscGateway();
+    currentGateway.close?.();
+
+    const tcpPort = options.tcpPort ?? Number.parseInt(process.env.OSC_TCP_PORT ?? '3032', 10);
+    const gateway = createOscConnectionGateway({
+      host: options.remoteAddress,
+      udpPort: options.remotePort,
+      tcpPort: Number.isFinite(tcpPort) ? tcpPort : 3032,
+      localPort: options.localPort,
+      logger: createLogger('osc-gateway')
+    });
+
+    const client = resetOscClient(gateway);
     const diagnostics = client.getDiagnostics();
 
     const remoteAddress = diagnostics.config.remoteAddress ?? 'non defini';
