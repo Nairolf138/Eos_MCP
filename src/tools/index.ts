@@ -26,6 +26,7 @@ import showControlTools from './showControl/index.js';
 import queryTools from './queries/index.js';
 import fpeTools from './fpe/index.js';
 import dmxTools from './dmx/index.js';
+import sessionTools from './session/index.js';
 import type { ToolDefinition } from './types.js';
 
 export const toolDefinitions: ToolDefinition[] = [
@@ -56,7 +57,8 @@ export const toolDefinitions: ToolDefinition[] = [
   ...showControlTools,
   ...queryTools,
   ...fpeTools,
-  ...dmxTools
+  ...dmxTools,
+  ...sessionTools
 ];
 
 export default toolDefinitions;
