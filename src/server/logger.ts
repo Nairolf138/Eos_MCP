@@ -1,15 +1,14 @@
 import { mkdirSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { dirname } from 'node:path';
 import pino, { stdTimeFunctions, type Logger } from 'pino';
+import { config } from '../config/index.js';
 
-const DEFAULT_LOG_FILE = 'logs/mcp-server.log';
-
-const logFilePath = resolve(process.cwd(), process.env.MCP_LOG_FILE ?? DEFAULT_LOG_FILE);
+const logFilePath = config.logging.filePath;
 mkdirSync(dirname(logFilePath), { recursive: true });
 
 const baseLogger: Logger = pino(
   {
-    level: process.env.LOG_LEVEL ?? 'info',
+    level: config.logging.level,
     base: undefined,
     timestamp: stdTimeFunctions.isoTime
   },

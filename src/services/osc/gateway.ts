@@ -1,4 +1,5 @@
 import osc from 'osc';
+import { config, type OscConfig as ResolvedOscConfig } from '../../config/index.js';
 import { createLogger } from '../../server/logger.js';
 import type {
   OscDiagnostics,
@@ -326,12 +327,26 @@ export function createOscConnectionGateway(options: OscConnectionGatewayOptions)
   return new OscConnectionGateway(options);
 }
 
-function parsePort(value: string | undefined, fallback: number, label: string): number {
-  const parsed = Number.parseInt(value ?? String(fallback), 10);
-  if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 65535) {
-    throw new Error(`La valeur du port ${label} est invalide: ${value}`);
-  }
-  return parsed;
+export function createOscGatewayFromConfig(
+  oscConfig: ResolvedOscConfig,
+  options: Partial<
+    Pick<
+      OscConnectionManagerOptions,
+      'logger' | 'heartbeatIntervalMs' | 'reconnectDelayMs' | 'connectionTimeoutMs'
+    >
+  > = {}
+): OscConnectionGateway {
+  return createOscConnectionGateway({
+    host: oscConfig.remoteAddress,
+    tcpPort: oscConfig.tcpPort,
+    udpPort: oscConfig.udpOutPort,
+    localPort: oscConfig.udpInPort,
+    localAddress: oscConfig.localAddress,
+    logger: options.logger,
+    heartbeatIntervalMs: options.heartbeatIntervalMs,
+    reconnectDelayMs: options.reconnectDelayMs,
+    connectionTimeoutMs: options.connectionTimeoutMs
+  });
 }
 
 export function createOscGatewayFromEnv(
@@ -342,19 +357,5 @@ export function createOscGatewayFromEnv(
     >
   > = {}
 ): OscConnectionGateway {
-  const host = process.env.OSC_REMOTE_ADDRESS ?? '127.0.0.1';
-  const tcpPort = parsePort(process.env.OSC_TCP_PORT, 3032, 'OSC_TCP_PORT');
-  const udpPort = parsePort(process.env.OSC_UDP_OUT_PORT, 8001, 'OSC_UDP_OUT_PORT');
-  const localPort = parsePort(process.env.OSC_UDP_IN_PORT, 8000, 'OSC_UDP_IN_PORT');
-
-  return createOscConnectionGateway({
-    host,
-    tcpPort,
-    udpPort,
-    localPort,
-    logger: options.logger,
-    heartbeatIntervalMs: options.heartbeatIntervalMs,
-    reconnectDelayMs: options.reconnectDelayMs,
-    connectionTimeoutMs: options.connectionTimeoutMs
-  });
+  return createOscGatewayFromConfig(config.osc, options);
 }

@@ -1,5 +1,6 @@
 import { UDPPort } from 'osc';
 import type { Logger } from 'pino';
+import { config, type OscConfig as ResolvedOscConfig } from '../../config/index.js';
 import { createLogger } from '../../server/logger.js';
 
 export interface OscMessageArgument {
@@ -311,17 +312,18 @@ export class OscService {
   }
 }
 
-export function createOscServiceFromEnv(logger?: OscLogger): OscService {
-  const localPort = Number.parseInt(process.env.OSC_UDP_IN_PORT ?? '8000', 10);
-  const remotePort = Number.parseInt(process.env.OSC_UDP_OUT_PORT ?? '8001', 10);
-  const remoteAddress = process.env.OSC_REMOTE_ADDRESS ?? '127.0.0.1';
-
+export function createOscServiceFromConfig(oscConfig: ResolvedOscConfig, logger?: OscLogger): OscService {
   return new OscService({
-    localPort,
-    remotePort,
-    remoteAddress,
+    localAddress: oscConfig.localAddress,
+    localPort: oscConfig.udpInPort,
+    remoteAddress: oscConfig.remoteAddress,
+    remotePort: oscConfig.udpOutPort,
     logger
   });
+}
+
+export function createOscServiceFromEnv(logger?: OscLogger): OscService {
+  return createOscServiceFromConfig(config.osc, logger);
 }
 
 export {
@@ -334,6 +336,7 @@ export {
 export {
   OscConnectionGateway,
   createOscConnectionGateway,
+  createOscGatewayFromConfig,
   type OscConnectionGatewayOptions,
   createOscGatewayFromEnv
 } from './gateway.js';
