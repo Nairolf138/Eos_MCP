@@ -24,6 +24,7 @@ import patchTools from './patch/index.js';
 import showControlTools from './showControl/index.js';
 import queryTools from './queries/index.js';
 import fpeTools from './fpe/index.js';
+import dmxTools from './dmx/index.js';
 import type { ToolDefinition } from './types.js';
 
 export const toolDefinitions: ToolDefinition[] = [
@@ -52,7 +53,8 @@ export const toolDefinitions: ToolDefinition[] = [
   ...snapshotTools,
   ...showControlTools,
   ...queryTools,
-  ...fpeTools
+  ...fpeTools,
+  ...dmxTools
 ];
 
 export default toolDefinitions;
