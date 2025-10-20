@@ -1,14 +1,33 @@
 # Eos MCP
 
-Projet de démonstration pour démarrer un serveur MCP (Model Context Protocol) avec une intégration réseau Open Sound Control (OSC).
+Projet de démonstration pour démarrer un serveur MCP (Model Context Protocol) avec une intégration réseau Open Sound Control (OSC) pour piloter une console ETC Eos depuis différents assistants IA et outils d’automatisation.
 
-## Installation
+## Prérequis
+
+- Node.js 20+ (tests effectués avec la LTS actuelle).
+- npm 9+.
+- Une console ETC Eos (ou le logiciel **Nomad** en mode offline) accessible sur le même réseau.
+- L’accès à l’outil ciblé (ChatGPT, Claude, n8n) pour l’intégration MCP.
+
+Vérifiez votre version de Node.js :
 
 ```bash
-npm install
+node --version
 ```
 
-## Scripts npm
+## Installation du serveur MCP
+
+1. Clonez le dépôt puis installez les dépendances :
+
+   ```bash
+   git clone <URL_DU_DEPOT>
+   cd Eos_MCP
+   npm install
+   ```
+
+2. (Facultatif) Copiez le fichier `.env.example` vers `.env` et ajustez vos ports/paramètres réseau si nécessaire.
+
+## Scripts npm utiles
 
 - `npm run build` : compile TypeScript vers `dist/`.
 - `npm run lint` : vérifie le style de code avec ESLint.
@@ -18,23 +37,9 @@ npm install
 - `npm run docs:generate` : régénère la documentation complète des outils MCP et les commentaires JSDoc.
 - `npm run docs:check` : vérifie que `docs/tools.md` est synchronisé avec le code source.
 
-## Documentation des outils
+La description détaillée de chaque outil est disponible dans [`docs/tools.md`](docs/tools.md). Le fichier est généré automatiquement à partir des schémas Zod déclarés dans `src/tools/**`.
 
-La description détaillée de chaque outil MCP est disponible dans [`docs/tools.md`](docs/tools.md). Le fichier est généré automatiquement à partir des schémas Zod déclarés dans `src/tools/**`. Utilisez :
-
-```bash
-npm run docs:generate
-```
-
-pour mettre à jour la documentation et les commentaires JSDoc, puis :
-
-```bash
-npm run docs:check
-```
-
-dans votre CI pour garantir que la documentation est à jour.
-
-## Configuration réseau
+## Configuration réseau et de la console Eos
 
 | Protocole | Port | Description |
 |-----------|------|-------------|
@@ -42,47 +47,121 @@ dans votre CI pour garantir que la documentation est à jour.
 | UDP       | 8000 | Port d'écoute OSC local (inbound). |
 | UDP       | 8001 | Port de sortie OSC par défaut (outbound). |
 
-Ces ports peuvent être redéfinis via les variables d'environnement :
+Variables d’environnement pertinentes :
 
 - `MCP_TCP_PORT` pour un transport TCP ultérieur (non utilisé par défaut).
 - `OSC_UDP_IN_PORT` pour le port d'écoute local.
 - `OSC_UDP_OUT_PORT` et `OSC_REMOTE_ADDRESS` pour la cible UDP sortante.
 
-## Lancement
+### Étapes côté console Eos
 
-### Mode développement
+1. Sur la console (ou Nomad), ouvrez **Setup → System → Show Control → OSC**.
+2. Activez **OSC RX** et **OSC TX**.
+3. Renseignez l’adresse IP du serveur MCP dans **OSC TX IP Address**.
+4. Configurez les ports : `OSC RX Port` = `OSC_UDP_OUT_PORT` (par défaut 8001) et `OSC TX Port` = `OSC_UDP_IN_PORT` (par défaut 8000).
+5. Validez et redémarrez le show si nécessaire.
+
+## Démarrage du serveur MCP
+
+### Mode développement (TypeScript à la volée)
 
 ```bash
 npm run start:dev
 ```
 
-### Mode production
+### Mode production (build + exécution Node.js)
 
 ```bash
 npm run build
 npm start
 ```
 
-Le serveur démarre sur le transport stdio du SDK MCP et initialisera un service OSC écoutant sur les ports configurés.
+Le serveur écoute sur STDIO pour les clients MCP et initialise un service OSC avec la configuration précédente. Le journal de démarrage vous indique les ports surveillés.
 
-## Utilisation
+## Vérification locale avec la CLI MCP
 
-### Appel via la CLI MCP
-
-Après avoir démarré le serveur (`npm run start:dev`), vous pouvez déclencher un outil directement avec le client officiel :
+Après démarrage du serveur, utilisez le client officiel pour invoquer un outil :
 
 ```bash
 npx @modelcontextprotocol/cli call --tool ping --args '{"message":"Bonjour"}'
 ```
 
-Les arguments attendus et d'autres exemples sont listés dans [`docs/tools.md`](docs/tools.md).
+Référez-vous à [`docs/tools.md`](docs/tools.md) pour la liste exhaustive des outils et des charges utiles attendues.
 
-### Appel via OSC
+## Intégration avec les assistants IA
 
-Chaque outil documente également le chemin OSC correspondant. Par exemple, pour reproduire le `ping` via OSC :
+Les trois intégrations ci-dessous s’appuient sur le protocole MCP. Chaque outil invoquera le serveur en STDIO ; assurez-vous qu’il s’exécute dans un terminal dédié.
+
+### ChatGPT (plateforme GPTs)
+
+1. Ouvrez [https://chat.openai.com/](https://chat.openai.com/) et créez un GPT personnalisé.
+2. Dans l’onglet **Actions**, cliquez sur **Ajouter une action** puis choisissez **Model Context Protocol**.
+3. Renseignez :
+   - **Nom** : `Eos MCP` (ou similaire).
+   - **Type de connexion** : `Commande locale`.
+   - **Commande** : `npm run start:dev` (développement) ou `node dist/index.js` (production).
+   - **Répertoire de travail** : chemin absolu du dossier `Eos_MCP`.
+4. Sauvegardez le GPT. Au premier lancement, ChatGPT vous demandera d’autoriser l’exécution de la commande ; acceptez pour ouvrir le serveur.
+5. Dans la conversation, demandez une action (ex. « déclenche la cue 5 »). ChatGPT traduira la requête en appel d’outil MCP ; surveillez le terminal pour vérifier que la commande est déclenchée.
+
+### Claude Desktop / Claude.ai
+
+1. Assurez-vous d’utiliser une version compatible MCP (Claude Desktop ≥ 1.3 ou Claude.ai avec accès MCP).
+2. Créez ou modifiez le fichier de configuration :
+   - macOS : `~/Library/Application Support/Claude/claude_desktop_config.json`
+   - Windows : `%APPDATA%/Claude/claude_desktop_config.json`
+   - Linux : `~/.config/Claude/claude_desktop_config.json`
+3. Ajoutez la configuration suivante :
+
+   ```json
+   {
+     "mcpServers": {
+       "eos-mcp": {
+         "command": "npm",
+         "args": ["run", "start:dev"],
+         "workingDirectory": "/chemin/vers/Eos_MCP"
+       }
+     }
+   }
+   ```
+
+   Pour un build production, remplacez par `"command": "node", "args": ["dist/index.js"]`.
+4. Redémarrez Claude Desktop puis ouvrez un chat. Tapez une instruction liée à Eos ; Claude sélectionnera automatiquement le serveur MCP si pertinent.
+5. Vérifiez que les réponses incluent la trace des outils MCP utilisés et que la console Eos reçoit bien les messages OSC.
+
+### n8n (automatisation de workflows)
+
+Deux options s’offrent à vous : appeler directement le serveur via STDIO (nœud **Execute Command**) ou passer par la CLI MCP.
+
+#### Option A – nœud Execute Command
+
+1. Ajoutez un nœud **Execute Command** dans votre workflow.
+2. Configurez la commande :
+
+   ```bash
+   npx @modelcontextprotocol/cli call --cwd /chemin/vers/Eos_MCP --tool <outil> --args '<json>'
+   ```
+
+3. Exemple pour lancer un ping :
+
+   ```bash
+   npx @modelcontextprotocol/cli call --cwd /chemin/vers/Eos_MCP --tool ping --args '{"message":"Bonjour"}'
+   ```
+
+4. Parsez la sortie JSON du nœud pour enchaîner sur d’autres actions n8n.
+
+#### Option B – Serveur MCP persistant
+
+1. Démarrez le serveur MCP dans un service externe (systemd, PM2…).
+2. Utilisez un nœud **HTTP Request** ou **Webhooks** pour réagir à des événements, puis un nœud **Execute Command** minimal qui envoie le message OSC attendu via `oscsend` ou un script Node.js interne se connectant à `OSC_REMOTE_ADDRESS`.
+3. Combinez ces deux approches pour déclencher automatiquement les outils MCP en fonction de vos triggers (emails, API externes, calendrier, etc.).
+
+## Appels OSC directs
+
+Chaque outil expose également un chemin OSC. Exemple pour reproduire le `ping` via OSC :
 
 ```bash
 oscsend 127.0.0.1 8001 /eos/ping s:'{"message":"Bonjour"}'
 ```
 
-Adaptez le chemin et la charge utile selon la section dédiée dans la documentation des outils.
+Adaptez le chemin et la charge utile selon la documentation des outils.
