@@ -57,7 +57,7 @@ export const eosCueFireTool: ToolDefinition<typeof fireInputSchema> = {
 
     const payload = buildCueCommandPayload(identifier, { defaultPart: 0 });
 
-    client.sendMessage(oscMappings.cues.fire, buildJsonArgs(payload), extractTargetOptions(options));
+    await client.sendMessage(oscMappings.cues.fire, buildJsonArgs(payload), extractTargetOptions(options));
 
     return createCueCommandResult(
       'cue_fire',

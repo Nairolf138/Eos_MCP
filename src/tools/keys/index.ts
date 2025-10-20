@@ -213,7 +213,7 @@ export const eosKeyPressTool: ToolDefinition<typeof keyPressInputSchema> = {
     const address = `/eos/key/${identifier}`;
     const client = getOscClient();
 
-    client.sendMessage(address, createOscArgs(state), {
+    await client.sendMessage(address, createOscArgs(state), {
       targetAddress: options.targetAddress,
       targetPort: options.targetPort
     });
@@ -260,7 +260,7 @@ export const eosSoftkeyPressTool: ToolDefinition<typeof softkeyPressInputSchema>
     const address = `/eos/key/softkey${softkeyNumber}`;
     const client = getOscClient();
 
-    client.sendMessage(address, createOscArgs(state), {
+    await client.sendMessage(address, createOscArgs(state), {
       targetAddress: options.targetAddress,
       targetPort: options.targetPort
     });

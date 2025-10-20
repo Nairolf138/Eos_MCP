@@ -50,7 +50,7 @@ export const eosCueGoTool: ToolDefinition<typeof goInputSchema> = {
     const identifier = createCueIdentifierFromOptions(options);
     const payload = buildCueCommandPayload(identifier);
 
-    client.sendMessage(oscMappings.cues.go, buildJsonArgs(payload), extractTargetOptions(options));
+    await client.sendMessage(oscMappings.cues.go, buildJsonArgs(payload), extractTargetOptions(options));
 
     return createCueCommandResult(
       'cue_go',

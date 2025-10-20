@@ -678,7 +678,7 @@ export const eosPixmapSelectTool: ToolDefinition<typeof selectInputSchema> = {
       pixmap: options.pixmap_number
     };
 
-    client.sendMessage(
+    await client.sendMessage(
       oscMappings.pixelMaps.select,
       buildJsonArgs(payload),
       {

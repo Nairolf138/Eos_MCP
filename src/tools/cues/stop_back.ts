@@ -51,7 +51,7 @@ export const eosCueStopBackTool: ToolDefinition<typeof stopBackInputSchema> = {
       payload.back = true;
     }
 
-    client.sendMessage(oscMappings.cues.stopBack, buildJsonArgs(payload), extractTargetOptions(options));
+    await client.sendMessage(oscMappings.cues.stopBack, buildJsonArgs(payload), extractTargetOptions(options));
 
     return createCueCommandResult(
       options.back ? 'cue_back' : 'cue_stop',

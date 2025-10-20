@@ -375,7 +375,7 @@ export const eosCurveSelectTool: ToolDefinition<typeof selectInputSchema> = {
       curve: options.curve_number
     };
 
-    client.sendMessage(oscMappings.curves.select, buildJsonArgs(payload), {
+    await client.sendMessage(oscMappings.curves.select, buildJsonArgs(payload), {
       targetAddress: options.targetAddress,
       targetPort: options.targetPort
     });

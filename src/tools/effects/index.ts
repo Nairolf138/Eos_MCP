@@ -556,7 +556,7 @@ export const eosEffectSelectTool: ToolDefinition<typeof selectInputSchema> = {
       effect: options.effect_number
     };
 
-    client.sendMessage(
+    await client.sendMessage(
       oscMappings.effects.select,
       buildJsonArgs(payload),
       {
@@ -605,7 +605,7 @@ export const eosEffectStopTool: ToolDefinition<typeof stopInputSchema> = {
       payload.effect = options.effect_number;
     }
 
-    client.sendMessage(
+    await client.sendMessage(
       oscMappings.effects.stop,
       buildJsonArgs(payload),
       {

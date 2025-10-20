@@ -138,7 +138,7 @@ export class OscService {
     this.port.open();
   }
 
-  public send(message: OscMessage, targetAddress?: string, targetPort?: number): void {
+  public async send(message: OscMessage, targetAddress?: string, targetPort?: number): Promise<void> {
     const summary = this.createMessageSummary(message);
     this.updateStats('outgoing', summary);
 
@@ -146,7 +146,19 @@ export class OscService {
       this.logger.debug(`[OSC] -> ${summary.address}`, summary.args);
     }
 
-    this.port.send(message, targetAddress ?? this.config.remoteAddress, targetPort ?? this.config.remotePort);
+    return new Promise<void>((resolve, reject) => {
+      try {
+        this.port.send(
+          message,
+          targetAddress ?? this.config.remoteAddress,
+          targetPort ?? this.config.remotePort
+        );
+        resolve();
+      } catch (error) {
+        this.logger.error('[OSC] Erreur lors de l\'envoi du message', error);
+        reject(error);
+      }
+    });
   }
 
   public onMessage(listener: OscMessageListener): () => void {

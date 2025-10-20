@@ -311,7 +311,7 @@ export const eosSnapshotRecallTool: ToolDefinition<typeof recallInputSchema> = {
       snapshot: options.snapshot_number
     };
 
-    client.sendMessage(
+    await client.sendMessage(
       oscMappings.snapshots.recall,
       buildJsonArgs(payload),
       extractTargetOptions(options)

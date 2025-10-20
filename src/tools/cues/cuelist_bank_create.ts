@@ -62,7 +62,7 @@ export const eosCuelistBankCreateTool: ToolDefinition<typeof bankCreateInputSche
       payload.offset = Math.trunc(options.offset);
     }
 
-    client.sendMessage(oscMappings.cues.bankCreate, buildJsonArgs(payload), extractTargetOptions(options));
+    await client.sendMessage(oscMappings.cues.bankCreate, buildJsonArgs(payload), extractTargetOptions(options));
 
     const text = `Bank ${options.bank_index} assigne a ${formatCueDescription({
       ...identifier,

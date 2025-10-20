@@ -357,7 +357,7 @@ function createPaletteFireTool({ type, name, title, description, mapping }: Pale
         palette: options.palette_number
       };
 
-      client.sendMessage(mapping, buildJsonArgs(payload), extractTargetOptions(options));
+      await client.sendMessage(mapping, buildJsonArgs(payload), extractTargetOptions(options));
 
       return createResult(`Palette ${paletteTypeLabels[type]} ${options.palette_number} declenchee`, {
         action: 'palette_fire',

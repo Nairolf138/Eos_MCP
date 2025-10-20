@@ -379,7 +379,7 @@ export const eosWheelTickTool: ToolDefinition<typeof wheelTickInputSchema> = {
       mode
     };
 
-    client.sendMessage(
+    await client.sendMessage(
       oscMappings.parameters.wheelTick,
       buildJsonArgs(payload),
       extractTargetOptions(options)
@@ -426,7 +426,7 @@ export const eosWheelSwitchContinuousTool: ToolDefinition<typeof wheelRateInputS
       rate
     };
 
-    client.sendMessage(
+    await client.sendMessage(
       oscMappings.parameters.wheelRate,
       buildJsonArgs(payload),
       extractTargetOptions(options)
@@ -470,7 +470,7 @@ export const eosSetColorHsTool: ToolDefinition<typeof colorHsInputSchema> = {
       saturation: normalisePercentage(options.saturation, 'la saturation') * 100
     };
 
-    client.sendMessage(
+    await client.sendMessage(
       oscMappings.parameters.colorHs,
       buildJsonArgs(payload),
       extractTargetOptions(options)
@@ -515,7 +515,7 @@ export const eosSetColorRgbTool: ToolDefinition<typeof colorRgbInputSchema> = {
       blue: normalisePercentage(options.blue, 'le bleu')
     };
 
-    client.sendMessage(
+    await client.sendMessage(
       oscMappings.parameters.colorRgb,
       buildJsonArgs(payload),
       extractTargetOptions(options)
@@ -558,7 +558,7 @@ export const eosSetPanTiltXYTool: ToolDefinition<typeof panTiltInputSchema> = {
       y: normalisePercentage(options.y, 'y')
     };
 
-    client.sendMessage(
+    await client.sendMessage(
       oscMappings.parameters.positionXY,
       buildJsonArgs(payload),
       extractTargetOptions(options)
@@ -602,7 +602,7 @@ export const eosSetXYZPositionTool: ToolDefinition<typeof xyzInputSchema> = {
       z: normaliseCoordinate(options.z, 'z')
     };
 
-    client.sendMessage(
+    await client.sendMessage(
       oscMappings.parameters.positionXYZ,
       buildJsonArgs(payload),
       extractTargetOptions(options)
