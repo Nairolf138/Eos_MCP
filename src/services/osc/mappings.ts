@@ -6,6 +6,11 @@ export const oscMappings = {
     parameter: '/eos/chan/param',
     info: '/eos/get/channels'
   },
+  dmx: {
+    addressSelect: '/eos/dmx/address/select',
+    addressLevel: '/eos/dmx/address/level',
+    addressDmx: '/eos/dmx/address/dmx'
+  },
   groups: {
     select: '/eos/group/select',
     level: '/eos/group/level',
