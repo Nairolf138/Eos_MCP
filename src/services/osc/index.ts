@@ -274,3 +274,11 @@ export function createOscServiceFromEnv(logger?: OscLogger): OscService {
     logger
   });
 }
+
+export {
+  OscConnectionManager,
+  type OscConnectionManagerOptions,
+  type ToolTransportPreference,
+  type TransportStatus,
+  type TransportType
+} from './connectionManager.js';
