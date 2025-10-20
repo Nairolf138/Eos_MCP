@@ -6,6 +6,7 @@ import {
   eosCommandWithSubstitutionTool,
   eosGetCommandLineTool
 } from '../command_tools';
+import { clearCurrentUserId, setCurrentUserId } from '../../session';
 
 describe('command tools', () => {
   class FakeOscService implements OscGateway {
@@ -40,10 +41,12 @@ describe('command tools', () => {
     service = new FakeOscService();
     const client = new OscClient(service, { defaultTimeoutMs: 50 });
     setOscClient(client);
+    clearCurrentUserId();
   });
 
   afterEach(() => {
     setOscClient(null);
+    clearCurrentUserId();
   });
 
   it('envoie une commande en respectant le terminateur', async () => {
@@ -132,5 +135,64 @@ describe('command tools', () => {
     });
 
     expect(service.sentMessages[0]).toMatchObject({ address: '/eos/get/cmd_line' });
+  });
+
+  it('utilise le numero utilisateur stocke lorsquaucun identifiant nest fourni', async () => {
+    setCurrentUserId(6);
+
+    await runTool(eosCommandTool, { command: 'Chan 1', terminateWithEnter: true });
+
+    expect(service.sentMessages).toHaveLength(1);
+    expect(service.sentMessages[0]).toMatchObject({
+      address: '/eos/cmd',
+      args: [
+        { type: 's', value: 'Chan 1#' },
+        { type: 'i', value: 6 }
+      ]
+    });
+  });
+
+  it('permet des interactions multi-utilisateurs pour la recuperation de ligne de commande', async () => {
+    setCurrentUserId(2);
+    const firstPromise = runTool(eosGetCommandLineTool, {});
+
+    queueMicrotask(() => {
+      const [first] = service.sentMessages;
+      const firstPayload = first?.args?.[0]?.value as string;
+      expect(JSON.parse(firstPayload)).toEqual({ user: 2 });
+
+      service.emit({
+        address: '/eos/get/cmd_line',
+        args: [
+          {
+            type: 's',
+            value: JSON.stringify({ text: 'User 2 Cmd', user: 'User 2' })
+          }
+        ]
+      });
+    });
+
+    await firstPromise;
+
+    setCurrentUserId(5);
+    const secondPromise = runTool(eosGetCommandLineTool, {});
+
+    queueMicrotask(() => {
+      const [, second] = service.sentMessages;
+      const secondPayload = second?.args?.[0]?.value as string;
+      expect(JSON.parse(secondPayload)).toEqual({ user: 5 });
+
+      service.emit({
+        address: '/eos/get/cmd_line',
+        args: [
+          {
+            type: 's',
+            value: JSON.stringify({ text: 'User 5 Cmd', user: 'User 5' })
+          }
+        ]
+      });
+    });
+
+    await secondPromise;
   });
 });

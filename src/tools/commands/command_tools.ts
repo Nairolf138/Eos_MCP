@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { getOscClient, type CommandLineState } from '../../services/osc/client';
+import { getCurrentUserId } from '../session/index';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 type SubstitutionValue = string | number | boolean;
@@ -93,6 +94,19 @@ function formatCommandLineState(result: CommandLineState): ToolExecutionResult {
   } as ToolExecutionResult;
 }
 
+function resolveUserId(requested?: number | null): number | undefined {
+  if (typeof requested === 'number' && Number.isFinite(requested) && requested >= 0) {
+    return Math.trunc(requested);
+  }
+
+  const stored = getCurrentUserId();
+  if (typeof stored === 'number' && Number.isFinite(stored) && stored >= 0) {
+    return Math.trunc(stored);
+  }
+
+  return undefined;
+}
+
 const commandInputSchema = {
   command: z.string().min(1, 'La commande ne peut pas etre vide'),
   terminateWithEnter: z.boolean().optional(),
@@ -114,13 +128,15 @@ export const eosCommandTool: ToolDefinition<typeof commandInputSchema> = {
     const client = getOscClient();
     const command = ensureTerminator(options.command, options.terminateWithEnter);
 
+    const user = resolveUserId(options.user);
+
     client.sendCommand(command, {
-      user: options.user,
+      user,
       targetAddress: options.targetAddress,
       targetPort: options.targetPort
     });
 
-    return formatSendResult(command, options.user ?? null, '/eos/cmd');
+    return formatSendResult(command, user ?? null, '/eos/cmd');
   }
 };
 
@@ -149,22 +165,24 @@ export const eosNewCommandTool: ToolDefinition<typeof newCommandInputSchema> = {
     const command = ensureTerminator(substituted, options.terminateWithEnter);
     const shouldClear = options.clearLine !== false;
 
+    const user = resolveUserId(options.user);
+
     if (shouldClear) {
       client.sendNewCommand(command, {
-        user: options.user,
+        user,
         targetAddress: options.targetAddress,
         targetPort: options.targetPort
       });
-      return formatSendResult(command, options.user ?? null, '/eos/newcmd');
+      return formatSendResult(command, user ?? null, '/eos/newcmd');
     }
 
     client.sendCommand(command, {
-      user: options.user,
+      user,
       targetAddress: options.targetAddress,
       targetPort: options.targetPort
     });
 
-    return formatSendResult(command, options.user ?? null, '/eos/cmd');
+    return formatSendResult(command, user ?? null, '/eos/cmd');
   }
 };
 
@@ -191,13 +209,15 @@ export const eosCommandWithSubstitutionTool: ToolDefinition<typeof substitutionC
     const substituted = applySubstitutions(options.template, options.values ?? []);
     const command = ensureTerminator(substituted, options.terminateWithEnter);
 
+    const user = resolveUserId(options.user);
+
     client.sendCommand(command, {
-      user: options.user,
+      user,
       targetAddress: options.targetAddress,
       targetPort: options.targetPort
     });
 
-    return formatSendResult(command, options.user ?? null, '/eos/cmd');
+    return formatSendResult(command, user ?? null, '/eos/cmd');
   }
 };
 
@@ -219,8 +239,9 @@ export const eosGetCommandLineTool: ToolDefinition<typeof commandLineInputSchema
     const schema = z.object(commandLineInputSchema).strict();
     const options = schema.parse(args ?? {});
     const client = getOscClient();
+    const user = resolveUserId(options.user);
     const result = await client.getCommandLine({
-      user: options.user,
+      user,
       timeoutMs: options.timeoutMs,
       targetAddress: options.targetAddress,
       targetPort: options.targetPort
