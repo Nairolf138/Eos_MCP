@@ -82,6 +82,68 @@ export const oscMappings = {
     sendString: '/eos/magic_sheet/send_string',
     info: '/eos/get/magic_sheet'
   },
+  queries: {
+    cue: {
+      count: '/eos/get/cue/count',
+      list: '/eos/get/cue/list'
+    },
+    cuelist: {
+      count: '/eos/get/cuelist/count',
+      list: '/eos/get/cuelist/list'
+    },
+    group: {
+      count: '/eos/get/group/count',
+      list: '/eos/get/group/list'
+    },
+    macro: {
+      count: '/eos/get/macro/count',
+      list: '/eos/get/macro/list'
+    },
+    ms: {
+      count: '/eos/get/magic_sheet/count',
+      list: '/eos/get/magic_sheet/list'
+    },
+    ip: {
+      count: '/eos/get/ip/count',
+      list: '/eos/get/ip/list'
+    },
+    fp: {
+      count: '/eos/get/fp/count',
+      list: '/eos/get/fp/list'
+    },
+    cp: {
+      count: '/eos/get/cp/count',
+      list: '/eos/get/cp/list'
+    },
+    bp: {
+      count: '/eos/get/bp/count',
+      list: '/eos/get/bp/list'
+    },
+    preset: {
+      count: '/eos/get/preset/count',
+      list: '/eos/get/preset/list'
+    },
+    sub: {
+      count: '/eos/get/submaster/count',
+      list: '/eos/get/submaster/list'
+    },
+    fx: {
+      count: '/eos/get/effect/count',
+      list: '/eos/get/effect/list'
+    },
+    curve: {
+      count: '/eos/get/curve/count',
+      list: '/eos/get/curve/list'
+    },
+    snap: {
+      count: '/eos/get/snapshot/count',
+      list: '/eos/get/snapshot/list'
+    },
+    pixmap: {
+      count: '/eos/get/pixmap/count',
+      list: '/eos/get/pixmap/list'
+    }
+  },
   patch: {
     channelInfo: '/eos/get/patch/chan_info',
     augment3dPosition: '/eos/get/patch/chan_pos',
