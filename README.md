@@ -43,13 +43,13 @@ La description détaillée de chaque outil est disponible dans [`docs/tools.md`]
 
 | Protocole | Port | Description |
 |-----------|------|-------------|
-| TCP       | 3032 | Réservé pour une future passerelle HTTP ou WebSocket MCP. |
+| TCP       | 3032 | Passerelle HTTP/WS MCP (POST `/tools/:name`, WebSocket `/ws`) activable via `MCP_TCP_PORT`. |
 | UDP       | 8000 | Port d'écoute OSC local (inbound). |
 | UDP       | 8001 | Port de sortie OSC par défaut (outbound). |
 
 Variables d’environnement pertinentes :
 
-- `MCP_TCP_PORT` pour un transport TCP ultérieur (non utilisé par défaut).
+- `MCP_TCP_PORT` pour activer la passerelle HTTP/WS optionnelle (par exemple `3032`).
 - `OSC_UDP_IN_PORT` pour le port d'écoute local.
 - `OSC_UDP_OUT_PORT` et `OSC_REMOTE_ADDRESS` pour la cible UDP sortante.
 
@@ -77,6 +77,49 @@ npm start
 ```
 
 Le serveur écoute sur STDIO pour les clients MCP et initialise un service OSC avec la configuration précédente. Le journal de démarrage vous indique les ports surveillés.
+
+### Passerelle HTTP/WS optionnelle
+
+Définissez la variable d’environnement `MCP_TCP_PORT` pour exposer une API HTTP REST (`POST /tools/:name`) et un WebSocket (`/ws`) au-dessus du registre d’outils MCP. Exemple :
+
+```bash
+MCP_TCP_PORT=3032 npm run start:dev
+```
+
+#### Appel REST
+
+```bash
+curl -X POST "http://localhost:3032/tools/ping" \
+  -H "Content-Type: application/json" \
+  -d '{"args":{"message":"Bonjour"}}'
+```
+
+Réponse attendue :
+
+```json
+{
+  "tool": "ping",
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "pong: Bonjour"
+      }
+    ]
+  }
+}
+```
+
+#### Appel WebSocket
+
+```bash
+npx wscat -c ws://localhost:3032/ws
+< {"type":"ready"}
+> {"tool":"ping","args":{"message":"Depuis WS"}}
+< {"type":"result","tool":"ping","result":{"content":[{"type":"text","text":"pong: Depuis WS"}]}}
+```
+
+> Le premier message `{"type":"ready"}` confirme l’ouverture de la connexion. Envoyez ensuite vos appels d’outils au format JSON (`tool`, `args`, `id` optionnel).
 
 ## Vérification locale avec la CLI MCP
 
