@@ -1,4 +1,10 @@
 import { z, type ZodRawShape } from 'zod';
+import {
+  createCacheKey,
+  createOscPrefixTag,
+  createResourceTag,
+  getResourceCache
+} from '../../services/cache/index';
 import { getOscClient } from '../../services/osc/client';
 import { oscMappings } from '../../services/osc/mappings';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
@@ -49,36 +55,55 @@ export const eosCuelistGetInfoTool: ToolDefinition<typeof cuelistInfoInputSchema
       cuePart: null
     });
 
-    const response = await client.requestJson(oscMappings.cues.cuelistInfo, {
+    const cacheKey = createCacheKey({
+      address: oscMappings.cues.cuelistInfo,
       payload,
-      ...extractTargetOptions(options)
+      targetAddress: options.targetAddress,
+      targetPort: options.targetPort
     });
+    const cache = getResourceCache();
 
-    const info = mapCuelistInfo(response.data, identifier);
+    return cache.fetch<ToolExecutionResult>({
+      resourceType: 'cuelists',
+      key: cacheKey,
+      tags: [
+        createResourceTag('cuelists'),
+        createResourceTag('cuelists', String(identifier.cuelistNumber))
+      ],
+      prefixTags: [createOscPrefixTag('/eos/out/')],
+      fetcher: async () => {
+        const response = await client.requestJson(oscMappings.cues.cuelistInfo, {
+          payload,
+          ...extractTargetOptions(options)
+        });
 
-    const listLabel = formatCueDescription({ ...identifier, cueNumber: null, cuePart: null });
-    const text = `${listLabel}: ${info.label ?? 'sans label'}`;
+        const info = mapCuelistInfo(response.data, identifier);
 
-    const result: ToolExecutionResult = {
-      content: [
-        { type: 'text', text },
-        {
-          type: 'object',
-          data: {
-            action: 'cuelist_get_info',
-            status: response.status,
-            request: payload,
-            cuelist: info,
-            osc: {
-              address: oscMappings.cues.cuelistInfo,
-              response: response.payload
+        const listLabel = formatCueDescription({ ...identifier, cueNumber: null, cuePart: null });
+        const text = `${listLabel}: ${info.label ?? 'sans label'}`;
+
+        const result: ToolExecutionResult = {
+          content: [
+            { type: 'text', text },
+            {
+              type: 'object',
+              data: {
+                action: 'cuelist_get_info',
+                status: response.status,
+                request: payload,
+                cuelist: info,
+                osc: {
+                  address: oscMappings.cues.cuelistInfo,
+                  response: response.payload
+                }
+              }
             }
-          }
-        }
-      ]
-    } as ToolExecutionResult;
+          ]
+        } as ToolExecutionResult;
 
-    return result;
+        return result;
+      }
+    });
   }
 };
 

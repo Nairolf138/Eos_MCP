@@ -1,4 +1,10 @@
 import { z, type ZodRawShape } from 'zod';
+import {
+  createCacheKey,
+  createOscPrefixTag,
+  createResourceTag,
+  getResourceCache
+} from '../../services/cache/index';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
 import { oscMappings } from '../../services/osc/mappings';
@@ -368,27 +374,43 @@ export const eosChannelGetInfoTool: ToolDefinition<typeof getInfoSchema> = {
       payload.fields = options.fields;
     }
 
-    const response: OscJsonResponse = await client.requestJson(oscMappings.channels.info, {
+    const cacheKey = createCacheKey({
+      address: oscMappings.channels.info,
       payload,
-      timeoutMs: options.timeoutMs,
       targetAddress: options.targetAddress,
       targetPort: options.targetPort
     });
+    const cache = getResourceCache();
 
-    const baseText = response.status === 'ok'
-      ? `Informations recues pour ${channels.length} canal(aux).`
-      : `Lecture des informations de canaux terminee avec le statut ${response.status}.`;
+    return cache.fetch<ToolExecutionResult>({
+      resourceType: 'channels',
+      key: cacheKey,
+      tags: [createResourceTag('channels')],
+      prefixTags: [createOscPrefixTag('/eos/out/')],
+      fetcher: async () => {
+        const response: OscJsonResponse = await client.requestJson(oscMappings.channels.info, {
+          payload,
+          timeoutMs: options.timeoutMs,
+          targetAddress: options.targetAddress,
+          targetPort: options.targetPort
+        });
 
-    return createResult(baseText, {
-      action: 'get_info',
-      status: response.status,
-      channels,
-      request: payload,
-      data: response.data,
-      error: response.error ?? null,
-      osc: {
-        address: oscMappings.channels.info,
-        args: payload
+        const baseText = response.status === 'ok'
+          ? `Informations recues pour ${channels.length} canal(aux).`
+          : `Lecture des informations de canaux terminee avec le statut ${response.status}.`;
+
+        return createResult(baseText, {
+          action: 'get_info',
+          status: response.status,
+          channels,
+          request: payload,
+          data: response.data,
+          error: response.error ?? null,
+          osc: {
+            address: oscMappings.channels.info,
+            args: payload
+          }
+        });
       }
     });
   }

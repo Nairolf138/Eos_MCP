@@ -1,4 +1,10 @@
 import { z, type ZodRawShape } from 'zod';
+import {
+  createCacheKey,
+  createOscPrefixTag,
+  createResourceTag,
+  getResourceCache
+} from '../../services/cache/index';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
 import { oscMappings } from '../../services/osc/mappings';
@@ -479,39 +485,58 @@ export const eosPaletteGetInfoTool: ToolDefinition<typeof paletteGetInfoInputSch
       payload.fields = options.fields;
     }
 
-    const response: OscJsonResponse = await client.requestJson(mapping, {
+    const cacheKey = createCacheKey({
+      address: mapping,
       payload,
-      timeoutMs: options.timeoutMs,
-      ...extractTargetOptions(options)
+      targetAddress: options.targetAddress,
+      targetPort: options.targetPort
     });
+    const cache = getResourceCache();
 
-    const info = mapPaletteInfo(response.data, {
-      type: options.palette_type,
-      number: options.palette_number
-    });
+    return cache.fetch<ToolExecutionResult>({
+      resourceType: 'palettes',
+      key: cacheKey,
+      tags: [
+        createResourceTag('palettes'),
+        createResourceTag('palettes', `${options.palette_type}:${options.palette_number}`)
+      ],
+      prefixTags: [createOscPrefixTag('/eos/out/')],
+      fetcher: async () => {
+        const response: OscJsonResponse = await client.requestJson(mapping, {
+          payload,
+          timeoutMs: options.timeoutMs,
+          ...extractTargetOptions(options)
+        });
 
-    const text = formatPaletteDescription(info);
+        const info = mapPaletteInfo(response.data, {
+          type: options.palette_type,
+          number: options.palette_number
+        });
 
-    const result: ToolExecutionResult = {
-      content: [
-        { type: 'text', text },
-        {
-          type: 'object',
-          data: {
-            action: 'palette_get_info',
-            status: response.status,
-            request: payload,
-            palette: info,
-            osc: {
-              address: mapping,
-              response: response.payload
+        const text = formatPaletteDescription(info);
+
+        const result: ToolExecutionResult = {
+          content: [
+            { type: 'text', text },
+            {
+              type: 'object',
+              data: {
+                action: 'palette_get_info',
+                status: response.status,
+                request: payload,
+                palette: info,
+                osc: {
+                  address: mapping,
+                  response: response.payload
+                }
+              }
             }
-          }
-        }
-      ]
-    } as ToolExecutionResult;
+          ]
+        } as ToolExecutionResult;
 
-    return result;
+        return result;
+      }
+    });
   }
 };
 

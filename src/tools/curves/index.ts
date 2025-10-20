@@ -1,4 +1,10 @@
 import { z, type ZodRawShape } from 'zod';
+import {
+  createCacheKey,
+  createOscPrefixTag,
+  createResourceTag,
+  getResourceCache
+} from '../../services/cache/index';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
 import { oscMappings } from '../../services/osc/mappings';
@@ -423,14 +429,33 @@ export const eosCurveGetInfoTool: ToolDefinition<typeof getInfoInputSchema> = {
       payload.fields = options.fields;
     }
 
-    const response = await client.requestJson(oscMappings.curves.info, {
+    const cacheKey = createCacheKey({
+      address: oscMappings.curves.info,
       payload,
-      timeoutMs: options.timeoutMs,
       targetAddress: options.targetAddress,
       targetPort: options.targetPort
     });
+    const cache = getResourceCache();
 
-    return buildCurveInfoResult(response, options.curve_number, payload);
+    return cache.fetch<ToolExecutionResult>({
+      resourceType: 'curves',
+      key: cacheKey,
+      tags: [
+        createResourceTag('curves'),
+        createResourceTag('curves', String(options.curve_number))
+      ],
+      prefixTags: [createOscPrefixTag('/eos/out/')],
+      fetcher: async () => {
+        const response = await client.requestJson(oscMappings.curves.info, {
+          payload,
+          timeoutMs: options.timeoutMs,
+          targetAddress: options.targetAddress,
+          targetPort: options.targetPort
+        });
+
+        return buildCurveInfoResult(response, options.curve_number, payload);
+      }
+    });
   }
 };
 

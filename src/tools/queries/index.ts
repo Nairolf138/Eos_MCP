@@ -1,4 +1,10 @@
 import { z, type ZodRawShape } from 'zod';
+import {
+  createCacheKey,
+  createOscPrefixTag,
+  createResourceTag,
+  getResourceCache
+} from '../../services/cache/index';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import { oscMappings } from '../../services/osc/mappings';
 import type { ToolDefinition, ToolExecutionResult } from '../types.js';
@@ -206,29 +212,49 @@ export const eosGetCountTool: ToolDefinition<typeof countInputSchema> = {
     const config = getTargetConfig(options.target_type);
     const client = getOscClient();
 
-    const response: OscJsonResponse = await client.requestJson(config.countAddress, {
-      timeoutMs: options.timeoutMs,
+    const cacheKey = createCacheKey({
+      address: config.countAddress,
+      payload: {},
       targetAddress: options.targetAddress,
-      targetPort: options.targetPort
+      targetPort: options.targetPort,
+      extra: { target: config.key }
     });
+    const cache = getResourceCache();
 
-    const count = Math.max(0, normaliseCount(response.data));
+    return cache.fetch<ToolExecutionResult>({
+      resourceType: 'queries',
+      key: cacheKey,
+      tags: [
+        createResourceTag('queries'),
+        createResourceTag('queries', config.key)
+      ],
+      prefixTags: [createOscPrefixTag('/eos/out/')],
+      fetcher: async () => {
+        const response: OscJsonResponse = await client.requestJson(config.countAddress, {
+          timeoutMs: options.timeoutMs,
+          targetAddress: options.targetAddress,
+          targetPort: options.targetPort
+        });
 
-    const baseText =
-      response.status === 'ok'
-        ? `Nombre de ${config.label}: ${count}.`
-        : `Lecture du compte des ${config.label} terminee avec le statut ${response.status}.`;
+        const count = Math.max(0, normaliseCount(response.data));
 
-    return createResult(baseText, {
-      action: 'get_count',
-      status: response.status,
-      target_type: config.key,
-      count,
-      data: response.data,
-      error: response.error ?? null,
-      osc: {
-        address: config.countAddress,
-        args: {}
+        const baseText =
+          response.status === 'ok'
+            ? `Nombre de ${config.label}: ${count}.`
+            : `Lecture du compte des ${config.label} terminee avec le statut ${response.status}.`;
+
+        return createResult(baseText, {
+          action: 'get_count',
+          status: response.status,
+          target_type: config.key,
+          count,
+          data: response.data,
+          error: response.error ?? null,
+          osc: {
+            address: config.countAddress,
+            args: {}
+          }
+        });
       }
     });
   }
@@ -258,29 +284,49 @@ export const eosGetListAllTool: ToolDefinition<typeof listInputSchema> = {
     const config = getTargetConfig(options.target_type);
     const client = getOscClient();
 
-    const response: OscJsonResponse = await client.requestJson(config.listAddress, {
-      timeoutMs: options.timeoutMs,
+    const cacheKey = createCacheKey({
+      address: config.listAddress,
+      payload: {},
       targetAddress: options.targetAddress,
-      targetPort: options.targetPort
+      targetPort: options.targetPort,
+      extra: { target: config.key }
     });
+    const cache = getResourceCache();
 
-    const items = normaliseList(response.data, config);
+    return cache.fetch<ToolExecutionResult>({
+      resourceType: 'queries',
+      key: cacheKey,
+      tags: [
+        createResourceTag('queries'),
+        createResourceTag('queries', config.key)
+      ],
+      prefixTags: [createOscPrefixTag('/eos/out/')],
+      fetcher: async () => {
+        const response: OscJsonResponse = await client.requestJson(config.listAddress, {
+          timeoutMs: options.timeoutMs,
+          targetAddress: options.targetAddress,
+          targetPort: options.targetPort
+        });
 
-    const baseText =
-      response.status === 'ok'
-        ? `Elements ${config.label}: ${items.length}.`
-        : `Lecture de la liste des ${config.label} terminee avec le statut ${response.status}.`;
+        const items = normaliseList(response.data, config);
 
-    return createResult(baseText, {
-      action: 'list_all',
-      status: response.status,
-      target_type: config.key,
-      items,
-      data: response.data,
-      error: response.error ?? null,
-      osc: {
-        address: config.listAddress,
-        args: {}
+        const baseText =
+          response.status === 'ok'
+            ? `Elements ${config.label}: ${items.length}.`
+            : `Lecture de la liste des ${config.label} terminee avec le statut ${response.status}.`;
+
+        return createResult(baseText, {
+          action: 'list_all',
+          status: response.status,
+          target_type: config.key,
+          items,
+          data: response.data,
+          error: response.error ?? null,
+          osc: {
+            address: config.listAddress,
+            args: {}
+          }
+        });
       }
     });
   }

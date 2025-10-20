@@ -1,4 +1,10 @@
 import { z, type ZodRawShape } from 'zod';
+import {
+  createCacheKey,
+  createOscPrefixTag,
+  createResourceTag,
+  getResourceCache
+} from '../../services/cache/index';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
 import { oscMappings } from '../../services/osc/mappings';
@@ -659,14 +665,33 @@ export const eosEffectGetInfoTool: ToolDefinition<typeof getInfoInputSchema> = {
       payload.fields = options.fields;
     }
 
-    const response = await client.requestJson(oscMappings.effects.info, {
+    const cacheKey = createCacheKey({
+      address: oscMappings.effects.info,
       payload,
-      timeoutMs: options.timeoutMs,
       targetAddress: options.targetAddress,
       targetPort: options.targetPort
     });
+    const cache = getResourceCache();
 
-    return buildEffectInfoResult(response, options.effect_number, payload);
+    return cache.fetch<ToolExecutionResult>({
+      resourceType: 'effects',
+      key: cacheKey,
+      tags: [
+        createResourceTag('effects'),
+        createResourceTag('effects', String(options.effect_number))
+      ],
+      prefixTags: [createOscPrefixTag('/eos/out/')],
+      fetcher: async () => {
+        const response = await client.requestJson(oscMappings.effects.info, {
+          payload,
+          timeoutMs: options.timeoutMs,
+          targetAddress: options.targetAddress,
+          targetPort: options.targetPort
+        });
+
+        return buildEffectInfoResult(response, options.effect_number, payload);
+      }
+    });
   }
 };
 

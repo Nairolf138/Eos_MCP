@@ -1,4 +1,10 @@
 import { z, type ZodRawShape } from 'zod';
+import {
+  createCacheKey,
+  createOscPrefixTag,
+  createResourceTag,
+  getResourceCache
+} from '../../services/cache/index';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
 import { oscMappings } from '../../services/osc/mappings';
@@ -442,14 +448,32 @@ export const eosMagicSheetGetInfoTool: ToolDefinition<typeof getInfoInputSchema>
     const payload: Record<string, unknown> = {
       number: options.ms_number
     };
-
-    const response = await client.requestJson(oscMappings.magicSheets.info, {
+    const cacheKey = createCacheKey({
+      address: oscMappings.magicSheets.info,
       payload,
-      timeoutMs: options.timeoutMs,
-      ...extractTargetOptions(options)
+      targetAddress: options.targetAddress,
+      targetPort: options.targetPort
     });
+    const cache = getResourceCache();
 
-    return buildMagicSheetInfoResult(response, options.ms_number, payload);
+    return cache.fetch<ToolExecutionResult>({
+      resourceType: 'magicSheets',
+      key: cacheKey,
+      tags: [
+        createResourceTag('magicSheets'),
+        createResourceTag('magicSheets', String(options.ms_number))
+      ],
+      prefixTags: [createOscPrefixTag('/eos/out/')],
+      fetcher: async () => {
+        const response = await client.requestJson(oscMappings.magicSheets.info, {
+          payload,
+          timeoutMs: options.timeoutMs,
+          ...extractTargetOptions(options)
+        });
+
+        return buildMagicSheetInfoResult(response, options.ms_number, payload);
+      }
+    });
   }
 };
 

@@ -1,4 +1,10 @@
 import { z, type ZodRawShape } from 'zod';
+import {
+  createCacheKey,
+  createOscPrefixTag,
+  createResourceTag,
+  getResourceCache
+} from '../../services/cache/index';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
 import { oscMappings } from '../../services/osc/mappings';
@@ -302,6 +308,8 @@ export const eosGroupSetLevelTool: ToolDefinition<typeof setLevelInputSchema> = 
       }
     );
 
+    getResourceCache().notifyResourceChange('groups', String(options.group_number));
+
     return createResult(`Niveau du groupe ${options.group_number} regle a ${level}%`, {
       action: 'set_level',
       group_number: options.group_number,
@@ -344,39 +352,57 @@ export const eosGroupGetInfoTool: ToolDefinition<typeof getInfoInputSchema> = {
     const payload = {
       group: options.group_number
     };
-
-    const response: OscJsonResponse = await client.requestJson(oscMappings.groups.info, {
+    const cacheKey = createCacheKey({
+      address: oscMappings.groups.info,
       payload,
-      timeoutMs: options.timeoutMs,
       targetAddress: options.targetAddress,
       targetPort: options.targetPort
     });
+    const cache = getResourceCache();
 
-    const groupData =
-      normaliseGroup(
-        (response.data as Record<string, unknown> | null)?.group ?? response.data,
-        options.group_number
-      ) ?? {
-        group_number: options.group_number,
-        label: null,
-        members: []
-      };
+    return cache.fetch<ToolExecutionResult>({
+      resourceType: 'groups',
+      key: cacheKey,
+      tags: [
+        createResourceTag('groups'),
+        createResourceTag('groups', String(options.group_number))
+      ],
+      prefixTags: [createOscPrefixTag('/eos/out/group')],
+      fetcher: async () => {
+        const response: OscJsonResponse = await client.requestJson(oscMappings.groups.info, {
+          payload,
+          timeoutMs: options.timeoutMs,
+          targetAddress: options.targetAddress,
+          targetPort: options.targetPort
+        });
 
-    const baseText =
-      response.status === 'ok'
-        ? `Informations recues pour le groupe ${groupData.group_number}.`
-        : `Lecture des informations du groupe ${groupData.group_number} terminee avec le statut ${response.status}.`;
+        const groupData =
+          normaliseGroup(
+            (response.data as Record<string, unknown> | null)?.group ?? response.data,
+            options.group_number
+          ) ?? {
+            group_number: options.group_number,
+            label: null,
+            members: []
+          };
 
-    return createResult(baseText, {
-      action: 'get_info',
-      status: response.status,
-      request: payload,
-      group: groupData,
-      data: response.data,
-      error: response.error ?? null,
-      osc: {
-        address: oscMappings.groups.info,
-        args: payload
+        const baseText =
+          response.status === 'ok'
+            ? `Informations recues pour le groupe ${groupData.group_number}.`
+            : `Lecture des informations du groupe ${groupData.group_number} terminee avec le statut ${response.status}.`;
+
+        return createResult(baseText, {
+          action: 'get_info',
+          status: response.status,
+          request: payload,
+          group: groupData,
+          data: response.data,
+          error: response.error ?? null,
+          osc: {
+            address: oscMappings.groups.info,
+            args: payload
+          }
+        });
       }
     });
   }
@@ -408,29 +434,47 @@ export const eosGroupListAllTool: ToolDefinition<typeof listAllInputSchema> = {
     const client = getOscClient();
     const payload: Record<string, unknown> = {};
 
-    const response: OscJsonResponse = await client.requestJson(oscMappings.groups.list, {
+    const cacheKey = createCacheKey({
+      address: oscMappings.groups.list,
       payload,
-      timeoutMs: options.timeoutMs,
       targetAddress: options.targetAddress,
       targetPort: options.targetPort
     });
+    const cache = getResourceCache();
 
-    const groups = normaliseGroupList((response.data as Record<string, unknown> | null)?.groups ?? response.data);
+    return cache.fetch<ToolExecutionResult>({
+      resourceType: 'groups',
+      key: cacheKey,
+      tags: [createResourceTag('groups')],
+      prefixTags: [createOscPrefixTag('/eos/out/group')],
+      fetcher: async () => {
+        const response: OscJsonResponse = await client.requestJson(oscMappings.groups.list, {
+          payload,
+          timeoutMs: options.timeoutMs,
+          targetAddress: options.targetAddress,
+          targetPort: options.targetPort
+        });
 
-    const baseText =
-      response.status === 'ok'
-        ? `Groupes disponibles: ${groups.length}.`
-        : `Lecture des groupes terminee avec le statut ${response.status}.`;
+        const groups = normaliseGroupList(
+          (response.data as Record<string, unknown> | null)?.groups ?? response.data
+        );
 
-    return createResult(baseText, {
-      action: 'list_all',
-      status: response.status,
-      groups,
-      data: response.data,
-      error: response.error ?? null,
-      osc: {
-        address: oscMappings.groups.list,
-        args: payload
+        const baseText =
+          response.status === 'ok'
+            ? `Groupes disponibles: ${groups.length}.`
+            : `Lecture des groupes terminee avec le statut ${response.status}.`;
+
+        return createResult(baseText, {
+          action: 'list_all',
+          status: response.status,
+          groups,
+          data: response.data,
+          error: response.error ?? null,
+          osc: {
+            address: oscMappings.groups.list,
+            args: payload
+          }
+        });
       }
     });
   }

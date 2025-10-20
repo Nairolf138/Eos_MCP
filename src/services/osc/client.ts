@@ -13,6 +13,7 @@ import {
   createTimeoutError,
   isAppError
 } from '../../server/errors.js';
+import { getResourceCache } from '../cache/index.js';
 
 const HANDSHAKE_REQUEST = '/eos/handshake';
 const HANDSHAKE_REPLY = '/eos/handshake/reply';
@@ -936,14 +937,24 @@ export class OscClient {
 }
 
 let sharedClient: OscClient | null = null;
+let cacheListenerDispose: (() => void) | null = null;
 
 export function initializeOscClient(service: OscService, config: OscClientConfig = {}): OscClient {
+  cacheListenerDispose?.();
+  cacheListenerDispose = service.onMessage((message) => {
+    getResourceCache().handleOscMessage(message);
+  });
+
   sharedClient = new OscClient(service, config);
   return sharedClient;
 }
 
 export function setOscClient(client: OscClient | null): void {
   sharedClient = client;
+  if (client === null && cacheListenerDispose) {
+    cacheListenerDispose();
+    cacheListenerDispose = null;
+  }
 }
 
 export function getOscClient(): OscClient {
