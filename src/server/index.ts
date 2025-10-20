@@ -1,5 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { config } from '../config/index.js';
 import { createOscGatewayFromEnv, OscConnectionGateway } from '../services/osc/index.js';
 import { initializeOscClient } from '../services/osc/client.js';
 import { ErrorCode, describeError, toAppError } from './errors.js';
@@ -24,11 +25,7 @@ interface BootstrapContext {
 }
 
 async function bootstrap(): Promise<BootstrapContext> {
-  const tcpPortEnv = process.env.MCP_TCP_PORT;
-  const tcpPort = tcpPortEnv ? Number.parseInt(tcpPortEnv, 10) : undefined;
-  if (tcpPortEnv && Number.isNaN(tcpPort)) {
-    throw new Error(`La variable d'environnement MCP_TCP_PORT est invalide: ${tcpPortEnv}`);
-  }
+  const tcpPort = config.mcp.tcpPort;
   const oscGateway = createOscGatewayFromEnv({ logger: createLogger('osc-gateway') });
   initializeOscClient(oscGateway);
 
