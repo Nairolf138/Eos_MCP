@@ -1,4 +1,11 @@
-import type { OscMessage, OscMessageArgument, OscService } from './index.js';
+import type {
+  OscDiagnostics,
+  OscLoggingOptions,
+  OscLoggingState,
+  OscMessage,
+  OscMessageArgument,
+  OscService
+} from './index.js';
 
 const HANDSHAKE_REQUEST = '/eos/handshake';
 const HANDSHAKE_REPLY = '/eos/handshake/reply';
@@ -32,6 +39,8 @@ export class OscTimeoutError extends Error {
 export interface OscGateway {
   send(message: OscMessage, targetAddress?: string, targetPort?: number): void;
   onMessage(listener: (message: OscMessage) => void): () => void;
+  setLoggingOptions?(options: OscLoggingOptions): OscLoggingState;
+  getDiagnostics?(): OscDiagnostics;
 }
 
 export interface OscClientConfig {
@@ -362,6 +371,20 @@ export class OscClient {
       }
       throw error;
     }
+  }
+
+  public setLogging(options: OscLoggingOptions = {}): OscLoggingState {
+    if (typeof this.gateway.setLoggingOptions !== 'function') {
+      throw new Error('Le service OSC ne supporte pas la configuration du logging.');
+    }
+    return this.gateway.setLoggingOptions(options);
+  }
+
+  public getDiagnostics(): OscDiagnostics {
+    if (typeof this.gateway.getDiagnostics !== 'function') {
+      throw new Error('Le service OSC ne fournit pas de diagnostics.');
+    }
+    return this.gateway.getDiagnostics();
   }
 
   public async getCommandLine(options: CommandLineRequestOptions = {}): Promise<CommandLineState> {
