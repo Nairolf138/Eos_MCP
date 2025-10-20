@@ -14,6 +14,7 @@ import {
   isAppError
 } from '../../server/errors.js';
 import { getResourceCache } from '../cache/index.js';
+import { RequestQueue, type RequestQueueRunOptions } from './requestQueue.js';
 
 const HANDSHAKE_REQUEST = '/eos/handshake';
 const HANDSHAKE_REPLY = '/eos/handshake/reply';
@@ -38,7 +39,7 @@ type PredicateResult<T> = T | null;
 export type StepStatus = 'ok' | 'timeout' | 'error' | 'skipped';
 
 export interface OscGateway {
-  send(message: OscMessage, targetAddress?: string, targetPort?: number): void;
+  send(message: OscMessage, targetAddress?: string, targetPort?: number): Promise<void>;
   onMessage(listener: (message: OscMessage) => void): () => void;
   setLoggingOptions?(options: OscLoggingOptions): OscLoggingState;
   getDiagnostics?(): OscDiagnostics;
@@ -48,6 +49,8 @@ export interface OscClientConfig {
   defaultTimeoutMs?: number;
   handshakeTimeoutMs?: number;
   protocolTimeoutMs?: number;
+  requestConcurrency?: number;
+  queueTimeoutMs?: number;
 }
 
 export interface TargetOptions {
@@ -150,8 +153,20 @@ export interface OscJsonResponse {
   error?: string;
 }
 
+interface SendQueueOptions extends RequestQueueRunOptions {
+  operation?: string;
+}
+
 export class OscClient {
-  constructor(private readonly gateway: OscGateway, private readonly config: OscClientConfig = {}) {}
+  private readonly requestQueue: RequestQueue;
+
+  private readonly requestQueueTimeoutMs: number;
+
+  constructor(private readonly gateway: OscGateway, private readonly config: OscClientConfig = {}) {
+    this.requestQueue = new RequestQueue({ concurrency: config.requestConcurrency });
+    this.requestQueueTimeoutMs =
+      config.queueTimeoutMs ?? config.defaultTimeoutMs ?? DEFAULT_OPERATION_TIMEOUT_MS;
+  }
 
   public async connect(options: ConnectOptions = {}): Promise<ConnectResult> {
     const handshakeTimeout =
@@ -216,16 +231,27 @@ export class OscClient {
     }
 
     const startedAt = Date.now();
-    this.send(message, options);
+    const awaiter = this.createResponseAwaiter(
+      (incoming) => (incoming.address === PING_REPLY ? incoming : null),
+      timeoutMs,
+      'Aucune reponse ping recu avant expiration',
+      'le ping OSC',
+      { address: PING_REPLY }
+    );
 
     try {
-      const response = await this.waitForResponse(
-        (incoming) => (incoming.address === PING_REPLY ? incoming : null),
+      await this.send(message, options, {
+        operation: 'le ping OSC',
         timeoutMs,
-        'Aucune reponse ping recu avant expiration',
-        'le ping OSC',
-        { address: PING_REPLY }
-      );
+        details: { address: PING_REQUEST, message: options.message }
+      });
+    } catch (error) {
+      awaiter.cancel();
+      throw error;
+    }
+
+    try {
+      const response = await awaiter.promise;
 
       const payload = this.extractPayload(response);
       const status = this.normaliseStatus(payload);
@@ -275,16 +301,27 @@ export class OscClient {
       args: [{ type: 'i', value: options.full ? 1 : 0 }]
     };
 
-    this.send(message, options);
+    const awaiter = this.createResponseAwaiter(
+      (incoming) => (incoming.address === RESET_REPLY ? incoming : null),
+      timeoutMs,
+      'Aucune confirmation de reset recu avant expiration',
+      'le reset OSC',
+      { address: RESET_REPLY }
+    );
 
     try {
-      const response = await this.waitForResponse(
-        (incoming) => (incoming.address === RESET_REPLY ? incoming : null),
+      await this.send(message, options, {
+        operation: 'le reset OSC',
         timeoutMs,
-        'Aucune confirmation de reset recu avant expiration',
-        'le reset OSC',
-        { address: RESET_REPLY }
-      );
+        details: { address: RESET_REQUEST, full: options.full ?? false }
+      });
+    } catch (error) {
+      awaiter.cancel();
+      throw error;
+    }
+
+    try {
+      const response = await awaiter.promise;
       const payload = this.extractPayload(response);
       const status = this.normaliseStatus(payload);
       if (status === 'error') {
@@ -331,22 +368,34 @@ export class OscClient {
       args.push({ type: 'f', value: options.rateHz });
     }
 
-    this.send(
-      {
-        address: SUBSCRIBE_REQUEST,
-        args
-      },
-      options
+    const awaiter = this.createResponseAwaiter(
+      (incoming) => (incoming.address === SUBSCRIBE_REPLY ? incoming : null),
+      timeoutMs,
+      'Aucune confirmation de souscription recue avant expiration',
+      'la souscription OSC',
+      { address: SUBSCRIBE_REPLY, path: options.path }
     );
 
     try {
-      const response = await this.waitForResponse(
-        (incoming) => (incoming.address === SUBSCRIBE_REPLY ? incoming : null),
-        timeoutMs,
-        'Aucune confirmation de souscription recue avant expiration',
-        'la souscription OSC',
-        { address: SUBSCRIBE_REPLY, path: options.path }
+      await this.send(
+        {
+          address: SUBSCRIBE_REQUEST,
+          args
+        },
+        options,
+        {
+          operation: 'la souscription OSC',
+          timeoutMs,
+          details: { address: SUBSCRIBE_REQUEST, path: options.path }
+        }
       );
+    } catch (error) {
+      awaiter.cancel();
+      throw error;
+    }
+
+    try {
+      const response = await awaiter.promise;
       const payload = this.extractPayload(response);
       const status = this.normaliseStatus(payload);
       if (status === 'error') {
@@ -388,21 +437,25 @@ export class OscClient {
     }
   }
 
-  public sendCommand(command: string, options: CommandSendOptions = {}): void {
+  public async sendCommand(command: string, options: CommandSendOptions = {}): Promise<void> {
     const mode = options.mode ?? 'append';
-    this.dispatchCommand(command, mode, options);
+    await this.dispatchCommand(command, mode, options);
   }
 
-  public sendNewCommand(command: string, options: CommandSendOptions = {}): void {
-    this.dispatchCommand(command, 'replace', options);
+  public async sendNewCommand(command: string, options: CommandSendOptions = {}): Promise<void> {
+    await this.dispatchCommand(command, 'replace', options);
   }
 
-  public sendMessage(address: string, args: OscMessageArgument[] = [], options: TargetOptions = {}): void {
+  public async sendMessage(
+    address: string,
+    args: OscMessageArgument[] = [],
+    options: TargetOptions = {}
+  ): Promise<void> {
     const message: OscMessage = { address };
     if (args.length > 0) {
       message.args = args;
     }
-    this.send(message, options);
+    await this.send(message, options, { operation: `l'envoi du message OSC ${address}` });
   }
 
   public async requestJson(address: string, options: OscJsonRequestOptions = {}): Promise<OscJsonResponse> {
@@ -428,16 +481,27 @@ export class OscClient {
       message.args = [];
     }
 
-    this.send(message, targetOptions);
+    const awaiter = this.createResponseAwaiter(
+      (incoming) => (incoming.address === responseAddress ? incoming : null),
+      timeoutMs,
+      `Aucune reponse pour ${responseAddress} recue avant expiration`,
+      operation,
+      { address: responseAddress, requestAddress: address }
+    );
 
     try {
-      const response = await this.waitForResponse(
-        (incoming) => (incoming.address === responseAddress ? incoming : null),
-        timeoutMs,
-        `Aucune reponse pour ${responseAddress} recue avant expiration`,
+      await this.send(message, targetOptions, {
         operation,
-        { address: responseAddress, requestAddress: address }
-      );
+        timeoutMs,
+        details: { address, hasPayload }
+      });
+    } catch (error) {
+      awaiter.cancel();
+      throw error;
+    }
+
+    try {
+      const response = await awaiter.promise;
 
       const data = this.extractPayload(response);
       const status = this.normaliseStatus(data);
@@ -505,27 +569,39 @@ export class OscClient {
 
     const operation = 'la lecture de la ligne de commande OSC';
 
-    this.send(
-      {
-        address: COMMAND_LINE_GET_REQUEST,
-        args: [
-          {
-            type: 's',
-            value: JSON.stringify(requestPayload)
-          }
-        ]
-      },
-      options
+    const awaiter = this.createResponseAwaiter(
+      (incoming) => (incoming.address === COMMAND_LINE_GET_REPLY ? incoming : null),
+      timeoutMs,
+      'Aucun etat de ligne de commande recu avant expiration',
+      operation,
+      { address: COMMAND_LINE_GET_REPLY }
     );
 
     try {
-      const response = await this.waitForResponse(
-        (incoming) => (incoming.address === COMMAND_LINE_GET_REPLY ? incoming : null),
-        timeoutMs,
-        'Aucun etat de ligne de commande recu avant expiration',
-        operation,
-        { address: COMMAND_LINE_GET_REPLY }
+      await this.send(
+        {
+          address: COMMAND_LINE_GET_REQUEST,
+          args: [
+            {
+              type: 's',
+              value: JSON.stringify(requestPayload)
+            }
+          ]
+        },
+        options,
+        {
+          operation,
+          timeoutMs,
+          details: { address: COMMAND_LINE_GET_REQUEST }
+        }
       );
+    } catch (error) {
+      awaiter.cancel();
+      throw error;
+    }
+
+    try {
+      const response = await awaiter.promise;
 
       const payload = this.extractPayload(response);
       this.ensureConnectionActive(operation, payload, { address: COMMAND_LINE_GET_REPLY });
@@ -564,20 +640,47 @@ export class OscClient {
     }
   }
 
-  private send(message: OscMessage, options: TargetOptions): void {
-    this.gateway.send(message, options.targetAddress, options.targetPort);
+  private async send(
+    message: OscMessage,
+    options: TargetOptions,
+    queueOptions: SendQueueOptions = {}
+  ): Promise<void> {
+    const operation = queueOptions.operation ?? `l'envoi du message OSC ${message.address}`;
+    const timeoutMs = queueOptions.timeoutMs ?? this.requestQueueTimeoutMs;
+    const details = {
+      address: message.address,
+      ...(queueOptions.details ?? {})
+    };
+
+    await this.requestQueue.run(
+      operation,
+      () => this.gateway.send(message, options.targetAddress, options.targetPort),
+      {
+        timeoutMs,
+        timeoutMessage: queueOptions.timeoutMessage,
+        details
+      }
+    );
   }
 
-  private dispatchCommand(command: string, mode: CommandSendMode, options: CommandSendOptions): void {
+  private async dispatchCommand(
+    command: string,
+    mode: CommandSendMode,
+    options: CommandSendOptions
+  ): Promise<void> {
     const address = mode === 'replace' ? NEW_COMMAND_REQUEST : COMMAND_REQUEST;
     const args = this.buildCommandArgs(command, options.user);
 
-    this.send(
+    await this.send(
       {
         address,
         args
       },
-      options
+      options,
+      {
+        operation: `l'envoi de la commande OSC ${address}`,
+        details: { command }
+      }
     );
   }
 
@@ -602,21 +705,33 @@ export class OscClient {
       args.push({ type: 's', value: JSON.stringify({ preferredProtocols: options.preferredProtocols }) });
     }
 
-    this.send(
-      {
-        address: HANDSHAKE_REQUEST,
-        args
-      },
-      options
-    );
-
-    const response = await this.waitForResponse(
+    const awaiter = this.createResponseAwaiter(
       (incoming) => (incoming.address === HANDSHAKE_REPLY ? incoming : null),
       timeout,
       'Aucune reponse de handshake recue avant expiration',
       'le handshake OSC',
       { address: HANDSHAKE_REPLY }
     );
+
+    try {
+      await this.send(
+        {
+          address: HANDSHAKE_REQUEST,
+          args
+        },
+        options,
+        {
+          operation: 'le handshake OSC',
+          timeoutMs: timeout,
+          details: { address: HANDSHAKE_REQUEST }
+        }
+      );
+    } catch (error) {
+      awaiter.cancel();
+      throw error;
+    }
+
+    const response = await awaiter.promise;
 
     return this.parseHandshakeResponse(response);
   }
@@ -637,22 +752,34 @@ export class OscClient {
       return { status: 'skipped', selectedProtocol: null };
     }
 
-    this.send(
-      {
-        address: PROTOCOL_SELECT_REQUEST,
-        args: [{ type: 's', value: selection }]
-      },
-      options
+    const awaiter = this.createResponseAwaiter(
+      (incoming) => (incoming.address === PROTOCOL_SELECT_REPLY ? incoming : null),
+      timeout,
+      'Aucune confirmation de protocole recue avant expiration',
+      'la selection de protocole OSC',
+      { address: PROTOCOL_SELECT_REPLY, selection }
     );
 
     try {
-      const response = await this.waitForResponse(
-        (incoming) => (incoming.address === PROTOCOL_SELECT_REPLY ? incoming : null),
-        timeout,
-        'Aucune confirmation de protocole recue avant expiration',
-        'la selection de protocole OSC',
-        { address: PROTOCOL_SELECT_REPLY, selection }
+      await this.send(
+        {
+          address: PROTOCOL_SELECT_REQUEST,
+          args: [{ type: 's', value: selection }]
+        },
+        options,
+        {
+          operation: 'la selection de protocole OSC',
+          timeoutMs: timeout,
+          details: { address: PROTOCOL_SELECT_REQUEST, selection }
+        }
       );
+    } catch (error) {
+      awaiter.cancel();
+      throw error;
+    }
+
+    try {
+      const response = await awaiter.promise;
       const payload = this.extractPayload(response);
       const status = this.normaliseStatus(payload);
       if (status === 'error') {
@@ -907,14 +1034,16 @@ export class OscClient {
     return null;
   }
 
-  private async waitForResponse<T extends OscMessage>(
+  private createResponseAwaiter<T extends OscMessage>(
     matcher: (message: OscMessage) => PredicateResult<T>,
     timeoutMs: number,
     timeoutMessage: string,
     operation: string,
     metadata: Record<string, unknown> = {}
-  ): Promise<T> {
-    return new Promise<T>((resolve, reject) => {
+  ): { promise: Promise<T>; cancel: () => void } {
+    let cancel = (): void => {};
+
+    const promise = new Promise<T>((resolve, reject) => {
       const dispose = this.gateway.onMessage((message: OscMessage) => {
         const matched = matcher(message);
         if (matched) {
@@ -932,7 +1061,11 @@ export class OscClient {
         clearTimeout(timer);
         dispose();
       };
+
+      cancel = cleanup;
     });
+
+    return { promise, cancel };
   }
 }
 

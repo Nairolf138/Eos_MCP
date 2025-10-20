@@ -202,7 +202,7 @@ export const eosChannelSelectTool: ToolDefinition<typeof selectInputSchema> = {
       exclusive: options.exclusive ?? false
     };
 
-    client.sendMessage(oscMappings.channels.select, buildJsonArgs(payload), extractTargetOptions(options));
+    await client.sendMessage(oscMappings.channels.select, buildJsonArgs(payload), extractTargetOptions(options));
 
     return createResult(`Canaux selectionnes: ${channels.join(', ')}`, {
       action: 'select',
@@ -245,7 +245,7 @@ export const eosChannelSetLevelTool: ToolDefinition<typeof setLevelSchema> = {
       snap: options.snap ?? false
     };
 
-    client.sendMessage(oscMappings.channels.level, buildJsonArgs(payload), extractTargetOptions(options));
+    await client.sendMessage(oscMappings.channels.level, buildJsonArgs(payload), extractTargetOptions(options));
 
     return createResult(`Niveau regle a ${level}% pour les canaux ${channels.join(', ')}`, {
       action: 'set_level',
@@ -288,7 +288,7 @@ export const eosSetDmxTool: ToolDefinition<typeof setDmxSchema> = {
       value
     };
 
-    client.sendMessage(oscMappings.channels.dmx, buildJsonArgs(payload), extractTargetOptions(options));
+    await client.sendMessage(oscMappings.channels.dmx, buildJsonArgs(payload), extractTargetOptions(options));
 
     return createResult(`Valeur DMX ${value} envoyee sur les adresses ${addresses.join(', ')}`, {
       action: 'set_dmx',
@@ -331,7 +331,7 @@ export const eosChannelSetParameterTool: ToolDefinition<typeof setParameterSchem
       value
     };
 
-    client.sendMessage(oscMappings.channels.parameter, buildJsonArgs(payload), extractTargetOptions(options));
+    await client.sendMessage(oscMappings.channels.parameter, buildJsonArgs(payload), extractTargetOptions(options));
 
     return createResult(`Parametre ${options.parameter} regle a ${value} pour les canaux ${channels.join(', ')}`, {
       action: 'set_parameter',

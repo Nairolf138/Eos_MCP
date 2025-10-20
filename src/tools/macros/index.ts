@@ -368,7 +368,7 @@ export const eosMacroFireTool: ToolDefinition<typeof fireInputSchema> = {
       macro: options.macro_number
     };
 
-    client.sendMessage(
+    await client.sendMessage(
       oscMappings.macros.fire,
       buildJsonArgs(payload),
       {
@@ -416,7 +416,7 @@ export const eosMacroSelectTool: ToolDefinition<typeof selectInputSchema> = {
       macro: options.macro_number
     };
 
-    client.sendMessage(
+    await client.sendMessage(
       oscMappings.macros.select,
       buildJsonArgs(payload),
       {

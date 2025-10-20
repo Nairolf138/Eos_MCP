@@ -14,7 +14,7 @@ class FakeOscService implements OscGateway {
 
   private readonly listeners = new Set<(message: OscMessage) => void>();
 
-  public send(message: OscMessage): void {
+  public async send(message: OscMessage): Promise<void> {
     this.sentMessages.push(message);
   }
 

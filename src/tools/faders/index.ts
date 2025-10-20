@@ -220,7 +220,7 @@ export const eosFaderBankCreateTool: ToolDefinition<typeof bankCreateInputSchema
       payload.page = page;
     }
 
-    client.sendMessage(
+    await client.sendMessage(
       oscMappings.faders.bankCreate,
       buildJsonArgs(payload),
       extractTargetOptions(options)
@@ -267,7 +267,7 @@ export const eosFaderSetLevelTool: ToolDefinition<typeof setLevelInputSchema> = 
     const level = resolveLevelValue(options.level);
     const address = `${oscMappings.faders.base}/${options.bank_index}/${state.page}/${options.fader_index}`;
 
-    client.sendMessage(address, buildFloatArgs(level), extractTargetOptions(options));
+    await client.sendMessage(address, buildFloatArgs(level), extractTargetOptions(options));
 
     return createResult(
       `Fader ${options.bank_index}.${state.page}.${options.fader_index} regle a ${formatPercent(level)}.`,
@@ -310,7 +310,7 @@ export const eosFaderLoadTool: ToolDefinition<typeof loadInputSchema> = {
     const state = getBankState(options.bank_index);
     const address = `${oscMappings.faders.base}/${options.bank_index}/${state.page}/${options.fader_index}/load`;
 
-    client.sendMessage(address, [], extractTargetOptions(options));
+    await client.sendMessage(address, [], extractTargetOptions(options));
 
     return createResult(
       `Fader ${options.bank_index}.${state.page}.${options.fader_index} charge.`,
@@ -352,7 +352,7 @@ export const eosFaderUnloadTool: ToolDefinition<typeof loadInputSchema> = {
     const state = getBankState(options.bank_index);
     const address = `${oscMappings.faders.base}/${options.bank_index}/${state.page}/${options.fader_index}/unload`;
 
-    client.sendMessage(address, [], extractTargetOptions(options));
+    await client.sendMessage(address, [], extractTargetOptions(options));
 
     return createResult(
       `Fader ${options.bank_index}.${state.page}.${options.fader_index} decharge.`,
@@ -398,7 +398,7 @@ export const eosFaderPageTool: ToolDefinition<typeof pageInputSchema> = {
       delta: options.delta
     };
 
-    client.sendMessage(
+    await client.sendMessage(
       oscMappings.faders.bankPage,
       buildJsonArgs(payload),
       extractTargetOptions(options)

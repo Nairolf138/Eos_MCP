@@ -253,7 +253,7 @@ export const eosDirectSelectBankCreateTool: ToolDefinition<typeof bankCreateInpu
 
     setBankState(options.bank_index, state);
 
-    client.sendMessage(
+    await client.sendMessage(
       oscMappings.directSelects.bankCreate,
       buildJsonArgs(payload),
       extractTargetOptions(options)
@@ -315,7 +315,7 @@ export const eosDirectSelectPressTool: ToolDefinition<typeof pressInputSchema> =
     const address = `${oscMappings.directSelects.base}/${options.bank_index}/${state.page}/${options.button_index}`;
     const stateValue: number = options.state;
 
-    client.sendMessage(address, buildFloatArgs(stateValue), extractTargetOptions(options));
+    await client.sendMessage(address, buildFloatArgs(stateValue), extractTargetOptions(options));
 
     const actionText = stateValue >= 1 ? 'enfonce' : stateValue <= 0 ? 'relache' : `etat ${stateValue}`;
     const text = `Bank ${options.bank_index} page ${state.page}: bouton ${options.button_index} ${actionText}.`;
@@ -369,7 +369,7 @@ export const eosDirectSelectPageTool: ToolDefinition<typeof pageInputSchema> = {
       delta: options.delta
     };
 
-    client.sendMessage(
+    await client.sendMessage(
       oscMappings.directSelects.bankPage,
       buildJsonArgs(payload),
       extractTargetOptions(options)

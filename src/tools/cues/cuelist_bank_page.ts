@@ -40,7 +40,7 @@ export const eosCuelistBankPageTool: ToolDefinition<typeof bankPageInputSchema> 
       delta: options.delta
     };
 
-    client.sendMessage(oscMappings.cues.bankPage, buildJsonArgs(payload), extractTargetOptions(options));
+    await client.sendMessage(oscMappings.cues.bankPage, buildJsonArgs(payload), extractTargetOptions(options));
 
     const text = `Bank ${options.bank_index}: changement de page (${options.delta >= 0 ? '+' : ''}${options.delta})`;
 

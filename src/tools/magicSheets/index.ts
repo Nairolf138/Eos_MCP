@@ -332,7 +332,7 @@ export const eosMagicSheetOpenTool: ToolDefinition<typeof openInputSchema> = {
       payload.view = options.view_number;
     }
 
-    client.sendMessage(
+    await client.sendMessage(
       oscMappings.magicSheets.open,
       buildJsonArgs(payload),
       extractTargetOptions(options)
@@ -393,7 +393,7 @@ export const eosMagicSheetSendStringTool: ToolDefinition<typeof sendStringInputS
 
     const client = getOscClient();
 
-    client.sendMessage(
+    await client.sendMessage(
       oscMappings.magicSheets.sendString,
       [
         {

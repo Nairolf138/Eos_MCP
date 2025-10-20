@@ -392,7 +392,7 @@ export const eosSubmasterSetLevelTool: ToolDefinition<typeof setLevelInputSchema
     const level = resolveLevelValue(options.level);
     const address = `${oscMappings.submasters.base}/${options.submaster_number}`;
 
-    client.sendMessage(address, buildFloatArgs(level), extractTargetOptions(options));
+    await client.sendMessage(address, buildFloatArgs(level), extractTargetOptions(options));
 
     return createResult(`Niveau du submaster ${options.submaster_number} regle a ${Math.round(level * 100)}%`, {
       action: 'submaster_set_level',
@@ -431,7 +431,7 @@ export const eosSubmasterBumpTool: ToolDefinition<typeof bumpInputSchema> = {
     const address = `${oscMappings.submasters.base}/${options.submaster_number}/bump`;
     const value = state ? 1 : 0;
 
-    client.sendMessage(address, buildFloatArgs(value), extractTargetOptions(options));
+    await client.sendMessage(address, buildFloatArgs(value), extractTargetOptions(options));
 
     return createResult(`Bump du submaster ${options.submaster_number} ${state ? 'active' : 'desactive'}`, {
       action: 'submaster_bump',

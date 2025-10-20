@@ -487,7 +487,7 @@ export const eosPresetFireTool: ToolDefinition<typeof presetFireInputSchema> = {
       preset: options.preset_number
     };
 
-    client.sendMessage(oscMappings.presets.fire, buildJsonArgs(payload), extractTargetOptions(options));
+    await client.sendMessage(oscMappings.presets.fire, buildJsonArgs(payload), extractTargetOptions(options));
 
     return createResult(`Preset ${options.preset_number} declenche`, {
       action: 'preset_fire',
@@ -525,7 +525,7 @@ export const eosPresetSelectTool: ToolDefinition<typeof presetFireInputSchema> =
       preset: options.preset_number
     };
 
-    client.sendMessage(oscMappings.presets.select, buildJsonArgs(payload), extractTargetOptions(options));
+    await client.sendMessage(oscMappings.presets.select, buildJsonArgs(payload), extractTargetOptions(options));
 
     return createResult(`Preset ${options.preset_number} selectionne`, {
       action: 'preset_select',

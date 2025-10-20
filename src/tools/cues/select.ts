@@ -50,7 +50,7 @@ export const eosCueSelectTool: ToolDefinition<typeof selectInputSchema> = {
     const identifier = createCueIdentifierFromOptions(options);
     const payload = buildCueCommandPayload(identifier, { defaultPart: 0 });
 
-    client.sendMessage(oscMappings.cues.select, buildJsonArgs(payload), extractTargetOptions(options));
+    await client.sendMessage(oscMappings.cues.select, buildJsonArgs(payload), extractTargetOptions(options));
 
     return createCueCommandResult(
       'cue_select',

@@ -248,7 +248,7 @@ export const eosGroupSelectTool: ToolDefinition<typeof selectInputSchema> = {
       group: options.group_number
     };
 
-    client.sendMessage(
+    await client.sendMessage(
       oscMappings.groups.select,
       buildJsonArgs(payload),
       {
@@ -299,7 +299,7 @@ export const eosGroupSetLevelTool: ToolDefinition<typeof setLevelInputSchema> = 
       payload.snap = options.snap;
     }
 
-    client.sendMessage(
+    await client.sendMessage(
       oscMappings.groups.level,
       buildJsonArgs(payload),
       {

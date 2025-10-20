@@ -139,7 +139,7 @@ export const eosCommandTool: ToolDefinition<typeof commandInputSchema> = {
 
     const user = resolveUserId(options.user);
 
-    client.sendCommand(command, {
+    await client.sendCommand(command, {
       user,
       targetAddress: options.targetAddress,
       targetPort: options.targetPort
@@ -186,7 +186,7 @@ export const eosNewCommandTool: ToolDefinition<typeof newCommandInputSchema> = {
     const user = resolveUserId(options.user);
 
     if (shouldClear) {
-      client.sendNewCommand(command, {
+      await client.sendNewCommand(command, {
         user,
         targetAddress: options.targetAddress,
         targetPort: options.targetPort
@@ -194,7 +194,7 @@ export const eosNewCommandTool: ToolDefinition<typeof newCommandInputSchema> = {
       return formatSendResult(command, user ?? null, '/eos/newcmd');
     }
 
-    client.sendCommand(command, {
+    await client.sendCommand(command, {
       user,
       targetAddress: options.targetAddress,
       targetPort: options.targetPort
@@ -238,7 +238,7 @@ export const eosCommandWithSubstitutionTool: ToolDefinition<typeof substitutionC
 
     const user = resolveUserId(options.user);
 
-    client.sendCommand(command, {
+    await client.sendCommand(command, {
       user,
       targetAddress: options.targetAddress,
       targetPort: options.targetPort
