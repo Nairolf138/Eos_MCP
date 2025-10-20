@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { createOscServiceFromEnv, OscService } from '../services/osc/index.js';
+import { createOscGatewayFromEnv, OscConnectionGateway } from '../services/osc/index.js';
 import { initializeOscClient } from '../services/osc/client.js';
 import { ErrorCode, describeError, toAppError } from './errors.js';
 import { createLogger } from './logger.js';
@@ -19,7 +19,7 @@ async function loadToolDefinitions(): Promise<ToolDefinition[]> {
 interface BootstrapContext {
   server: McpServer;
   registry: ToolRegistry;
-  oscService: OscService;
+  oscGateway: OscConnectionGateway;
   gateway?: HttpGateway;
 }
 
@@ -29,8 +29,8 @@ async function bootstrap(): Promise<BootstrapContext> {
   if (tcpPortEnv && Number.isNaN(tcpPort)) {
     throw new Error(`La variable d'environnement MCP_TCP_PORT est invalide: ${tcpPortEnv}`);
   }
-  const oscService = createOscServiceFromEnv(createLogger('osc-service'));
-  initializeOscClient(oscService);
+  const oscGateway = createOscGatewayFromEnv({ logger: createLogger('osc-gateway') });
+  initializeOscClient(oscGateway);
 
   const server = new McpServer({
     name: 'eos-mcp-server',
@@ -84,7 +84,7 @@ async function bootstrap(): Promise<BootstrapContext> {
     }
 
     try {
-      oscService.close();
+      oscGateway.close();
     } catch (error) {
       const appError = toAppError(error, {
         code: ErrorCode.MCP_STARTUP_FAILURE,
@@ -105,7 +105,7 @@ async function bootstrap(): Promise<BootstrapContext> {
     void handleShutdown('SIGTERM');
   });
 
-  return { server, registry, oscService, gateway };
+  return { server, registry, oscGateway, gateway };
 }
 
 if (require.main === module) {

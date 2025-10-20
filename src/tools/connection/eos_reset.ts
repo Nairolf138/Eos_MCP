@@ -6,7 +6,8 @@ const inputSchema = {
   full: z.boolean().optional(),
   timeoutMs: z.number().int().positive().optional(),
   targetAddress: z.string().min(1).optional(),
-  targetPort: z.number().int().min(1).max(65535).optional()
+  targetPort: z.number().int().min(1).max(65535).optional(),
+  transportPreference: z.enum(['reliability', 'speed', 'auto']).optional()
 };
 
 /**
@@ -29,7 +30,12 @@ export const eosResetTool: ToolDefinition<typeof inputSchema> = {
     const schema = z.object(inputSchema).strict();
     const options = schema.parse(args ?? {});
     const client = getOscClient();
-    const result = await client.reset(options);
+    const { transportPreference, ...resetOptions } = options;
+    const result = await client.reset({
+      ...resetOptions,
+      toolId: 'eos_reset',
+      transportPreference
+    });
 
     const lines = [`Reset: ${result.status}`];
     if (options.full) {

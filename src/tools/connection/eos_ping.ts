@@ -7,7 +7,8 @@ const inputSchema = {
   message: z.string().min(1).optional(),
   timeoutMs: optionalTimeoutMsSchema,
   targetAddress: z.string().min(1).optional(),
-  targetPort: optionalPortSchema
+  targetPort: optionalPortSchema,
+  transportPreference: z.enum(['reliability', 'speed', 'auto']).optional()
 };
 
 /**
@@ -30,7 +31,12 @@ export const eosPingTool: ToolDefinition<typeof inputSchema> = {
     const schema = z.object(inputSchema).strict();
     const options = schema.parse(args ?? {});
     const client = getOscClient();
-    const result = await client.ping(options);
+    const { transportPreference, ...pingOptions } = options;
+    const result = await client.ping({
+      ...pingOptions,
+      toolId: 'eos_ping',
+      transportPreference
+    });
 
     const lines = [
       `Ping: ${result.status}`,

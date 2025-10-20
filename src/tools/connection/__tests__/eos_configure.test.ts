@@ -1,37 +1,48 @@
 import { eosConfigureTool } from '../eos_configure';
 
-const mockReconfigure = jest.fn();
+const mockClose = jest.fn();
 const mockGetDiagnostics = jest.fn();
 
+const mockCreateGateway = jest.fn();
+
 jest.mock('../../../services/osc/client.js', () => ({
-  getOscService: jest.fn(() => ({
-    reconfigure: mockReconfigure
+  getOscGateway: jest.fn(() => ({
+    close: mockClose
   })),
   resetOscClient: jest.fn(() => ({
     getDiagnostics: mockGetDiagnostics
   }))
 }));
 
+jest.mock('../../../services/osc/index.js', () => ({
+  createOscConnectionGateway: jest.fn((options) => mockCreateGateway(options))
+}));
+
 describe('eos_configure tool', () => {
   const clientModule = jest.requireMock('../../../services/osc/client.js') as {
-    getOscService: jest.Mock;
+    getOscGateway: jest.Mock;
     resetOscClient: jest.Mock;
   };
-
-  const serviceInstance = { reconfigure: mockReconfigure };
+  const oscModule = jest.requireMock('../../../services/osc/index.js') as {
+    createOscConnectionGateway: jest.Mock;
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockReconfigure.mockReset();
+    mockClose.mockReset();
     mockGetDiagnostics.mockReset();
-    clientModule.getOscService.mockReturnValue(serviceInstance);
+    mockCreateGateway.mockImplementation((options) => ({
+      options,
+      getDiagnostics: mockGetDiagnostics
+    }));
+    clientModule.getOscGateway.mockReturnValue({ close: mockClose });
     clientModule.resetOscClient.mockReturnValue({
       getDiagnostics: mockGetDiagnostics
     });
+    oscModule.createOscConnectionGateway.mockImplementation(mockCreateGateway);
   });
 
   it('valide les arguments, reconfigure le service et renvoie un resume', async () => {
-    mockReconfigure.mockResolvedValue(undefined);
     const diagnostics = {
       config: {
         localAddress: '0.0.0.0',
@@ -56,13 +67,18 @@ describe('eos_configure tool', () => {
       localPort: 7001
     });
 
-    expect(clientModule.getOscService).toHaveBeenCalledTimes(1);
-    expect(mockReconfigure).toHaveBeenCalledWith({
-      remoteAddress: '10.1.0.5',
-      remotePort: 9002,
-      localPort: 7001
+    expect(clientModule.getOscGateway).toHaveBeenCalledTimes(1);
+    expect(mockClose).toHaveBeenCalledTimes(1);
+    expect(oscModule.createOscConnectionGateway).toHaveBeenCalledTimes(1);
+    expect(oscModule.createOscConnectionGateway).toHaveBeenCalledWith({
+      host: '10.1.0.5',
+      udpPort: 9002,
+      tcpPort: 3032,
+      localPort: 7001,
+      logger: expect.any(Object)
     });
-    expect(clientModule.resetOscClient).toHaveBeenCalledWith(serviceInstance);
+    const createdGateway = mockCreateGateway.mock.results[0]?.value;
+    expect(clientModule.resetOscClient).toHaveBeenCalledWith(createdGateway);
     expect(clientModule.resetOscClient).toHaveBeenCalledTimes(1);
     expect(mockGetDiagnostics).toHaveBeenCalledTimes(1);
 

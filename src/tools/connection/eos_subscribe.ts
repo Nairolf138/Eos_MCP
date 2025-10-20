@@ -8,7 +8,8 @@ const inputSchema = {
   rateHz: z.number().positive().optional(),
   timeoutMs: z.number().int().positive().optional(),
   targetAddress: z.string().min(1).optional(),
-  targetPort: z.number().int().min(1).max(65535).optional()
+  targetPort: z.number().int().min(1).max(65535).optional(),
+  transportPreference: z.enum(['reliability', 'speed', 'auto']).optional()
 };
 
 /**
@@ -31,7 +32,12 @@ export const eosSubscribeTool: ToolDefinition<typeof inputSchema> = {
     const schema = z.object(inputSchema).strict();
     const options = schema.parse(args ?? {});
     const client = getOscClient();
-    const result = await client.subscribe(options);
+    const { transportPreference, ...subscribeOptions } = options;
+    const result = await client.subscribe({
+      ...subscribeOptions,
+      toolId: 'eos_subscribe',
+      transportPreference
+    });
 
     const lines = [
       `Souscription: ${result.status}`,

@@ -1,5 +1,5 @@
 import type { OscMessage } from '../../../services/osc/index';
-import { OscClient, setOscClient, type OscGateway } from '../../../services/osc/client';
+import { OscClient, setOscClient, type OscGateway, type OscGatewaySendOptions } from '../../../services/osc/client';
 import {
   eosCommandTool,
   eosNewCommandTool,
@@ -14,7 +14,7 @@ describe('command tools', () => {
 
     private readonly listeners = new Set<(message: OscMessage) => void>();
 
-    public async send(message: OscMessage, _targetAddress?: string, _targetPort?: number): Promise<void> {
+    public async send(message: OscMessage, _options?: OscGatewaySendOptions): Promise<void> {
       this.sentMessages.push(message);
     }
 
