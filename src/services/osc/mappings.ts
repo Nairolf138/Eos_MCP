@@ -63,6 +63,11 @@ export const oscMappings = {
     positionXYZ: '/eos/param/position/xyz',
     activeWheels: '/eos/get/active/wheels'
   },
+  fpe: {
+    getSetCount: '/eos/get/fpe/set/count',
+    getSetInfo: '/eos/get/fpe/set',
+    getPointInfo: '/eos/get/fpe/point'
+  },
   faders: {
     base: '/eos/fader',
     bankCreate: '/eos/fader/bank/create',
