@@ -1,12 +1,13 @@
 import { z } from 'zod';
 import { getOscClient } from '../../services/osc/client.js';
+import { optionalPortSchema, optionalTimeoutMsSchema } from '../../utils/validators.js';
 import type { ToolDefinition } from '../types.js';
 
 const inputSchema = {
   message: z.string().min(1).optional(),
-  timeoutMs: z.number().int().positive().optional(),
+  timeoutMs: optionalTimeoutMsSchema,
   targetAddress: z.string().min(1).optional(),
-  targetPort: z.number().int().min(1).max(65535).optional()
+  targetPort: optionalPortSchema
 };
 
 export const eosPingTool: ToolDefinition<typeof inputSchema> = {

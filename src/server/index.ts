@@ -3,6 +3,8 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import type { ToolCallback } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { createOscServiceFromEnv, OscService } from '../services/osc/index.js';
 import { initializeOscClient } from '../services/osc/client.js';
+import { ErrorCode, describeError, toAppError } from './errors.js';
+import { createLogger } from './logger.js';
 import { toolDefinitions } from '../tools/index.js';
 import { registerToolSchemas } from '../schemas/index.js';
 import type {
@@ -11,6 +13,8 @@ import type {
   ToolMiddleware,
   ToolContext
 } from '../tools/types.js';
+
+const logger = createLogger('mcp-server');
 
 class ToolRegistry {
   private readonly registeredTools = new Map<string, ToolDefinition>();
@@ -79,7 +83,7 @@ interface BootstrapContext {
 
 async function bootstrap(): Promise<BootstrapContext> {
   const tcpPort = Number.parseInt(process.env.MCP_TCP_PORT ?? '3032', 10);
-  const oscService = createOscServiceFromEnv();
+  const oscService = createOscServiceFromEnv(createLogger('osc-service'));
   initializeOscClient(oscService);
 
   const server = new McpServer({
@@ -87,7 +91,7 @@ async function bootstrap(): Promise<BootstrapContext> {
     version: '0.1.0'
   });
 
-  console.info(`Port TCP MCP reserve sur ${tcpPort}`);
+  logger.info({ tcpPort }, `Port TCP MCP reserve sur ${tcpPort}`);
 
   const registry = new ToolRegistry(server);
   registerToolSchemas(server);
@@ -97,16 +101,38 @@ async function bootstrap(): Promise<BootstrapContext> {
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
-  process.on('SIGINT', async () => {
-    await server.close();
-    oscService.close();
+  const handleShutdown = async (signal: NodeJS.Signals): Promise<void> => {
+    logger.info({ signal }, 'Signal %s recu, fermeture du serveur MCP', signal);
+    try {
+      await server.close();
+    } catch (error) {
+      const appError = toAppError(error, {
+        code: ErrorCode.MCP_STARTUP_FAILURE,
+        message: `Erreur lors de la fermeture du serveur MCP apres ${signal}`
+      });
+      logger.error({ error: describeError(appError) }, appError.message);
+    }
+
+    try {
+      oscService.close();
+    } catch (error) {
+      const appError = toAppError(error, {
+        code: ErrorCode.MCP_STARTUP_FAILURE,
+        message: `Erreur lors de la fermeture du service OSC apres ${signal}`
+      });
+      logger.error({ error: describeError(appError) }, appError.message);
+    }
+
+    logger.info('Arret du serveur MCP termine.');
     process.exit(0);
+  };
+
+  process.on('SIGINT', () => {
+    void handleShutdown('SIGINT');
   });
 
-  process.on('SIGTERM', async () => {
-    await server.close();
-    oscService.close();
-    process.exit(0);
+  process.on('SIGTERM', () => {
+    void handleShutdown('SIGTERM');
   });
 
   return { server, registry, oscService };
@@ -114,7 +140,11 @@ async function bootstrap(): Promise<BootstrapContext> {
 
 if (require.main === module) {
   void bootstrap().catch((error: unknown) => {
-    console.error('Erreur lors du demarrage du serveur MCP', error);
+    const appError = toAppError(error, {
+      code: ErrorCode.MCP_STARTUP_FAILURE,
+      message: 'Erreur lors du demarrage du serveur MCP.'
+    });
+    logger.fatal({ error: describeError(appError) }, appError.message);
     process.exit(1);
   });
 }

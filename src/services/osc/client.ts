@@ -6,6 +6,13 @@ import type {
   OscMessageArgument,
   OscService
 } from './index.js';
+import {
+  AppError,
+  ErrorCode,
+  createConnectionLostError,
+  createTimeoutError,
+  isAppError
+} from '../../server/errors.js';
 
 const HANDSHAKE_REQUEST = '/eos/handshake';
 const HANDSHAKE_REPLY = '/eos/handshake/reply';
@@ -28,13 +35,6 @@ const DEFAULT_HANDSHAKE_TIMEOUT_MS = 2000;
 type PredicateResult<T> = T | null;
 
 export type StepStatus = 'ok' | 'timeout' | 'error' | 'skipped';
-
-export class OscTimeoutError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'OscTimeoutError';
-  }
-}
 
 export interface OscGateway {
   send(message: OscMessage, targetAddress?: string, targetPort?: number): void;
@@ -169,10 +169,12 @@ export class OscClient {
         selectedProtocol: protocolResult.selectedProtocol,
         protocolStatus: protocolResult.status,
         handshakePayload: handshake.raw,
-        protocolResponse: protocolResult.payload
+        protocolResponse: protocolResult.payload,
+        ...(protocolResult.error ? { error: protocolResult.error } : {})
       };
     } catch (error) {
-      if (error instanceof OscTimeoutError) {
+      const timeoutError = this.asAppError(error, ErrorCode.OSC_TIMEOUT);
+      if (timeoutError) {
         return {
           status: 'timeout',
           version: null,
@@ -180,9 +182,23 @@ export class OscClient {
           selectedProtocol: null,
           protocolStatus: 'skipped',
           handshakePayload: null,
-          error: error.message
+          error: timeoutError.message
         };
       }
+
+      const connectionLostError = this.asAppError(error, ErrorCode.OSC_CONNECTION_LOST);
+      if (connectionLostError) {
+        return {
+          status: 'error',
+          version: null,
+          availableProtocols: [],
+          selectedProtocol: null,
+          protocolStatus: 'skipped',
+          handshakePayload: null,
+          error: connectionLostError.message
+        };
+      }
+
       throw error;
     }
   }
@@ -205,26 +221,48 @@ export class OscClient {
       const response = await this.waitForResponse(
         (incoming) => (incoming.address === PING_REPLY ? incoming : null),
         timeoutMs,
-        'Aucune reponse ping recu avant expiration'
+        'Aucune reponse ping recu avant expiration',
+        'le ping OSC',
+        { address: PING_REPLY }
       );
 
       const payload = this.extractPayload(response);
+      const status = this.normaliseStatus(payload);
+      if (status === 'error') {
+        this.ensureConnectionActive('le ping OSC', payload, { address: PING_REPLY });
+      }
+
+      const errorMessage = status === 'error' ? this.extractErrorMessage(payload) : null;
       return {
-        status: 'ok',
-        roundtripMs: Date.now() - startedAt,
+        status,
+        roundtripMs: status === 'ok' ? Date.now() - startedAt : null,
         echo: this.extractEcho(payload),
-        payload
+        payload,
+        ...(errorMessage ? { error: errorMessage } : {})
       };
     } catch (error) {
-      if (error instanceof OscTimeoutError) {
+      const timeoutError = this.asAppError(error, ErrorCode.OSC_TIMEOUT);
+      if (timeoutError) {
         return {
           status: 'timeout',
           roundtripMs: null,
           echo: null,
           payload: null,
-          error: error.message
+          error: timeoutError.message
         };
       }
+
+      const connectionLostError = this.asAppError(error, ErrorCode.OSC_CONNECTION_LOST);
+      if (connectionLostError) {
+        return {
+          status: 'error',
+          roundtripMs: null,
+          echo: null,
+          payload: null,
+          error: connectionLostError.message
+        };
+      }
+
       throw error;
     }
   }
@@ -242,21 +280,41 @@ export class OscClient {
       const response = await this.waitForResponse(
         (incoming) => (incoming.address === RESET_REPLY ? incoming : null),
         timeoutMs,
-        'Aucune confirmation de reset recu avant expiration'
+        'Aucune confirmation de reset recu avant expiration',
+        'le reset OSC',
+        { address: RESET_REPLY }
       );
       const payload = this.extractPayload(response);
+      const status = this.normaliseStatus(payload);
+      if (status === 'error') {
+        this.ensureConnectionActive('le reset OSC', payload, { address: RESET_REPLY });
+      }
+
+      const errorMessage = status === 'error' ? this.extractErrorMessage(payload) : null;
       return {
-        status: this.normaliseStatus(payload),
-        payload
+        status,
+        payload,
+        ...(errorMessage ? { error: errorMessage } : {})
       };
     } catch (error) {
-      if (error instanceof OscTimeoutError) {
+      const timeoutError = this.asAppError(error, ErrorCode.OSC_TIMEOUT);
+      if (timeoutError) {
         return {
           status: 'timeout',
           payload: null,
-          error: error.message
+          error: timeoutError.message
         };
       }
+
+      const connectionLostError = this.asAppError(error, ErrorCode.OSC_CONNECTION_LOST);
+      if (connectionLostError) {
+        return {
+          status: 'error',
+          payload: null,
+          error: connectionLostError.message
+        };
+      }
+
       throw error;
     }
   }
@@ -284,23 +342,47 @@ export class OscClient {
       const response = await this.waitForResponse(
         (incoming) => (incoming.address === SUBSCRIBE_REPLY ? incoming : null),
         timeoutMs,
-        'Aucune confirmation de souscription recue avant expiration'
+        'Aucune confirmation de souscription recue avant expiration',
+        'la souscription OSC',
+        { address: SUBSCRIBE_REPLY, path: options.path }
       );
       const payload = this.extractPayload(response);
+      const status = this.normaliseStatus(payload);
+      if (status === 'error') {
+        this.ensureConnectionActive('la souscription OSC', payload, {
+          address: SUBSCRIBE_REPLY,
+          path: options.path
+        });
+      }
+
+      const errorMessage = status === 'error' ? this.extractErrorMessage(payload) : null;
       return {
-        status: this.normaliseStatus(payload),
+        status,
         path: options.path,
-        payload
+        payload,
+        ...(errorMessage ? { error: errorMessage } : {})
       };
     } catch (error) {
-      if (error instanceof OscTimeoutError) {
+      const timeoutError = this.asAppError(error, ErrorCode.OSC_TIMEOUT);
+      if (timeoutError) {
         return {
           status: 'timeout',
           path: options.path,
           payload: null,
-          error: error.message
+          error: timeoutError.message
         };
       }
+
+      const connectionLostError = this.asAppError(error, ErrorCode.OSC_CONNECTION_LOST);
+      if (connectionLostError) {
+        return {
+          status: 'error',
+          path: options.path,
+          payload: null,
+          error: connectionLostError.message
+        };
+      }
+
       throw error;
     }
   }
@@ -331,6 +413,7 @@ export class OscClient {
     const responseAddress = options.responseAddress ?? address;
     const payload = options.payload ?? {};
     const hasPayload = Object.keys(payload).length > 0;
+    const operation = `la requete OSC ${address}`;
 
     const message: OscMessage = { address };
     if (hasPayload) {
@@ -350,25 +433,49 @@ export class OscClient {
       const response = await this.waitForResponse(
         (incoming) => (incoming.address === responseAddress ? incoming : null),
         timeoutMs,
-        `Aucune reponse pour ${responseAddress} recue avant expiration`
+        `Aucune reponse pour ${responseAddress} recue avant expiration`,
+        operation,
+        { address: responseAddress, requestAddress: address }
       );
 
       const data = this.extractPayload(response);
+      const status = this.normaliseStatus(data);
+      if (status === 'error') {
+        this.ensureConnectionActive(operation, data, {
+          address: responseAddress,
+          requestAddress: address
+        });
+      }
+
+      const errorMessage = status === 'error' ? this.extractErrorMessage(data) : null;
 
       return {
-        status: this.normaliseStatus(data),
+        status,
         data,
-        payload: response
+        payload: response,
+        ...(errorMessage ? { error: errorMessage } : {})
       };
     } catch (error) {
-      if (error instanceof OscTimeoutError) {
+      const timeoutError = this.asAppError(error, ErrorCode.OSC_TIMEOUT);
+      if (timeoutError) {
         return {
           status: 'timeout',
           data: null,
           payload: null,
-          error: error.message
+          error: timeoutError.message
         };
       }
+
+      const connectionLostError = this.asAppError(error, ErrorCode.OSC_CONNECTION_LOST);
+      if (connectionLostError) {
+        return {
+          status: 'error',
+          data: null,
+          payload: null,
+          error: connectionLostError.message
+        };
+      }
+
       throw error;
     }
   }
@@ -395,6 +502,8 @@ export class OscClient {
       requestPayload.user = Math.trunc(options.user);
     }
 
+    const operation = 'la lecture de la ligne de commande OSC';
+
     this.send(
       {
         address: COMMAND_LINE_GET_REQUEST,
@@ -412,10 +521,13 @@ export class OscClient {
       const response = await this.waitForResponse(
         (incoming) => (incoming.address === COMMAND_LINE_GET_REPLY ? incoming : null),
         timeoutMs,
-        'Aucun etat de ligne de commande recu avant expiration'
+        'Aucun etat de ligne de commande recu avant expiration',
+        operation,
+        { address: COMMAND_LINE_GET_REPLY }
       );
 
       const payload = this.extractPayload(response);
+      this.ensureConnectionActive(operation, payload, { address: COMMAND_LINE_GET_REPLY });
       const decoded = this.parseCommandLinePayload(payload);
 
       return {
@@ -425,15 +537,28 @@ export class OscClient {
         payload
       };
     } catch (error) {
-      if (error instanceof OscTimeoutError) {
+      const timeoutError = this.asAppError(error, ErrorCode.OSC_TIMEOUT);
+      if (timeoutError) {
         return {
           status: 'timeout',
           text: '',
           user: null,
           payload: null,
-          error: error.message
+          error: timeoutError.message
         };
       }
+
+      const connectionLostError = this.asAppError(error, ErrorCode.OSC_CONNECTION_LOST);
+      if (connectionLostError) {
+        return {
+          status: 'error',
+          text: '',
+          user: null,
+          payload: null,
+          error: connectionLostError.message
+        };
+      }
+
       throw error;
     }
   }
@@ -487,7 +612,9 @@ export class OscClient {
     const response = await this.waitForResponse(
       (incoming) => (incoming.address === HANDSHAKE_REPLY ? incoming : null),
       timeout,
-      'Aucune reponse de handshake recue avant expiration'
+      'Aucune reponse de handshake recue avant expiration',
+      'le handshake OSC',
+      { address: HANDSHAKE_REPLY }
     );
 
     return this.parseHandshakeResponse(response);
@@ -497,7 +624,7 @@ export class OscClient {
     handshake: HandshakeData,
     options: ConnectOptions,
     timeout: number
-  ): Promise<{ status: StepStatus; selectedProtocol: string | null; payload?: unknown }> {
+  ): Promise<{ status: StepStatus; selectedProtocol: string | null; payload?: unknown; error?: string }> {
     const protocols = handshake.protocols;
     if (protocols.length === 0) {
       return { status: 'skipped', selectedProtocol: null };
@@ -521,28 +648,54 @@ export class OscClient {
       const response = await this.waitForResponse(
         (incoming) => (incoming.address === PROTOCOL_SELECT_REPLY ? incoming : null),
         timeout,
-        'Aucune confirmation de protocole recue avant expiration'
+        'Aucune confirmation de protocole recue avant expiration',
+        'la selection de protocole OSC',
+        { address: PROTOCOL_SELECT_REPLY, selection }
       );
       const payload = this.extractPayload(response);
       const status = this.normaliseStatus(payload);
+      if (status === 'error') {
+        this.ensureConnectionActive('la selection de protocole OSC', payload, {
+          address: PROTOCOL_SELECT_REPLY,
+          selection
+        });
+      }
+
+      const errorMessage = status === 'error' ? this.extractErrorMessage(payload) : null;
       return {
         status,
         selectedProtocol: selection,
-        payload
+        payload,
+        ...(errorMessage ? { error: errorMessage } : {})
       };
     } catch (error) {
-      if (error instanceof OscTimeoutError) {
+      const timeoutError = this.asAppError(error, ErrorCode.OSC_TIMEOUT);
+      if (timeoutError) {
         return {
           status: 'timeout',
-          selectedProtocol: selection
+          selectedProtocol: selection,
+          error: timeoutError.message
         };
       }
+
+      const connectionLostError = this.asAppError(error, ErrorCode.OSC_CONNECTION_LOST);
+      if (connectionLostError) {
+        return {
+          status: 'error',
+          selectedProtocol: selection,
+          error: connectionLostError.message
+        };
+      }
+
       throw error;
     }
   }
 
   private parseHandshakeResponse(message: OscMessage): HandshakeData {
     const payload = this.extractPayload(message);
+    this.ensureConnectionActive('le handshake OSC', payload, {
+      address: HANDSHAKE_REPLY
+    });
     let version: string | null = null;
     let protocols: string[] = [];
 
@@ -592,6 +745,29 @@ export class OscClient {
       }
     }
     return firstArg ?? null;
+  }
+
+  private extractErrorMessage(payload: unknown): string | null {
+    if (typeof payload === 'string') {
+      const trimmed = payload.trim();
+      return trimmed.length > 0 ? trimmed : null;
+    }
+
+    if (payload && typeof payload === 'object') {
+      const source = payload as Record<string, unknown>;
+      const candidates = ['error', 'message', 'reason', 'detail', 'status'];
+      for (const key of candidates) {
+        const value = source[key];
+        if (typeof value === 'string') {
+          const trimmed = value.trim();
+          if (trimmed.length > 0) {
+            return trimmed;
+          }
+        }
+      }
+    }
+
+    return null;
   }
 
   private parseCommandLinePayload(payload: unknown): { text: string; user: number | null } {
@@ -694,10 +870,48 @@ export class OscClient {
     return 'ok';
   }
 
+  private ensureConnectionActive(
+    operation: string,
+    payload: unknown,
+    metadata: Record<string, unknown> = {}
+  ): void {
+    const message = this.detectConnectionLost(payload);
+    if (message) {
+      throw createConnectionLostError(operation, { ...metadata, message, payload });
+    }
+  }
+
+  private detectConnectionLost(payload: unknown): string | null {
+    const message = this.extractErrorMessage(payload);
+    if (!message) {
+      return null;
+    }
+
+    const normalised = message.toLowerCase();
+    if (normalised.includes('connection') && (normalised.includes('lost') || normalised.includes('closed'))) {
+      return message;
+    }
+
+    if (normalised.includes('disconnected')) {
+      return message;
+    }
+
+    return null;
+  }
+
+  private asAppError(error: unknown, code: ErrorCode): AppError | null {
+    if (isAppError(error) && error.code === code) {
+      return error;
+    }
+    return null;
+  }
+
   private async waitForResponse<T extends OscMessage>(
     matcher: (message: OscMessage) => PredicateResult<T>,
     timeoutMs: number,
-    timeoutMessage: string
+    timeoutMessage: string,
+    operation: string,
+    metadata: Record<string, unknown> = {}
   ): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       const dispose = this.gateway.onMessage((message: OscMessage) => {
@@ -710,7 +924,7 @@ export class OscClient {
 
       const timer = setTimeout(() => {
         cleanup();
-        reject(new OscTimeoutError(timeoutMessage));
+        reject(createTimeoutError(operation, timeoutMs, timeoutMessage, { ...metadata, timeoutMessage }));
       }, timeoutMs);
 
       const cleanup = (): void => {
