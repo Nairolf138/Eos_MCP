@@ -33,7 +33,7 @@ node --version
 1. Clonez le dépôt puis installez les dépendances :
 
    ```bash
-   git clone <URL_DU_DEPOT>
+   git clone https://github.com/Nairolf138/Eos_MCP.git
    cd Eos_MCP
    npm install
    ```
