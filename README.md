@@ -121,6 +121,46 @@ npx wscat -c ws://localhost:3032/ws
 
 > Le premier message `{"type":"ready"}` confirme l’ouverture de la connexion. Envoyez ensuite vos appels d’outils au format JSON (`tool`, `args`, `id` optionnel).
 
+#### Sécurisation de la passerelle HTTP/WS
+
+La fonction `createHttpGateway` accepte un objet `security` pour appliquer une politique de défense simple côté HTTP et WebSocket.
+
+| Option | Description |
+|--------|-------------|
+| `apiKeys` | Tableau de clés API autorisées. À transmettre dans l’en-tête `X-API-Key`. |
+| `mcpTokens` | Liste de jetons MCP pour l’authentification (en-tête `X-MCP-Token` ou `Authorization: Bearer <token>`). Ces jetons sont également requis pour les requêtes mutantes afin de limiter les attaques CSRF. |
+| `ipWhitelist` | Liste d’adresses IP autorisées (`"*"` pour tout accepter). |
+| `allowedOrigins` | Origines HTTP/WS autorisées pour CORS/CORS WS (`"*"` pour tout accepter). |
+| `rateLimit` | Limiteur de débit en mémoire `{ windowMs, max }` appliqué par adresse IP. |
+| `express` | Permet de surcharger les middlewares Express (`authentication`, `csrf`, `cors`, `throttling`). |
+
+Exemple :
+
+```ts
+createHttpGateway(registry, {
+  port: 3032,
+  security: {
+    apiKeys: ['test-key'],
+    mcpTokens: ['token-123'],
+    ipWhitelist: ['127.0.0.1'],
+    allowedOrigins: ['http://localhost'],
+    rateLimit: { windowMs: 60000, max: 30 }
+  }
+});
+```
+
+Les clients HTTP doivent inclure les en-têtes `X-API-Key`, `X-MCP-Token` et `Origin` cohérents. Pour le WebSocket, fournissez les mêmes en-têtes lors de l’ouverture (`ws`, `wscat`, navigateur) :
+
+```bash
+wscat \
+  -c ws://localhost:3032/ws \
+  -H "Origin: http://localhost" \
+  -H "X-API-Key: test-key" \
+  -H "X-MCP-Token: token-123"
+```
+
+Si les middlewares intégrés ne conviennent pas, vous pouvez injecter vos propres middlewares Express via `security.express` (par exemple pour utiliser `helmet`, `cors` ou un proxy externe).
+
 ## Vérification locale avec la CLI MCP
 
 Après démarrage du serveur, utilisez le client officiel pour invoquer un outil :

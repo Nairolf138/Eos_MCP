@@ -4,28 +4,28 @@ import { createHttpGateway, type HttpGateway } from '../httpGateway.js';
 import { ToolRegistry } from '../toolRegistry.js';
 import type { ToolDefinition } from '../../tools/types.js';
 
+const tool: ToolDefinition = {
+  name: 'echo_test',
+  config: {
+    description: 'Echo test tool'
+  },
+  handler: async (args) => {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `echo:${JSON.stringify(args ?? {})}`
+        }
+      ]
+    };
+  }
+};
+
 describe('HttpGateway integration', () => {
   let server: McpServer;
   let registry: ToolRegistry;
   let gateway: HttpGateway;
   let baseUrl: string;
-
-  const tool: ToolDefinition = {
-    name: 'echo_test',
-    config: {
-      description: 'Echo test tool'
-    },
-    handler: async (args) => {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `echo:${JSON.stringify(args ?? {})}`
-          }
-        ]
-      };
-    }
-  };
 
   beforeAll(async () => {
     server = new McpServer({
@@ -119,5 +119,217 @@ describe('HttpGateway integration', () => {
         }
       ]
     });
+  });
+});
+
+describe('HttpGateway security options', () => {
+  let server: McpServer;
+  let registry: ToolRegistry;
+  let gateway: HttpGateway;
+  let baseUrl: string;
+
+  const securityOptions = {
+    apiKeys: ['test-key'],
+    mcpTokens: ['token-123'],
+    ipWhitelist: ['127.0.0.1', '::1', '::ffff:127.0.0.1'],
+    allowedOrigins: ['http://localhost'],
+    rateLimit: { windowMs: 10_000, max: 2 }
+  } as const;
+
+  beforeEach(async () => {
+    server = new McpServer({
+      name: 'secure-test-server',
+      version: '0.0.0-test'
+    });
+    registry = new ToolRegistry(server);
+    registry.register(tool);
+    gateway = createHttpGateway(registry, { port: 0, security: { ...securityOptions } });
+    await gateway.start();
+    const address = gateway.getAddress();
+    if (!address) {
+      throw new Error('Adresse de la passerelle introuvable');
+    }
+    baseUrl = `http://127.0.0.1:${address.port}`;
+  });
+
+  afterEach(async () => {
+    await gateway.stop();
+    await server.close();
+  });
+
+  test('allows HTTP request with valid credentials', async () => {
+    const response = await fetch(`${baseUrl}/tools/${tool.name}`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': securityOptions.apiKeys[0],
+        'x-mcp-token': securityOptions.mcpTokens[0],
+        origin: 'http://localhost'
+      },
+      body: JSON.stringify({
+        args: {
+          text: 'secured-http'
+        }
+      })
+    });
+
+    expect(response.status).toBe(200);
+  });
+
+  test('rejects HTTP request without API key', async () => {
+    const response = await fetch(`${baseUrl}/tools/${tool.name}`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-mcp-token': securityOptions.mcpTokens[0],
+        origin: 'http://localhost'
+      },
+      body: JSON.stringify({ args: { text: 'no-key' } })
+    });
+
+    expect(response.status).toBe(401);
+  });
+
+  test('rejects HTTP request from disallowed origin', async () => {
+    const response = await fetch(`${baseUrl}/tools/${tool.name}`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': securityOptions.apiKeys[0],
+        'x-mcp-token': securityOptions.mcpTokens[0],
+        origin: 'http://example.com'
+      },
+      body: JSON.stringify({ args: { text: 'bad-origin' } })
+    });
+
+    expect(response.status).toBe(403);
+  });
+
+  test('enforces HTTP rate limiting', async () => {
+    const headers = {
+      'content-type': 'application/json',
+      'x-api-key': securityOptions.apiKeys[0],
+      'x-mcp-token': securityOptions.mcpTokens[0],
+      origin: 'http://localhost'
+    } as Record<string, string>;
+
+    const first = await fetch(`${baseUrl}/tools/${tool.name}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ args: { text: 'first' } })
+    });
+    expect(first.status).toBe(200);
+
+    const second = await fetch(`${baseUrl}/tools/${tool.name}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ args: { text: 'second' } })
+    });
+    expect(second.status).toBe(200);
+
+    const third = await fetch(`${baseUrl}/tools/${tool.name}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ args: { text: 'third' } })
+    });
+    expect(third.status).toBe(429);
+  });
+
+  test('closes WebSocket connection when authentication fails', async () => {
+    const address = new URL(baseUrl);
+    const ws = new WebSocket(`ws://${address.host}/ws`, {
+      headers: {
+        origin: 'http://localhost'
+      }
+    });
+
+    const closeEvent = await new Promise<{ code: number }>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('WebSocket timeout')), 5000);
+      ws.on('close', (code) => {
+        clearTimeout(timeout);
+        resolve({ code });
+      });
+      ws.on('message', () => {
+        // Les connexions rejetées peuvent envoyer un message d'erreur avant la fermeture.
+      });
+      ws.on('error', (error) => {
+        clearTimeout(timeout);
+        reject(error);
+      });
+    });
+
+    expect(closeEvent.code).toBe(1008);
+  });
+
+  test('accepts WebSocket connection with valid credentials', async () => {
+    const address = new URL(baseUrl);
+    const ws = new WebSocket(`ws://${address.host}/ws`, {
+      headers: {
+        origin: 'http://localhost',
+        'x-api-key': securityOptions.apiKeys[0],
+        'x-mcp-token': securityOptions.mcpTokens[0]
+      }
+    });
+
+    const readyMessage = await new Promise<Record<string, unknown>>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Timeout WebSocket')), 5000);
+      ws.on('message', (raw) => {
+        clearTimeout(timeout);
+        const message = typeof raw === 'string' ? raw : raw.toString('utf-8');
+        resolve(JSON.parse(message) as Record<string, unknown>);
+        ws.close();
+      });
+      ws.on('error', (error) => {
+        clearTimeout(timeout);
+        reject(error);
+      });
+    });
+
+    expect(readyMessage.type).toBe('ready');
+  });
+
+  test('allows custom authentication middleware override', async () => {
+    const authCalls: number[] = [];
+    await gateway.stop();
+    await server.close();
+
+    server = new McpServer({
+      name: 'secure-test-server',
+      version: '0.0.0-test'
+    });
+    registry = new ToolRegistry(server);
+    registry.register(tool);
+    gateway = createHttpGateway(registry, {
+      port: 0,
+      security: {
+        ...securityOptions,
+        express: {
+          authentication: (_req, _res, next) => {
+            authCalls.push(Date.now());
+            next();
+          }
+        }
+      }
+    });
+    await gateway.start();
+    const address = gateway.getAddress();
+    if (!address) {
+      throw new Error('Adresse de la passerelle introuvable');
+    }
+    baseUrl = `http://127.0.0.1:${address.port}`;
+
+    const response = await fetch(`${baseUrl}/tools/${tool.name}`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': securityOptions.apiKeys[0],
+        'x-mcp-token': securityOptions.mcpTokens[0],
+        origin: 'http://localhost'
+      },
+      body: JSON.stringify({ args: { text: 'custom-auth' } })
+    });
+
+    expect(response.status).toBe(200);
+    expect(authCalls.length).toBeGreaterThan(0);
   });
 });
