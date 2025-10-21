@@ -10,6 +10,7 @@ import { registerToolSchemas } from '../schemas/index.js';
 import type { ToolDefinition } from '../tools/types.js';
 import { createHttpGateway, type HttpGateway } from './httpGateway.js';
 import { ToolRegistry } from './toolRegistry.js';
+import { getPackageVersion } from '../utils/version.js';
 
 const logger = createLogger('mcp-server');
 
@@ -31,7 +32,7 @@ async function bootstrap(): Promise<BootstrapContext> {
 
   const server = new McpServer({
     name: 'eos-mcp-server',
-    version: '0.1.0'
+    version: getPackageVersion()
   });
 
   if (tcpPort) {

@@ -39,6 +39,8 @@ node --version
 
 La description détaillée de chaque outil est disponible dans [`docs/tools.md`](docs/tools.md). Le fichier est généré automatiquement à partir des schémas Zod déclarés dans `src/tools/**`.
 
+La procédure de mise à jour de version du serveur est documentée dans [`docs/versioning.md`](docs/versioning.md).
+
 ## Configuration réseau et de la console Eos
 
 | Protocole | Port | Description |
