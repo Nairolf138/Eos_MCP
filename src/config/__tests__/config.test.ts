@@ -18,7 +18,13 @@ describe('configuration', () => {
       },
       logging: {
         level: 'info',
-        filePath: resolve(process.cwd(), 'logs/mcp-server.log')
+        format: 'pretty',
+        destinations: [
+          {
+            type: 'file',
+            path: resolve(process.cwd(), 'logs/mcp-server.log')
+          }
+        ]
       }
     };
 
@@ -34,7 +40,8 @@ describe('configuration', () => {
       OSC_UDP_IN_PORT: '4002',
       OSC_LOCAL_ADDRESS: '192.168.1.2',
       LOG_LEVEL: 'DEBUG',
-      MCP_LOG_FILE: 'var/log/eos-mcp.log'
+      MCP_LOG_FILE: 'var/log/eos-mcp.log',
+      LOG_DESTINATIONS: 'stdout,file'
     };
 
     const config = loadConfig(env);
@@ -48,7 +55,11 @@ describe('configuration', () => {
       localAddress: '192.168.1.2'
     });
     expect(config.logging.level).toBe('debug');
-    expect(config.logging.filePath).toBe(resolve(process.cwd(), 'var/log/eos-mcp.log'));
+    expect(config.logging.format).toBe('pretty');
+    expect(config.logging.destinations).toEqual([
+      { type: 'stdout' },
+      { type: 'file', path: resolve(process.cwd(), 'var/log/eos-mcp.log') }
+    ]);
   });
 
   it('rejette les ports invalides avec un message explicite', () => {
@@ -59,5 +70,27 @@ describe('configuration', () => {
     expect(() => loadConfig(env)).toThrow(
       /OSC_TCP_PORT doit être un entier entre 1 et 65535/
     );
+  });
+
+  it('permet de configurer une destination transport avec options', () => {
+    const env: NodeJS.ProcessEnv = {
+      LOG_DESTINATIONS: 'transport,stdout',
+      LOG_TRANSPORT_TARGET: 'pino-syslog',
+      LOG_TRANSPORT_OPTIONS: '{"host":"logs.internal","port":1514}',
+      LOG_PRETTY: 'false',
+      NODE_ENV: 'production'
+    };
+
+    const config = loadConfig(env);
+
+    expect(config.logging.format).toBe('json');
+    expect(config.logging.destinations).toEqual([
+      {
+        type: 'transport',
+        target: 'pino-syslog',
+        options: { host: 'logs.internal', port: 1514 }
+      },
+      { type: 'stdout' }
+    ]);
   });
 });

@@ -1,10 +1,53 @@
-import { mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
-import pino, { stdTimeFunctions, type Logger } from 'pino';
-import { config } from '../config/index.js';
+import pino, {
+  stdTimeFunctions,
+  multistream,
+  type DestinationStream,
+  type Logger
+} from 'pino';
+import { config, type LoggingDestination } from '../config/index.js';
 
-const logFilePath = config.logging.filePath;
-mkdirSync(dirname(logFilePath), { recursive: true });
+function createDestinationStream(destination: LoggingDestination): DestinationStream {
+  switch (destination.type) {
+    case 'stdout':
+      if (config.logging.format === 'pretty') {
+        return pino.transport({
+          target: 'pino-pretty',
+          options: {
+            colorize: true,
+            translateTime: 'SYS:standard'
+          }
+        });
+      }
+
+      return pino.destination({ dest: process.stdout.fd, sync: false });
+    case 'file':
+      return pino.transport({
+        target: 'pino/file',
+        options: {
+          destination: destination.path,
+          mkdir: true
+        }
+      });
+    case 'transport':
+      return pino.transport({
+        target: destination.target,
+        options: destination.options
+      });
+    default: {
+      const exhaustiveCheck: never = destination;
+      return exhaustiveCheck;
+    }
+  }
+}
+
+const destinationStreams = config.logging.destinations.map((destination) => ({
+  stream: createDestinationStream(destination)
+}));
+
+const destination: DestinationStream =
+  destinationStreams.length === 1
+    ? destinationStreams[0]!.stream
+    : multistream(destinationStreams);
 
 const baseLogger: Logger = pino(
   {
@@ -12,7 +55,7 @@ const baseLogger: Logger = pino(
     base: undefined,
     timestamp: stdTimeFunctions.isoTime
   },
-  pino.destination({ dest: logFilePath, sync: true })
+  destination
 );
 
 export function getLogger(): Logger {
