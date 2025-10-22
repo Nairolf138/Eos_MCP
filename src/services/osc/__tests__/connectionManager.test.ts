@@ -1,6 +1,15 @@
 import { EventEmitter } from 'events';
 import type { Socket as TcpSocket } from 'net';
-import type { Socket as UdpSocket } from 'dgram';
+import type { Socket as UdpSocket } from 'node:dgram';
+import { createSocket as createUdpSocket } from 'node:dgram';
+
+jest.mock('node:dgram', () => {
+  const actual = jest.requireActual('node:dgram');
+  return {
+    ...actual,
+    createSocket: jest.fn()
+  };
+});
 
 import { OscConnectionManager } from '../connectionManager';
 
@@ -42,6 +51,7 @@ describe('OscConnectionManager', () => {
 
   afterEach(() => {
     jest.useRealTimers();
+    jest.mocked(createUdpSocket).mockReset();
   });
 
   it('reconnects the TCP transport when heartbeats are not acknowledged', async () => {
@@ -149,6 +159,60 @@ describe('OscConnectionManager', () => {
     expect((lastCall[0] as Buffer).toString()).toBe('hello');
 
     expect(manager.getActiveTransport('snapshot')).toBe('udp');
+
+    manager.stop();
+  });
+
+  it('binds the UDP socket to the configured local endpoint before connecting', async () => {
+    const order: string[] = [];
+
+    class BoundUdpSocket extends EventEmitter {
+      public readonly bind = jest.fn(
+        (options: Parameters<UdpSocket['bind']>[0], callback?: () => void) => {
+          order.push('bind');
+          callback?.();
+          return this as unknown as UdpSocket;
+        }
+      );
+
+      public readonly connect = jest.fn(
+        (port: number, host: string, callback?: () => void) => {
+          order.push('connect');
+          callback?.();
+          return this as unknown as UdpSocket;
+        }
+      );
+
+      public readonly send = jest.fn();
+
+      public readonly close = jest.fn(() => {
+        this.emit('close');
+      });
+    }
+
+    const udpSocket = new BoundUdpSocket();
+    jest.mocked(createUdpSocket).mockReturnValueOnce(udpSocket as unknown as UdpSocket);
+
+    const manager = new OscConnectionManager({
+      host: '192.0.2.5',
+      tcpPort: 9000,
+      udpPort: 9100,
+      localAddress: '0.0.0.0',
+      localPort: 9200,
+      heartbeatIntervalMs: 10_000,
+      connectionTimeoutMs: 5_000,
+      reconnectDelayMs: 50,
+      logger: {}
+    });
+
+    await Promise.resolve();
+
+    expect(order).toEqual(['bind', 'connect']);
+    expect(udpSocket.bind).toHaveBeenCalledWith(
+      expect.objectContaining({ address: '0.0.0.0', port: 9200 }),
+      expect.any(Function)
+    );
+    expect(udpSocket.connect).toHaveBeenCalledWith(9100, '192.0.2.5', expect.any(Function));
 
     manager.stop();
   });

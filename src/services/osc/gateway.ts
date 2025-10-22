@@ -206,7 +206,7 @@ export class OscConnectionGateway implements OscGateway {
   }
 
   private createManager(options: OscConnectionGatewayOptions): OscConnectionManager {
-    const { metadata: _metadata, localAddress: _localAddress, localPort: _localPort, ...rest } = options;
+    const { metadata: _metadata, ...rest } = options;
     return new OscConnectionManager(rest);
   }
 
