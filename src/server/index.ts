@@ -1,3 +1,4 @@
+import type { AddressInfo } from 'node:net';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { getConfig, type AppConfig } from '../config/index';
@@ -13,6 +14,40 @@ import { ToolRegistry } from './toolRegistry';
 import { getPackageVersion } from '../utils/version';
 
 const logger = createLogger('mcp-server');
+
+const TLS_TRUE_VALUES = new Set(['1', 'true', 'yes', 'on', 'enable', 'enabled']);
+
+function isTlsEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  const candidate = env.MCP_TLS_ENABLED ?? env.MCP_TLS ?? env.MCP_USE_TLS;
+  if (candidate === undefined) {
+    return false;
+  }
+
+  const normalised = String(candidate).trim().toLowerCase();
+  return TLS_TRUE_VALUES.has(normalised);
+}
+
+export function buildHttpAccessDetails(
+  httpAddress: AddressInfo,
+  env: NodeJS.ProcessEnv = process.env
+): { host: string; protocol: 'http' | 'https'; accessUrl: string } {
+  const rawHost = httpAddress.address;
+  const family = httpAddress.family;
+
+  let host: string;
+  if (rawHost === '0.0.0.0' || rawHost === '::') {
+    host = 'localhost';
+  } else if (family === 'IPv6' && !rawHost.startsWith('[') && rawHost !== 'localhost') {
+    host = `[${rawHost}]`;
+  } else {
+    host = rawHost;
+  }
+
+  const protocol: 'http' | 'https' = isTlsEnabled(env) ? 'https' : 'http';
+  const accessUrl = `${protocol}://${host}:${httpAddress.port}`;
+
+  return { host, protocol, accessUrl };
+}
 
 interface CliOptions {
   help: boolean;
@@ -143,17 +178,22 @@ async function bootstrap(): Promise<BootstrapContext> {
   const httpAddress = gateway?.getAddress();
 
   if (httpAddress) {
+    const { accessUrl, host, protocol } = buildHttpAccessDetails(httpAddress);
+
     logger.info(
       {
         toolCount,
         httpGateway: {
           address: httpAddress.address,
           family: httpAddress.family,
-          port: httpAddress.port
+          host,
+          port: httpAddress.port,
+          protocol
         },
+        accessUrl,
         stdioTransport: 'listening'
       },
-      `Serveur MCP demarre : ${toolCount} outil(s) disponibles. Passerelle HTTP/WS active sur le port ${httpAddress.port}. Transport STDIO en ecoute.`
+      `Serveur MCP demarre : ${toolCount} outil(s) disponibles. Accessible sur ${accessUrl} (Passerelle HTTP/WS active). Transport STDIO en ecoute.`
     );
   } else {
     logger.info(
@@ -162,7 +202,7 @@ async function bootstrap(): Promise<BootstrapContext> {
         httpGateway: 'inactive',
         stdioTransport: 'listening'
       },
-      `Serveur MCP demarre : ${toolCount} outil(s) disponibles. Communication STDIO uniquement (aucune passerelle HTTP/WS active).`
+      `Serveur MCP demarre : ${toolCount} outil(s) disponibles. Mode STDIO uniquement : la passerelle HTTP/WS est desactivee.`
     );
   }
 
