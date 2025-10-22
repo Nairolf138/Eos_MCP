@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { Socket as TcpSocket, createConnection as createTcpConnection } from 'node:net';
 import { Socket as UdpSocket, createSocket as createUdpSocket } from 'node:dgram';
+import type { BindOptions } from 'node:dgram';
 
 export type TransportType = 'tcp' | 'udp';
 
@@ -19,6 +20,8 @@ export interface OscConnectionManagerOptions {
   host: string;
   tcpPort: number;
   udpPort: number;
+  localAddress?: string;
+  localPort?: number;
   heartbeatIntervalMs?: number;
   reconnectDelayMs?: number;
   connectionTimeoutMs?: number;
@@ -108,11 +111,7 @@ export class OscConnectionManager extends EventEmitter {
       : () => createTcpConnection({ host: options.host, port: options.tcpPort });
     this.createUdpSocket = options.createUdpSocket
       ? options.createUdpSocket
-      : () => {
-          const socket = createUdpSocket('udp4');
-          socket.connect(options.udpPort, options.host);
-          return socket;
-        };
+      : () => createUdpSocket('udp4');
 
     this.connectTransport('tcp');
     this.connectTransport('udp');
@@ -326,13 +325,36 @@ export class OscConnectionManager extends EventEmitter {
       this.onTransportConnected(state);
     };
 
-    try {
-      socket.connect(this.options.udpPort, this.options.host, markConnected);
-    } catch (error) {
-      throw error;
-    }
+    const connectSocket = (): void => {
+      try {
+        socket.connect(this.options.udpPort, this.options.host, markConnected);
+      } catch (error) {
+        throw error;
+      }
 
-    queueMicrotask(markConnected);
+      queueMicrotask(markConnected);
+    };
+
+    const shouldBind =
+      this.options.localAddress !== undefined || this.options.localPort !== undefined;
+
+    if (shouldBind) {
+      const bindOptions: BindOptions = {};
+      if (this.options.localAddress !== undefined) {
+        bindOptions.address = this.options.localAddress;
+      }
+      if (this.options.localPort !== undefined) {
+        bindOptions.port = this.options.localPort;
+      }
+
+      try {
+        socket.bind(bindOptions, connectSocket);
+      } catch (error) {
+        throw error;
+      }
+    } else {
+      connectSocket();
+    }
   }
 
   private onTransportConnected(state: TransportInternals): void {

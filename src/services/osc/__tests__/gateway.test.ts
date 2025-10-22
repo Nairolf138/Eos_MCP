@@ -91,6 +91,8 @@ describe('OscConnectionGateway', () => {
       throw new Error('Gestionnaire de connexion non initialise');
     }
 
+    expect(manager.options).toEqual(expect.objectContaining({ localPort: 8000 }));
+
     manager.transportSequence = ['tcp', 'udp'];
 
     const statuses: TransportStatus[] = [];
@@ -170,5 +172,24 @@ describe('OscConnectionGateway', () => {
     ]);
 
     gateway.close();
+  });
+
+  it('transmet les options de liaison locales au gestionnaire de connexion', () => {
+    createOscConnectionGateway({
+      host: '127.0.0.1',
+      tcpPort: 3032,
+      udpPort: 8001,
+      localPort: 8100,
+      localAddress: '192.168.1.10'
+    });
+
+    const manager = instances.at(-1);
+    if (!manager) {
+      throw new Error('Gestionnaire de connexion non initialise');
+    }
+
+    expect(manager.options).toEqual(
+      expect.objectContaining({ localPort: 8100, localAddress: '192.168.1.10' })
+    );
   });
 });
