@@ -58,7 +58,7 @@ La procédure de mise à jour de version du serveur est documentée dans [`docs/
 
 | Protocole | Port | Description |
 |-----------|------|-------------|
-| TCP       | 3032 | Passerelle HTTP/WS MCP (POST `/tools/:name`, WebSocket `/ws`) activable via `MCP_TCP_PORT`. |
+| TCP       | 3032 | Passerelle HTTP/WS MCP (GET `/health`, GET `/tools`, POST `/tools/:name`, WebSocket `/ws`) activable via `MCP_TCP_PORT`. |
 | UDP       | 8000 | Port d'écoute OSC local (inbound). |
 | UDP       | 8001 | Port de sortie OSC par défaut (outbound). |
 
@@ -99,6 +99,25 @@ Définissez la variable d’environnement `MCP_TCP_PORT` pour exposer une API HT
 
 ```bash
 MCP_TCP_PORT=3032 npm run start:dev
+```
+
+#### Vérifier la santé de la passerelle
+
+Expose un court statut JSON utile pour les sondes de monitoring ou les systèmes d'alerte. L'endpoint renvoie le statut, le temps de fonctionnement et le nombre d'outils MCP enregistrés.
+
+```bash
+curl -X GET "http://localhost:3032/health"
+```
+
+Réponse attendue :
+
+```json
+{
+  "status": "ok",
+  "uptimeMs": 1234,
+  "toolCount": 5,
+  "transportActive": true
+}
 ```
 
 #### Lister les outils disponibles

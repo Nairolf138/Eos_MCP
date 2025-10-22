@@ -68,6 +68,8 @@ class HttpGateway {
 
   private started = false;
 
+  private startTimestamp?: number;
+
   private readonly rateLimitState = new Map<string, { windowStart: number; count: number }>();
 
   constructor(
@@ -84,6 +86,23 @@ class HttpGateway {
     app.use(express.json());
 
     this.applySecurityMiddlewares(app);
+
+    app.get('/health', (_req: Request, res: Response) => {
+      const now = Date.now();
+      const uptimeMs = this.startTimestamp ? now - this.startTimestamp : 0;
+      const toolCount = this.registry.listTools().length;
+      const payload: Record<string, unknown> = {
+        status: this.started ? 'ok' : 'starting',
+        uptimeMs,
+        toolCount
+      };
+
+      if (this.wss) {
+        payload.transportActive = this.started;
+      }
+
+      res.json(payload);
+    });
 
     app.get('/tools', (_req: Request, res: Response) => {
       const tools = this.registry.getRegisteredSummaries();
@@ -188,6 +207,7 @@ class HttpGateway {
       server.listen(this.options.port, this.options.host ?? '0.0.0.0', () => {
         server.off('error', reject);
         this.started = true;
+        this.startTimestamp = Date.now();
         this.server = server;
         this.wss = wss;
         logger.info({ address: this.getAddress() }, 'Passerelle HTTP/WS demarree');
@@ -238,6 +258,7 @@ class HttpGateway {
     this.started = false;
     this.server = undefined;
     this.wss = undefined;
+    this.startTimestamp = undefined;
   }
 
   public getAddress(): AddressInfo | undefined {
