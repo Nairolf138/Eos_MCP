@@ -85,6 +85,11 @@ class HttpGateway {
 
     this.applySecurityMiddlewares(app);
 
+    app.get('/tools', (_req: Request, res: Response) => {
+      const tools = this.registry.getRegisteredSummaries();
+      res.json({ tools });
+    });
+
     app.post('/tools/:name', async (req: Request, res: Response, next: NextFunction) => {
       try {
         const toolName = req.params.name;
