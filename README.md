@@ -52,7 +52,7 @@ node --version
 
 La description détaillée de chaque outil est disponible dans [`docs/tools.md`](docs/tools.md). Le fichier est généré automatiquement à partir des schémas Zod déclarés dans `src/tools/**`.
 
-La procédure de mise à jour de version du serveur est documentée dans [`docs/versioning.md`](docs/versioning.md).
+Toutes les modifications publiées sont consignées dans [`CHANGELOG.md`](CHANGELOG.md). La procédure de mise à jour de version du serveur est documentée dans [`docs/versioning.md`](docs/versioning.md).
 
 ## Options de ligne de commande
 
@@ -118,6 +118,19 @@ Le serveur écoute sur STDIO pour les clients MCP et initialise un service OSC a
 ```
 
 Si la passerelle HTTP/WS n’est pas configurée ou ne peut pas démarrer, le message précise que seule la communication STDIO est active, ce qui permet aux opérateurs d’identifier rapidement la configuration effective au lancement du service.
+
+## Checklist de publication
+
+Avant de publier une nouvelle version :
+
+1. Mettre à jour [`CHANGELOG.md`](CHANGELOG.md) avec les évolutions et corrections apportées.
+2. Appliquer `npm version <patch|minor|major>` pour générer le commit et le tag correspondant.
+3. Lancer la suite de tests (`npm test`) et les vérifications (`npm run lint`, `npm run build`) si ce n’est pas déjà fait.
+4. Pousser la branche et le tag associé :
+   ```bash
+   git push --follow-tags
+   ```
+5. Vérifier que la documentation générée reste à jour (`npm run docs:check`).
 
 ### Passerelle HTTP/WS optionnelle
 
