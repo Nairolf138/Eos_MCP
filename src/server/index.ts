@@ -57,6 +57,33 @@ async function bootstrap(): Promise<BootstrapContext> {
 
   await Promise.all(connections);
 
+  const toolCount = registry.listTools().length;
+  const httpAddress = gateway?.getAddress();
+
+  if (httpAddress) {
+    logger.info(
+      {
+        toolCount,
+        httpGateway: {
+          address: httpAddress.address,
+          family: httpAddress.family,
+          port: httpAddress.port
+        },
+        stdioTransport: 'listening'
+      },
+      `Serveur MCP demarre : ${toolCount} outil(s) disponibles. Passerelle HTTP/WS active sur le port ${httpAddress.port}. Transport STDIO en ecoute.`
+    );
+  } else {
+    logger.info(
+      {
+        toolCount,
+        httpGateway: 'inactive',
+        stdioTransport: 'listening'
+      },
+      `Serveur MCP demarre : ${toolCount} outil(s) disponibles. Communication STDIO uniquement (aucune passerelle HTTP/WS active).`
+    );
+  }
+
   const handleShutdown = async (signal: NodeJS.Signals): Promise<void> => {
     logger.info({ signal }, 'Signal %s recu, fermeture du serveur MCP', signal);
     try {

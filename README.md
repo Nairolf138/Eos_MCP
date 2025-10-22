@@ -91,7 +91,13 @@ npm run build
 npm start
 ```
 
-Le serveur écoute sur STDIO pour les clients MCP et initialise un service OSC avec la configuration précédente. Le journal de démarrage vous indique les ports surveillés.
+Le serveur écoute sur STDIO pour les clients MCP et initialise un service OSC avec la configuration précédente. Le journal de démarrage vous indique les ports surveillés. Un message dédié confirme désormais le nombre d’outils chargés, l’état de la passerelle HTTP/WS et la disponibilité du transport STDIO :
+
+```text
+{"toolCount":5,"httpGateway":{"address":"0.0.0.0","family":"IPv4","port":3032},"stdioTransport":"listening"} Serveur MCP demarre : 5 outil(s) disponibles. Passerelle HTTP/WS active sur le port 3032. Transport STDIO en ecoute.
+```
+
+Si la passerelle HTTP/WS n’est pas configurée ou ne peut pas démarrer, le message précise que seule la communication STDIO est active, ce qui permet aux opérateurs d’identifier rapidement la configuration effective au lancement du service.
 
 ### Passerelle HTTP/WS optionnelle
 
