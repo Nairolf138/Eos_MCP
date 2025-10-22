@@ -197,7 +197,7 @@ Les trois intégrations ci-dessous s’appuient sur le protocole MCP. Chaque out
 3. Renseignez :
    - **Nom** : `Eos MCP` (ou similaire).
    - **Type de connexion** : `Commande locale`.
-   - **Commande** : `npm run start:dev` (développement) ou `node dist/index.js` (production).
+   - **Commande** : `npm run start:dev` (développement) ou `node dist/server/index.js` (production).
    - **Répertoire de travail** : chemin absolu du dossier `Eos_MCP`.
 4. Sauvegardez le GPT. Au premier lancement, ChatGPT vous demandera d’autoriser l’exécution de la commande ; acceptez pour ouvrir le serveur.
 5. Dans la conversation, demandez une action (ex. « déclenche la cue 5 »). ChatGPT traduira la requête en appel d’outil MCP ; surveillez le terminal pour vérifier que la commande est déclenchée.
@@ -223,7 +223,7 @@ Les trois intégrations ci-dessous s’appuient sur le protocole MCP. Chaque out
    }
    ```
 
-   Pour un build production, remplacez par `"command": "node", "args": ["dist/index.js"]`.
+   Pour un build production, remplacez par `"command": "node", "args": ["dist/server/index.js"]`.
 4. Redémarrez Claude Desktop puis ouvrez un chat. Tapez une instruction liée à Eos ; Claude sélectionnera automatiquement le serveur MCP si pertinent.
 5. Vérifiez que les réponses incluent la trace des outils MCP utilisés et que la console Eos reçoit bien les messages OSC.
 
