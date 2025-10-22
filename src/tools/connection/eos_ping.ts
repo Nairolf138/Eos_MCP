@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { getOscClient } from '../../services/osc/client.js';
-import { optionalPortSchema, optionalTimeoutMsSchema } from '../../utils/validators.js';
-import type { ToolDefinition } from '../types.js';
+import { getOscClient } from '../../services/osc/client';
+import { optionalPortSchema, optionalTimeoutMsSchema } from '../../utils/validators';
+import type { ToolDefinition } from '../types';
 
 const inputSchema = {
   message: z.string().min(1).optional(),

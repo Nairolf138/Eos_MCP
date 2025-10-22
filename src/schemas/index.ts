@@ -1,8 +1,8 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z, type ZodRawShape } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import toolDefinitions from '../tools/index.js';
-import type { ToolDefinition } from '../tools/types.js';
+import toolDefinitions from '../tools/index';
+import type { ToolDefinition } from '../tools/types';
 
 export interface ToolJsonSchemaDefinition {
   name: string;

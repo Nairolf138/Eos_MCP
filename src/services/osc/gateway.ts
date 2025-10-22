@@ -1,6 +1,6 @@
 import osc from 'osc';
-import { config, type OscConfig as ResolvedOscConfig } from '../../config/index.js';
-import { createLogger } from '../../server/logger.js';
+import { config, type OscConfig as ResolvedOscConfig } from '../../config/index';
+import { createLogger } from '../../server/logger';
 import type {
   OscDiagnostics,
   OscLoggingOptions,
@@ -8,14 +8,14 @@ import type {
   OscMessage,
   OscMessageArgument,
   OscMessageSummary
-} from './index.js';
+} from './index';
 import {
   OscConnectionManager,
   type OscConnectionManagerOptions,
   type ToolTransportPreference,
   type TransportStatus
-} from './connectionManager.js';
-import type { OscGateway, OscGatewaySendOptions } from './client.js';
+} from './connectionManager';
+import type { OscGateway, OscGatewaySendOptions } from './client';
 
 type Direction = 'incoming' | 'outgoing';
 
@@ -105,10 +105,17 @@ export class OscConnectionGateway implements OscGateway {
       const transport = this.manager.send(toolId, encoded);
       this.updateStats('outgoing', message, encoded.byteLength);
       if (this.loggingState.outgoing) {
-        this.logger.debug(`[OSC][${transport}] -> ${message.address}`, message.args ?? []);
+        this.logger.debug(
+          { args: message.args ?? [] },
+          `[OSC][${transport}] -> ${message.address}`
+        );
       }
     } catch (error) {
-      this.logger.error({ address: message.address }, "Erreur lors de l'envoi OSC", error);
+      const errorData =
+        error instanceof Error
+          ? { err: error, address: message.address }
+          : { error, address: message.address };
+      this.logger.error(errorData, "Erreur lors de l'envoi OSC");
       throw error;
     }
   }
@@ -207,20 +214,31 @@ export class OscConnectionGateway implements OscGateway {
     manager.on('message', ({ type, data }) => {
       const message = this.decodeMessage(data);
       if (!message) {
-        this.logger.error('[OSC] Message recu dans un format inattendu');
+        this.logger.error(
+          { type, data },
+          "[OSC] Message recu dans un format inattendu"
+        );
         return;
       }
 
       this.updateStats('incoming', message, data.byteLength ?? data.length ?? 0);
       if (this.loggingState.incoming) {
-        this.logger.debug(`[OSC][${type}] <- ${message.address}`, message.args ?? []);
+        this.logger.debug(
+          { args: message.args ?? [] },
+          `[OSC][${type}] <- ${message.address}`
+        );
       }
 
       this.listeners.forEach((listener) => {
         try {
           listener(message);
         } catch (error) {
-          this.logger.error('[OSC] Erreur lors du traitement du message', error);
+          const errorData =
+            error instanceof Error ? { err: error } : { error };
+          this.logger.error(
+            errorData,
+            "[OSC] Erreur lors du traitement du message"
+          );
         }
       });
     });
@@ -230,7 +248,12 @@ export class OscConnectionGateway implements OscGateway {
         try {
           listener(status);
         } catch (error) {
-          this.logger.error('[OSC] Erreur lors de la notification de statut', error);
+          const errorData =
+            error instanceof Error ? { err: error } : { error };
+          this.logger.error(
+            errorData,
+            "[OSC] Erreur lors de la notification de statut"
+          );
         }
       });
     });
@@ -256,7 +279,11 @@ export class OscConnectionGateway implements OscGateway {
     try {
       packet = osc.readPacket(data, { metadata: this.metadata });
     } catch (error) {
-      this.logger.error('[OSC] Impossible de decoder le paquet OSC', error);
+      const errorData = error instanceof Error ? { err: error } : { error };
+      this.logger.error(
+        errorData,
+        '[OSC] Impossible de decoder le paquet OSC'
+      );
       return null;
     }
 

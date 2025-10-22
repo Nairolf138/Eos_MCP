@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { getOscClient } from '../../services/osc/client.js';
-import type { ToolDefinition } from '../types.js';
+import { getOscClient } from '../../services/osc/client';
+import type { ToolDefinition } from '../types';
 
 const inputSchema = {
   full: z.boolean().optional(),

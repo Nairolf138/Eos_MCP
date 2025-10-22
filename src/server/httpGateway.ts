@@ -7,8 +7,8 @@ import express, {
   type RequestHandler
 } from 'express';
 import { WebSocketServer, type WebSocket, type RawData } from 'ws';
-import { createLogger } from './logger.js';
-import { ToolNotFoundError, type ToolRegistry } from './toolRegistry.js';
+import { createLogger } from './logger';
+import { ToolNotFoundError, type ToolRegistry } from './toolRegistry';
 
 interface HttpGatewayOptions {
   port: number;

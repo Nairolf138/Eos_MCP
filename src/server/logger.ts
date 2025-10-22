@@ -4,7 +4,7 @@ import pino, {
   type DestinationStream,
   type Logger
 } from 'pino';
-import { config, type LoggingDestination } from '../config/index.js';
+import { config, type LoggingDestination } from '../config/index';
 
 function createDestinationStream(destination: LoggingDestination): DestinationStream {
   switch (destination.type) {

@@ -1,7 +1,14 @@
-import type { ToolCallback } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ZodRawShape } from 'zod';
 
-export type ToolExecutionResult = Awaited<ReturnType<ToolCallback<ZodRawShape | undefined>>>;
+export interface ToolResultContent {
+  type: string;
+  [key: string]: unknown;
+}
+
+export interface ToolExecutionResult {
+  content: ToolResultContent[];
+  [key: string]: unknown;
+}
 
 export interface ToolContext {
   name: string;
@@ -23,6 +30,6 @@ export interface ToolDefinition<Args extends ZodRawShape | undefined = ZodRawSha
     outputSchema?: ZodRawShape;
     annotations?: Record<string, unknown>;
   };
-  handler: ToolCallback<Args>;
+  handler: (args: unknown, extra: unknown) => Promise<ToolExecutionResult>;
   middlewares?: ToolMiddleware[];
 }

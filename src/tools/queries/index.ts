@@ -7,7 +7,7 @@ import {
 } from '../../services/cache/index';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import { oscMappings } from '../../services/osc/mappings';
-import type { ToolDefinition, ToolExecutionResult } from '../types.js';
+import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 interface QueryListItem {
   number: string;

@@ -8,7 +8,7 @@ import {
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
 import { oscMappings } from '../../services/osc/mappings';
-import type { ToolDefinition, ToolExecutionResult } from '../types.js';
+import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 export interface SubmasterTimings {
   up: number | null;

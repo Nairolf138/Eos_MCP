@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { getOscGateway, resetOscClient } from '../../services/osc/client.js';
-import { createOscConnectionGateway } from '../../services/osc/index.js';
-import { createLogger } from '../../server/logger.js';
-import type { ToolDefinition } from '../types.js';
+import { getOscGateway, resetOscClient } from '../../services/osc/client';
+import { createOscConnectionGateway } from '../../services/osc/index';
+import { createLogger } from '../../server/logger';
+import type { ToolDefinition } from '../types';
 
 const inputSchema = {
   remoteAddress: z.string().min(1, 'remoteAddress doit etre une adresse valide.'),

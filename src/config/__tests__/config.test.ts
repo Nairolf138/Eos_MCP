@@ -1,5 +1,5 @@
 import { resolve } from 'node:path';
-import { loadConfig, type AppConfig } from '../../config/index.js';
+import { loadConfig, type AppConfig } from '../../config/index';
 
 describe('configuration', () => {
   it('fournit des valeurs par défaut cohérentes lorsque aucune variable est définie', () => {

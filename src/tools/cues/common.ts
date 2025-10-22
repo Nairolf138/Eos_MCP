@@ -1,5 +1,5 @@
 import { z, type ZodRawShape } from 'zod';
-import type { OscMessageArgument } from '../../services/osc/index.js';
+import type { OscMessageArgument } from '../../services/osc/index';
 import type { ToolExecutionResult } from '../types';
 import type { CueIdentifier } from './types';
 

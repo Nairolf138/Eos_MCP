@@ -1,16 +1,16 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { config } from '../config/index.js';
-import { createOscGatewayFromEnv, OscConnectionGateway } from '../services/osc/index.js';
-import { initializeOscClient } from '../services/osc/client.js';
-import { ErrorCode, describeError, toAppError } from './errors.js';
-import { createLogger } from './logger.js';
-import { toolDefinitions } from '../tools/index.js';
-import { registerToolSchemas } from '../schemas/index.js';
-import type { ToolDefinition } from '../tools/types.js';
-import { createHttpGateway, type HttpGateway } from './httpGateway.js';
-import { ToolRegistry } from './toolRegistry.js';
-import { getPackageVersion } from '../utils/version.js';
+import { config } from '../config/index';
+import { createOscGatewayFromEnv, OscConnectionGateway } from '../services/osc/index';
+import { initializeOscClient } from '../services/osc/client';
+import { ErrorCode, describeError, toAppError } from './errors';
+import { createLogger } from './logger';
+import { toolDefinitions } from '../tools/index';
+import { registerToolSchemas } from '../schemas/index';
+import type { ToolDefinition } from '../tools/types';
+import { createHttpGateway, type HttpGateway } from './httpGateway';
+import { ToolRegistry } from './toolRegistry';
+import { getPackageVersion } from '../utils/version';
 
 const logger = createLogger('mcp-server');
 
