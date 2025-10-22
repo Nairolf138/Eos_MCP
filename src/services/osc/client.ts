@@ -4,21 +4,21 @@ import type {
   OscLoggingState,
   OscMessage,
   OscMessageArgument
-} from './index.js';
+} from './index';
 import type {
   ToolTransportPreference,
   TransportStatus
-} from './connectionManager.js';
-import { createOscGatewayFromEnv } from './gateway.js';
+} from './connectionManager';
+import { createOscGatewayFromEnv } from './gateway';
 import {
   AppError,
   ErrorCode,
   createConnectionLostError,
   createTimeoutError,
   isAppError
-} from '../../server/errors.js';
-import { getResourceCache } from '../cache/index.js';
-import { RequestQueue, type RequestQueueRunOptions } from './requestQueue.js';
+} from '../../server/errors';
+import { getResourceCache } from '../cache/index';
+import { RequestQueue, type RequestQueueRunOptions } from './requestQueue';
 
 const HANDSHAKE_REQUEST = '/eos/handshake';
 const HANDSHAKE_REPLY = '/eos/handshake/reply';

@@ -91,9 +91,18 @@ interface PortSchemaOptions {
 
 function createPortSchema(
   variableName: string,
-  { defaultValue, optional = false }: PortSchemaOptions
+  options?: { defaultValue?: number; optional?: false }
+): z.ZodEffects<z.ZodUnknown, number, unknown>;
+function createPortSchema(
+  variableName: string,
+  options: { defaultValue?: number; optional: true }
+): z.ZodEffects<z.ZodUnknown, number | undefined, unknown>;
+function createPortSchema(
+  variableName: string,
+  options: PortSchemaOptions = {}
 ): z.ZodEffects<z.ZodUnknown, number | undefined, unknown> {
-  return z.unknown().transform((value, ctx) => {
+  const { defaultValue, optional = false } = options;
+  const schema = z.unknown().transform((value, ctx) => {
     if (value === undefined || value === null) {
       if (defaultValue !== undefined) {
         return defaultValue;
@@ -128,6 +137,12 @@ function createPortSchema(
 
     return parsed;
   });
+
+  if (optional) {
+    return schema;
+  }
+
+  return schema as z.ZodEffects<z.ZodUnknown, number, unknown>;
 }
 
 function createAddressSchema(

@@ -1,4 +1,4 @@
-import type { OscMessage } from '../osc/index.js';
+import type { OscMessage } from '../osc/index';
 
 export type ResourceType =
   | 'channels'
@@ -60,9 +60,11 @@ function sanitise(value: unknown): unknown {
   }
 
   if (value && typeof value === 'object') {
-    const entries = Object.entries(value as Record<string, unknown>)
+    const entries: Array<[string, unknown]> = Object.entries(
+      value as Record<string, unknown>
+    )
       .filter(([, v]) => typeof v !== 'undefined')
-      .map(([key, val]) => [key, sanitise(val as unknown)]);
+      .map(([key, val]) => [key, sanitise(val)]);
 
     const result: Record<string, unknown> = {};
     for (const [key, val] of entries) {

@@ -1,8 +1,8 @@
 import { z, type ZodRawShape } from 'zod';
 import { getOscClient } from '../../services/osc/client';
-import type { OscMessageArgument } from '../../services/osc/index.js';
+import type { OscMessageArgument } from '../../services/osc/index';
 import { oscMappings } from '../../services/osc/mappings';
-import type { ToolDefinition, ToolExecutionResult } from '../types.js';
+import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 interface FaderBankState {
   page: number;

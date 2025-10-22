@@ -1,5 +1,5 @@
 import { jest } from '@jest/globals';
-import { getPackageVersion } from '../../utils/version.js';
+import { getPackageVersion } from '../../utils/version';
 
 const mockConnect = jest.fn().mockResolvedValue(undefined);
 const mockClose = jest.fn().mockResolvedValue(undefined);

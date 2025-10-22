@@ -1,7 +1,7 @@
 import { z, type ZodRawShape } from 'zod';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import { oscMappings } from '../../services/osc/mappings';
-import type { ToolDefinition, ToolExecutionResult } from '../types.js';
+import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),

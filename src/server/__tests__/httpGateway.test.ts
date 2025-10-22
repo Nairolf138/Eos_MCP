@@ -1,8 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import WebSocket from 'ws';
-import { createHttpGateway, type HttpGateway } from '../httpGateway.js';
-import { ToolRegistry } from '../toolRegistry.js';
-import type { ToolDefinition } from '../../tools/types.js';
+import { createHttpGateway, type HttpGateway } from '../httpGateway';
+import { ToolRegistry } from '../toolRegistry';
+import type { ToolDefinition } from '../../tools/types';
 
 const tool: ToolDefinition = {
   name: 'echo_test',

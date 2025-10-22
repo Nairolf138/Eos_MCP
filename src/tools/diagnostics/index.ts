@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { getOscClient } from '../../services/osc/client.js';
-import type { OscDiagnostics, OscLoggingState } from '../../services/osc/index.js';
-import type { ToolDefinition } from '../types.js';
+import { getOscClient } from '../../services/osc/client';
+import type { OscDiagnostics, OscLoggingState } from '../../services/osc/index';
+import type { ToolDefinition } from '../types';
 
 const loggingInputSchema = {
   incoming: z.boolean().optional(),

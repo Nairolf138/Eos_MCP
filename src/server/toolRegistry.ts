@@ -1,11 +1,10 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { ToolCallback } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type {
   ToolDefinition,
   ToolExecutionResult,
   ToolMiddleware,
   ToolContext
-} from '../tools/types.js';
+} from '../tools/types';
 
 class ToolNotFoundError extends Error {
   constructor(toolName: string, available: string[]) {
@@ -18,15 +17,17 @@ class ToolNotFoundError extends Error {
   }
 }
 
+type RegisteredCallback = (args: unknown, extra: unknown) => Promise<ToolExecutionResult>;
+
 class ToolRegistry {
   private readonly registeredTools = new Map<string, ToolDefinition>();
 
-  private readonly registeredCallbacks = new Map<string, ToolCallback>();
+  private readonly registeredCallbacks = new Map<string, RegisteredCallback>();
 
   constructor(private readonly server: McpServer) {}
 
   public register(tool: ToolDefinition): void {
-    const callback = this.attachMiddlewares(tool) as ToolCallback;
+    const callback = this.attachMiddlewares(tool);
     this.server.registerTool(tool.name, tool.config as never, callback as never);
     this.registeredTools.set(tool.name, tool);
     this.registeredCallbacks.set(tool.name, callback);
@@ -51,23 +52,23 @@ class ToolRegistry {
       throw new ToolNotFoundError(name, this.listTools());
     }
 
-    return (await callback(args as never, extra as never)) as ToolExecutionResult;
+    return callback(args, extra);
   }
 
-  private attachMiddlewares(tool: ToolDefinition): ToolCallback {
+  private attachMiddlewares(tool: ToolDefinition): RegisteredCallback {
     const middlewares = tool.middlewares ?? [];
     if (middlewares.length === 0) {
-      return tool.handler as ToolCallback;
+      return tool.handler;
     }
 
     return (async (args: unknown, extra: unknown) => {
       const context: ToolContext = { name: tool.name, args, extra };
 
       const executeHandler = (): Promise<ToolExecutionResult> =>
-        Promise.resolve(tool.handler(args as never, extra as never));
+        Promise.resolve(tool.handler(args, extra));
 
       return this.compose(middlewares, executeHandler)(context);
-    }) as ToolCallback;
+    }) as RegisteredCallback;
   }
 
   private compose(

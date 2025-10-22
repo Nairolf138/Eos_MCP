@@ -1,7 +1,7 @@
 import { UDPPort } from 'osc';
 import type { Logger } from 'pino';
-import { config, type OscConfig as ResolvedOscConfig } from '../../config/index.js';
-import { createLogger } from '../../server/logger.js';
+import { config, type OscConfig as ResolvedOscConfig } from '../../config/index';
+import { createLogger } from '../../server/logger';
 
 export interface OscMessageArgument {
   type: string;
@@ -112,7 +112,10 @@ export class OscService {
     this.updateStats('outgoing', summary);
 
     if (this.loggingState.outgoing) {
-      this.logger.debug(`[OSC] -> ${summary.address}`, summary.args);
+      this.logger.debug(
+        { args: summary.args },
+        `[OSC] -> ${summary.address}`
+      );
     }
 
     return new Promise<void>((resolve, reject) => {
@@ -124,7 +127,11 @@ export class OscService {
         );
         resolve();
       } catch (error) {
-        this.logger.error('[OSC] Erreur lors de l\'envoi du message', error);
+        const errorData = error instanceof Error ? { err: error } : { error };
+        this.logger.error(
+          errorData,
+          "[OSC] Erreur lors de l'envoi du message"
+        );
         reject(error);
       }
     });
@@ -229,7 +236,10 @@ export class OscService {
     port.on('message', (rawMessage: unknown) => {
       const message = this.normaliseIncomingMessage(rawMessage);
       if (!message) {
-        this.logger.error('[OSC] Message recu dans un format inattendu', rawMessage);
+        this.logger.error(
+          { rawMessage },
+          "[OSC] Message recu dans un format inattendu"
+        );
         return;
       }
 
@@ -237,14 +247,22 @@ export class OscService {
       this.updateStats('incoming', summary);
 
       if (this.loggingState.incoming) {
-        this.logger.debug(`[OSC] <- ${summary.address}`, summary.args);
+        this.logger.debug(
+          { args: summary.args },
+          `[OSC] <- ${summary.address}`
+        );
       }
 
       this.listeners.forEach((listener) => {
         try {
           listener(message);
         } catch (error) {
-          this.logger.error('[OSC] Erreur lors du traitement du message', error);
+          const errorData =
+            error instanceof Error ? { err: error } : { error };
+          this.logger.error(
+            errorData,
+            "[OSC] Erreur lors du traitement du message"
+          );
         }
       });
     });
@@ -288,7 +306,11 @@ export class OscService {
     try {
       return Buffer.byteLength(JSON.stringify(summary), 'utf8');
     } catch (error) {
-      this.logger.error('[OSC] Impossible de calculer la taille du message', error);
+      const errorData = error instanceof Error ? { err: error } : { error };
+      this.logger.error(
+        errorData,
+        "[OSC] Impossible de calculer la taille du message"
+      );
       return 0;
     }
   }
@@ -332,11 +354,11 @@ export {
   type ToolTransportPreference,
   type TransportStatus,
   type TransportType
-} from './connectionManager.js';
+} from './connectionManager';
 export {
   OscConnectionGateway,
   createOscConnectionGateway,
   createOscGatewayFromConfig,
   type OscConnectionGatewayOptions,
   createOscGatewayFromEnv
-} from './gateway.js';
+} from './gateway';

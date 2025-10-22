@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { createError, createOutOfRangeError, ErrorCode } from '../server/errors.js';
+import { createError, createOutOfRangeError, ErrorCode } from '../server/errors';
 
 export const TIMEOUT_MIN_MS = 50;
 export const TIMEOUT_MAX_MS = 60_000;

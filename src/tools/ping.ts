@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { createLogger } from '../server/logger.js';
-import type { ToolDefinition, ToolMiddleware } from './types.js';
+import { createLogger } from '../server/logger';
+import type { ToolDefinition, ToolMiddleware } from './types';
 
 const inputSchema = {
   message: z.string().optional()
@@ -30,7 +30,9 @@ export const pingTool: ToolDefinition<typeof inputSchema> = {
     inputSchema
   },
   handler: async (args) => {
-    const response = args?.message ? `pong: ${args.message}` : 'pong';
+    const schema = z.object(inputSchema).strict();
+    const options = schema.parse(args ?? {});
+    const response = options.message ? `pong: ${options.message}` : 'pong';
     return {
       content: [
         {

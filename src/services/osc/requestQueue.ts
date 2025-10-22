@@ -1,4 +1,4 @@
-import { createTimeoutError } from '../../server/errors.js';
+import { createTimeoutError } from '../../server/errors';
 
 export interface RequestQueueOptions {
   concurrency?: number;
