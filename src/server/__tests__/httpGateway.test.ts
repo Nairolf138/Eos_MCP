@@ -74,6 +74,21 @@ describe('HttpGateway integration', () => {
     });
   });
 
+  test('reports health status via HTTP GET', async () => {
+    const response = await fetch(`${baseUrl}/health`, {
+      headers: {
+        'content-type': 'application/json'
+      }
+    });
+
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as Record<string, unknown>;
+    expect(payload.status).toBe('ok');
+    expect(typeof payload.uptimeMs).toBe('number');
+    expect(payload.toolCount).toBe(1);
+    expect(payload.transportActive).toBe(true);
+  });
+
   test('execute tool via WebSocket', async () => {
     const address = new URL(baseUrl);
     const ws = new WebSocket(`ws://${address.host}/ws`);
@@ -174,6 +189,16 @@ describe('HttpGateway security options', () => {
     });
 
     expect(response.status).toBe(200);
+  });
+
+  test('rejects health endpoint without credentials', async () => {
+    const response = await fetch(`${baseUrl}/health`, {
+      headers: {
+        origin: 'http://localhost'
+      }
+    });
+
+    expect(response.status).toBe(401);
   });
 
   test('rejects HTTP request without API key', async () => {
