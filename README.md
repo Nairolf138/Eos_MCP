@@ -38,7 +38,7 @@ node --version
    npm install
    ```
 
-2. (Facultatif) Copiez le fichier `.env.example` vers `.env` et ajustez vos ports/paramètres réseau si nécessaire.
+2. (Facultatif) Le fichier `.env.example` reflète les valeurs par défaut validées par le serveur : copiez-le vers `.env` puis ajustez vos ports/paramètres réseau si nécessaire.
 
 ## Scripts npm utiles
 
