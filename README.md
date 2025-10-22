@@ -95,11 +95,42 @@ Le serveur écoute sur STDIO pour les clients MCP et initialise un service OSC a
 
 ### Passerelle HTTP/WS optionnelle
 
-Définissez la variable d’environnement `MCP_TCP_PORT` pour exposer une API HTTP REST (`POST /tools/:name`) et un WebSocket (`/ws`) au-dessus du registre d’outils MCP. Exemple :
+Définissez la variable d’environnement `MCP_TCP_PORT` pour exposer une API HTTP REST (`GET /tools`, `POST /tools/:name`) et un WebSocket (`/ws`) au-dessus du registre d’outils MCP. Exemple :
 
 ```bash
 MCP_TCP_PORT=3032 npm run start:dev
 ```
+
+#### Lister les outils disponibles
+
+```bash
+curl -X GET "http://localhost:3032/tools"
+```
+
+Réponse attendue :
+
+```json
+{
+  "tools": [
+    {
+      "name": "ping",
+      "config": {
+        "title": "Ping tool",
+        "description": "Retourne un message de confirmation."
+      },
+      "metadata": {
+        "hasInputSchema": true,
+        "inputSchemaResourceUri": "schema://tools/ping",
+        "hasOutputSchema": false,
+        "hasMiddlewares": true,
+        "middlewareCount": 1
+      }
+    }
+  ]
+}
+```
+
+Les outils munis d’un schéma Zod exposent le pointeur MCP correspondant dans `metadata.inputSchemaResourceUri` (`schema://tools/<nom>`).
 
 #### Appel REST
 

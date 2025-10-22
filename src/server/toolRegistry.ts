@@ -19,6 +19,24 @@ class ToolNotFoundError extends Error {
 
 type RegisteredCallback = (args: unknown, extra: unknown) => Promise<ToolExecutionResult>;
 
+interface RegisteredToolConfigSummary {
+  title?: string;
+  description?: string;
+  annotations?: Record<string, unknown>;
+}
+
+interface RegisteredToolSummary {
+  name: string;
+  config: RegisteredToolConfigSummary;
+  metadata: {
+    hasInputSchema: boolean;
+    hasOutputSchema: boolean;
+    inputSchemaResourceUri?: string;
+    hasMiddlewares: boolean;
+    middlewareCount: number;
+  };
+}
+
 class ToolRegistry {
   private readonly registeredTools = new Map<string, ToolDefinition>();
 
@@ -40,6 +58,31 @@ class ToolRegistry {
 
   public listTools(): string[] {
     return Array.from(this.registeredTools.keys());
+  }
+
+  public getRegisteredSummaries(): RegisteredToolSummary[] {
+    return Array.from(this.registeredTools.values()).map((tool) => {
+      const hasInputSchema = Boolean(tool.config.inputSchema);
+      const hasOutputSchema = Boolean(tool.config.outputSchema);
+
+      return {
+        name: tool.name,
+        config: {
+          title: tool.config.title,
+          description: tool.config.description,
+          annotations: tool.config.annotations
+        },
+        metadata: {
+          hasInputSchema,
+          hasOutputSchema,
+          inputSchemaResourceUri: hasInputSchema
+            ? `schema://tools/${tool.name}`
+            : undefined,
+          hasMiddlewares: Boolean(tool.middlewares?.length),
+          middlewareCount: tool.middlewares?.length ?? 0
+        }
+      } satisfies RegisteredToolSummary;
+    });
   }
 
   public async invoke(
@@ -95,3 +138,4 @@ class ToolRegistry {
 }
 
 export { ToolRegistry, ToolNotFoundError };
+export type { RegisteredToolSummary, RegisteredToolConfigSummary };
