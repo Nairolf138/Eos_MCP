@@ -1,10 +1,10 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { config } from '../config/index';
+import { getConfig, type AppConfig } from '../config/index';
 import { createOscGatewayFromEnv, OscConnectionGateway } from '../services/osc/index';
 import { initializeOscClient } from '../services/osc/client';
 import { ErrorCode, describeError, toAppError } from './errors';
-import { createLogger } from './logger';
+import { createLogger, initialiseLogger } from './logger';
 import { toolDefinitions } from '../tools/index';
 import { registerToolSchemas } from '../schemas/index';
 import type { ToolDefinition } from '../tools/types';
@@ -26,6 +26,19 @@ interface BootstrapContext {
 }
 
 async function bootstrap(): Promise<BootstrapContext> {
+  let config: AppConfig;
+  try {
+    config = getConfig();
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    const message = `Impossible de charger la configuration: ${reason}`;
+    logger.fatal(message);
+    process.exit(1);
+    throw new Error(message);
+  }
+
+  initialiseLogger(config);
+
   const tcpPort = config.mcp.tcpPort;
   const oscGateway = createOscGatewayFromEnv({ logger: createLogger('osc-gateway') });
   initializeOscClient(oscGateway);

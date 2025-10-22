@@ -22,7 +22,7 @@ jest.mock('@modelcontextprotocol/sdk/server/stdio.js', () => ({
 }));
 
 jest.mock('../../config/index.js', () => ({
-  config: {
+  getConfig: jest.fn(() => ({
     mcp: {},
     osc: {
       remoteAddress: '127.0.0.1',
@@ -34,9 +34,10 @@ jest.mock('../../config/index.js', () => ({
     logging: {
       level: 'info',
       format: 'json',
-      destinations: []
+      destinations: [{ type: 'stdout' }]
     }
-  }
+  })),
+  resetConfigCacheForTesting: jest.fn()
 }));
 
 const mockOscGateway = { close: jest.fn() };

@@ -455,8 +455,23 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   return result.data;
 }
 
+let cachedConfig: AppConfig | undefined;
+
 /**
- * Configuration applicative validée et prête à l'emploi.
- * Les valeurs sont évaluées une seule fois au chargement du module.
+ * Retourne la configuration applicative en la chargeant à la première
+ * invocation uniquement.
  */
-export const config: AppConfig = loadConfig();
+export function getConfig(): AppConfig {
+  if (cachedConfig === undefined) {
+    cachedConfig = loadConfig();
+  }
+
+  return cachedConfig;
+}
+
+/**
+ * Réinitialise le cache de configuration (utilisé uniquement pour les tests).
+ */
+export function resetConfigCacheForTesting(): void {
+  cachedConfig = undefined;
+}

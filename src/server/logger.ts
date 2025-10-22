@@ -4,12 +4,22 @@ import pino, {
   type DestinationStream,
   type Logger
 } from 'pino';
-import { config, type LoggingDestination } from '../config/index';
+import type { AppConfig, LoggingDestination } from '../config/index';
 
-function createDestinationStream(destination: LoggingDestination): DestinationStream {
+type LoggerFactory = () => Logger;
+
+let baseLogger: Logger = pino({
+  base: undefined,
+  timestamp: stdTimeFunctions.isoTime
+});
+
+function createDestinationStream(
+  destination: LoggingDestination,
+  format: AppConfig['logging']['format']
+): DestinationStream {
   switch (destination.type) {
     case 'stdout':
-      if (config.logging.format === 'pretty') {
+      if (format === 'pretty') {
         return pino.transport({
           target: 'pino-pretty',
           options: {
@@ -40,30 +50,51 @@ function createDestinationStream(destination: LoggingDestination): DestinationSt
   }
 }
 
-const destinationStreams = config.logging.destinations.map((destination) => ({
-  stream: createDestinationStream(destination)
-}));
+function createBaseLogger(config: AppConfig): Logger {
+  const destinationStreams = config.logging.destinations.map((destination) => ({
+    stream: createDestinationStream(destination, config.logging.format)
+  }));
 
-const destination: DestinationStream =
-  destinationStreams.length === 1
-    ? destinationStreams[0]!.stream
-    : multistream(destinationStreams);
+  const destination: DestinationStream =
+    destinationStreams.length === 1
+      ? destinationStreams[0]!.stream
+      : multistream(destinationStreams);
 
-const baseLogger: Logger = pino(
-  {
-    level: config.logging.level,
-    base: undefined,
-    timestamp: stdTimeFunctions.isoTime
-  },
-  destination
-);
+  return pino(
+    {
+      level: config.logging.level,
+      base: undefined,
+      timestamp: stdTimeFunctions.isoTime
+    },
+    destination
+  );
+}
+
+function createLoggerProxy(factory: LoggerFactory): Logger {
+  return new Proxy(
+    {},
+    {
+      get(_target, property, receiver) {
+        const target = factory();
+        const value = Reflect.get(target, property, receiver);
+        return typeof value === 'function' ? value.bind(target) : value;
+      }
+    }
+  ) as Logger;
+}
+
+export function initialiseLogger(config: AppConfig): void {
+  baseLogger = createBaseLogger(config);
+}
+
+const rootLogger = createLoggerProxy(() => baseLogger);
 
 export function getLogger(): Logger {
-  return baseLogger;
+  return rootLogger;
 }
 
 export function createLogger(scope: string): Logger {
-  return baseLogger.child({ scope });
+  return createLoggerProxy(() => baseLogger.child({ scope }));
 }
 
 export type { Logger };
