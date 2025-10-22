@@ -1,5 +1,10 @@
 import { resolve } from 'node:path';
-import { loadConfig, type AppConfig } from '../../config/index';
+import {
+  getConfig,
+  loadConfig,
+  resetConfigCacheForTesting,
+  type AppConfig
+} from '../../config/index';
 
 describe('configuration', () => {
   it('fournit des valeurs par défaut cohérentes lorsque aucune variable est définie', () => {
@@ -92,5 +97,31 @@ describe('configuration', () => {
       },
       { type: 'stdout' }
     ]);
+  });
+
+  describe('getConfig', () => {
+    let originalOscTcpPort: string | undefined;
+
+    beforeEach(() => {
+      originalOscTcpPort = process.env.OSC_TCP_PORT;
+      resetConfigCacheForTesting();
+    });
+
+    afterEach(() => {
+      resetConfigCacheForTesting();
+      if (originalOscTcpPort === undefined) {
+        delete process.env.OSC_TCP_PORT;
+      } else {
+        process.env.OSC_TCP_PORT = originalOscTcpPort;
+      }
+    });
+
+    it('renvoie le message agrege en cas de configuration invalide', () => {
+      process.env.OSC_TCP_PORT = 'not-a-number';
+
+      expect(() => getConfig()).toThrow(
+        "Configuration invalide:\n- La variable d'environnement OSC_TCP_PORT doit être un entier entre 1 et 65535 (reçu: not-a-number)."
+      );
+    });
   });
 });

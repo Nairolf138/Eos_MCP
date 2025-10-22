@@ -1,5 +1,5 @@
 import osc from 'osc';
-import { config, type OscConfig as ResolvedOscConfig } from '../../config/index';
+import { getConfig, type OscConfig as ResolvedOscConfig } from '../../config/index';
 import { createLogger } from '../../server/logger';
 import type {
   OscDiagnostics,
@@ -384,5 +384,5 @@ export function createOscGatewayFromEnv(
     >
   > = {}
 ): OscConnectionGateway {
-  return createOscGatewayFromConfig(config.osc, options);
+  return createOscGatewayFromConfig(getConfig().osc, options);
 }

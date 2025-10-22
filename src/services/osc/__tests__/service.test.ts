@@ -103,11 +103,17 @@ describe('OscService diagnostics', () => {
       service.setLoggingOptions({ incoming: true, outgoing: true });
       service.send({ address: '/test/out', args: [{ type: 'i', value: 1 }] });
 
-      expect(logger.debug).toHaveBeenCalledWith('[OSC] -> /test/out', [{ type: 'i', value: 1 }]);
+      expect(logger.debug).toHaveBeenCalledWith(
+        { args: [{ type: 'i', value: 1 }] },
+        '[OSC] -> /test/out'
+      );
 
       port.emit('message', { address: '/test/in', args: [{ type: 's', value: 'hello' }] });
 
-      expect(logger.debug).toHaveBeenCalledWith('[OSC] <- /test/in', [{ type: 's', value: 'hello' }]);
+      expect(logger.debug).toHaveBeenCalledWith(
+        { args: [{ type: 's', value: 'hello' }] },
+        '[OSC] <- /test/in'
+      );
 
       const diagnostics = service.getDiagnostics();
 

@@ -1,6 +1,6 @@
 import { UDPPort } from 'osc';
 import type { Logger } from 'pino';
-import { config, type OscConfig as ResolvedOscConfig } from '../../config/index';
+import { getConfig, type OscConfig as ResolvedOscConfig } from '../../config/index';
 import { createLogger } from '../../server/logger';
 
 export interface OscMessageArgument {
@@ -345,7 +345,7 @@ export function createOscServiceFromConfig(oscConfig: ResolvedOscConfig, logger?
 }
 
 export function createOscServiceFromEnv(logger?: OscLogger): OscService {
-  return createOscServiceFromConfig(config.osc, logger);
+  return createOscServiceFromConfig(getConfig().osc, logger);
 }
 
 export {
