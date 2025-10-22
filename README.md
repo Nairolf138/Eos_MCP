@@ -54,6 +54,26 @@ La description détaillée de chaque outil est disponible dans [`docs/tools.md`]
 
 La procédure de mise à jour de version du serveur est documentée dans [`docs/versioning.md`](docs/versioning.md).
 
+## Options de ligne de commande
+
+Le module principal (`src/server/index.ts`) expose plusieurs utilitaires accessibles sans démarrer le serveur. Les commandes ci-dessous fonctionnent aussi bien avec `ts-node` qu’avec le build compilé (`dist/server/index.js`).
+
+```bash
+# Afficher l'aide intégrée
+npx ts-node src/server/index.ts --help
+
+# Afficher la version du serveur MCP
+npx ts-node src/server/index.ts --version
+
+# Lister les outils MCP embarqués
+npx ts-node src/server/index.ts --list-tools
+
+# Vérifier la configuration (retourne un code de sortie non nul en cas d'erreur)
+npx ts-node src/server/index.ts --check-config
+```
+
+Ces commandes peuvent également être lancées sur la version compilée avec `node dist/server/index.js <option>`. Utilisez `--list-tools` pour inspecter rapidement les outils disponibles et `--check-config` afin de valider votre fichier `.env` ou les variables d'environnement avant un déploiement.
+
 ## Configuration réseau et de la console Eos
 
 | Protocole | Port | Description |
