@@ -53,6 +53,7 @@ interface TransportInternals {
   readonly type: TransportType;
   state: TransportState;
   socket: TcpSocket | UdpSocket | null;
+  buffer: Buffer;
   heartbeatTimer: NodeJS.Timeout | null;
   heartbeatTimeoutTimer: NodeJS.Timeout | null;
   reconnectTimer: NodeJS.Timeout | null;
@@ -232,6 +233,7 @@ export class OscConnectionManager extends EventEmitter {
       type,
       state: 'disconnected',
       socket: null,
+      buffer: Buffer.alloc(0),
       heartbeatTimer: null,
       heartbeatTimeoutTimer: null,
       reconnectTimer: null,
@@ -279,6 +281,7 @@ export class OscConnectionManager extends EventEmitter {
   private initialiseTcpTransport(state: TransportInternals): void {
     const socket = this.createTcpSocket();
     state.socket = socket;
+    state.buffer = Buffer.alloc(0);
 
     const onConnect = (): void => {
       this.logger.info?.(
@@ -288,8 +291,25 @@ export class OscConnectionManager extends EventEmitter {
     };
 
     const onData = (chunk: Buffer): void => {
-      this.markHeartbeatAck(state, chunk);
-      this.emit('message', { type: 'tcp', data: chunk });
+      const existing = state.buffer;
+      state.buffer = existing.length ? Buffer.concat([existing, chunk]) : Buffer.from(chunk);
+
+      let buffer = state.buffer;
+
+      while (buffer.length >= 4) {
+        const packetLength = buffer.readUInt32BE(0);
+        if (buffer.length < 4 + packetLength) {
+          break;
+        }
+
+        const packet = buffer.subarray(4, 4 + packetLength);
+        this.markHeartbeatAck(state, packet);
+        this.emit('message', { type: 'tcp', data: packet });
+
+        buffer = buffer.subarray(4 + packetLength);
+      }
+
+      state.buffer = buffer.length ? Buffer.from(buffer) : Buffer.alloc(0);
     };
 
     const onError = (error: Error): void => {
@@ -472,6 +492,7 @@ export class OscConnectionManager extends EventEmitter {
 
     const socket = state.socket;
     state.socket = null;
+    state.buffer = Buffer.alloc(0);
 
     if (state.type === 'tcp') {
       const tcpSocket = socket as TcpSocket;
