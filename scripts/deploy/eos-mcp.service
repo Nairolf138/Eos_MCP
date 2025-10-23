@@ -1,0 +1,18 @@
+[Unit]
+Description=Eos MCP service
+After=network.target
+
+[Service]
+Type=simple
+User=eos-mcp
+Group=eos-mcp
+WorkingDirectory=/opt/eos-mcp
+ExecStart=/opt/eos-mcp/dist/bin/eos-mcp
+EnvironmentFile=/etc/eos-mcp/eos-mcp.env
+Restart=on-failure
+RestartSec=5s
+StandardOutput=journal
+StandardError=inherit
+
+[Install]
+WantedBy=multi-user.target
