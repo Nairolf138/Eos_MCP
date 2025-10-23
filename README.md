@@ -15,6 +15,20 @@
 - Intégrer Eos dans un workflow n8n afin de synchroniser régie, timecode et automation.
 - Superviser et auditer les commandes envoyées à distance via la passerelle HTTP/WS optionnelle.
 
+## Documentation complémentaire
+
+- [Cookbook d’automatisation](docs/cookbook.md) : scénarios prêts à l’emploi pour déclencher des cues, manipuler les presets et ajuster des niveaux d’intensité.
+- [`docs/tools.md`](docs/tools.md) : référence exhaustive générée automatiquement pour chaque outil MCP.
+
+### Outils MCP essentiels
+
+| Outil | Description | Fiche détaillée |
+| --- | --- | --- |
+| `eos_cue_go` | GO sur la liste de cues active. | [docs/tools.md#eos-cue-go](docs/tools.md#eos-cue-go) |
+| `eos_cue_stop_back` | Stop ou retour en arrière sur une liste. | [docs/tools.md#eos-cue-stop-back](docs/tools.md#eos-cue-stop-back) |
+| `eos_preset_fire` | Rappel immédiat d’un preset. | [docs/tools.md#eos-preset-fire](docs/tools.md#eos-preset-fire) |
+| `eos_channel_set_level` | Réglage d’intensité (0–100 %) d’un canal. | [docs/tools.md#eos-channel-set-level](docs/tools.md#eos-channel-set-level) |
+
 ## Prérequis
 
 - Node.js 20+ (tests effectués avec la LTS actuelle).

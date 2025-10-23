@@ -231,7 +231,10 @@ export const eosChannelSetLevelTool: ToolDefinition<typeof setLevelSchema> = {
     title: 'Reglage de niveau',
     description: 'Ajuste le niveau intensite de canaux specifiques (0-100).',
     inputSchema: setLevelSchema,
-    annotations: annotate(oscMappings.channels.level)
+    annotations: {
+      ...annotate(oscMappings.channels.level),
+      highlighted: true
+    }
   },
   handler: async (args, _extra) => {
     const schema = z.object(setLevelSchema).strict();

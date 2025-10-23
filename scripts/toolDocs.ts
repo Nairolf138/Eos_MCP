@@ -353,6 +353,20 @@ function slugify(value: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
+function isHighlighted(annotations: Record<string, unknown> | undefined): boolean {
+  if (!annotations || typeof annotations !== 'object') {
+    return false;
+  }
+
+  const value = (annotations as { highlighted?: unknown }).highlighted;
+  if (typeof value === 'string') {
+    const normalised = value.trim().toLowerCase();
+    return ['1', 'true', 'yes', 'on', 'enabled', 'highlighted'].includes(normalised);
+  }
+
+  return value === true;
+}
+
 function buildDocumentation(tools: ToolDefinition[]): { markdown: string; metadata: Map<string, ToolMetadata> } {
   const metadata = new Map<string, ToolMetadata>();
   const sortedTools = [...tools].sort((a, b) => a.name.localeCompare(b.name));
@@ -372,6 +386,23 @@ function buildDocumentation(tools: ToolDefinition[]): { markdown: string; metada
   lines.push('');
   lines.push("Chaque outil expose son nom MCP, une description, la liste des arguments attendus ainsi qu'un exemple d'appel en CLI et par OSC.");
   lines.push('');
+
+  const highlightedTools = sortedTools.filter((tool) =>
+    isHighlighted(tool.config.annotations as Record<string, unknown> | undefined)
+  );
+
+  if (highlightedTools.length > 0) {
+    lines.push('## Outils mis en avant');
+    lines.push('');
+    lines.push('| Outil | Résumé | Lien |');
+    lines.push('| --- | --- | --- |');
+    for (const tool of highlightedTools) {
+      const slug = slugify(tool.name);
+      const summary = (tool.config.title ?? tool.name).replace(/\|/g, '\\|');
+      lines.push(`| \`${tool.name}\` | ${summary} | [#${slug}](#${slug}) |`);
+    }
+    lines.push('');
+  }
 
   for (const tool of sortedTools) {
     const data = metadata.get(tool.name)!;
