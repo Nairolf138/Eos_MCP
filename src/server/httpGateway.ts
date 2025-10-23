@@ -9,12 +9,14 @@ import express, {
 import { WebSocketServer, type WebSocket, type RawData } from 'ws';
 import { createLogger } from './logger';
 import { ToolNotFoundError, type ToolRegistry } from './toolRegistry';
+import type { OscConnectionStateProvider, OscConnectionOverview } from '../services/osc/index';
 
 interface HttpGatewayOptions {
   port: number;
   host?: string;
   websocketPath?: string;
   security?: HttpGatewaySecurityOptions;
+  oscConnectionProvider?: OscConnectionStateProvider;
 }
 
 interface HttpGatewaySecurityOptions {
@@ -75,7 +77,11 @@ class HttpGateway {
   constructor(
     private readonly registry: ToolRegistry,
     private readonly options: HttpGatewayOptions
-  ) {}
+  ) {
+    this.oscConnectionProvider = options.oscConnectionProvider;
+  }
+
+  private readonly oscConnectionProvider?: OscConnectionStateProvider;
 
   public async start(): Promise<void> {
     if (this.started) {
@@ -91,14 +97,29 @@ class HttpGateway {
       const now = Date.now();
       const uptimeMs = this.startTimestamp ? now - this.startTimestamp : 0;
       const toolCount = this.registry.listTools().length;
+      const oscOverview = this.getOscOverview();
+
+      let status: 'starting' | 'ok' | 'degraded' | 'offline';
+      if (!this.started) {
+        status = 'starting';
+      } else if (oscOverview) {
+        status = this.mapOscHealthToStatus(oscOverview.health);
+      } else {
+        status = 'ok';
+      }
+
       const payload: Record<string, unknown> = {
-        status: this.started ? 'ok' : 'starting',
+        status,
         uptimeMs,
         toolCount
       };
 
       if (this.wss) {
         payload.transportActive = this.started;
+      }
+
+      if (oscOverview) {
+        payload.osc = this.serialiseOscOverview(oscOverview);
       }
 
       res.json(payload);
@@ -267,6 +288,37 @@ class HttpGateway {
       return undefined;
     }
     return address;
+  }
+
+  private getOscOverview(): OscConnectionOverview | null {
+    if (!this.oscConnectionProvider) {
+      return null;
+    }
+    return this.oscConnectionProvider.getOverview();
+  }
+
+  private mapOscHealthToStatus(
+    health: OscConnectionOverview['health']
+  ): 'ok' | 'degraded' | 'offline' {
+    switch (health) {
+      case 'online':
+        return 'ok';
+      case 'degraded':
+        return 'degraded';
+      default:
+        return 'offline';
+    }
+  }
+
+  private serialiseOscOverview(overview: OscConnectionOverview): Record<string, unknown> {
+    return {
+      status: overview.health,
+      updatedAt: overview.updatedAt,
+      transports: {
+        tcp: overview.transports.tcp.state,
+        udp: overview.transports.udp.state
+      }
+    };
   }
 
   private createErrorHandler() {

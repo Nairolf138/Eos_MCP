@@ -3,6 +3,10 @@ import WebSocket from 'ws';
 import { createHttpGateway, type HttpGateway } from '../httpGateway';
 import { ToolRegistry } from '../toolRegistry';
 import type { ToolDefinition } from '../../tools/types';
+import {
+  OscConnectionStateProvider,
+  type TransportStatus
+} from '../../services/osc/index';
 
 const tool: ToolDefinition = {
   name: 'echo_test',
@@ -26,6 +30,21 @@ describe('HttpGateway integration', () => {
   let registry: ToolRegistry;
   let gateway: HttpGateway;
   let baseUrl: string;
+  let connectionState: OscConnectionStateProvider;
+
+  const updateTransportStatus = (
+    type: TransportStatus['type'],
+    state: TransportStatus['state']
+  ): void => {
+    const timestamp = Date.now();
+    connectionState.setStatus({
+      type,
+      state,
+      lastHeartbeatAckAt: state === 'connected' ? timestamp : null,
+      lastHeartbeatSentAt: state === 'connected' ? timestamp : null,
+      consecutiveFailures: state === 'connected' ? 0 : 1
+    });
+  };
 
   beforeAll(async () => {
     server = new McpServer({
@@ -34,13 +53,21 @@ describe('HttpGateway integration', () => {
     });
     registry = new ToolRegistry(server);
     registry.register(tool);
-    gateway = createHttpGateway(registry, { port: 0 });
+    connectionState = new OscConnectionStateProvider();
+    updateTransportStatus('tcp', 'connected');
+    updateTransportStatus('udp', 'connected');
+    gateway = createHttpGateway(registry, { port: 0, oscConnectionProvider: connectionState });
     await gateway.start();
     const address = gateway.getAddress();
     if (!address) {
       throw new Error('Adresse de la passerelle introuvable');
     }
     baseUrl = `http://127.0.0.1:${address.port}`;
+  });
+
+  beforeEach(() => {
+    updateTransportStatus('tcp', 'connected');
+    updateTransportStatus('udp', 'connected');
   });
 
   afterAll(async () => {
@@ -87,6 +114,67 @@ describe('HttpGateway integration', () => {
     expect(typeof payload.uptimeMs).toBe('number');
     expect(payload.toolCount).toBe(1);
     expect(payload.transportActive).toBe(true);
+    const osc = payload.osc as
+      | { status: string; transports: { tcp: string; udp: string }; updatedAt: number }
+      | undefined;
+    expect(osc).toBeDefined();
+    if (!osc) {
+      throw new Error('OSC status missing');
+    }
+    expect(osc.status).toBe('online');
+    expect(osc.transports.tcp).toBe('connected');
+    expect(osc.transports.udp).toBe('connected');
+    expect(typeof osc.updatedAt).toBe('number');
+  });
+
+  test('reports degraded status when a single transport is connected', async () => {
+    updateTransportStatus('tcp', 'connected');
+    updateTransportStatus('udp', 'disconnected');
+
+    const response = await fetch(`${baseUrl}/health`, {
+      headers: {
+        'content-type': 'application/json'
+      }
+    });
+
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as Record<string, unknown>;
+    expect(payload.status).toBe('degraded');
+    const osc = payload.osc as
+      | { status: string; transports: { tcp: string; udp: string }; updatedAt: number }
+      | undefined;
+    expect(osc).toBeDefined();
+    if (!osc) {
+      throw new Error('OSC status missing');
+    }
+    expect(osc.status).toBe('degraded');
+    expect(osc.transports.tcp).toBe('connected');
+    expect(osc.transports.udp).toBe('disconnected');
+  });
+
+  test('reports offline status when no transports are connected', async () => {
+    updateTransportStatus('tcp', 'disconnected');
+    updateTransportStatus('udp', 'disconnected');
+
+    const response = await fetch(`${baseUrl}/health`, {
+      headers: {
+        'content-type': 'application/json'
+      }
+    });
+
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as Record<string, unknown>;
+    expect(payload.status).toBe('offline');
+    const osc = payload.osc as
+      | { status: string; transports: { tcp: string; udp: string }; updatedAt: number }
+      | undefined;
+    expect(osc).toBeDefined();
+    if (!osc) {
+      throw new Error('OSC status missing');
+    }
+    expect(osc.status).toBe('offline');
+    expect(osc.transports.tcp).toBe('disconnected');
+    expect(osc.transports.udp).toBe('disconnected');
   });
 
   test('execute tool via WebSocket', async () => {
