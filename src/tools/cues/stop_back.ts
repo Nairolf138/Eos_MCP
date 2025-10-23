@@ -37,7 +37,8 @@ export const eosCueStopBackTool: ToolDefinition<typeof stopBackInputSchema> = {
     annotations: {
       mapping: {
         osc: oscMappings.cues.stopBack
-      }
+      },
+      highlighted: true
     }
   },
   handler: async (args) => {

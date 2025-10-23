@@ -477,7 +477,10 @@ export const eosPresetFireTool: ToolDefinition<typeof presetFireInputSchema> = {
     title: 'Declenchement de preset',
     description: 'Declenche un preset sur la console Eos.',
     inputSchema: presetFireInputSchema,
-    annotations: annotate(oscMappings.presets.fire)
+    annotations: {
+      ...annotate(oscMappings.presets.fire),
+      highlighted: true
+    }
   },
   handler: async (args) => {
     const schema = z.object(presetFireInputSchema).strict();
@@ -553,7 +556,10 @@ export const eosPresetGetInfoTool: ToolDefinition<typeof presetGetInfoInputSchem
     title: 'Informations de preset',
     description: 'Recupere les informations detaillees pour un preset donne.',
     inputSchema: presetGetInfoInputSchema,
-    annotations: annotate(oscMappings.presets.info)
+    annotations: {
+      ...annotate(oscMappings.presets.info),
+      highlighted: true
+    }
   },
   handler: async (args) => {
     const schema = z.object(presetGetInfoInputSchema).strict();

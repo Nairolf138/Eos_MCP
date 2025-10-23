@@ -5,6 +5,16 @@
 
 Chaque outil expose son nom MCP, une description, la liste des arguments attendus ainsi qu'un exemple d'appel en CLI et par OSC.
 
+## Outils mis en avant
+
+| Outil | Résumé | Lien |
+| --- | --- | --- |
+| `eos_channel_set_level` | Reglage de niveau | [#eos-channel-set-level](#eos-channel-set-level) |
+| `eos_cue_go` | GO sur liste de cues | [#eos-cue-go](#eos-cue-go) |
+| `eos_cue_stop_back` | Stop ou Back sur liste de cues | [#eos-cue-stop-back](#eos-cue-stop-back) |
+| `eos_preset_fire` | Declenchement de preset | [#eos-preset-fire](#eos-preset-fire) |
+| `eos_preset_get_info` | Informations de preset | [#eos-preset-get-info](#eos-preset-get-info) |
+
 <a id="eos-address-select"></a>
 ## Selection d'adresse DMX (`eos_address_select`)
 
@@ -361,6 +371,7 @@ oscsend 127.0.0.1 8001 /eos/cmd s:'{"template":"exemple"}'
 | `localPort` | number | Oui | — |
 | `remoteAddress` | string | Oui | — |
 | `remotePort` | number | Oui | — |
+| `tcpPort` | number | Non | — |
 
 **Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
 
@@ -391,6 +402,7 @@ _Pas de mapping OSC documenté._
 | `protocolTimeoutMs` | number | Non | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
+| `transportPreference` | enum(reliability, speed, auto) | Non | — |
 
 **Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
 
@@ -2076,6 +2088,7 @@ oscsend 127.0.0.1 8001 /eos/get/patch/chan_info s:'{"channel_number":1}'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
+| `transportPreference` | enum(reliability, speed, auto) | Non | — |
 
 **Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
 
@@ -2257,6 +2270,7 @@ oscsend 127.0.0.1 8001 /eos/preset/select s:'{"preset_number":1}'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
+| `transportPreference` | enum(reliability, speed, auto) | Non | — |
 
 **Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
 
@@ -2690,6 +2704,7 @@ oscsend 127.0.0.1 8001 /eos/sub/{id} s:'{"submaster_number":1,"level":1}'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
+| `transportPreference` | enum(reliability, speed, auto) | Non | — |
 
 **Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
 

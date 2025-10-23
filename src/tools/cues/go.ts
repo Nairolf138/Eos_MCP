@@ -40,7 +40,8 @@ export const eosCueGoTool: ToolDefinition<typeof goInputSchema> = {
     annotations: {
       mapping: {
         osc: oscMappings.cues.go
-      }
+      },
+      highlighted: true
     }
   },
   handler: async (args) => {
