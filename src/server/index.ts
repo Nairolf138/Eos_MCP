@@ -91,7 +91,7 @@ function parseStatsIntervalValue(rawValue: string): number | null {
 }
 
 function parseCliArguments(argv: readonly string[]): CliOptions {
-  const options = {
+  const options: CliOptions = {
     help: false,
     version: false,
     listTools: false,
@@ -101,7 +101,7 @@ function parseCliArguments(argv: readonly string[]): CliOptions {
     statsIntervalMs: undefined,
     unknown: [] as string[],
     errors: [] as string[]
-  } satisfies CliOptions;
+  };
 
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index]!;
@@ -261,6 +261,18 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
   initialiseLogger(effectiveConfig);
 
   const tcpPort = effectiveConfig.mcp.tcpPort;
+  const securityOptions: NonNullable<
+    Parameters<typeof createHttpGateway>[1]['security']
+  > = {
+    apiKeys: [...effectiveConfig.httpGateway.security.apiKeys],
+    mcpTokens: [...effectiveConfig.httpGateway.security.mcpTokens],
+    ipWhitelist: [...effectiveConfig.httpGateway.security.ipAllowlist],
+    allowedOrigins: [...effectiveConfig.httpGateway.security.allowedOrigins],
+    rateLimit: {
+      windowMs: effectiveConfig.httpGateway.security.rateLimit.windowMs,
+      max: effectiveConfig.httpGateway.security.rateLimit.max
+    }
+  };
   const oscConnectionState = new OscConnectionStateProvider();
   const oscGateway = createOscGatewayFromEnv({
     logger: createLogger('osc-gateway'),
@@ -314,7 +326,7 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
     gateway = createHttpGateway(registry, {
       port: tcpPort,
       oscConnectionProvider: oscConnectionState,
-      security: effectiveConfig.httpGateway.security,
+      security: securityOptions,
       oscGateway,
       stdioStatusProvider: () => ({ ...stdioStatus })
     });
