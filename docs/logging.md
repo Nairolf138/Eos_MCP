@@ -12,6 +12,8 @@ Le niveau s'applique à l'ensemble des destinations configurées.
 
 - `LOG_DESTINATIONS` : liste de destinations séparées par des virgules parmi `stdout`, `file`, `transport`. Valeur par défaut : `file`.
 
+En environnement de développement (`NODE_ENV` différent de `production`), la destination `stdout` est automatiquement ajoutée lorsque `LOG_DESTINATIONS` n'est pas définie explicitement. Les logs sont ainsi visibles dans la console sans configuration additionnelle. Pour désactiver cette sortie, définissez `LOG_DESTINATIONS=file`. Vous pouvez aussi combiner plusieurs destinations en les listant, par exemple `LOG_DESTINATIONS=stdout,file` ou `LOG_DESTINATIONS=file,transport`.
+
 Lorsque `file` est présent :
 
 - `MCP_LOG_FILE` : chemin (relatif ou absolu) du fichier journal. Le répertoire est créé automatiquement et la rotation est assurée par le transport `pino/file`.

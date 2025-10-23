@@ -417,6 +417,7 @@ const configSchema = z
       .transform((value) =>
         value === undefined || value === null ? undefined : String(value)
       ),
+    logDestinationsDefined: z.boolean(),
     mcpTcpPort: createPortSchema('MCP_TCP_PORT', { optional: true }),
     oscTcpPort: createPortSchema('OSC_TCP_PORT', { defaultValue: DEFAULT_OSC_TCP_PORT }),
     oscUdpOutPort: createPortSchema('OSC_UDP_OUT_PORT', { defaultValue: DEFAULT_OSC_UDP_OUT_PORT }),
@@ -448,8 +449,17 @@ const configSchema = z
     const prettyEnabled = values.logPretty ?? values.nodeEnv !== 'production';
     const destinations: LoggingDestination[] = [];
     const seen = new Set<LoggingDestinationType>();
+    const destinationTypes = [...values.logDestinations];
 
-    for (const destinationType of values.logDestinations) {
+    if (
+      values.nodeEnv !== 'production' &&
+      !values.logDestinationsDefined &&
+      !destinationTypes.includes('stdout')
+    ) {
+      destinationTypes.unshift('stdout');
+    }
+
+    for (const destinationType of destinationTypes) {
       if (seen.has(destinationType)) {
         continue;
       }
@@ -528,6 +538,7 @@ const configSchema = z
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const result = configSchema.safeParse({
     nodeEnv: env.NODE_ENV,
+    logDestinationsDefined: env.LOG_DESTINATIONS !== undefined && env.LOG_DESTINATIONS !== null,
     mcpTcpPort: env.MCP_TCP_PORT,
     oscTcpPort: env.OSC_TCP_PORT,
     oscUdpOutPort: env.OSC_UDP_OUT_PORT,

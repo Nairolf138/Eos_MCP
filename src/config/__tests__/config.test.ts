@@ -26,6 +26,9 @@ describe('configuration', () => {
         format: 'pretty',
         destinations: [
           {
+            type: 'stdout'
+          },
+          {
             type: 'file',
             path: resolve(process.cwd(), 'logs/mcp-server.log')
           }
@@ -118,6 +121,18 @@ describe('configuration', () => {
         options: { host: 'logs.internal', port: 1514 }
       },
       { type: 'stdout' }
+    ]);
+  });
+
+  it('permet de désactiver STDOUT explicitement en développement', () => {
+    const env: NodeJS.ProcessEnv = {
+      LOG_DESTINATIONS: 'file'
+    };
+
+    const config = loadConfig(env);
+
+    expect(config.logging.destinations).toEqual([
+      { type: 'file', path: resolve(process.cwd(), 'logs/mcp-server.log') }
     ]);
   });
 
