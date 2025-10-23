@@ -30,6 +30,15 @@ describe('configuration', () => {
             path: resolve(process.cwd(), 'logs/mcp-server.log')
           }
         ]
+      },
+      httpGateway: {
+        security: {
+          apiKeys: [],
+          mcpTokens: ['change-me'],
+          ipAllowlist: [],
+          allowedOrigins: [],
+          rateLimit: { windowMs: 60000, max: 60 }
+        }
       }
     };
 
@@ -46,7 +55,13 @@ describe('configuration', () => {
       OSC_LOCAL_ADDRESS: '192.168.1.2',
       LOG_LEVEL: 'DEBUG',
       MCP_LOG_FILE: 'var/log/eos-mcp.log',
-      LOG_DESTINATIONS: 'stdout,file'
+      LOG_DESTINATIONS: 'stdout,file',
+      MCP_HTTP_API_KEYS: 'admin-key',
+      MCP_HTTP_MCP_TOKENS: 'token-one,token-two',
+      MCP_HTTP_IP_ALLOWLIST: '127.0.0.1,::1',
+      MCP_HTTP_ALLOWED_ORIGINS: 'http://localhost',
+      MCP_HTTP_RATE_LIMIT_WINDOW: '120000',
+      MCP_HTTP_RATE_LIMIT_MAX: '10'
     };
 
     const config = loadConfig(env);
@@ -65,6 +80,13 @@ describe('configuration', () => {
       { type: 'stdout' },
       { type: 'file', path: resolve(process.cwd(), 'var/log/eos-mcp.log') }
     ]);
+    expect(config.httpGateway.security).toEqual({
+      apiKeys: ['admin-key'],
+      mcpTokens: ['token-one', 'token-two'],
+      ipAllowlist: ['127.0.0.1', '::1'],
+      allowedOrigins: ['http://localhost'],
+      rateLimit: { windowMs: 120000, max: 10 }
+    });
   });
 
   it('rejette les ports invalides avec un message explicite', () => {

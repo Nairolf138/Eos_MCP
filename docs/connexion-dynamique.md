@@ -13,6 +13,12 @@ Ce mini tutoriel explique comment piloter dynamiquement le point d'accès du ser
 | `OSC_UDP_OUT_PORT` | Port UDP distant pour l'envoi des messages OSC. | `8001` |
 | `OSC_UDP_IN_PORT` | Port UDP local pour la réception des messages OSC. | `8000` |
 | `OSC_LOCAL_ADDRESS` | Adresse locale écoutée pour les messages OSC. | `0.0.0.0` |
+| `MCP_HTTP_API_KEYS` | Clés API supplémentaires exigées côté HTTP (`X-API-Key`). | Vide (aucune clé) |
+| `MCP_HTTP_MCP_TOKENS` | Jetons MCP (`X-MCP-Token` / `Authorization: Bearer`) requis pour authentifier les clients. | `change-me` |
+| `MCP_HTTP_IP_ALLOWLIST` | Liste d'IP autorisées à consommer la passerelle HTTP/WS (`*` pour tout autoriser). | Vide ⇒ deny all |
+| `MCP_HTTP_ALLOWED_ORIGINS` | Origines HTTP/WS autorisées (`*` pour tout autoriser). | Vide ⇒ deny all |
+| `MCP_HTTP_RATE_LIMIT_WINDOW` | Fenêtre du rate-limit (en millisecondes). | `60000` |
+| `MCP_HTTP_RATE_LIMIT_MAX` | Nombre maximal de requêtes par IP dans la fenêtre. | `60` |
 
 ## Exemples de scénarios
 
@@ -49,6 +55,21 @@ npm run start:dev
 ```
 
 Aucun point d'accès réseau n'est créé ; seuls les clients MCP capables de communiquer via STDIO (par exemple un client CLI intégré) peuvent se connecter.
+
+### 4. Déverrouiller l'accès sur un réseau local
+
+```bash
+export MCP_TCP_PORT=3032
+export MCP_HTTP_IP_ALLOWLIST=192.168.1.10,192.168.1.15
+export MCP_HTTP_ALLOWED_ORIGINS=http://192.168.1.10,http://192.168.1.15
+export MCP_HTTP_MCP_TOKENS=remplacez-moi-par-un-jeton-solide
+export MCP_HTTP_API_KEYS=lan-key
+export MCP_HTTP_RATE_LIMIT_WINDOW=60000
+export MCP_HTTP_RATE_LIMIT_MAX=120
+npm run start:dev
+```
+
+Seules les machines explicitement listées (`192.168.1.10` et `192.168.1.15`) pourront accéder à la passerelle, et elles devront fournir le jeton MCP (et la clé API le cas échéant). Ajustez les origines pour autoriser les navigateurs ou clients WebSocket du LAN.
 
 ## Bonnes pratiques
 

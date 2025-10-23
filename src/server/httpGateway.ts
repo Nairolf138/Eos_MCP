@@ -364,7 +364,7 @@ class HttpGateway {
       security &&
         ((security.apiKeys && security.apiKeys.length > 0) ||
           (security.mcpTokens && security.mcpTokens.length > 0) ||
-          (security.ipWhitelist && security.ipWhitelist.length > 0))
+          security.ipWhitelist !== undefined)
     );
 
     if (!requiresAuthentication) {
@@ -412,7 +412,7 @@ class HttpGateway {
 
   private createCorsMiddleware(): RequestHandler | undefined {
     const security = this.options.security;
-    if (!security?.allowedOrigins || security.allowedOrigins.length === 0) {
+    if (security?.allowedOrigins === undefined) {
       return undefined;
     }
 
@@ -432,7 +432,7 @@ class HttpGateway {
           'Content-Type, Authorization, X-API-Key, X-MCP-Token, X-CSRF-Token'
         );
 
-        if (origin && isAllowed) {
+        if ((origin && isAllowed) || (!origin && this.isOriginAllowed(undefined))) {
           res.status(204).end();
           return;
         }
@@ -502,8 +502,12 @@ class HttpGateway {
 
   private isIpAllowed(ip: string): boolean {
     const whitelist = this.options.security?.ipWhitelist;
-    if (!whitelist || whitelist.length === 0) {
+    if (whitelist === undefined) {
       return true;
+    }
+
+    if (whitelist.length === 0) {
+      return false;
     }
 
     if (whitelist.includes('*')) {
@@ -515,8 +519,12 @@ class HttpGateway {
 
   private isOriginAllowed(origin: string | undefined): boolean {
     const origins = this.options.security?.allowedOrigins;
-    if (!origins || origins.length === 0) {
+    if (origins === undefined) {
       return true;
+    }
+
+    if (origins.length === 0) {
+      return origin === undefined;
     }
 
     if (!origin) {

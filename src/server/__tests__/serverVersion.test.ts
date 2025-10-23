@@ -35,6 +35,15 @@ jest.mock('../../config/index.js', () => ({
       level: 'info',
       format: 'json',
       destinations: [{ type: 'stdout' }]
+    },
+    httpGateway: {
+      security: {
+        apiKeys: [],
+        mcpTokens: ['change-me'],
+        ipAllowlist: [],
+        allowedOrigins: [],
+        rateLimit: { windowMs: 60000, max: 60 }
+      }
     }
   })),
   resetConfigCacheForTesting: jest.fn()

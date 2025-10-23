@@ -265,6 +265,30 @@ wscat \
 
 Si les middlewares intégrés ne conviennent pas, vous pouvez injecter vos propres middlewares Express via `security.express` (par exemple pour utiliser `helmet`, `cors` ou un proxy externe).
 
+#### Exemple `.env`
+
+```env
+MCP_TCP_PORT=3032
+MCP_HTTP_MCP_TOKENS=change-me
+MCP_HTTP_IP_ALLOWLIST=
+MCP_HTTP_ALLOWED_ORIGINS=
+MCP_HTTP_RATE_LIMIT_WINDOW=60000
+MCP_HTTP_RATE_LIMIT_MAX=60
+```
+
+Cette configuration laisse la passerelle HTTP/WS activée mais verrouillée : aucune adresse IP ni origine n'est autorisée tant que les listes restent vides (deny all), et un jeton MCP est exigé pour toute requête.
+
+| Paramètre | Mode strict (défaut) | Mode LAN (exemple) |
+| --- | --- | --- |
+| `MCP_HTTP_IP_ALLOWLIST` | Vide ⇒ deny all | `192.168.1.10,192.168.1.15` |
+| `MCP_HTTP_ALLOWED_ORIGINS` | Vide ⇒ deny all | `http://192.168.1.10,http://192.168.1.15` |
+| `MCP_HTTP_MCP_TOKENS` | `change-me` (à remplacer) | `lan-secret-123` |
+| `MCP_HTTP_API_KEYS` | Vide (désactivé) | `lan-key` |
+| `MCP_HTTP_RATE_LIMIT_WINDOW` | `60000` ms | `60000` ms |
+| `MCP_HTTP_RATE_LIMIT_MAX` | `60` requêtes | `120` requêtes |
+
+Pensez à remplacer les jetons et clés par des valeurs robustes avant d'exposer la passerelle sur votre réseau.
+
 ## Vérification locale avec la CLI MCP
 
 Après démarrage du serveur, utilisez le client officiel pour invoquer un outil :
