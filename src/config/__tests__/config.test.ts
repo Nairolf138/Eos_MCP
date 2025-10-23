@@ -1,10 +1,13 @@
-import { resolve } from 'node:path';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import {
   getConfig,
   loadConfig,
   resetConfigCacheForTesting,
   type AppConfig
 } from '../../config/index';
+import { initialiseEnv } from '../env';
 
 describe('configuration', () => {
   it('fournit des valeurs par défaut cohérentes lorsque aucune variable est définie', () => {
@@ -134,6 +137,40 @@ describe('configuration', () => {
     expect(config.logging.destinations).toEqual([
       { type: 'file', path: resolve(process.cwd(), 'logs/mcp-server.log') }
     ]);
+  });
+
+  describe('initialiseEnv', () => {
+    const envVariableName = 'MCP_HTTP_API_KEYS';
+
+    let originalEnvValue: string | undefined;
+    let cwdSpy: jest.SpyInstance<string, []>;
+    let tempDir: string;
+
+    beforeEach(() => {
+      originalEnvValue = process.env[envVariableName];
+      delete process.env[envVariableName];
+
+      tempDir = mkdtempSync(join(tmpdir(), 'eos-mcp-env-test-'));
+      writeFileSync(join(tempDir, '.env'), `${envVariableName}=from-env-file\n`, 'utf8');
+      cwdSpy = jest.spyOn(process, 'cwd').mockReturnValue(tempDir);
+    });
+
+    afterEach(() => {
+      cwdSpy.mockRestore();
+      rmSync(tempDir, { recursive: true, force: true });
+
+      if (originalEnvValue === undefined) {
+        delete process.env[envVariableName];
+      } else {
+        process.env[envVariableName] = originalEnvValue;
+      }
+    });
+
+    it('charge automatiquement les variables définies dans un fichier .env', () => {
+      initialiseEnv();
+
+      expect(process.env[envVariableName]).toBe('from-env-file');
+    });
   });
 
   describe('getConfig', () => {
