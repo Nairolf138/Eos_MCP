@@ -1,0 +1,35 @@
+{
+  "name": "Eos MCP",
+  "description": "Serveur MCP pour piloter les consoles ETC Eos via des outils compatibles Claude et Model Context Protocol.",
+  "version": "1.0.0",
+  "mcp": {
+    "schema_version": "1.0",
+    "documentation_url": "https://github.com/Nairolf138/Eos_MCP",
+    "servers": [
+      {
+        "type": "http",
+        "url": "{{SERVER_URL}}",
+        "endpoints": {
+          "manifest": "/manifest.json",
+          "health": "/health",
+          "tools": "/tools",
+          "invoke": "/tools/{toolName}",
+          "websocket": "/ws"
+        }
+      }
+    ],
+    "capabilities": {
+      "tools": {
+        "list_endpoint": "/tools",
+        "invoke_endpoint": "/tools/{toolName}",
+        "schema_catalogs": [
+          "/schemas/tools/index.json"
+        ],
+        "schema_base_path": "/schemas/tools/{toolName}.json"
+      }
+    },
+    "schemas": {
+      "tool_catalog": "/schemas/tools/index.json"
+    }
+  }
+}

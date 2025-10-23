@@ -200,6 +200,54 @@ describe('HttpGateway integration', () => {
     expect(osc.transports.udp.state).toBe('disconnected');
   });
 
+  test('exposes manifest with tool schema references', async () => {
+    const response = await fetch(`${baseUrl}/manifest.json`, {
+      headers: {
+        'content-type': 'application/json'
+      }
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toContain('application/json');
+    const manifest = (await response.json()) as Record<string, unknown>;
+    const typedManifest = manifest as {
+      name?: string;
+      description?: unknown;
+      version?: string;
+      mcp?: {
+        capabilities?: {
+          tools?: {
+            schema_catalogs?: string[];
+            schema_base_path?: string;
+          };
+        };
+      };
+    };
+
+    expect(typedManifest.name).toBe('Eos MCP');
+    expect(typeof typedManifest.description).toBe('string');
+    expect(typedManifest.version).toBe('1.0.0');
+    const mcp = typedManifest.mcp as
+      | {
+          capabilities?: {
+            tools?: {
+              schema_catalogs?: string[];
+              schema_base_path?: string;
+            };
+          };
+        }
+      | undefined;
+    expect(mcp).toBeDefined();
+    if (!mcp) {
+      throw new Error('Manifest MCP block missing');
+    }
+
+    const catalogRefs = mcp.capabilities?.tools?.schema_catalogs ?? [];
+    expect(catalogRefs).toContain('/schemas/tools/index.json');
+    const basePath = mcp.capabilities?.tools?.schema_base_path;
+    expect(basePath).toBe('/schemas/tools/{toolName}.json');
+  });
+
   test('execute tool via WebSocket', async () => {
     const address = new URL(baseUrl);
     const ws = new WebSocket(`ws://${address.host}/ws`);
