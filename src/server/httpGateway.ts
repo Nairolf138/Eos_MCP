@@ -33,10 +33,10 @@ interface HttpGatewayOptions {
 }
 
 interface HttpGatewaySecurityOptions {
-  apiKeys?: string[];
-  mcpTokens?: string[];
-  ipWhitelist?: string[];
-  allowedOrigins?: string[];
+  apiKeys?: readonly string[];
+  mcpTokens?: readonly string[];
+  ipAllowlist?: readonly string[];
+  allowedOrigins?: readonly string[];
   rateLimit?: RateLimitOptions;
   express?: ExpressSecurityMiddlewares;
 }
@@ -477,7 +477,7 @@ class HttpGateway {
       security &&
         ((security.apiKeys && security.apiKeys.length > 0) ||
           (security.mcpTokens && security.mcpTokens.length > 0) ||
-          security.ipWhitelist !== undefined)
+          security.ipAllowlist !== undefined)
     );
 
     if (!requiresAuthentication) {
@@ -614,20 +614,20 @@ class HttpGateway {
   }
 
   private isIpAllowed(ip: string): boolean {
-    const whitelist = this.options.security?.ipWhitelist;
-    if (whitelist === undefined) {
+    const allowlist = this.options.security?.ipAllowlist;
+    if (allowlist === undefined) {
       return true;
     }
 
-    if (whitelist.length === 0) {
+    if (allowlist.length === 0) {
       return false;
     }
 
-    if (whitelist.includes('*')) {
+    if (allowlist.includes('*')) {
       return true;
     }
 
-    return whitelist.includes(ip) || whitelist.includes(`::ffff:${ip}`);
+    return allowlist.includes(ip) || allowlist.includes(`::ffff:${ip}`);
   }
 
   private isOriginAllowed(origin: string | undefined): boolean {

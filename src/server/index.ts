@@ -264,10 +264,10 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
   const securityOptions: NonNullable<
     Parameters<typeof createHttpGateway>[1]['security']
   > = {
-    apiKeys: [...effectiveConfig.httpGateway.security.apiKeys],
-    mcpTokens: [...effectiveConfig.httpGateway.security.mcpTokens],
-    ipWhitelist: [...effectiveConfig.httpGateway.security.ipAllowlist],
-    allowedOrigins: [...effectiveConfig.httpGateway.security.allowedOrigins],
+    apiKeys: Array.from(effectiveConfig.httpGateway.security.apiKeys),
+    mcpTokens: Array.from(effectiveConfig.httpGateway.security.mcpTokens),
+    ipAllowlist: Array.from(effectiveConfig.httpGateway.security.ipAllowlist),
+    allowedOrigins: Array.from(effectiveConfig.httpGateway.security.allowedOrigins),
     rateLimit: {
       windowMs: effectiveConfig.httpGateway.security.rateLimit.windowMs,
       max: effectiveConfig.httpGateway.security.rateLimit.max
