@@ -49,10 +49,11 @@ node --version
 - `npm run start:dev` : lance le serveur MCP directement avec `ts-node`.
 - `npm run docs:generate` : régénère la documentation complète des outils MCP et les commentaires JSDoc.
 - `npm run docs:check` : vérifie que `docs/tools.md` est synchronisé avec le code source.
+- `npm run package` : produit un binaire autonome dans `dist/bin/eos-mcp` (Linux x64 par défaut) via [`pkg`](https://github.com/vercel/pkg).
 
 La description détaillée de chaque outil est disponible dans [`docs/tools.md`](docs/tools.md). Le fichier est généré automatiquement à partir des schémas Zod déclarés dans `src/tools/**`.
 
-Toutes les modifications publiées sont consignées dans [`CHANGELOG.md`](CHANGELOG.md). La procédure de mise à jour de version du serveur est documentée dans [`docs/versioning.md`](docs/versioning.md).
+Toutes les modifications publiées sont consignées dans [`CHANGELOG.md`](CHANGELOG.md). La procédure de mise à jour de version du serveur est documentée dans [`docs/versioning.md`](docs/versioning.md). Les instructions de déploiement (systemd, NSSM) sont disponibles dans [`docs/deployment.md`](docs/deployment.md).
 
 ## Options de ligne de commande
 

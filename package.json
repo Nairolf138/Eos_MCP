@@ -10,7 +10,8 @@
     "start": "node dist/server/index.js",
     "start:dev": "ts-node src/server/index.ts",
     "docs:generate": "ts-node --transpile-only --compiler-options '{\"allowImportingTsExtensions\":true}' scripts/toolDocs.ts",
-    "docs:check": "ts-node --transpile-only --compiler-options '{\"allowImportingTsExtensions\":true}' scripts/toolDocs.ts --check --skip-jsdoc"
+    "docs:check": "ts-node --transpile-only --compiler-options '{\"allowImportingTsExtensions\":true}' scripts/toolDocs.ts --check --skip-jsdoc",
+    "package": "npm run build && node -e \"require('node:fs').mkdirSync('dist/bin',{recursive:true});\" && npx pkg dist/server/index.js --targets node20-linux-x64 --output dist/bin/eos-mcp"
   },
   "keywords": [
     "mcp",
@@ -44,6 +45,7 @@
     "ts-jest": "^29.4.5",
     "ts-morph": "^27.0.2",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "pkg": "^5.8.1"
   }
 }
