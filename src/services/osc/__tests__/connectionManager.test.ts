@@ -2,6 +2,7 @@ import { EventEmitter } from 'events';
 import type { Socket as TcpSocket } from 'net';
 import type { Socket as UdpSocket } from 'node:dgram';
 import { createSocket as createUdpSocket } from 'node:dgram';
+import osc from 'osc';
 
 jest.mock('node:dgram', () => {
   const actual = jest.requireActual('node:dgram');
@@ -53,6 +54,12 @@ describe('OscConnectionManager', () => {
     jest.useRealTimers();
     jest.mocked(createUdpSocket).mockReset();
   });
+
+  const framePacket = (payload: Buffer): Buffer => {
+    const lengthPrefix = Buffer.alloc(4);
+    lengthPrefix.writeUInt32BE(payload.length, 0);
+    return Buffer.concat([lengthPrefix, payload]);
+  };
 
   it('applies exponential backoff when scheduling reconnections', () => {
     jest.useFakeTimers();
@@ -230,6 +237,88 @@ describe('OscConnectionManager', () => {
 
     manager.stop();
     jest.runOnlyPendingTimers();
+  });
+
+  it('buffers TCP frames and emits complete OSC packets individually', () => {
+    const tcpSockets: MockTcpSocket[] = [];
+    const createTcpSocket = jest.fn(() => {
+      const socket = new MockTcpSocket();
+      tcpSockets.push(socket);
+      return socket as unknown as TcpSocket;
+    });
+
+    const createUdpSocket = jest.fn(() => new MockUdpSocket() as unknown as UdpSocket);
+
+    const manager = new OscConnectionManager({
+      host: '127.0.0.1',
+      tcpPort: 9000,
+      udpPort: 9001,
+      heartbeatIntervalMs: 10_000,
+      connectionTimeoutMs: 500,
+      createTcpSocket,
+      createUdpSocket,
+      logger: {}
+    });
+
+    const socket = tcpSockets[0];
+    if (!socket) {
+      throw new Error('TCP socket not created');
+    }
+
+    socket.emit('connect');
+
+    const firstPacket = Buffer.from(
+      osc.writePacket(
+        {
+          address: '/first',
+          args: [{ type: 's', value: 'alpha' }]
+        },
+        { metadata: true }
+      ) as Uint8Array
+    );
+
+    const secondPacket = Buffer.from(
+      osc.writePacket(
+        {
+          address: '/second',
+          args: [{ type: 'i', value: 42 }]
+        },
+        { metadata: true }
+      ) as Uint8Array
+    );
+
+    const framedFirst = framePacket(firstPacket);
+    const framedSecond = framePacket(secondPacket);
+
+    const messages: Buffer[] = [];
+    manager.on('message', (event) => {
+      if (event.type === 'tcp') {
+        messages.push(Buffer.from(event.data));
+      }
+    });
+
+    socket.emit('data', framedFirst.subarray(0, 6));
+    expect(messages).toHaveLength(0);
+
+    socket.emit('data', Buffer.concat([framedFirst.subarray(6), framedSecond]));
+
+    expect(messages).toHaveLength(2);
+    const decoded = messages.map((message) =>
+      osc.readPacket(message, { metadata: true }) as { address: string; args: Array<{ type: string; value: unknown }> }
+    );
+
+    expect(decoded).toEqual([
+      {
+        address: '/first',
+        args: [{ type: 's', value: 'alpha' }]
+      },
+      {
+        address: '/second',
+        args: [{ type: 'i', value: 42 }]
+      }
+    ]);
+
+    manager.stop();
   });
 
   it('falls back to UDP when TCP becomes unavailable for reliability preference', async () => {
