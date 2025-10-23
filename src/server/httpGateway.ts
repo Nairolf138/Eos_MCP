@@ -1,4 +1,5 @@
 import type { AddressInfo } from 'node:net';
+import path from 'node:path';
 import { createServer, type IncomingHttpHeaders, type IncomingMessage, type Server } from 'node:http';
 import express, {
   type Request,
@@ -15,6 +16,7 @@ import type {
   OscDiagnostics,
   TransportStatus
 } from '../services/osc/index';
+import { getToolJsonSchema, toolJsonSchemas } from '../schemas/index';
 
 interface StdioStatusSnapshot {
   status: 'starting' | 'listening' | 'stopped';
@@ -75,6 +77,7 @@ interface InvokeErrorResponse {
 }
 
 const logger = createLogger('http-gateway');
+const manifestPath = path.resolve(process.cwd(), 'manifest.json');
 
 class HttpGateway {
   private server?: Server;
@@ -111,6 +114,42 @@ class HttpGateway {
     app.use(express.json());
 
     this.applySecurityMiddlewares(app);
+
+    app.get('/manifest.json', (_req: Request, res: Response, next: NextFunction) => {
+      res.type('application/json');
+      res.sendFile(manifestPath, (error) => {
+        if (error) {
+          next(error);
+        }
+      });
+    });
+
+    app.get('/schemas/tools/index.json', (_req: Request, res: Response) => {
+      const tools = toolJsonSchemas.map((schema) => ({
+        name: schema.name,
+        title: schema.title ?? schema.name,
+        description: schema.description,
+        uri: schema.uri,
+        schemaUrl: `/schemas/tools/${schema.name}.json`
+      }));
+
+      res.json({ tools });
+    });
+
+    app.get('/schemas/tools/:toolName.json', (req: Request, res: Response, next: NextFunction) => {
+      const schema = getToolJsonSchema(req.params.toolName);
+      if (!schema) {
+        res.status(404).json({ error: `Schema for tool '${req.params.toolName}' introuvable.` });
+        return;
+      }
+
+      try {
+        res.type('application/schema+json');
+        res.send(JSON.stringify(schema.schema, null, 2));
+      } catch (error) {
+        next(error);
+      }
+    });
 
     app.get('/health', (_req: Request, res: Response) => {
       const now = Date.now();

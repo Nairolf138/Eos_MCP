@@ -58,6 +58,7 @@ node --version
 
 - `npm run build` : compile TypeScript vers `dist/`.
 - `npm run lint` : vérifie le style de code avec ESLint.
+- `npm run lint:manifest` : valide la structure du manifest MCP via Ajv.
 - `npm test` : exécute la suite de tests (Jest).
 - `npm start` : lance le serveur MCP compilé en mode stdio.
 - `npm run start:dev` : lance le serveur MCP directement avec `ts-node`.
@@ -243,6 +244,32 @@ Réponse attendue :
 
 Le bloc `mcp` regroupe désormais l'état du serveur HTTP (adresse liée, clients WebSocket, durée de fonctionnement) et du transport STDIO (nombre de clients et uptime).
 `osc.transports` expose le détail des liens TCP/UDP (derniers heartbeats, échecs consécutifs) tandis que `osc.diagnostics` réunit les compteurs RX/TX, la configuration réseau appliquée et l'état de la journalisation.
+
+### Enregistrer le manifest MCP dans Claude
+
+Le serveur expose automatiquement le manifest Claude-compatible sur `GET /manifest.json`. Ce fichier référence la liste des outils (`/tools`), le schéma JSON de chaque outil (`/schemas/tools/{toolName}.json`) ainsi qu’un catalogue (`/schemas/tools/index.json`).
+
+1. Vérifiez la validité du manifest localement :
+
+   ```bash
+   npm run lint:manifest
+   ```
+
+2. Assurez-vous que votre passerelle HTTP/WS est accessible publiquement (reverse proxy, tunnel, etc.) et notez l’URL complète du manifest (par exemple `https://mcp.example.com/manifest.json`).
+
+3. Enregistrez le service dans Claude via l’outil officiel :
+
+   ```bash
+   npx @anthropic-ai/anthropic-cli mcp register --manifest-url https://mcp.example.com/manifest.json
+   ```
+
+4. Vous pouvez tester l’intégration MCP en mode local via :
+
+   ```bash
+   npx @anthropic-ai/anthropic-cli mcp test --manifest-url http://localhost:3032/manifest.json
+   ```
+
+Le manifest est également copié automatiquement dans `dist/manifest.json` lors du `npm run build`, garantissant sa présence dans vos artefacts de déploiement (binaire `pkg`, archives, etc.).
 
 #### Lister les outils disponibles
 
