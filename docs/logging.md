@@ -44,3 +44,13 @@ Pour vérifier la configuration effective, vous pouvez exécuter les tests unita
 ```bash
 npm test -- src/config/__tests__/config.test.ts
 ```
+
+## Raccourcis en ligne de commande
+
+En complément des variables d'environnement, certains indicateurs peuvent être activés directement lors du démarrage du serveur :
+
+- `--json-logs` force l'utilisation du format JSON sur STDOUT et ignore les destinations configurées (pratique pour rediriger la sortie vers un collecteur).
+- `--verbose` active la journalisation détaillée des messages OSC (entrants et sortants) via `OscService.setLoggingOptions()`.
+- `--stats-interval <durée>` publie périodiquement les compteurs RX/TX renvoyés par `OscService.getDiagnostics()` dans les logs (valeurs acceptant `10s`, `5s`, `5000ms`, etc.).
+
+Ces options peuvent être combinées avec `npm start` ou `npm run start:dev` en les ajoutant après `--` (ex. `npm run start:dev -- --verbose --stats-interval 30s`).

@@ -58,7 +58,36 @@ interface CliOptions {
   version: boolean;
   listTools: boolean;
   checkConfig: boolean;
+  verbose: boolean;
+  jsonLogs: boolean;
+  statsIntervalMs?: number;
   unknown: string[];
+  errors: string[];
+}
+
+function parseStatsIntervalValue(rawValue: string): number | null {
+  const value = rawValue.trim().toLowerCase();
+  if (value.length === 0) {
+    return null;
+  }
+
+  let multiplier = 1000;
+  let numericPortion = value;
+
+  if (value.endsWith('ms')) {
+    multiplier = 1;
+    numericPortion = value.slice(0, -2);
+  } else if (value.endsWith('s')) {
+    multiplier = 1000;
+    numericPortion = value.slice(0, -1);
+  }
+
+  const parsed = Number.parseFloat(numericPortion);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null;
+  }
+
+  return Math.round(parsed * multiplier);
 }
 
 function parseCliArguments(argv: readonly string[]): CliOptions {
@@ -67,10 +96,20 @@ function parseCliArguments(argv: readonly string[]): CliOptions {
     version: false,
     listTools: false,
     checkConfig: false,
-    unknown: [] as string[]
+    verbose: false,
+    jsonLogs: false,
+    statsIntervalMs: undefined,
+    unknown: [] as string[],
+    errors: [] as string[]
   } satisfies CliOptions;
 
-  for (const token of argv) {
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index]!;
+
+    if (token === '--') {
+      break;
+    }
+
     if (token === '--help' || token === '-h') {
       options.help = true;
       continue;
@@ -91,8 +130,46 @@ function parseCliArguments(argv: readonly string[]): CliOptions {
       continue;
     }
 
-    if (token === '--') {
-      break;
+    if (token === '--verbose') {
+      options.verbose = true;
+      continue;
+    }
+
+    if (token === '--json-logs') {
+      options.jsonLogs = true;
+      continue;
+    }
+
+    if (token.startsWith('--stats-interval=')) {
+      const [, raw] = token.split('=', 2);
+      const interval = raw ? parseStatsIntervalValue(raw) : null;
+      if (interval === null) {
+        options.errors.push(
+          "La valeur fournie pour --stats-interval doit être un nombre positif (ex: 10s, 5000ms)."
+        );
+      } else {
+        options.statsIntervalMs = interval;
+      }
+      continue;
+    }
+
+    if (token === '--stats-interval') {
+      const next = argv[index + 1];
+      if (!next || next.startsWith('-')) {
+        options.errors.push("L'option --stats-interval nécessite une valeur (ex: --stats-interval 15s).");
+        continue;
+      }
+
+      const interval = parseStatsIntervalValue(next);
+      if (interval === null) {
+        options.errors.push(
+          "La valeur fournie pour --stats-interval doit être un nombre positif (ex: 10s, 5000ms)."
+        );
+      } else {
+        options.statsIntervalMs = interval;
+      }
+      index += 1;
+      continue;
     }
 
     options.unknown.push(token);
@@ -107,7 +184,10 @@ function printHelp(scriptName: string): void {
     '  --help, -h          Affiche cette aide et quitte.\n' +
     '  --version, -v       Affiche la version du serveur et quitte.\n' +
     '  --list-tools        Liste les outils MCP disponibles et quitte.\n' +
-    '  --check-config      Valide la configuration et quitte.';
+    '  --check-config      Valide la configuration et quitte.\n' +
+    '  --verbose           Active le log détaillé des messages OSC.\n' +
+    '  --json-logs         Force une sortie JSON sur STDOUT pour les logs.\n' +
+    '  --stats-interval X  Publie périodiquement les compteurs OSC (ex: 30s, 5s, 10000ms).';
 
   console.log(usage);
 }
@@ -134,7 +214,37 @@ interface BootstrapContext {
   gateway?: HttpGateway;
 }
 
-async function bootstrap(): Promise<BootstrapContext> {
+interface BootstrapOptions {
+  readonly forceJsonLogs?: boolean;
+  readonly enableVerboseOscLogging?: boolean;
+  readonly statsIntervalMs?: number;
+}
+
+interface StdioStatusSnapshot {
+  status: 'starting' | 'listening' | 'stopped';
+  clients: number;
+  startedAt?: number;
+}
+
+function applyBootstrapOverrides(
+  config: AppConfig,
+  options: BootstrapOptions
+): AppConfig {
+  if (!options.forceJsonLogs) {
+    return config;
+  }
+
+  return {
+    ...config,
+    logging: {
+      ...config.logging,
+      format: 'json',
+      destinations: [{ type: 'stdout' }]
+    }
+  } satisfies AppConfig;
+}
+
+async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapContext> {
   let config: AppConfig;
   try {
     config = getConfig();
@@ -146,14 +256,21 @@ async function bootstrap(): Promise<BootstrapContext> {
     throw new Error(message);
   }
 
-  initialiseLogger(config);
+  const effectiveConfig = applyBootstrapOverrides(config, options);
 
-  const tcpPort = config.mcp.tcpPort;
+  initialiseLogger(effectiveConfig);
+
+  const tcpPort = effectiveConfig.mcp.tcpPort;
   const oscConnectionState = new OscConnectionStateProvider();
   const oscGateway = createOscGatewayFromEnv({
     logger: createLogger('osc-gateway'),
     connectionStateProvider: oscConnectionState
   });
+
+  if (options.enableVerboseOscLogging) {
+    oscGateway.setLoggingOptions({ incoming: true, outgoing: true });
+  }
+
   initializeOscClient(oscGateway);
 
   const server = new McpServer({
@@ -173,19 +290,68 @@ async function bootstrap(): Promise<BootstrapContext> {
   registry.registerMany(tools);
 
   const transport = new StdioServerTransport();
-  const connections: Array<Promise<void>> = [server.connect(transport)];
+  const stdioStatus: StdioStatusSnapshot = {
+    status: 'starting',
+    clients: 0
+  };
+  const connections: Array<Promise<void>> = [
+    server
+      .connect(transport)
+      .then(() => {
+        stdioStatus.status = 'listening';
+        stdioStatus.clients = 1;
+        stdioStatus.startedAt = Date.now();
+      })
+      .catch((error) => {
+        stdioStatus.status = 'stopped';
+        stdioStatus.clients = 0;
+        throw error;
+      })
+  ];
 
   let gateway: HttpGateway | undefined;
   if (tcpPort) {
     gateway = createHttpGateway(registry, {
       port: tcpPort,
       oscConnectionProvider: oscConnectionState,
-      security: config.httpGateway.security
+      security: effectiveConfig.httpGateway.security,
+      oscGateway,
+      stdioStatusProvider: () => ({ ...stdioStatus })
     });
     connections.push(gateway.start());
   }
 
   await Promise.all(connections);
+
+  let statsReporter: NodeJS.Timeout | undefined;
+  if (options.statsIntervalMs && options.statsIntervalMs > 0) {
+    const intervalMs = options.statsIntervalMs;
+    logger.info(
+      { intervalMs },
+      'Reporting periodique des statistiques OSC active'
+    );
+    statsReporter = setInterval(() => {
+      try {
+        const diagnostics = oscGateway.getDiagnostics();
+        logger.info(
+          {
+            osc: {
+              stats: diagnostics.stats,
+              uptimeMs: diagnostics.uptimeMs,
+              startedAt: diagnostics.startedAt
+            }
+          },
+          'Statistiques OSC'
+        );
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        logger.error({ error: err }, 'Impossible de recuperer les diagnostics OSC');
+      }
+    }, intervalMs);
+    if (typeof statsReporter.unref === 'function') {
+      statsReporter.unref();
+    }
+  }
 
   const toolCount = registry.listTools().length;
   const httpAddress = gateway?.getAddress();
@@ -253,6 +419,13 @@ async function bootstrap(): Promise<BootstrapContext> {
       logger.error({ error: describeError(appError) }, appError.message);
     }
 
+    if (statsReporter) {
+      clearInterval(statsReporter);
+    }
+
+    stdioStatus.status = 'stopped';
+    stdioStatus.clients = 0;
+
     logger.info('Arret du serveur MCP termine.');
     process.exit(0);
   };
@@ -271,6 +444,14 @@ async function bootstrap(): Promise<BootstrapContext> {
 async function runFromCommandLine(argv: NodeJS.Process['argv']): Promise<void> {
   const [, script = 'src/server/index.js'] = argv;
   const options = parseCliArguments(argv.slice(2));
+
+  if (options.errors.length > 0) {
+    for (const message of options.errors) {
+      console.error(message);
+    }
+    process.exit(1);
+    return;
+  }
 
   if (options.unknown.length > 0) {
     console.error(`Option(s) inconnue(s) : ${options.unknown.join(', ')}`);
@@ -312,7 +493,11 @@ async function runFromCommandLine(argv: NodeJS.Process['argv']): Promise<void> {
     return;
   }
 
-  await bootstrap();
+  await bootstrap({
+    forceJsonLogs: options.jsonLogs,
+    enableVerboseOscLogging: options.verbose,
+    statsIntervalMs: options.statsIntervalMs
+  });
 }
 
 if (require.main === module) {
@@ -326,4 +511,4 @@ if (require.main === module) {
   });
 }
 
-export { bootstrap, ToolRegistry };
+export { bootstrap, ToolRegistry, parseCliArguments, applyBootstrapOverrides };
