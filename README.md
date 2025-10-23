@@ -318,7 +318,7 @@ La fonction `createHttpGateway` accepte un objet `security` pour appliquer une p
 |--------|-------------|
 | `apiKeys` | Tableau de clés API autorisées. À transmettre dans l’en-tête `X-API-Key`. |
 | `mcpTokens` | Liste de jetons MCP pour l’authentification (en-tête `X-MCP-Token` ou `Authorization: Bearer <token>`). Ces jetons sont également requis pour les requêtes mutantes afin de limiter les attaques CSRF. |
-| `ipWhitelist` | Liste d’adresses IP autorisées (`"*"` pour tout accepter). |
+| `ipAllowlist` | Liste d’adresses IP autorisées (`"*"` pour tout accepter). |
 | `allowedOrigins` | Origines HTTP/WS autorisées pour CORS/CORS WS (`"*"` pour tout accepter). |
 | `rateLimit` | Limiteur de débit en mémoire `{ windowMs, max }` appliqué par adresse IP. |
 | `express` | Permet de surcharger les middlewares Express (`authentication`, `csrf`, `cors`, `throttling`). |
@@ -331,7 +331,7 @@ createHttpGateway(registry, {
   security: {
     apiKeys: ['test-key'],
     mcpTokens: ['token-123'],
-    ipWhitelist: ['127.0.0.1'],
+    ipAllowlist: ['127.0.0.1'],
     allowedOrigins: ['http://localhost'],
     rateLimit: { windowMs: 60000, max: 30 }
   }

@@ -257,7 +257,7 @@ describe('HttpGateway security options', () => {
   const securityOptions = {
     apiKeys: ['test-key'],
     mcpTokens: ['token-123'],
-    ipWhitelist: ['127.0.0.1', '::1', '::ffff:127.0.0.1'],
+    ipAllowlist: ['127.0.0.1', '::1', '::ffff:127.0.0.1'],
     allowedOrigins: ['http://localhost'],
     rateLimit: { windowMs: 10_000, max: 2 }
   } as const;
@@ -345,7 +345,7 @@ describe('HttpGateway security options', () => {
     await gateway.stop();
     gateway = createHttpGateway(registry, {
       port: 0,
-      security: { ...securityOptions, ipWhitelist: [] }
+      security: { ...securityOptions, ipAllowlist: [] }
     });
     await gateway.start();
     const address = gateway.getAddress();
