@@ -54,6 +54,133 @@ describe('OscConnectionManager', () => {
     jest.mocked(createUdpSocket).mockReset();
   });
 
+  it('applies exponential backoff when scheduling reconnections', () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2024-01-01T00:00:00.000Z'));
+
+    const tcpSockets: MockTcpSocket[] = [];
+    const createTcpSocket = jest.fn(() => {
+      const socket = new MockTcpSocket();
+      tcpSockets.push(socket);
+      return socket as unknown as TcpSocket;
+    });
+
+    const createUdpSocket = jest.fn(() => new MockUdpSocket() as unknown as UdpSocket);
+
+    const manager = new OscConnectionManager({
+      host: '127.0.0.1',
+      tcpPort: 9000,
+      udpPort: 9001,
+      heartbeatIntervalMs: 1_000,
+      connectionTimeoutMs: 500,
+      reconnectBackoff: {
+        initialDelayMs: 100,
+        multiplier: 2,
+        maxDelayMs: 1_000,
+        jitter: 0
+      },
+      createTcpSocket,
+      createUdpSocket,
+      logger: {}
+    });
+
+    expect(createTcpSocket).toHaveBeenCalledTimes(1);
+
+    const firstSocket = tcpSockets[0];
+    if (!firstSocket) {
+      throw new Error('First TCP socket not created');
+    }
+
+    firstSocket.emit('error', new Error('first failure'));
+
+    jest.advanceTimersByTime(99);
+    expect(createTcpSocket).toHaveBeenCalledTimes(1);
+    jest.advanceTimersByTime(1);
+    expect(createTcpSocket).toHaveBeenCalledTimes(2);
+
+    const secondSocket = tcpSockets[1];
+    if (!secondSocket) {
+      throw new Error('Second TCP socket not created');
+    }
+
+    secondSocket.emit('error', new Error('second failure'));
+
+    jest.advanceTimersByTime(199);
+    expect(createTcpSocket).toHaveBeenCalledTimes(2);
+    jest.advanceTimersByTime(1);
+    expect(createTcpSocket).toHaveBeenCalledTimes(3);
+
+    const thirdSocket = tcpSockets[2];
+    if (!thirdSocket) {
+      throw new Error('Third TCP socket not created');
+    }
+
+    thirdSocket.emit('error', new Error('third failure'));
+
+    jest.advanceTimersByTime(399);
+    expect(createTcpSocket).toHaveBeenCalledTimes(3);
+    jest.advanceTimersByTime(1);
+    expect(createTcpSocket).toHaveBeenCalledTimes(4);
+
+    manager.stop();
+    jest.runOnlyPendingTimers();
+  });
+
+  it('stops reconnect attempts when the reconnection timeout is exceeded', () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2024-01-01T00:00:00.000Z'));
+
+    const tcpSockets: MockTcpSocket[] = [];
+    const createTcpSocket = jest.fn(() => {
+      const socket = new MockTcpSocket();
+      tcpSockets.push(socket);
+      return socket as unknown as TcpSocket;
+    });
+
+    const createUdpSocket = jest.fn(() => new MockUdpSocket() as unknown as UdpSocket);
+
+    const manager = new OscConnectionManager({
+      host: '127.0.0.1',
+      tcpPort: 9000,
+      udpPort: 9001,
+      heartbeatIntervalMs: 1_000,
+      connectionTimeoutMs: 500,
+      reconnectBackoff: {
+        initialDelayMs: 100,
+        multiplier: 2,
+        maxDelayMs: 1_000,
+        jitter: 0
+      },
+      reconnectTimeoutMs: 250,
+      createTcpSocket,
+      createUdpSocket,
+      logger: {}
+    });
+
+    expect(createTcpSocket).toHaveBeenCalledTimes(1);
+
+    const firstSocket = tcpSockets[0];
+    if (!firstSocket) {
+      throw new Error('First TCP socket not created');
+    }
+    firstSocket.emit('error', new Error('initial failure'));
+
+    jest.advanceTimersByTime(100);
+    expect(createTcpSocket).toHaveBeenCalledTimes(2);
+
+    const secondSocket = tcpSockets[1];
+    if (!secondSocket) {
+      throw new Error('Second TCP socket not created');
+    }
+    secondSocket.emit('error', new Error('second failure'));
+
+    jest.advanceTimersByTime(1_000);
+    expect(createTcpSocket).toHaveBeenCalledTimes(2);
+
+    manager.stop();
+    jest.runOnlyPendingTimers();
+  });
+
   it('reconnects the TCP transport when heartbeats are not acknowledged', async () => {
     jest.useFakeTimers();
 

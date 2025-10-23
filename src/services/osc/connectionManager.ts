@@ -24,12 +24,21 @@ export interface OscConnectionManagerOptions {
   localPort?: number;
   heartbeatIntervalMs?: number;
   reconnectDelayMs?: number;
+  reconnectBackoff?: OscReconnectBackoffOptions;
+  reconnectTimeoutMs?: number;
   connectionTimeoutMs?: number;
   heartbeatPayload?: Buffer | string | Uint8Array;
   heartbeatResponseMatcher?: (data: Buffer) => boolean;
   logger?: OscConnectionLogger;
   createTcpSocket?: () => TcpSocket;
   createUdpSocket?: () => UdpSocket;
+}
+
+export interface OscReconnectBackoffOptions {
+  initialDelayMs?: number;
+  maxDelayMs?: number;
+  multiplier?: number;
+  jitter?: number;
 }
 
 export interface TransportStatus {
@@ -50,6 +59,7 @@ interface TransportInternals {
   lastHeartbeatSentAt: number | null;
   lastHeartbeatAckAt: number | null;
   consecutiveFailures: number;
+  reconnectStartedAt: number | null;
 }
 
 type OscConnectionEvents = {
@@ -68,7 +78,9 @@ export class OscConnectionManager extends EventEmitter {
 
   private readonly heartbeatIntervalMs: number;
 
-  private readonly reconnectDelayMs: number;
+  private readonly reconnectBackoff: Required<OscReconnectBackoffOptions>;
+
+  private readonly reconnectTimeoutMs: number | null;
 
   private readonly connectionTimeoutMs: number;
 
@@ -100,7 +112,21 @@ export class OscConnectionManager extends EventEmitter {
     };
 
     this.heartbeatIntervalMs = options.heartbeatIntervalMs ?? 5_000;
-    this.reconnectDelayMs = options.reconnectDelayMs ?? 1_000;
+    const backoff = options.reconnectBackoff ?? {};
+    const initialDelay = backoff.initialDelayMs ?? options.reconnectDelayMs ?? 1_000;
+    const maxDelay = backoff.maxDelayMs ?? Math.max(initialDelay * 8, initialDelay);
+    const multiplier = backoff.multiplier ?? 2;
+    const jitter = backoff.jitter ?? 0;
+    this.reconnectBackoff = {
+      initialDelayMs: Math.max(0, initialDelay),
+      maxDelayMs: Math.max(0, maxDelay),
+      multiplier: Math.max(1, multiplier),
+      jitter: Math.max(0, Math.min(1, jitter))
+    };
+    this.reconnectTimeoutMs =
+      typeof options.reconnectTimeoutMs === 'number' && options.reconnectTimeoutMs >= 0
+        ? options.reconnectTimeoutMs
+        : null;
     this.connectionTimeoutMs = options.connectionTimeoutMs ?? 3_000;
     this.heartbeatPayload = this.normalisePayload(options.heartbeatPayload ?? 'ping');
     this.hasCustomMatcher = typeof options.heartbeatResponseMatcher === 'function';
@@ -152,6 +178,7 @@ export class OscConnectionManager extends EventEmitter {
         state.reconnectTimer = null;
       }
       state.state = 'disconnected';
+      state.reconnectStartedAt = null;
     });
   }
 
@@ -210,7 +237,8 @@ export class OscConnectionManager extends EventEmitter {
       reconnectTimer: null,
       lastHeartbeatSentAt: null,
       lastHeartbeatAckAt: null,
-      consecutiveFailures: 0
+      consecutiveFailures: 0,
+      reconnectStartedAt: null
     };
   }
 
@@ -362,6 +390,7 @@ export class OscConnectionManager extends EventEmitter {
     state.consecutiveFailures = 0;
     state.lastHeartbeatAckAt = Date.now();
     state.lastHeartbeatSentAt = null;
+    state.reconnectStartedAt = null;
 
     this.logger.debug?.(`[OSC][${state.type}] Connecte`);
     this.emit('status', this.getStatus(state.type));
@@ -473,6 +502,10 @@ export class OscConnectionManager extends EventEmitter {
     this.clearTimers(state);
     this.destroySocket(state);
 
+    if (state.reconnectStartedAt === null) {
+      state.reconnectStartedAt = Date.now();
+    }
+
     if (state.state !== 'disconnected') {
       state.state = 'disconnected';
       state.consecutiveFailures += 1;
@@ -484,19 +517,52 @@ export class OscConnectionManager extends EventEmitter {
     }
   }
 
+  private computeReconnectDelay(consecutiveFailures: number): number {
+    const attemptIndex = Math.max(0, consecutiveFailures - 1);
+    const { initialDelayMs, multiplier, maxDelayMs, jitter } = this.reconnectBackoff;
+
+    const exponentialDelay = initialDelayMs * Math.pow(multiplier, attemptIndex);
+    const cappedDelay = Math.min(exponentialDelay, maxDelayMs);
+
+    if (jitter <= 0) {
+      return Math.round(cappedDelay);
+    }
+
+    const jitterRange = cappedDelay * jitter;
+    const jitterOffset = Math.random() * jitterRange;
+    return Math.round(Math.min(maxDelayMs, cappedDelay + jitterOffset));
+  }
+
   private scheduleReconnect(state: TransportInternals): void {
     if (state.reconnectTimer || !this.running) {
       return;
     }
 
+    if (state.reconnectStartedAt === null) {
+      state.reconnectStartedAt = Date.now();
+    }
+
+    const delay = this.computeReconnectDelay(state.consecutiveFailures || 1);
+
+    if (this.reconnectTimeoutMs !== null) {
+      const now = Date.now();
+      const elapsed = now - state.reconnectStartedAt;
+      if (elapsed >= this.reconnectTimeoutMs || elapsed + delay > this.reconnectTimeoutMs) {
+        this.logger.warn?.(
+          `[OSC][${state.type}] Delai de reconnexion depasse (${this.reconnectTimeoutMs}ms), abandon de la tentative`
+        );
+        return;
+      }
+    }
+
     this.logger.debug?.(
-      `[OSC][${state.type}] Nouvelle tentative de connexion dans ${this.reconnectDelayMs}ms`
+      `[OSC][${state.type}] Nouvelle tentative de connexion dans ${delay}ms`
     );
 
     state.reconnectTimer = setTimeout(() => {
       state.reconnectTimer = null;
       this.connectTransport(state.type);
-    }, this.reconnectDelayMs);
+    }, delay);
   }
 
   private markHeartbeatAck(state: TransportInternals, data?: Buffer): void {

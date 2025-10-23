@@ -2,7 +2,11 @@ import type { AddressInfo } from 'node:net';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { getConfig, type AppConfig } from '../config/index';
-import { createOscGatewayFromEnv, OscConnectionGateway } from '../services/osc/index';
+import {
+  createOscGatewayFromEnv,
+  OscConnectionGateway,
+  OscConnectionStateProvider
+} from '../services/osc/index';
 import { initializeOscClient } from '../services/osc/client';
 import { ErrorCode, describeError, toAppError } from './errors';
 import { createLogger, initialiseLogger } from './logger';
@@ -126,6 +130,7 @@ interface BootstrapContext {
   server: McpServer;
   registry: ToolRegistry;
   oscGateway: OscConnectionGateway;
+  oscConnectionState: OscConnectionStateProvider;
   gateway?: HttpGateway;
 }
 
@@ -144,7 +149,11 @@ async function bootstrap(): Promise<BootstrapContext> {
   initialiseLogger(config);
 
   const tcpPort = config.mcp.tcpPort;
-  const oscGateway = createOscGatewayFromEnv({ logger: createLogger('osc-gateway') });
+  const oscConnectionState = new OscConnectionStateProvider();
+  const oscGateway = createOscGatewayFromEnv({
+    logger: createLogger('osc-gateway'),
+    connectionStateProvider: oscConnectionState
+  });
   initializeOscClient(oscGateway);
 
   const server = new McpServer({
@@ -168,7 +177,10 @@ async function bootstrap(): Promise<BootstrapContext> {
 
   let gateway: HttpGateway | undefined;
   if (tcpPort) {
-    gateway = createHttpGateway(registry, { port: tcpPort });
+    gateway = createHttpGateway(registry, {
+      port: tcpPort,
+      oscConnectionProvider: oscConnectionState
+    });
     connections.push(gateway.start());
   }
 
@@ -252,7 +264,7 @@ async function bootstrap(): Promise<BootstrapContext> {
     void handleShutdown('SIGTERM');
   });
 
-  return { server, registry, oscGateway, gateway };
+  return { server, registry, oscGateway, gateway, oscConnectionState };
 }
 
 async function runFromCommandLine(argv: NodeJS.Process['argv']): Promise<void> {

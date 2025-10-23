@@ -41,9 +41,35 @@ jest.mock('../../config/index.js', () => ({
 }));
 
 const mockOscGateway = { close: jest.fn() };
+const mockOscConnectionStateProvider = jest
+  .fn()
+  .mockImplementation(() => ({
+    setStatus: jest.fn(),
+    getOverview: jest.fn(() => ({
+      health: 'offline',
+      transports: {
+        tcp: {
+          type: 'tcp',
+          state: 'disconnected',
+          lastHeartbeatAckAt: null,
+          lastHeartbeatSentAt: null,
+          consecutiveFailures: 0
+        },
+        udp: {
+          type: 'udp',
+          state: 'disconnected',
+          lastHeartbeatAckAt: null,
+          lastHeartbeatSentAt: null,
+          consecutiveFailures: 0
+        }
+      },
+      updatedAt: Date.now()
+    }))
+  }));
 
 jest.mock('../../services/osc/index.js', () => ({
-  createOscGatewayFromEnv: jest.fn(() => mockOscGateway)
+  createOscGatewayFromEnv: jest.fn(() => mockOscGateway),
+  OscConnectionStateProvider: mockOscConnectionStateProvider
 }));
 
 jest.mock('../../services/osc/client.js', () => ({

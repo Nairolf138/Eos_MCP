@@ -351,6 +351,7 @@ export function createOscServiceFromEnv(logger?: OscLogger): OscService {
 export {
   OscConnectionManager,
   type OscConnectionManagerOptions,
+  type OscReconnectBackoffOptions,
   type ToolTransportPreference,
   type TransportStatus,
   type TransportType
@@ -362,3 +363,8 @@ export {
   type OscConnectionGatewayOptions,
   createOscGatewayFromEnv
 } from './gateway';
+export {
+  OscConnectionStateProvider,
+  type OscConnectionOverview,
+  type OscConnectionHealth
+} from './connectionState';

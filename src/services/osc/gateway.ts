@@ -15,6 +15,7 @@ import {
   type ToolTransportPreference,
   type TransportStatus
 } from './connectionManager';
+import { OscConnectionStateProvider } from './connectionState';
 import type { OscGateway, OscGatewaySendOptions } from './client';
 
 type Direction = 'incoming' | 'outgoing';
@@ -31,11 +32,25 @@ export interface OscConnectionGatewayOptions extends OscConnectionManagerOptions
   metadata?: boolean;
   localAddress?: string;
   localPort?: number;
+  connectionStateProvider?: OscConnectionStateProvider;
 }
 
 type StatusListener = (status: TransportStatus) => void;
 
 const DEFAULT_METADATA = true;
+
+type OscGatewayFactoryOptions = Partial<
+  Pick<
+    OscConnectionGatewayOptions,
+    | 'logger'
+    | 'heartbeatIntervalMs'
+    | 'reconnectDelayMs'
+    | 'reconnectBackoff'
+    | 'reconnectTimeoutMs'
+    | 'connectionTimeoutMs'
+    | 'connectionStateProvider'
+  >
+>;
 
 function normaliseToolId(candidate: string | undefined, message: OscMessage): string {
   if (candidate && candidate.trim().length > 0) {
@@ -71,6 +86,8 @@ export class OscConnectionGateway implements OscGateway {
 
   private metadata: boolean;
 
+  private readonly connectionStateProvider?: OscConnectionStateProvider;
+
   private readonly config: {
     host: string;
     tcpPort: number;
@@ -81,6 +98,7 @@ export class OscConnectionGateway implements OscGateway {
 
   constructor(options: OscConnectionGatewayOptions) {
     this.metadata = options.metadata ?? DEFAULT_METADATA;
+    this.connectionStateProvider = options.connectionStateProvider;
     this.config = {
       host: options.host,
       tcpPort: options.tcpPort,
@@ -188,6 +206,10 @@ export class OscConnectionGateway implements OscGateway {
   public close(): void {
     this.detachManagerEvents(this.manager);
     this.manager.stop();
+    if (this.connectionStateProvider) {
+      this.connectionStateProvider.setStatus(this.manager.getStatus('tcp'));
+      this.connectionStateProvider.setStatus(this.manager.getStatus('udp'));
+    }
     this.listeners.clear();
     this.statusListeners.clear();
   }
@@ -206,11 +228,16 @@ export class OscConnectionGateway implements OscGateway {
   }
 
   private createManager(options: OscConnectionGatewayOptions): OscConnectionManager {
-    const { metadata: _metadata, ...rest } = options;
+    const { metadata: _metadata, connectionStateProvider: _provider, ...rest } = options;
     return new OscConnectionManager(rest);
   }
 
   private attachManagerEvents(manager: OscConnectionManager): void {
+    if (this.connectionStateProvider) {
+      this.connectionStateProvider.setStatus(manager.getStatus('tcp'));
+      this.connectionStateProvider.setStatus(manager.getStatus('udp'));
+    }
+
     manager.on('message', ({ type, data }) => {
       const message = this.decodeMessage(data);
       if (!message) {
@@ -244,6 +271,7 @@ export class OscConnectionGateway implements OscGateway {
     });
 
     manager.on('status', (status) => {
+      this.connectionStateProvider?.setStatus(status);
       this.statusListeners.forEach((listener) => {
         try {
           listener(status);
@@ -356,12 +384,7 @@ export function createOscConnectionGateway(options: OscConnectionGatewayOptions)
 
 export function createOscGatewayFromConfig(
   oscConfig: ResolvedOscConfig,
-  options: Partial<
-    Pick<
-      OscConnectionManagerOptions,
-      'logger' | 'heartbeatIntervalMs' | 'reconnectDelayMs' | 'connectionTimeoutMs'
-    >
-  > = {}
+  options: OscGatewayFactoryOptions = {}
 ): OscConnectionGateway {
   return createOscConnectionGateway({
     host: oscConfig.remoteAddress,
@@ -372,17 +395,15 @@ export function createOscGatewayFromConfig(
     logger: options.logger,
     heartbeatIntervalMs: options.heartbeatIntervalMs,
     reconnectDelayMs: options.reconnectDelayMs,
-    connectionTimeoutMs: options.connectionTimeoutMs
+    reconnectBackoff: options.reconnectBackoff,
+    reconnectTimeoutMs: options.reconnectTimeoutMs,
+    connectionTimeoutMs: options.connectionTimeoutMs,
+    connectionStateProvider: options.connectionStateProvider
   });
 }
 
 export function createOscGatewayFromEnv(
-  options: Partial<
-    Pick<
-      OscConnectionManagerOptions,
-      'logger' | 'heartbeatIntervalMs' | 'reconnectDelayMs' | 'connectionTimeoutMs'
-    >
-  > = {}
+  options: OscGatewayFactoryOptions = {}
 ): OscConnectionGateway {
   return createOscGatewayFromConfig(getConfig().osc, options);
 }
