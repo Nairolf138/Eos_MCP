@@ -75,6 +75,18 @@ npx ts-node src/server/index.ts --check-config
 
 Ces commandes peuvent également être lancées sur la version compilée avec `node dist/server/index.js <option>`. Utilisez `--list-tools` pour inspecter rapidement les outils disponibles et `--check-config` afin de valider votre fichier `.env` ou les variables d'environnement avant un déploiement.
 
+Lorsque vous démarrez réellement le serveur (sans combiner d'option utilitaire ci-dessus), plusieurs modificateurs sont disponibles :
+
+- `--verbose` active la journalisation détaillée des messages OSC (entrants/sortants).
+- `--json-logs` force l'envoi des logs au format JSON vers STDOUT, en ignorant la configuration de destinations déclarée dans l'environnement.
+- `--stats-interval <durée>` publie périodiquement les compteurs RX/TX issus d'`OscService.getDiagnostics()` dans les logs (valeurs acceptant `10s`, `5s`, `5000ms`, etc.).
+
+Exemple :
+
+```bash
+npx ts-node src/server/index.ts --verbose --json-logs --stats-interval 30s
+```
+
 ## Configuration réseau et de la console Eos
 
 | Protocole | Port | Description |
@@ -156,9 +168,67 @@ Réponse attendue :
   "status": "ok",
   "uptimeMs": 1234,
   "toolCount": 5,
-  "transportActive": true
+  "transportActive": true,
+  "mcp": {
+    "http": {
+      "status": "listening",
+      "startedAt": 1715080000000,
+      "uptimeMs": 1234,
+      "websocketClients": 0,
+      "address": {
+        "address": "0.0.0.0",
+        "family": "IPv4",
+        "port": 3032
+      }
+    },
+    "stdio": {
+      "status": "listening",
+      "clients": 1,
+      "startedAt": 1715079999000,
+      "uptimeMs": 1200
+    }
+  },
+  "osc": {
+    "status": "online",
+    "updatedAt": 1715080000500,
+    "transports": {
+      "tcp": {
+        "type": "tcp",
+        "state": "connected",
+        "lastHeartbeatSentAt": 1715080000400,
+        "lastHeartbeatAckAt": 1715080000400,
+        "consecutiveFailures": 0
+      },
+      "udp": {
+        "type": "udp",
+        "state": "connected",
+        "lastHeartbeatSentAt": null,
+        "lastHeartbeatAckAt": null,
+        "consecutiveFailures": 0
+      }
+    },
+    "diagnostics": {
+      "config": {
+        "localAddress": "0.0.0.0",
+        "localPort": 8000,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 8001
+      },
+      "logging": { "incoming": false, "outgoing": false },
+      "stats": {
+        "incoming": { "count": 12, "bytes": 2048, "lastTimestamp": 1715080000300, "lastMessage": null, "addresses": [] },
+        "outgoing": { "count": 18, "bytes": 4096, "lastTimestamp": 1715080000350, "lastMessage": null, "addresses": [] }
+      },
+      "listeners": { "active": 1 },
+      "startedAt": 1715079900000,
+      "uptimeMs": 100000
+    }
+  }
 }
 ```
+
+Le bloc `mcp` regroupe désormais l'état du serveur HTTP (adresse liée, clients WebSocket, durée de fonctionnement) et du transport STDIO (nombre de clients et uptime).
+`osc.transports` expose le détail des liens TCP/UDP (derniers heartbeats, échecs consécutifs) tandis que `osc.diagnostics` réunit les compteurs RX/TX, la configuration réseau appliquée et l'état de la journalisation.
 
 #### Lister les outils disponibles
 

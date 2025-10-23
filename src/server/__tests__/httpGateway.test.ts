@@ -114,17 +114,32 @@ describe('HttpGateway integration', () => {
     expect(typeof payload.uptimeMs).toBe('number');
     expect(payload.toolCount).toBe(1);
     expect(payload.transportActive).toBe(true);
+    const mcp = payload.mcp as
+      | { http: { status: string; websocketClients: number; startedAt: number | null } }
+      | undefined;
+    expect(mcp).toBeDefined();
+    if (!mcp) {
+      throw new Error('MCP status missing');
+    }
+    expect(mcp.http.status).toBe('listening');
+    expect(typeof mcp.http.websocketClients).toBe('number');
     const osc = payload.osc as
-      | { status: string; transports: { tcp: string; udp: string }; updatedAt: number }
+      | {
+          status: string;
+          transports: { tcp: { state: string }; udp: { state: string } };
+          updatedAt: number;
+          diagnostics?: unknown;
+        }
       | undefined;
     expect(osc).toBeDefined();
     if (!osc) {
       throw new Error('OSC status missing');
     }
     expect(osc.status).toBe('online');
-    expect(osc.transports.tcp).toBe('connected');
-    expect(osc.transports.udp).toBe('connected');
+    expect(osc.transports.tcp.state).toBe('connected');
+    expect(osc.transports.udp.state).toBe('connected');
     expect(typeof osc.updatedAt).toBe('number');
+    expect(osc.diagnostics).toBeUndefined();
   });
 
   test('reports degraded status when a single transport is connected', async () => {
@@ -141,15 +156,19 @@ describe('HttpGateway integration', () => {
     const payload = (await response.json()) as Record<string, unknown>;
     expect(payload.status).toBe('degraded');
     const osc = payload.osc as
-      | { status: string; transports: { tcp: string; udp: string }; updatedAt: number }
+      | {
+          status: string;
+          transports: { tcp: { state: string }; udp: { state: string } };
+          updatedAt: number;
+        }
       | undefined;
     expect(osc).toBeDefined();
     if (!osc) {
       throw new Error('OSC status missing');
     }
     expect(osc.status).toBe('degraded');
-    expect(osc.transports.tcp).toBe('connected');
-    expect(osc.transports.udp).toBe('disconnected');
+    expect(osc.transports.tcp.state).toBe('connected');
+    expect(osc.transports.udp.state).toBe('disconnected');
   });
 
   test('reports offline status when no transports are connected', async () => {
@@ -166,15 +185,19 @@ describe('HttpGateway integration', () => {
     const payload = (await response.json()) as Record<string, unknown>;
     expect(payload.status).toBe('offline');
     const osc = payload.osc as
-      | { status: string; transports: { tcp: string; udp: string }; updatedAt: number }
+      | {
+          status: string;
+          transports: { tcp: { state: string }; udp: { state: string } };
+          updatedAt: number;
+        }
       | undefined;
     expect(osc).toBeDefined();
     if (!osc) {
       throw new Error('OSC status missing');
     }
     expect(osc.status).toBe('offline');
-    expect(osc.transports.tcp).toBe('disconnected');
-    expect(osc.transports.udp).toBe('disconnected');
+    expect(osc.transports.tcp.state).toBe('disconnected');
+    expect(osc.transports.udp.state).toBe('disconnected');
   });
 
   test('execute tool via WebSocket', async () => {

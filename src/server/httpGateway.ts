@@ -9,7 +9,18 @@ import express, {
 import { WebSocketServer, type WebSocket, type RawData } from 'ws';
 import { createLogger } from './logger';
 import { ToolNotFoundError, type ToolRegistry } from './toolRegistry';
-import type { OscConnectionStateProvider, OscConnectionOverview } from '../services/osc/index';
+import type {
+  OscConnectionStateProvider,
+  OscConnectionOverview,
+  OscDiagnostics,
+  TransportStatus
+} from '../services/osc/index';
+
+interface StdioStatusSnapshot {
+  status: 'starting' | 'listening' | 'stopped';
+  clients: number;
+  startedAt?: number;
+}
 
 interface HttpGatewayOptions {
   port: number;
@@ -17,6 +28,8 @@ interface HttpGatewayOptions {
   websocketPath?: string;
   security?: HttpGatewaySecurityOptions;
   oscConnectionProvider?: OscConnectionStateProvider;
+  oscGateway?: { getDiagnostics: () => OscDiagnostics };
+  stdioStatusProvider?: () => StdioStatusSnapshot | undefined;
 }
 
 interface HttpGatewaySecurityOptions {
@@ -79,9 +92,15 @@ class HttpGateway {
     private readonly options: HttpGatewayOptions
   ) {
     this.oscConnectionProvider = options.oscConnectionProvider;
+    this.oscGateway = options.oscGateway;
+    this.stdioStatusProvider = options.stdioStatusProvider;
   }
 
   private readonly oscConnectionProvider?: OscConnectionStateProvider;
+
+  private readonly oscGateway?: { getDiagnostics: () => OscDiagnostics };
+
+  private readonly stdioStatusProvider?: () => StdioStatusSnapshot | undefined;
 
   public async start(): Promise<void> {
     if (this.started) {
@@ -98,6 +117,7 @@ class HttpGateway {
       const uptimeMs = this.startTimestamp ? now - this.startTimestamp : 0;
       const toolCount = this.registry.listTools().length;
       const oscOverview = this.getOscOverview();
+      const oscDiagnostics = this.getOscDiagnosticsSnapshot();
 
       let status: 'starting' | 'ok' | 'degraded' | 'offline';
       if (!this.started) {
@@ -118,8 +138,11 @@ class HttpGateway {
         payload.transportActive = this.started;
       }
 
-      if (oscOverview) {
-        payload.osc = this.serialiseOscOverview(oscOverview);
+      payload.mcp = this.buildMcpStatus(now);
+
+      const oscPayload = this.buildOscStatus(oscOverview, oscDiagnostics);
+      if (oscPayload) {
+        payload.osc = oscPayload;
       }
 
       res.json(payload);
@@ -310,14 +333,104 @@ class HttpGateway {
     }
   }
 
-  private serialiseOscOverview(overview: OscConnectionOverview): Record<string, unknown> {
+  private getOscDiagnosticsSnapshot(): OscDiagnostics | null {
+    if (!this.oscGateway) {
+      return null;
+    }
+
+    try {
+      return this.oscGateway.getDiagnostics();
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.warn({ error: err }, 'Impossible de recuperer les diagnostics OSC pour /health');
+      return null;
+    }
+  }
+
+  private buildOscStatus(
+    overview: OscConnectionOverview | null,
+    diagnostics: OscDiagnostics | null
+  ): Record<string, unknown> | undefined {
+    if (!overview && !diagnostics) {
+      return undefined;
+    }
+
+    const payload: Record<string, unknown> = {};
+
+    if (overview) {
+      payload.status = overview.health;
+      payload.updatedAt = overview.updatedAt;
+      payload.transports = {
+        tcp: this.serialiseTransportStatus(overview.transports.tcp),
+        udp: this.serialiseTransportStatus(overview.transports.udp)
+      };
+    }
+
+    if (diagnostics) {
+      payload.diagnostics = {
+        config: diagnostics.config,
+        logging: diagnostics.logging,
+        stats: diagnostics.stats,
+        listeners: diagnostics.listeners,
+        startedAt: diagnostics.startedAt,
+        uptimeMs: diagnostics.uptimeMs
+      };
+    }
+
+    return payload;
+  }
+
+  private serialiseTransportStatus(status: TransportStatus): Record<string, unknown> {
     return {
-      status: overview.health,
-      updatedAt: overview.updatedAt,
-      transports: {
-        tcp: overview.transports.tcp.state,
-        udp: overview.transports.udp.state
-      }
+      type: status.type,
+      state: status.state,
+      lastHeartbeatSentAt: status.lastHeartbeatSentAt,
+      lastHeartbeatAckAt: status.lastHeartbeatAckAt,
+      consecutiveFailures: status.consecutiveFailures
+    };
+  }
+
+  private buildMcpStatus(now: number): Record<string, unknown> {
+    const http = this.buildHttpStatus(now);
+    const stdio = this.getStdioStatus(now);
+
+    return stdio ? { http, stdio } : { http };
+  }
+
+  private buildHttpStatus(now: number): Record<string, unknown> {
+    const address = this.getAddress();
+    const startedAt = this.startTimestamp ?? null;
+    const uptimeMs = this.startTimestamp ? now - this.startTimestamp : 0;
+
+    return {
+      status: this.started ? 'listening' : 'stopped',
+      startedAt,
+      uptimeMs,
+      address: address
+        ? { address: address.address, port: address.port, family: address.family }
+        : null,
+      websocketClients: this.wss ? this.wss.clients.size : 0
+    };
+  }
+
+  private getStdioStatus(now: number): Record<string, unknown> | undefined {
+    if (!this.stdioStatusProvider) {
+      return undefined;
+    }
+
+    const snapshot = this.stdioStatusProvider();
+    if (!snapshot) {
+      return undefined;
+    }
+
+    const startedAt = snapshot.startedAt ?? null;
+    const uptimeMs = startedAt ? Math.max(0, now - startedAt) : 0;
+
+    return {
+      status: snapshot.status,
+      clients: snapshot.clients,
+      startedAt,
+      uptimeMs
     };
   }
 
