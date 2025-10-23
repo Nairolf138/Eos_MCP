@@ -179,7 +179,8 @@ async function bootstrap(): Promise<BootstrapContext> {
   if (tcpPort) {
     gateway = createHttpGateway(registry, {
       port: tcpPort,
-      oscConnectionProvider: oscConnectionState
+      oscConnectionProvider: oscConnectionState,
+      security: config.httpGateway.security
     });
     connections.push(gateway.start());
   }

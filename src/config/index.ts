@@ -9,6 +9,9 @@ const DEFAULT_OSC_TCP_PORT = 3032;
 const DEFAULT_OSC_UDP_OUT_PORT = 8001;
 const DEFAULT_OSC_UDP_IN_PORT = 8000;
 const DEFAULT_LOG_LEVEL = 'info';
+const DEFAULT_HTTP_RATE_LIMIT_WINDOW_MS = 60_000;
+const DEFAULT_HTTP_RATE_LIMIT_MAX_REQUESTS = 60;
+const DEFAULT_HTTP_MCP_TOKEN = 'change-me';
 
 const LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'] as const;
 const LOG_DESTINATION_VALUES = ['stdout', 'file', 'transport'] as const;
@@ -75,6 +78,18 @@ export interface LoggingConfig {
   readonly destinations: readonly LoggingDestination[];
 }
 
+export interface HttpGatewaySecurityConfig {
+  readonly apiKeys: readonly string[];
+  readonly mcpTokens: readonly string[];
+  readonly ipAllowlist: readonly string[];
+  readonly allowedOrigins: readonly string[];
+  readonly rateLimit: { readonly windowMs: number; readonly max: number };
+}
+
+export interface HttpGatewayConfig {
+  readonly security: HttpGatewaySecurityConfig;
+}
+
 /**
  * Configuration applicative complète, validée et normalisée.
  */
@@ -82,6 +97,7 @@ export interface AppConfig {
   readonly mcp: McpConfig;
   readonly osc: OscConfig;
   readonly logging: LoggingConfig;
+  readonly httpGateway: HttpGatewayConfig;
 }
 
 interface PortSchemaOptions {
@@ -341,6 +357,59 @@ function createOptionalBooleanSchema(
   });
 }
 
+function createStringArraySchema(
+  _variableName: string,
+  options: { defaultValue?: readonly string[] }
+): z.ZodEffects<z.ZodUnknown, string[], unknown> {
+  const defaultValue = options.defaultValue ? [...options.defaultValue] : [];
+
+  return z.unknown().transform((value, ctx) => {
+    if (value === undefined || value === null) {
+      return [...defaultValue];
+    }
+
+    const raw = typeof value === 'string' ? value : String(value);
+    const tokens = raw
+      .split(',')
+      .map((token) => token.trim())
+      .filter((token) => token.length > 0);
+
+    if (tokens.length === 0) {
+      return [];
+    }
+
+    return tokens;
+  });
+}
+
+function createPositiveIntegerSchema(
+  variableName: string,
+  defaultValue: number
+): z.ZodEffects<z.ZodUnknown, number, unknown> {
+  return z.unknown().transform((value, ctx) => {
+    if (value === undefined || value === null) {
+      return defaultValue;
+    }
+
+    const raw = typeof value === 'string' ? value.trim() : String(value).trim();
+
+    if (raw.length === 0) {
+      return defaultValue;
+    }
+
+    const parsed = Number.parseInt(raw, 10);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `La variable d'environnement ${variableName} doit être un entier positif (reçu: ${raw}).`
+      });
+      return z.NEVER;
+    }
+
+    return parsed;
+  });
+}
+
 const configSchema = z
   .object({
     nodeEnv: z
@@ -359,7 +428,21 @@ const configSchema = z
     logDestinations: createLogDestinationsSchema('LOG_DESTINATIONS', DEFAULT_LOG_DESTINATIONS),
     logTransportTarget: createTransportTargetSchema('LOG_TRANSPORT_TARGET'),
     logTransportOptions: createTransportOptionsSchema('LOG_TRANSPORT_OPTIONS'),
-    logPretty: createOptionalBooleanSchema('LOG_PRETTY')
+    logPretty: createOptionalBooleanSchema('LOG_PRETTY'),
+    httpApiKeys: createStringArraySchema('MCP_HTTP_API_KEYS', { defaultValue: [] }),
+    httpMcpTokens: createStringArraySchema('MCP_HTTP_MCP_TOKENS', {
+      defaultValue: [DEFAULT_HTTP_MCP_TOKEN]
+    }),
+    httpIpAllowlist: createStringArraySchema('MCP_HTTP_IP_ALLOWLIST', { defaultValue: [] }),
+    httpAllowedOrigins: createStringArraySchema('MCP_HTTP_ALLOWED_ORIGINS', { defaultValue: [] }),
+    httpRateLimitWindowMs: createPositiveIntegerSchema(
+      'MCP_HTTP_RATE_LIMIT_WINDOW',
+      DEFAULT_HTTP_RATE_LIMIT_WINDOW_MS
+    ),
+    httpRateLimitMax: createPositiveIntegerSchema(
+      'MCP_HTTP_RATE_LIMIT_MAX',
+      DEFAULT_HTTP_RATE_LIMIT_MAX_REQUESTS
+    )
   })
   .transform((values, ctx): AppConfig => {
     const prettyEnabled = values.logPretty ?? values.nodeEnv !== 'production';
@@ -421,6 +504,18 @@ const configSchema = z
         level: values.logLevel,
         format: prettyEnabled ? 'pretty' : 'json',
         destinations
+      },
+      httpGateway: {
+        security: {
+          apiKeys: values.httpApiKeys,
+          mcpTokens: values.httpMcpTokens,
+          ipAllowlist: values.httpIpAllowlist,
+          allowedOrigins: values.httpAllowedOrigins,
+          rateLimit: {
+            windowMs: values.httpRateLimitWindowMs,
+            max: values.httpRateLimitMax
+          }
+        }
       }
     } satisfies AppConfig;
   });
@@ -444,7 +539,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     logDestinations: env.LOG_DESTINATIONS,
     logTransportTarget: env.LOG_TRANSPORT_TARGET,
     logTransportOptions: env.LOG_TRANSPORT_OPTIONS,
-    logPretty: env.LOG_PRETTY
+    logPretty: env.LOG_PRETTY,
+    httpApiKeys: env.MCP_HTTP_API_KEYS,
+    httpMcpTokens: env.MCP_HTTP_MCP_TOKENS,
+    httpIpAllowlist: env.MCP_HTTP_IP_ALLOWLIST,
+    httpAllowedOrigins: env.MCP_HTTP_ALLOWED_ORIGINS,
+    httpRateLimitWindowMs: env.MCP_HTTP_RATE_LIMIT_WINDOW,
+    httpRateLimitMax: env.MCP_HTTP_RATE_LIMIT_MAX
   });
 
   if (!result.success) {
