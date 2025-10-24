@@ -389,7 +389,7 @@ describe('HttpGateway security options', () => {
     expect(response.status).toBe(403);
   });
 
-  test('denies HTTP request when IP allowlist is empty', async () => {
+  test('allows HTTP request when IP allowlist is empty', async () => {
     await gateway.stop();
     gateway = createHttpGateway(registry, {
       port: 0,
@@ -411,6 +411,33 @@ describe('HttpGateway security options', () => {
         origin: 'http://localhost'
       },
       body: JSON.stringify({ args: { text: 'denied' } })
+    });
+
+    expect(response.status).toBe(200);
+  });
+
+  test('denies HTTP request when client IP is not allowlisted', async () => {
+    await gateway.stop();
+    gateway = createHttpGateway(registry, {
+      port: 0,
+      security: { ...securityOptions, ipAllowlist: ['192.0.2.1'] }
+    });
+    await gateway.start();
+    const address = gateway.getAddress();
+    if (!address) {
+      throw new Error('Adresse de la passerelle introuvable');
+    }
+    const lockedUrl = `http://127.0.0.1:${address.port}`;
+
+    const response = await fetch(`${lockedUrl}/tools/${tool.name}`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': securityOptions.apiKeys[0],
+        'x-mcp-token': securityOptions.mcpTokens[0],
+        origin: 'http://localhost'
+      },
+      body: JSON.stringify({ args: { text: 'not-allowed' } })
     });
 
     expect(response.status).toBe(403);

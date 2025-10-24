@@ -659,7 +659,7 @@ class HttpGateway {
     }
 
     if (allowlist.length === 0) {
-      return false;
+      return true;
     }
 
     if (allowlist.includes('*')) {
