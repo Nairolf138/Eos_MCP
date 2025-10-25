@@ -5,6 +5,8 @@ const mockConnect = jest.fn();
 const mockClose = jest.fn().mockResolvedValue(undefined);
 const mockRegisterTool = jest.fn();
 const mockSendToolListChanged = jest.fn();
+const mockAssertTcpPortAvailable = jest.fn();
+const mockAssertUdpPortAvailable = jest.fn();
 
 const MockMcpServer = jest.fn().mockImplementation(() => ({
   connect: mockConnect,
@@ -23,7 +25,9 @@ jest.mock('@modelcontextprotocol/sdk/server/stdio.js', () => ({
 
 jest.mock('../../config/index.js', () => ({
   getConfig: jest.fn(() => ({
-    mcp: {},
+    mcp: {
+      tcpPort: 3100
+    },
     osc: {
       remoteAddress: '127.0.0.1',
       tcpPort: 3032,
@@ -88,6 +92,11 @@ jest.mock('../../services/osc/client.js', () => ({
   }))
 }));
 
+jest.mock('../startupChecks.js', () => ({
+  assertTcpPortAvailable: mockAssertTcpPortAvailable,
+  assertUdpPortAvailable: mockAssertUdpPortAvailable
+}));
+
 const mockLogger = {
   info: jest.fn(),
   warn: jest.fn(),
@@ -128,6 +137,8 @@ describe('bootstrap version', () => {
       handshakePayload: {},
       protocolResponse: {}
     });
+    mockAssertTcpPortAvailable.mockReset().mockResolvedValue(undefined);
+    mockAssertUdpPortAvailable.mockReset().mockResolvedValue(undefined);
   });
 
   test('initialise le serveur avec la version du package', async () => {
@@ -142,6 +153,7 @@ describe('bootstrap version', () => {
     });
 
     await context.server.close();
+    await context.gateway?.stop?.();
     context.oscGateway.close?.();
   });
 });
