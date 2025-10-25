@@ -323,7 +323,7 @@ function mapPaletteInfo(raw: unknown, fallback: { type: PaletteType; number: num
 
 function formatPaletteDescription(info: PaletteInfo): string {
   const typeTitle = paletteTypeTitles[info.paletteType];
-  const label = info.label ? `\"${info.label}\"` : 'sans label';
+  const label = info.label ? `"${info.label}"` : 'sans label';
   const mode = info.absolute ? 'absolue' : 'relative';
   const lockState = info.locked ? 'verrouillee' : 'modifiable';
   const channels = info.channels.length > 0 ? info.channels.join(', ') : 'aucun canal';
