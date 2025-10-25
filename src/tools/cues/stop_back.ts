@@ -3,8 +3,6 @@ import { getOscClient } from '../../services/osc/client';
 import { oscMappings } from '../../services/osc/mappings';
 import type { ToolDefinition } from '../types';
 import {
-  buildCueCommandPayload,
-  buildJsonArgs,
   createCueCommandResult,
   createCueIdentifierFromOptions,
   cuelistNumberSchema,
@@ -36,7 +34,8 @@ export const eosCueStopBackTool: ToolDefinition<typeof stopBackInputSchema> = {
     inputSchema: stopBackInputSchema,
     annotations: {
       mapping: {
-        osc: oscMappings.cues.stopBack
+        osc: oscMappings.cues.stopBack,
+        commandExample: 'Cue {cuelist_number} Stop#'
       },
       highlighted: true
     }
@@ -46,21 +45,35 @@ export const eosCueStopBackTool: ToolDefinition<typeof stopBackInputSchema> = {
     const options = schema.parse(args ?? {});
     const client = getOscClient();
     const identifier = createCueIdentifierFromOptions(options);
-    const payload = buildCueCommandPayload(identifier);
-
-    if (options.back === true) {
-      payload.back = true;
+    const listNumber = identifier.cuelistNumber;
+    if (listNumber == null) {
+      throw new Error('Numero de liste de cues manquant apres validation.');
     }
 
-    await client.sendMessage(oscMappings.cues.stopBack, buildJsonArgs(payload), extractTargetOptions(options));
+    const action = options.back ? 'cue_back' : 'cue_stop';
+    const command = `Cue ${listNumber} ${options.back ? 'Back#' : 'Stop#'}`;
+    const commandPayload = { command };
+
+    await client.sendCommand(command, extractTargetOptions(options));
 
     return createCueCommandResult(
-      options.back ? 'cue_back' : 'cue_stop',
+      action,
       identifier,
-      payload,
+      commandPayload,
       oscMappings.cues.stopBack,
       {
         summary: `${options.back ? 'Back' : 'Stop'} sur ${formatCueDescription(identifier)}`
+      },
+      {
+        oscArgs: [
+          {
+            type: 's',
+            value: command
+          }
+        ],
+        cli: {
+          text: command
+        }
       }
     );
   }

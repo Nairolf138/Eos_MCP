@@ -124,14 +124,27 @@ export function formatCueDescription(identifier: CueIdentifier): string {
   return parts.join(' ');
 }
 
+export interface CueCommandResultOverrides {
+  request?: unknown;
+  oscAddress?: string;
+  oscArgs?: unknown;
+  cli?: { text: string };
+}
+
 export function createCueCommandResult(
   action: string,
   identifier: CueIdentifier,
   payload: Record<string, unknown>,
   oscAddress: string,
-  extra: Record<string, unknown> = {}
+  extra: Record<string, unknown> = {},
+  overrides: CueCommandResultOverrides = {}
 ): ToolExecutionResult {
   const text = `Commande ${action} envoyee pour ${formatCueDescription(identifier)}.`;
+  const request = overrides.request ?? payload;
+  const address = overrides.oscAddress ?? oscAddress;
+  const oscArgs = overrides.oscArgs ?? payload;
+  const cli = overrides.cli;
+
   return {
     content: [
       { type: 'text', text },
@@ -140,11 +153,12 @@ export function createCueCommandResult(
         data: {
           action,
           identifier,
-          request: payload,
+          request,
           osc: {
-            address: oscAddress,
-            args: payload
+            address,
+            args: oscArgs
           },
+          ...(cli ? { cli } : {}),
           ...extra
         }
       }
