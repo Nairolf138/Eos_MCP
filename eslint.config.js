@@ -29,7 +29,15 @@ module.exports = [
       'no-redeclare': 'off',
       '@typescript-eslint/no-redeclare': 'error',
       '@typescript-eslint/no-floating-promises': 'error',
-      '@typescript-eslint/explicit-function-return-type': 'off'
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_'
+        }
+      ]
     }
   }
 ];

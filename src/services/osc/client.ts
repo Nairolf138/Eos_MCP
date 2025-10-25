@@ -906,7 +906,7 @@ export class OscClient {
     if (typeof firstArg === 'string') {
       try {
         return JSON.parse(firstArg);
-      } catch (error) {
+      } catch (_error) {
         return firstArg;
       }
     }
@@ -945,7 +945,7 @@ export class OscClient {
       try {
         const parsed = JSON.parse(payload) as Record<string, unknown>;
         return this.normaliseCommandLinePayload(parsed);
-      } catch (error) {
+      } catch (_error) {
         return { text: payload, user: null };
       }
     }

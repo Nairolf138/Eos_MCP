@@ -322,7 +322,7 @@ function createTransportOptionsSchema(
       }
 
       return parsed as Record<string, unknown>;
-    } catch (error) {
+    } catch (_error) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: `La variable d'environnement ${variableName} doit contenir un objet JSON valide.`
@@ -364,7 +364,7 @@ function createStringArraySchema(
 ): z.ZodEffects<z.ZodUnknown, string[], unknown> {
   const defaultValue = options.defaultValue ? [...options.defaultValue] : [];
 
-  return z.unknown().transform((value, ctx) => {
+  return z.unknown().transform((value, _ctx) => {
     if (value === undefined || value === null) {
       return [...defaultValue];
     }
@@ -408,7 +408,7 @@ function createOptionalHttpUrlSchema(
 
       const normalised = parsed.toString();
       return normalised.endsWith('/') ? normalised.slice(0, -1) : normalised;
-    } catch (error) {
+    } catch (_error) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: `La variable d'environnement ${variableName} doit être une URL absolue valide.`
