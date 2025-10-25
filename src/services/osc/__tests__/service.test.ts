@@ -16,7 +16,6 @@ declare module 'osc' {
     reset(): void;
   }
 
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   const __mock: __MockModule;
 }
 
@@ -96,12 +95,12 @@ describe('OscService diagnostics', () => {
     }
   });
 
-  it('agrège les statistiques des messages entrants et sortants', () => {
+  it('agrège les statistiques des messages entrants et sortants', async () => {
     const { service, port } = createService();
 
     try {
       service.setLoggingOptions({ incoming: true, outgoing: true });
-      service.send({ address: '/test/out', args: [{ type: 'i', value: 1 }] });
+      await service.send({ address: '/test/out', args: [{ type: 'i', value: 1 }] });
 
       expect(logger.debug).toHaveBeenCalledWith(
         { args: [{ type: 'i', value: 1 }] },
