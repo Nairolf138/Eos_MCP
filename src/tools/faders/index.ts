@@ -97,15 +97,6 @@ function annotate(osc: string): Record<string, unknown> {
   };
 }
 
-function buildJsonArgs(payload: Record<string, unknown>): OscMessageArgument[] {
-  return [
-    {
-      type: 's' as const,
-      value: JSON.stringify(payload)
-    }
-  ];
-}
-
 function buildFloatArgs(value: number): OscMessageArgument[] {
   return [
     {
@@ -210,21 +201,10 @@ export const eosFaderBankCreateTool: ToolDefinition<typeof bankCreateInputSchema
     const schema = z.object(bankCreateInputSchema).strict();
     const options = schema.parse(args ?? {});
     const client = getOscClient();
-    const payload: Record<string, unknown> = {
-      bank: options.bank_index,
-      faders: options.fader_count
-    };
-
     const page = options.page_number ?? 0;
-    if (options.page_number != null) {
-      payload.page = page;
-    }
+    const address = `${oscMappings.faders.base}/${options.bank_index}/config/${options.fader_count}/${page}`;
 
-    await client.sendMessage(
-      oscMappings.faders.bankCreate,
-      buildJsonArgs(payload),
-      extractTargetOptions(options)
-    );
+    await client.sendMessage(address, [], extractTargetOptions(options));
 
     setBankState(options.bank_index, { page, faderCount: options.fader_count });
 
@@ -233,10 +213,9 @@ export const eosFaderBankCreateTool: ToolDefinition<typeof bankCreateInputSchema
       bank: options.bank_index,
       faders: options.fader_count,
       page,
-      request: payload,
       osc: {
-        address: oscMappings.faders.bankCreate,
-        args: payload
+        address,
+        args: []
       }
     });
   }
@@ -393,16 +372,9 @@ export const eosFaderPageTool: ToolDefinition<typeof pageInputSchema> = {
     const client = getOscClient();
     const state = getBankState(options.bank_index);
     const previousPage = state.page;
-    const payload = {
-      bank: options.bank_index,
-      delta: options.delta
-    };
+    const address = `${oscMappings.faders.base}/${options.bank_index}/page/${options.delta}`;
 
-    await client.sendMessage(
-      oscMappings.faders.bankPage,
-      buildJsonArgs(payload),
-      extractTargetOptions(options)
-    );
+    await client.sendMessage(address, [], extractTargetOptions(options));
 
     const nextPage = Math.max(0, previousPage + options.delta);
     state.page = nextPage;
@@ -414,10 +386,9 @@ export const eosFaderPageTool: ToolDefinition<typeof pageInputSchema> = {
         bank: options.bank_index,
         previousPage,
         page: nextPage,
-        request: payload,
         osc: {
-          address: oscMappings.faders.bankPage,
-          args: payload
+          address,
+          args: []
         }
       }
     );
