@@ -17,7 +17,9 @@ const instances: Array<{
   toolPreferences: Map<string, string>;
   sendCalls: SendCall[];
   stopped: boolean;
-  emitMessage: (type: TransportType, data: Buffer) => void;
+  options: Record<string, unknown>;
+  lastUdpSourcePort: number | null;
+  emitMessage: (type: TransportType, data: Buffer, info?: { port?: number }) => void;
   emitStatus: (status: TransportStatus) => void;
 }> = [];
 
@@ -31,9 +33,13 @@ jest.mock('../connectionManager.js', () => ({
 
     public stopped = false;
 
+    public readonly options: Record<string, unknown>;
+
+    public lastUdpSourcePort: number | null = null;
+
     public constructor(options: Record<string, unknown>) {
       super();
-      Object.assign(this, { options });
+      this.options = options;
       instances.push(this);
     }
 
@@ -59,7 +65,10 @@ jest.mock('../connectionManager.js', () => ({
       this.toolPreferences.delete(toolId);
     }
 
-    public emitMessage(type: TransportType, data: Buffer): void {
+    public emitMessage(type: TransportType, data: Buffer, info?: { port?: number }): void {
+      if (type === 'udp') {
+        this.lastUdpSourcePort = info?.port ?? null;
+      }
       this.emit('message', { type, data });
     }
 
@@ -164,6 +173,61 @@ describe('OscConnectionGateway', () => {
       {
         address: '/demo',
         args: [{ type: 's', value: 'payload' }]
+      }
+    ]);
+
+    gateway.close();
+  });
+
+  it("relaye les reponses de handshake en UDP meme lorsqu'elles proviennent d'un port different", () => {
+    const gateway = createOscConnectionGateway({
+      host: '127.0.0.1',
+      tcpPort: 3032,
+      udpPort: 8001,
+      localPort: 8000
+    });
+
+    const manager = instances.at(-1);
+    if (!manager) {
+      throw new Error('Gestionnaire de connexion non initialise');
+    }
+
+    const received: OscMessage[] = [];
+    gateway.onMessage((message) => {
+      received.push(message);
+    });
+
+    const handshakePacket = {
+      address: '/eos/handshake/reply',
+      args: [
+        { type: 's' as const, value: 'ETCOSC!' },
+        {
+          type: 's' as const,
+          value: JSON.stringify({ version: '3.2.0', protocols: ['tcp', 'udp'] })
+        }
+      ]
+    };
+
+    const encoded = Buffer.from(
+      osc.writePacket(handshakePacket, { metadata: true }) as Uint8Array
+    );
+
+    const configuredPort = (manager.options.udpPort as number) ?? 8001;
+    const replyPort = configuredPort + 10;
+
+    manager.emitMessage('udp', encoded, { port: replyPort });
+
+    expect(manager.lastUdpSourcePort).toBe(replyPort);
+    expect(received).toEqual([
+      {
+        address: '/eos/handshake/reply',
+        args: [
+          { type: 's', value: 'ETCOSC!' },
+          {
+            type: 's',
+            value: JSON.stringify({ version: '3.2.0', protocols: ['tcp', 'udp'] })
+          }
+        ]
       }
     ]);
 
