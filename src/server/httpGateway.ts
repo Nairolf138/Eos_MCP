@@ -151,47 +151,133 @@ class HttpGateway {
     }
 
     const manifest = JSON.parse(JSON.stringify(this.manifestTemplate)) as ManifestDocument;
-    const publicUrl = this.resolvePublicUrl(req);
-    const servers = manifest.mcp?.servers;
+    const resolvedPublicUrl = this.resolvePublicUrl(req);
+    const parsedPublicUrl = new URL(resolvedPublicUrl);
+    const pathPrefix = parsedPublicUrl.pathname.replace(/\/+$/, '').replace(/^\/+/, '');
+    const normalizedPublicUrl = `${parsedPublicUrl.origin}${pathPrefix ? `/${pathPrefix}/` : '/'}`;
 
-    if (Array.isArray(servers)) {
-      manifest.mcp = {
-        ...(manifest.mcp ?? {}),
-        servers: servers.map((definition) => {
+    const normalizeStringValue = (raw: string): string => {
+      const trimmed = raw.trim();
+      if (trimmed.length === 0) {
+        return trimmed;
+      }
+
+      if (/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(trimmed) || trimmed.startsWith('//')) {
+        return trimmed;
+      }
+
+      let normalized = trimmed.replace(/^\/+/, '');
+
+      if (pathPrefix) {
+        const prefixWithSlash = `${pathPrefix}/`;
+        if (normalized === pathPrefix) {
+          normalized = '';
+        } else if (normalized.startsWith(prefixWithSlash)) {
+          normalized = normalized.slice(prefixWithSlash.length);
+        }
+      }
+
+      return normalized;
+    };
+
+    const normalizeValue = (value: unknown): unknown => {
+      if (typeof value === 'string') {
+        return normalizeStringValue(value);
+      }
+
+      if (Array.isArray(value)) {
+        return value.map((entry) => (typeof entry === 'string' ? normalizeStringValue(entry) : entry));
+      }
+
+      return value;
+    };
+
+    const mcp = manifest.mcp;
+    if (mcp) {
+      const updatedMcp = { ...mcp };
+      const servers = mcp.servers;
+
+      if (Array.isArray(servers)) {
+        updatedMcp.servers = servers.map((definition) => {
           if (!definition.server) {
             return { ...definition };
           }
 
           const transport = definition.server.transport;
-          if (!transport || typeof transport !== 'object') {
-            return {
-              ...definition,
-              server: { ...definition.server }
-            };
-          }
+          const normalizedTransport =
+            transport && typeof transport === 'object'
+              ? transport.type && transport.type !== 'http'
+                ? { ...transport }
+                : {
+                    ...transport,
+                    url: normalizedPublicUrl
+                  }
+              : undefined;
 
-          if (transport.type && transport.type !== 'http') {
-            return {
-              ...definition,
-              server: {
-                ...definition.server,
-                transport: { ...transport }
-              }
-            };
-          }
+          const endpoints = definition.server.endpoints as Record<string, unknown> | undefined;
+          const normalizedEndpoints =
+            endpoints && typeof endpoints === 'object'
+              ? Object.fromEntries(
+                  Object.entries(endpoints).map(([key, value]) => [key, normalizeValue(value)])
+                )
+              : undefined;
 
           return {
             ...definition,
             server: {
               ...definition.server,
-              transport: {
-                ...transport,
-                url: publicUrl
-              }
+              ...(transport ? { transport: normalizedTransport } : {}),
+              ...(endpoints ? { endpoints: normalizedEndpoints } : {})
             }
           };
-        })
-      };
+        });
+      }
+
+      const capabilities = mcp.capabilities;
+      if (capabilities && typeof capabilities === 'object') {
+        const updatedCapabilities = { ...capabilities } as Record<string, unknown>;
+        const tools = capabilities.tools as Record<string, unknown> | undefined;
+
+        if (tools && typeof tools === 'object') {
+          const normalizedTools = { ...tools } as Record<string, unknown>;
+
+          const listEndpoint = normalizedTools.list_endpoint;
+          if (typeof listEndpoint === 'string') {
+            normalizedTools.list_endpoint = normalizeStringValue(listEndpoint);
+          }
+
+          const invokeEndpoint = normalizedTools.invoke_endpoint;
+          if (typeof invokeEndpoint === 'string') {
+            normalizedTools.invoke_endpoint = normalizeStringValue(invokeEndpoint);
+          }
+
+          const schemaCatalogs = normalizedTools.schema_catalogs;
+          if (Array.isArray(schemaCatalogs)) {
+            normalizedTools.schema_catalogs = schemaCatalogs.map((entry) =>
+              typeof entry === 'string' ? normalizeStringValue(entry) : entry
+            );
+          }
+
+          const schemaBasePath = normalizedTools.schema_base_path;
+          if (typeof schemaBasePath === 'string') {
+            normalizedTools.schema_base_path = normalizeStringValue(schemaBasePath);
+          }
+
+          updatedCapabilities.tools = normalizedTools as typeof tools;
+        }
+
+        updatedMcp.capabilities = updatedCapabilities as typeof capabilities;
+      }
+
+      const schemas = mcp.schemas as Record<string, unknown> | undefined;
+      if (schemas && typeof schemas === 'object') {
+        updatedMcp.schemas = Object.fromEntries(
+          Object.entries(schemas).map(([key, value]) => [key, normalizeValue(value)])
+        ) as typeof schemas;
+      }
+
+      updatedMcp.servers = updatedMcp.servers ?? mcp.servers;
+      manifest.mcp = updatedMcp;
     }
 
     return manifest;
