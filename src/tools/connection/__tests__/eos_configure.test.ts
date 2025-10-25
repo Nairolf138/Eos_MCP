@@ -11,7 +11,8 @@ jest.mock('../../../services/osc/client.js', () => ({
   })),
   resetOscClient: jest.fn(() => ({
     getDiagnostics: mockGetDiagnostics
-  }))
+  })),
+  getOscConnectionStateProvider: jest.fn(() => undefined)
 }));
 
 jest.mock('../../../services/osc/index.js', () => ({
@@ -22,6 +23,7 @@ describe('eos_configure tool', () => {
   const clientModule = jest.requireMock('../../../services/osc/client.js') as {
     getOscGateway: jest.Mock;
     resetOscClient: jest.Mock;
+    getOscConnectionStateProvider: jest.Mock;
   };
   const oscModule = jest.requireMock('../../../services/osc/index.js') as {
     createOscConnectionGateway: jest.Mock;
@@ -39,6 +41,7 @@ describe('eos_configure tool', () => {
     clientModule.resetOscClient.mockReturnValue({
       getDiagnostics: mockGetDiagnostics
     });
+    clientModule.getOscConnectionStateProvider.mockReturnValue(null);
     oscModule.createOscConnectionGateway.mockImplementation(mockCreateGateway);
   });
 
@@ -75,7 +78,8 @@ describe('eos_configure tool', () => {
       udpPort: 9002,
       tcpPort: 3032,
       localPort: 7001,
-      logger: expect.any(Object)
+      logger: expect.any(Object),
+      connectionStateProvider: undefined
     });
     const createdGateway = mockCreateGateway.mock.results[0]?.value;
     expect(clientModule.resetOscClient).toHaveBeenCalledWith(createdGateway);

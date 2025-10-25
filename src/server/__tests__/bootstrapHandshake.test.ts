@@ -98,7 +98,12 @@ jest.mock('../../services/osc/client.js', () => ({
   initializeOscClient: jest.fn(),
   getOscClient: jest.fn(() => ({
     connect: mockConnect
-  }))
+  })),
+  getOscGateway: jest.fn(() => mockOscGateway),
+  onOscGatewayChange: jest.fn((listener: (gateway: typeof mockOscGateway) => void) => {
+    listener(mockOscGateway);
+    return jest.fn();
+  })
 }));
 
 const mockGatewayInstance = {

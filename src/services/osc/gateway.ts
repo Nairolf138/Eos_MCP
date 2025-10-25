@@ -178,6 +178,10 @@ export class OscConnectionGateway implements OscGateway {
     };
   }
 
+  public getConnectionStateProvider(): OscConnectionStateProvider | undefined {
+    return this.connectionStateProvider;
+  }
+
   public setLoggingOptions(options: OscLoggingOptions): OscLoggingState {
     if (typeof options.incoming === 'boolean') {
       this.loggingState.incoming = options.incoming;

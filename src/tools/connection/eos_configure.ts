@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import { getOscGateway, resetOscClient } from '../../services/osc/client';
+import {
+  getOscConnectionStateProvider,
+  getOscGateway,
+  resetOscClient
+} from '../../services/osc/client';
 import { createOscConnectionGateway } from '../../services/osc/index';
 import { createLogger } from '../../server/logger';
 import type { ToolDefinition } from '../types';
@@ -35,13 +39,16 @@ export const eosConfigureTool: ToolDefinition<typeof inputSchema> = {
     currentGateway.close?.();
 
     const tcpPort = options.tcpPort ?? Number.parseInt(process.env.OSC_TCP_PORT ?? '3032', 10);
-    const gateway = createOscConnectionGateway({
+    const gatewayOptions = {
       host: options.remoteAddress,
       udpPort: options.remotePort,
       tcpPort: Number.isFinite(tcpPort) ? tcpPort : 3032,
       localPort: options.localPort,
-      logger: createLogger('osc-gateway')
-    });
+      logger: createLogger('osc-gateway'),
+      connectionStateProvider: getOscConnectionStateProvider() ?? undefined
+    };
+
+    const gateway = createOscConnectionGateway(gatewayOptions);
 
     const client = resetOscClient(gateway);
     const diagnostics = client.getDiagnostics();
