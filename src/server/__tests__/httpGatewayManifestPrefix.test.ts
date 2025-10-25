@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import type { Request } from 'express';
 import { HttpGateway } from '../httpGateway';
+import type { ManifestDocument } from '../httpGateway';
 import type { ToolRegistry } from '../toolRegistry';
 
 describe('HttpGateway manifest prefix handling', () => {
@@ -15,7 +16,9 @@ describe('HttpGateway manifest prefix handling', () => {
     const manifestTemplate = JSON.parse(readFileSync(manifestPath, 'utf8')) as unknown;
     Object.assign(gateway as unknown as { manifestTemplate: unknown }, { manifestTemplate });
 
-    const manifest = (gateway as unknown as { buildManifestResponse(req: Request): any }).buildManifestResponse(
+    const manifest = (
+      gateway as unknown as { buildManifestResponse(req: Request): ManifestDocument }
+    ).buildManifestResponse(
       {} as Request
     );
 
