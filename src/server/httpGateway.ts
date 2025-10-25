@@ -95,7 +95,7 @@ interface ManifestServerDefinition {
   readonly [key: string]: unknown;
 }
 
-interface ManifestDocument {
+export interface ManifestDocument {
   mcp?: {
     servers?: ManifestServerDefinition[];
     readonly [key: string]: unknown;
