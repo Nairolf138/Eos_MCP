@@ -10,6 +10,7 @@ import type {
   TransportStatus
 } from './connectionManager';
 import { createOscGatewayFromEnv } from './gateway';
+import type { OscConnectionStateProvider } from './connectionState';
 import {
   AppError,
   ErrorCode,
@@ -54,6 +55,7 @@ export interface OscGateway {
   onMessage(listener: (message: OscMessage) => void): () => void;
   setLoggingOptions?(options: OscLoggingOptions): OscLoggingState;
   getDiagnostics?(): OscDiagnostics;
+  getConnectionStateProvider?(): OscConnectionStateProvider | undefined;
   setToolPreference?(toolId: string, preference: ToolTransportPreference): void;
   getToolPreference?(toolId: string): ToolTransportPreference;
   removeTool?(toolId: string): void;
@@ -1215,24 +1217,51 @@ let sharedClient: OscClient | null = null;
 let sharedGateway: OscGateway | null = null;
 let sharedClientConfig: OscClientConfig = {};
 let cacheListenerDispose: (() => void) | null = null;
+let sharedConnectionStateProvider: OscConnectionStateProvider | null = null;
 
-export function initializeOscClient(
-  gateway: OscGateway | null = null,
-  config: OscClientConfig = {}
-): OscClient {
+type OscGatewayObserver = (gateway: OscGateway) => void;
+
+const gatewayObservers = new Set<OscGatewayObserver>();
+
+function notifyGatewayObservers(gateway: OscGateway): void {
+  gatewayObservers.forEach((observer) => {
+    try {
+      observer(gateway);
+    } catch (error) {
+      queueMicrotask(() => {
+        throw error;
+      });
+    }
+  });
+}
+
+function attachGateway(gateway: OscGateway): void {
   cacheListenerDispose?.();
-
-  if (!gateway) {
-    gateway = createOscGatewayFromEnv();
-  }
-
-  sharedGateway = gateway;
-  sharedClientConfig = { ...config };
 
   cacheListenerDispose = gateway.onMessage((message) => {
     getResourceCache().handleOscMessage(message);
   });
 
+  sharedGateway = gateway;
+  const provider = gateway.getConnectionStateProvider?.();
+  if (provider) {
+    sharedConnectionStateProvider = provider;
+  }
+
+  notifyGatewayObservers(gateway);
+}
+
+export function initializeOscClient(
+  gateway: OscGateway | null = null,
+  config: OscClientConfig = {}
+): OscClient {
+  if (!gateway) {
+    gateway = createOscGatewayFromEnv();
+  }
+
+  sharedClientConfig = { ...config };
+
+  attachGateway(gateway);
   sharedClient = new OscClient(gateway, config);
   return sharedClient;
 }
@@ -1254,6 +1283,24 @@ export function setOscClient(client: OscClient | null): void {
     cacheListenerDispose();
     cacheListenerDispose = null;
   }
+}
+
+export function onOscGatewayChange(
+  observer: OscGatewayObserver,
+  options: { immediate?: boolean } = {}
+): () => void {
+  gatewayObservers.add(observer);
+  if ((options.immediate ?? true) && sharedGateway) {
+    observer(sharedGateway);
+  }
+
+  return () => {
+    gatewayObservers.delete(observer);
+  };
+}
+
+export function getOscConnectionStateProvider(): OscConnectionStateProvider | null {
+  return sharedConnectionStateProvider;
 }
 
 export function getOscGateway(): OscGateway {

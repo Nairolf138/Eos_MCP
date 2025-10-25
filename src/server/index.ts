@@ -11,7 +11,12 @@ import {
   OscConnectionGateway,
   OscConnectionStateProvider
 } from '../services/osc/index';
-import { getOscClient, initializeOscClient } from '../services/osc/client';
+import {
+  getOscClient,
+  getOscGateway,
+  initializeOscClient,
+  onOscGatewayChange
+} from '../services/osc/client';
 import { ErrorCode, describeError, isAppError, toAppError } from './errors';
 import { createLogger, initialiseLogger } from './logger';
 import { toolDefinitions } from '../tools/index';
@@ -390,6 +395,11 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
 
   initializeOscClient(oscGateway);
 
+  let currentOscGateway = getOscGateway();
+  const unsubscribeGatewayObserver = onOscGatewayChange((nextGateway) => {
+    currentOscGateway = nextGateway;
+  });
+
   const skipHandshakeFromEnv = isTruthyFlag(process.env.MCP_SKIP_OSC_HANDSHAKE);
   const skipHandshakeFromOptions = Boolean(options.skipOscHandshake);
   const shouldSkipHandshake = skipHandshakeFromEnv || skipHandshakeFromOptions;
@@ -490,7 +500,15 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
       publicUrl: effectiveConfig.httpGateway.publicUrl,
       oscConnectionProvider: oscConnectionState,
       security: securityOptions,
-      oscGateway,
+      oscGateway: {
+        getDiagnostics: () => {
+          const diagnostics = currentOscGateway.getDiagnostics?.();
+          if (!diagnostics) {
+            throw new Error('Diagnostics OSC indisponibles');
+          }
+          return diagnostics;
+        }
+      },
       stdioStatusProvider: () => ({ ...stdioStatus })
     });
     connections.push(gateway.start());
@@ -507,17 +525,17 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
     );
     statsReporter = setInterval(() => {
       try {
-        const diagnostics = oscGateway.getDiagnostics();
-        logger.info(
-          {
-            osc: {
-              stats: diagnostics.stats,
-              uptimeMs: diagnostics.uptimeMs,
-              startedAt: diagnostics.startedAt
-            }
-          },
-          'Statistiques OSC'
-        );
+        const diagnostics = currentOscGateway.getDiagnostics?.();
+        if (!diagnostics) {
+          throw new Error('Diagnostics OSC indisponibles');
+        }
+        logger.info({
+          osc: {
+            stats: diagnostics.stats,
+            uptimeMs: diagnostics.uptimeMs,
+            startedAt: diagnostics.startedAt
+          }
+        }, 'Statistiques OSC');
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
         logger.error({ error: err }, 'Impossible de recuperer les diagnostics OSC');
@@ -585,7 +603,7 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
     }
 
     try {
-      oscGateway.close();
+      currentOscGateway.close?.();
     } catch (error) {
       const appError = toAppError(error, {
         code: ErrorCode.MCP_STARTUP_FAILURE,
@@ -597,6 +615,8 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
     if (statsReporter) {
       clearInterval(statsReporter);
     }
+
+    unsubscribeGatewayObserver();
 
     stdioStatus.status = 'stopped';
     stdioStatus.clients = 0;
