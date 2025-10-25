@@ -736,6 +736,7 @@ export class OscClient {
 
   private async performHandshake(options: ConnectOptions, timeout: number): Promise<HandshakeData> {
     const args = [
+      { type: 's', value: 'ETCOSC?' },
       { type: 's', value: options.clientId ?? 'mcp' }
     ];
 
