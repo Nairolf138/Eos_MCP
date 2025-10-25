@@ -62,7 +62,7 @@ export class RequestQueue {
       }
 
       this.activeCount += 1;
-      this.execute(next).finally(() => {
+      void this.execute(next).finally(() => {
         this.activeCount -= 1;
         this.process();
       });
