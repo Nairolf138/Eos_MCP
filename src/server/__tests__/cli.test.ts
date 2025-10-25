@@ -33,6 +33,7 @@ describe('CLI du serveur MCP', () => {
     expect(result.stdout).toContain('--list-tools');
     expect(result.stdout).toContain('--verbose');
     expect(result.stdout).toContain('--json-logs');
+    expect(result.stdout).toContain('--skip-osc-check');
     expect(result.stdout).toContain('--stats-interval');
     expect(result.stderr).toBe('');
   });
@@ -87,6 +88,13 @@ describe('analyse des arguments CLI', () => {
 
     expect(options.verbose).toBe(true);
     expect(options.jsonLogs).toBe(true);
+    expect(options.errors).toHaveLength(0);
+  });
+
+  test('active le contournement du handshake OSC', () => {
+    const options = parseCliArguments(['--skip-osc-check']);
+
+    expect(options.skipOscCheck).toBe(true);
     expect(options.errors).toHaveLength(0);
   });
 
