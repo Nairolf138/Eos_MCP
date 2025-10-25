@@ -11,7 +11,7 @@ import {
   OscConnectionGateway,
   OscConnectionStateProvider
 } from '../services/osc/index';
-import { initializeOscClient } from '../services/osc/client';
+import { getOscClient, initializeOscClient } from '../services/osc/client';
 import { ErrorCode, describeError, isAppError, toAppError } from './errors';
 import { createLogger, initialiseLogger } from './logger';
 import { toolDefinitions } from '../tools/index';
@@ -24,16 +24,20 @@ import { assertTcpPortAvailable, assertUdpPortAvailable } from './startupChecks'
 
 const logger = createLogger('mcp-server');
 
-const TLS_TRUE_VALUES = new Set(['1', 'true', 'yes', 'on', 'enable', 'enabled']);
+const TRUE_FLAG_VALUES = new Set(['1', 'true', 'yes', 'on', 'enable', 'enabled']);
 
-function isTlsEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  const candidate = env.MCP_TLS_ENABLED ?? env.MCP_TLS ?? env.MCP_USE_TLS;
+function isTruthyFlag(candidate: unknown): boolean {
   if (candidate === undefined) {
     return false;
   }
 
   const normalised = String(candidate).trim().toLowerCase();
-  return TLS_TRUE_VALUES.has(normalised);
+  return TRUE_FLAG_VALUES.has(normalised);
+}
+
+function isTlsEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  const candidate = env.MCP_TLS_ENABLED ?? env.MCP_TLS ?? env.MCP_USE_TLS;
+  return isTruthyFlag(candidate);
 }
 
 export function buildHttpAccessDetails(
@@ -66,6 +70,7 @@ interface CliOptions {
   verbose: boolean;
   jsonLogs: boolean;
   statsIntervalMs?: number;
+  skipOscCheck: boolean;
   unknown: string[];
   errors: string[];
 }
@@ -104,6 +109,7 @@ function parseCliArguments(argv: readonly string[]): CliOptions {
     verbose: false,
     jsonLogs: false,
     statsIntervalMs: undefined,
+    skipOscCheck: false,
     unknown: [] as string[],
     errors: [] as string[]
   };
@@ -142,6 +148,11 @@ function parseCliArguments(argv: readonly string[]): CliOptions {
 
     if (token === '--json-logs') {
       options.jsonLogs = true;
+      continue;
+    }
+
+    if (token === '--skip-osc-check') {
+      options.skipOscCheck = true;
       continue;
     }
 
@@ -192,6 +203,7 @@ function printHelp(scriptName: string): void {
     '  --check-config      Valide la configuration et quitte.\n' +
     '  --verbose           Active le log détaillé des messages OSC.\n' +
     '  --json-logs         Force une sortie JSON sur STDOUT pour les logs.\n' +
+    '  --skip-osc-check    Ignore le handshake OSC de démarrage (développement/test).\n' +
     '  --stats-interval X  Publie périodiquement les compteurs OSC (ex: 30s, 5s, 10000ms).';
 
   console.log(usage);
@@ -223,6 +235,7 @@ interface BootstrapOptions {
   readonly forceJsonLogs?: boolean;
   readonly enableVerboseOscLogging?: boolean;
   readonly statsIntervalMs?: number;
+  readonly skipOscHandshake?: boolean;
 }
 
 interface StdioStatusSnapshot {
@@ -330,6 +343,63 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
   }
 
   initializeOscClient(oscGateway);
+
+  const skipHandshakeFromEnv = isTruthyFlag(process.env.MCP_SKIP_OSC_HANDSHAKE);
+  const skipHandshakeFromOptions = Boolean(options.skipOscHandshake);
+  const shouldSkipHandshake = skipHandshakeFromEnv || skipHandshakeFromOptions;
+
+  if (shouldSkipHandshake) {
+    const reason = skipHandshakeFromOptions ? 'option-cli' : 'variable-env';
+    logger.warn(
+      { reason },
+      'Verification initiale de la connexion OSC ignoree (utilisation reservee au developpement/tests).'
+    );
+  } else {
+    const client = getOscClient();
+    try {
+      const handshakeResult = await client.connect({
+        toolId: 'startup_preflight',
+        handshakeTimeoutMs: 2000,
+        protocolTimeoutMs: 2000
+      });
+
+      if (handshakeResult.status === 'timeout' || handshakeResult.status === 'error') {
+        const message =
+          handshakeResult.status === 'timeout'
+            ? "Echec du handshake OSC: delai d'attente depasse."
+            : "Echec du handshake OSC: erreur de connexion.";
+        const appError = toAppError(new Error(message), {
+          code: ErrorCode.MCP_STARTUP_FAILURE,
+          message,
+          details: {
+            status: handshakeResult.status,
+            error: handshakeResult.error ?? null
+          }
+        });
+        logger.fatal({ error: describeError(appError) }, message);
+        throw appError;
+      }
+
+      logger.info(
+        {
+          osc: {
+            status: handshakeResult.status,
+            version: handshakeResult.version,
+            selectedProtocol: handshakeResult.selectedProtocol,
+            availableProtocols: handshakeResult.availableProtocols
+          }
+        },
+        'Connexion OSC initiale etablie.'
+      );
+    } catch (error) {
+      const appError = toAppError(error, {
+        code: ErrorCode.MCP_STARTUP_FAILURE,
+        message: 'Impossible de finaliser le handshake OSC de demarrage.'
+      });
+      logger.fatal({ error: describeError(appError) }, appError.message);
+      throw appError;
+    }
+  }
 
   const server = new McpServer({
     name: 'eos-mcp-server',
@@ -555,7 +625,8 @@ async function runFromCommandLine(argv: NodeJS.Process['argv']): Promise<void> {
   await bootstrap({
     forceJsonLogs: options.jsonLogs,
     enableVerboseOscLogging: options.verbose,
-    statsIntervalMs: options.statsIntervalMs
+    statsIntervalMs: options.statsIntervalMs,
+    skipOscHandshake: options.skipOscCheck
   });
 }
 

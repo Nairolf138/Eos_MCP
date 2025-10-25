@@ -1,5 +1,5 @@
 import { jest } from '@jest/globals';
-import { getPackageVersion } from '../../utils/version';
+import { ErrorCode } from '../errors';
 
 const mockConnect = jest.fn();
 const mockClose = jest.fn().mockResolvedValue(undefined);
@@ -7,7 +7,7 @@ const mockRegisterTool = jest.fn();
 const mockSendToolListChanged = jest.fn();
 
 const MockMcpServer = jest.fn().mockImplementation(() => ({
-  connect: mockConnect,
+  connect: jest.fn().mockResolvedValue(undefined),
   close: mockClose,
   registerTool: mockRegisterTool,
   sendToolListChanged: mockSendToolListChanged
@@ -49,7 +49,16 @@ jest.mock('../../config/index.js', () => ({
   resetConfigCacheForTesting: jest.fn()
 }));
 
-const mockOscGateway = { close: jest.fn() };
+const mockOscGateway = {
+  close: jest.fn(),
+  setLoggingOptions: jest.fn(),
+  getDiagnostics: jest.fn(() => ({
+    stats: {},
+    uptimeMs: 0,
+    startedAt: Date.now()
+  }))
+};
+
 const mockOscConnectionStateProvider = jest
   .fn()
   .mockImplementation(() => ({
@@ -88,6 +97,14 @@ jest.mock('../../services/osc/client.js', () => ({
   }))
 }));
 
+jest.mock('../../schemas/index.js', () => ({
+  registerToolSchemas: jest.fn()
+}));
+
+jest.mock('../../tools/index.js', () => ({
+  toolDefinitions: []
+}));
+
 const mockLogger = {
   info: jest.fn(),
   warn: jest.fn(),
@@ -100,46 +117,77 @@ jest.mock('../logger.js', () => ({
   initialiseLogger: jest.fn()
 }));
 
-jest.mock('../../schemas/index.js', () => ({
-  registerToolSchemas: jest.fn()
-}));
-
-jest.mock('../../tools/index.js', () => ({
-  toolDefinitions: []
-}));
-
-jest.mock('../httpGateway.js', () => ({
-  createHttpGateway: jest.fn().mockReturnValue({
-    start: jest.fn().mockResolvedValue(undefined),
-    stop: jest.fn().mockResolvedValue(undefined),
-    getAddress: jest.fn()
-  })
-}));
-
-describe('bootstrap version', () => {
+describe('bootstrap OSC handshake', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockConnect.mockReset();
+    delete process.env.MCP_SKIP_OSC_HANDSHAKE;
+  });
+
+  test('realise un handshake et journalise la version et le protocole', async () => {
     mockConnect.mockResolvedValue({
       status: 'ok',
-      version: '3.1.0',
-      availableProtocols: ['tcp'],
-      selectedProtocol: 'tcp',
+      version: '3.2.0',
+      availableProtocols: ['tcp', 'udp'],
+      selectedProtocol: 'udp',
       protocolStatus: 'ok',
       handshakePayload: {},
       protocolResponse: {}
     });
-  });
-
-  test('initialise le serveur avec la version du package', async () => {
-    const expectedVersion = getPackageVersion();
 
     const { bootstrap } = await import('../index.js');
     const context = await bootstrap();
 
-    expect(MockMcpServer).toHaveBeenCalledWith({
-      name: 'eos-mcp-server',
-      version: expectedVersion
+    expect(mockConnect).toHaveBeenCalledWith({
+      toolId: 'startup_preflight',
+      handshakeTimeoutMs: 2000,
+      protocolTimeoutMs: 2000
     });
+
+    expect(mockLogger.info).toHaveBeenCalledWith(
+      expect.objectContaining({
+        osc: expect.objectContaining({
+          version: '3.2.0',
+          selectedProtocol: 'udp'
+        })
+      }),
+      'Connexion OSC initiale etablie.'
+    );
+
+    await context.server.close();
+    context.oscGateway.close?.();
+  });
+
+  test('echoue lorsque le handshake retourne timeout', async () => {
+    mockConnect.mockResolvedValue({
+      status: 'timeout',
+      version: null,
+      availableProtocols: [],
+      selectedProtocol: null,
+      protocolStatus: 'skipped',
+      handshakePayload: null,
+      protocolResponse: null,
+      error: 'delai'
+    });
+
+    const { bootstrap } = await import('../index.js');
+
+    await expect(bootstrap()).rejects.toMatchObject({ code: ErrorCode.MCP_STARTUP_FAILURE });
+
+    expect(mockLogger.fatal).toHaveBeenCalled();
+  });
+
+  test('peut contourner le handshake via une option', async () => {
+    mockConnect.mockImplementation(() => Promise.reject(new Error('ne doit pas etre appele')));
+
+    const { bootstrap } = await import('../index.js');
+    const context = await bootstrap({ skipOscHandshake: true });
+
+    expect(mockConnect).not.toHaveBeenCalled();
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      { reason: 'option-cli' },
+      'Verification initiale de la connexion OSC ignoree (utilisation reservee au developpement/tests).'
+    );
 
     await context.server.close();
     context.oscGateway.close?.();
