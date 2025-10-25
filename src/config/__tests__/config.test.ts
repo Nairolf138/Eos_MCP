@@ -38,6 +38,7 @@ describe('configuration', () => {
         ]
       },
       httpGateway: {
+        publicUrl: undefined,
         security: {
           apiKeys: [],
           mcpTokens: ['change-me'],
@@ -66,6 +67,7 @@ describe('configuration', () => {
       MCP_HTTP_MCP_TOKENS: 'token-one,token-two',
       MCP_HTTP_IP_ALLOWLIST: '127.0.0.1,::1',
       MCP_HTTP_ALLOWED_ORIGINS: 'http://localhost',
+      MCP_HTTP_PUBLIC_URL: 'https://public.example/mcp/',
       MCP_HTTP_RATE_LIMIT_WINDOW: '120000',
       MCP_HTTP_RATE_LIMIT_MAX: '10'
     };
@@ -93,6 +95,7 @@ describe('configuration', () => {
       allowedOrigins: ['http://localhost'],
       rateLimit: { windowMs: 120000, max: 10 }
     });
+    expect(config.httpGateway.publicUrl).toBe('https://public.example/mcp');
   });
 
   it('rejette les ports invalides avec un message explicite', () => {

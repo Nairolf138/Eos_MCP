@@ -10,7 +10,7 @@
         "server": {
           "transport": {
             "type": "http",
-            "url": "{{SERVER_URL}}"
+            "url": ""
           },
           "endpoints": {
             "manifest": "/manifest.json",

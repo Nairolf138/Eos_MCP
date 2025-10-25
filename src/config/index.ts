@@ -87,6 +87,7 @@ export interface HttpGatewaySecurityConfig {
 }
 
 export interface HttpGatewayConfig {
+  readonly publicUrl?: string;
   readonly security: HttpGatewaySecurityConfig;
 }
 
@@ -382,6 +383,41 @@ function createStringArraySchema(
   });
 }
 
+function createOptionalHttpUrlSchema(
+  variableName: string
+): z.ZodEffects<z.ZodUnknown, string | undefined, unknown> {
+  return z.unknown().transform((value, ctx) => {
+    if (value === undefined || value === null) {
+      return undefined;
+    }
+
+    const raw = typeof value === 'string' ? value.trim() : String(value).trim();
+    if (raw.length === 0) {
+      return undefined;
+    }
+
+    try {
+      const parsed = new URL(raw);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `La variable d'environnement ${variableName} doit utiliser le schéma http ou https.`
+        });
+        return z.NEVER;
+      }
+
+      const normalised = parsed.toString();
+      return normalised.endsWith('/') ? normalised.slice(0, -1) : normalised;
+    } catch (error) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `La variable d'environnement ${variableName} doit être une URL absolue valide.`
+      });
+      return z.NEVER;
+    }
+  });
+}
+
 function createPositiveIntegerSchema(
   variableName: string,
   defaultValue: number
@@ -436,6 +472,7 @@ const configSchema = z
     }),
     httpIpAllowlist: createStringArraySchema('MCP_HTTP_IP_ALLOWLIST', { defaultValue: [] }),
     httpAllowedOrigins: createStringArraySchema('MCP_HTTP_ALLOWED_ORIGINS', { defaultValue: [] }),
+    httpPublicUrl: createOptionalHttpUrlSchema('MCP_HTTP_PUBLIC_URL'),
     httpRateLimitWindowMs: createPositiveIntegerSchema(
       'MCP_HTTP_RATE_LIMIT_WINDOW',
       DEFAULT_HTTP_RATE_LIMIT_WINDOW_MS
@@ -516,6 +553,7 @@ const configSchema = z
         destinations
       },
       httpGateway: {
+        publicUrl: values.httpPublicUrl,
         security: {
           apiKeys: values.httpApiKeys,
           mcpTokens: values.httpMcpTokens,
@@ -555,6 +593,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     httpMcpTokens: env.MCP_HTTP_MCP_TOKENS,
     httpIpAllowlist: env.MCP_HTTP_IP_ALLOWLIST,
     httpAllowedOrigins: env.MCP_HTTP_ALLOWED_ORIGINS,
+    httpPublicUrl: env.MCP_HTTP_PUBLIC_URL,
     httpRateLimitWindowMs: env.MCP_HTTP_RATE_LIMIT_WINDOW,
     httpRateLimitMax: env.MCP_HTTP_RATE_LIMIT_MAX
   });

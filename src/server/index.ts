@@ -329,6 +329,7 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
   if (tcpPort) {
     gateway = createHttpGateway(registry, {
       port: tcpPort,
+      publicUrl: effectiveConfig.httpGateway.publicUrl,
       oscConnectionProvider: oscConnectionState,
       security: securityOptions,
       oscGateway,
