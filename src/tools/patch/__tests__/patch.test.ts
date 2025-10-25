@@ -6,10 +6,8 @@ import {
   eosPatchGetAugment3dPositionTool,
   eosPatchGetChannelInfoTool
 } from '../index';
-
-interface ToolHandler {
-  (args: unknown, extra?: unknown): Promise<any>;
-}
+import type { ToolExecutionResult } from '../../types';
+import { isObjectContent, runTool } from '../../__tests__/helpers/runTool';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -32,18 +30,13 @@ class FakeOscService implements OscGateway {
   }
 }
 
-function extractObjectContent(result: any): any {
-  const content = (result?.content ?? []) as any[];
-  return content.find((item) => item.type === 'object')?.data ?? null;
+function extractObjectContent(result: ToolExecutionResult): Record<string, unknown> | null {
+  const objectContent = result.content.find(isObjectContent);
+  return objectContent?.data ?? null;
 }
 
 describe('patch tools', () => {
   let service: FakeOscService;
-
-  const runTool = async (tool: any, args: unknown, extra: unknown = {}): Promise<any> => {
-    const handler = tool.handler as ToolHandler;
-    return handler(args, extra);
-  };
 
   beforeEach(() => {
     service = new FakeOscService();

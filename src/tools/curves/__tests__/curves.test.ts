@@ -2,8 +2,7 @@ import type { OscMessage } from '../../../services/osc/index';
 import { OscClient, setOscClient, type OscGateway, type OscGatewaySendOptions } from '../../../services/osc/client';
 import { oscMappings } from '../../../services/osc/mappings';
 import { eosCurveGetInfoTool, eosCurveSelectTool } from '../index';
-
-type ToolHandler = (args: unknown, extra?: unknown) => Promise<any>;
+import { isObjectContent, isTextContent, runTool } from '../../__tests__/helpers/runTool';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -28,11 +27,6 @@ class FakeOscService implements OscGateway {
 
 describe('curve tools', () => {
   let service: FakeOscService;
-
-  const runTool = async (tool: any, args: unknown): Promise<any> => {
-    const handler = tool.handler as ToolHandler;
-    return handler(args, {});
-  };
 
   beforeEach(() => {
     service = new FakeOscService();
@@ -87,10 +81,18 @@ describe('curve tools', () => {
     });
 
     const result = await promise;
-    const textContent = (result.content as any[]).find((item) => item.type === 'text');
+    const textContent = result.content.find(isTextContent);
+    expect(textContent).toBeDefined();
+    if (!textContent) {
+      throw new Error('Expected text content');
+    }
     expect(textContent.text).toBe('Courbe 8 "Custom Fade" (Time) - 3 points.');
 
-    const objectContent = (result.content as any[]).find((item) => item.type === 'object');
+    const objectContent = result.content.find(isObjectContent);
+    expect(objectContent).toBeDefined();
+    if (!objectContent) {
+      throw new Error('Expected object content');
+    }
     expect(objectContent.data).toMatchObject({
       status: 'ok',
       error: null,
@@ -131,10 +133,18 @@ describe('curve tools', () => {
     });
 
     const result = await promise;
-    const textContent = (result.content as any[]).find((item) => item.type === 'text');
+    const textContent = result.content.find(isTextContent);
+    expect(textContent).toBeDefined();
+    if (!textContent) {
+      throw new Error('Expected text content');
+    }
     expect(textContent.text).toBe('Courbe 42 introuvable.');
 
-    const objectContent = (result.content as any[]).find((item) => item.type === 'object');
+    const objectContent = result.content.find(isObjectContent);
+    expect(objectContent).toBeDefined();
+    if (!objectContent) {
+      throw new Error('Expected object content');
+    }
     expect(objectContent.data).toMatchObject({
       status: 'error',
       error: 'Curve not found',

@@ -6,10 +6,7 @@ import {
   eosFpeGetSetInfoTool,
   eosFpeGetPointInfoTool
 } from '../index';
-
-interface ToolHandler {
-  (args: unknown, extra?: unknown): Promise<any>;
-}
+import { isObjectContent, isTextContent, runTool } from '../../__tests__/helpers/runTool';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -32,23 +29,8 @@ class FakeOscService implements OscGateway {
   }
 }
 
-function extractObjectContent(result: any): any {
-  const content = (result?.content ?? []) as any[];
-  return content.find((item) => item.type === 'object')?.data ?? null;
-}
-
-function extractTextContent(result: any): string | null {
-  const content = (result?.content ?? []) as any[];
-  return content.find((item) => item.type === 'text')?.text ?? null;
-}
-
 describe('fpe tools', () => {
   let service: FakeOscService;
-
-  const runTool = async (tool: any, args: unknown, extra: unknown = {}): Promise<any> => {
-    const handler = tool.handler as ToolHandler;
-    return handler(args, extra);
-  };
 
   beforeEach(() => {
     service = new FakeOscService();
@@ -87,11 +69,11 @@ describe('fpe tools', () => {
     });
 
     const result = await promise;
-    const textContent = extractTextContent(result);
-    const objectContent = extractObjectContent(result);
+    const textContent = result.content.find(isTextContent);
+    const objectContent = result.content.find(isObjectContent);
 
-    expect(textContent).toBe('Nombre de sets FPE: 5.');
-    expect(objectContent).toMatchObject({
+    expect(textContent?.text).toBe('Nombre de sets FPE: 5.');
+    expect(objectContent?.data).toMatchObject({
       action: 'get_set_count',
       set_count: 5,
       status: 'ok'
@@ -136,11 +118,11 @@ describe('fpe tools', () => {
     });
 
     const result = await promise;
-    const textContent = extractTextContent(result);
-    const objectContent = extractObjectContent(result);
+    const textContent = result.content.find(isTextContent);
+    const objectContent = result.content.find(isObjectContent);
 
-    expect(textContent).toBe('Set FPE 3 "Main Stage" - 2 points.');
-    expect(objectContent).toMatchObject({
+    expect(textContent?.text).toBe('Set FPE 3 "Main Stage" - 2 points.');
+    expect(objectContent?.data).toMatchObject({
       action: 'get_set_info',
       status: 'ok',
       set_number: 3,
@@ -212,13 +194,13 @@ describe('fpe tools', () => {
     });
 
     const result = await promise;
-    const textContent = extractTextContent(result);
-    const objectContent = extractObjectContent(result);
+    const textContent = result.content.find(isTextContent);
+    const objectContent = result.content.find(isObjectContent);
 
-    expect(textContent).toBe(
+    expect(textContent?.text).toBe(
       'Point FPE 4.2 "Right Balcony" - Palette focus 202 - Position (4.5, 6.1, 0).'
     );
-    expect(objectContent).toMatchObject({
+    expect(objectContent?.data).toMatchObject({
       action: 'get_point_info',
       status: 'ok',
       set_number: 4,
@@ -254,11 +236,11 @@ describe('fpe tools', () => {
     });
 
     const result = await promise;
-    const textContent = extractTextContent(result);
-    const objectContent = extractObjectContent(result);
+    const textContent = result.content.find(isTextContent);
+    const objectContent = result.content.find(isObjectContent);
 
-    expect(textContent).toBe('Set FPE 12 introuvable.');
-    expect(objectContent).toMatchObject({
+    expect(textContent?.text).toBe('Set FPE 12 introuvable.');
+    expect(objectContent?.data).toMatchObject({
       status: 'error',
       set_number: 12,
       error: 'Set not found'

@@ -10,8 +10,25 @@ import {
   eosWheelSwitchContinuousTool,
   eosWheelTickTool
 } from '../index';
+import { isObjectContent, runTool } from '../../__tests__/helpers/runTool';
 
-type ToolHandler = (args: unknown, extra?: unknown) => Promise<any>;
+function assertHasWheelData(
+  data: Record<string, unknown>
+): asserts data is { status: string; wheels: unknown[] } {
+  if (typeof data !== 'object' || data === null) {
+    throw new Error('Expected wheel data');
+  }
+
+  const wheels = (data as { wheels?: unknown }).wheels;
+  if (!Array.isArray(wheels)) {
+    throw new Error('Expected wheels to be an array');
+  }
+
+  const status = (data as { status?: unknown }).status;
+  if (typeof status !== 'string') {
+    throw new Error('Expected status to be a string');
+  }
+}
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -36,11 +53,6 @@ class FakeOscService implements OscGateway {
 
 describe('parameter tools', () => {
   let service: FakeOscService;
-
-  const runTool = async (tool: any, args: unknown): Promise<any> => {
-    const handler = tool.handler as ToolHandler;
-    return handler(args, {});
-  };
 
   beforeEach(() => {
     service = new FakeOscService();
@@ -145,9 +157,15 @@ describe('parameter tools', () => {
     });
 
     const result = await promise;
-    const objectContent = (result.content as any[]).find((item) => item.type === 'object');
-    expect(objectContent?.data.status).toBe('ok');
-    expect(objectContent?.data.wheels).toEqual([
+    const objectContent = result.content.find(isObjectContent);
+    expect(objectContent).toBeDefined();
+    if (!objectContent) {
+      throw new Error('Expected object content');
+    }
+
+    assertHasWheelData(objectContent.data);
+    expect(objectContent.data.status).toBe('ok');
+    expect(objectContent.data.wheels).toEqual([
       {
         wheelIndex: 1,
         parameter: 'Pan',

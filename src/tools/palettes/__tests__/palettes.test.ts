@@ -8,8 +8,20 @@ import {
   eosIntensityPaletteFireTool,
   eosPaletteGetInfoTool
 } from '../index';
+import { isObjectContent, runTool } from '../../__tests__/helpers/runTool';
 
-type ToolHandler = (args: unknown, extra?: unknown) => Promise<any>;
+function assertHasPalette(
+  data: Record<string, unknown>
+): asserts data is Record<string, unknown> & { palette: Record<string, unknown> } {
+  if (typeof data !== 'object' || data === null) {
+    throw new Error('Expected palette data');
+  }
+
+  const palette = (data as { palette?: unknown }).palette;
+  if (typeof palette !== 'object' || palette === null) {
+    throw new Error('Palette details missing');
+  }
+}
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -34,11 +46,6 @@ class FakeOscService implements OscGateway {
 
 describe('palette tools', () => {
   let service: FakeOscService;
-
-  const runTool = async (tool: any, args: unknown): Promise<any> => {
-    const handler = tool.handler as ToolHandler;
-    return handler(args, {});
-  };
 
   beforeEach(() => {
     service = new FakeOscService();
@@ -96,10 +103,22 @@ describe('palette tools', () => {
 
     const result = await promise;
 
-    const objectContent = (result.content as any[]).find((item) => item.type === 'object');
+    const objectContent = result.content.find(isObjectContent);
     expect(objectContent).toBeDefined();
+    if (!objectContent) {
+      throw new Error('Expected object content');
+    }
 
-    const paletteInfo = objectContent.data.palette;
+    assertHasPalette(objectContent.data);
+    const paletteInfo = objectContent.data.palette as Record<string, unknown> & {
+      paletteType: string;
+      paletteNumber: number;
+      label: string | null;
+      absolute: boolean;
+      locked: boolean;
+      channels: number[];
+      byTypeChannels: Record<string, number[]>;
+    };
     expect(paletteInfo.paletteType).toBe('fp');
     expect(paletteInfo.paletteNumber).toBe(12);
     expect(paletteInfo.label).toBe('Position Scene');

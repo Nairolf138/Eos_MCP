@@ -6,6 +6,7 @@ import {
   eosSubmasterBumpTool,
   eosSubmasterGetInfoTool
 } from '../index';
+import { isObjectContent, runTool } from '../../__tests__/helpers/runTool';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -27,11 +28,6 @@ class FakeOscService implements OscGateway {
     this.listeners.forEach((listener) => listener(message));
   }
 }
-
-const runTool = async (tool: any, args: unknown): Promise<any> => {
-  const handler = tool.handler as unknown as (input: unknown, extra?: unknown) => Promise<any>;
-  return handler(args, {});
-};
 
 describe('submaster tools', () => {
   let service: FakeOscService;
@@ -104,8 +100,11 @@ describe('submaster tools', () => {
     });
 
     const result = await promise;
-    const objectContent = (result.content as any[])?.find((item) => item.type === 'object');
+    const objectContent = result.content.find(isObjectContent);
     expect(objectContent).toBeDefined();
+    if (!objectContent) {
+      throw new Error('Expected object content');
+    }
 
     expect(objectContent.data).toMatchObject({
       action: 'submaster_get_info',
@@ -158,14 +157,19 @@ describe('submaster tools', () => {
     });
 
     const result = await promise;
-    const objectContent = (result.content as any[])?.find((item) => item.type === 'object');
+    const objectContent = result.content.find(isObjectContent);
     expect(objectContent).toBeDefined();
+    if (!objectContent) {
+      throw new Error('Expected object content');
+    }
 
-    expect(objectContent.data.submaster).toMatchObject({
-      submasterNumber: 4,
-      label: 'Side Light',
-      htp: false,
-      exclusive: true
+    expect(objectContent.data).toMatchObject({
+      submaster: {
+        submasterNumber: 4,
+        label: 'Side Light',
+        htp: false,
+        exclusive: true
+      }
     });
   });
 });

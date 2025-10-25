@@ -3,10 +3,7 @@ import { OscClient, setOscClient, type OscGateway, type OscGatewaySendOptions } 
 import { oscMappings } from '../../../services/osc/mappings';
 import { eosPixmapGetInfoTool, eosPixmapSelectTool } from '../index';
 import largePixmapFixture from './fixtures/pixmap-large.json';
-
-interface ToolHandler {
-  (args: unknown, extra?: unknown): Promise<any>;
-}
+import { isObjectContent, runTool } from '../../__tests__/helpers/runTool';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -31,11 +28,6 @@ class FakeOscService implements OscGateway {
 
 describe('pixel map tools', () => {
   let service: FakeOscService;
-
-  const runTool = async (tool: any, args: unknown, extra: unknown = {}): Promise<any> => {
-    const handler = tool.handler as ToolHandler;
-    return handler(args, extra);
-  };
 
   beforeEach(() => {
     service = new FakeOscService();
@@ -98,7 +90,11 @@ describe('pixel map tools', () => {
     });
 
     const result = await promise;
-    const objectContent = (result.content as any[]).find((item) => item.type === 'object');
+    const objectContent = result.content.find(isObjectContent);
+    expect(objectContent).toBeDefined();
+    if (!objectContent) {
+      throw new Error('Expected object content');
+    }
 
     expect(objectContent.data).toMatchObject({
       status: 'ok',
@@ -142,7 +138,11 @@ describe('pixel map tools', () => {
     });
 
     const result = await promise;
-    const objectContent = (result.content as any[]).find((item) => item.type === 'object');
+    const objectContent = result.content.find(isObjectContent);
+    expect(objectContent).toBeDefined();
+    if (!objectContent) {
+      throw new Error('Expected object content');
+    }
 
     expect(objectContent.data).toMatchObject({
       status: 'ok',

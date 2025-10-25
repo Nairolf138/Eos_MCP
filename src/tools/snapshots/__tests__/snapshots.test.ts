@@ -2,8 +2,7 @@ import type { OscMessage } from '../../../services/osc/index';
 import { OscClient, setOscClient, type OscGateway, type OscGatewaySendOptions } from '../../../services/osc/client';
 import { oscMappings } from '../../../services/osc/mappings';
 import { eosSnapshotGetInfoTool, eosSnapshotRecallTool } from '../index';
-
-type ToolHandler = (args: unknown, extra?: unknown) => Promise<any>;
+import { isObjectContent, isTextContent, runTool } from '../../__tests__/helpers/runTool';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -28,11 +27,6 @@ class FakeOscService implements OscGateway {
 
 describe('snapshot tools', () => {
   let service: FakeOscService;
-
-  const runTool = async (tool: any, args: unknown, extra: unknown = {}): Promise<any> => {
-    const handler = tool.handler as ToolHandler;
-    return handler(args, extra);
-  };
 
   beforeEach(() => {
     service = new FakeOscService();
@@ -96,11 +90,18 @@ describe('snapshot tools', () => {
     });
 
     const result = await promise;
-    const textContent = (result.content as any[]).find((item) => item.type === 'text');
+    const textContent = result.content.find(isTextContent);
+    expect(textContent).toBeDefined();
+    if (!textContent) {
+      throw new Error('Expected text content');
+    }
     expect(textContent.text).toBe('Snapshot 12 "Ballet Acte II" (UID 1.2.3.4.5).');
 
-    const objectContent = (result.content as any[]).find((item) => item.type === 'object');
+    const objectContent = result.content.find(isObjectContent);
     expect(objectContent).toBeDefined();
+    if (!objectContent) {
+      throw new Error('Expected object content');
+    }
     expect(objectContent.data).toMatchObject({
       status: 'ok',
       snapshot: {
@@ -132,10 +133,18 @@ describe('snapshot tools', () => {
     });
 
     const result = await promise;
-    const textContent = (result.content as any[]).find((item) => item.type === 'text');
+    const textContent = result.content.find(isTextContent);
+    expect(textContent).toBeDefined();
+    if (!textContent) {
+      throw new Error('Expected text content');
+    }
     expect(textContent.text).toBe('Snapshot 99 introuvable.');
 
-    const objectContent = (result.content as any[]).find((item) => item.type === 'object');
+    const objectContent = result.content.find(isObjectContent);
+    expect(objectContent).toBeDefined();
+    if (!objectContent) {
+      throw new Error('Expected object content');
+    }
     expect(objectContent.data).toMatchObject({
       status: 'error',
       error: 'Snapshot missing',

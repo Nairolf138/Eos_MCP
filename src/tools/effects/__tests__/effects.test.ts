@@ -7,8 +7,7 @@ import {
   eosEffectSelectTool,
   eosEffectStopTool
 } from '../index';
-
-type ToolHandler = (args: unknown, extra?: unknown) => Promise<any>;
+import { isObjectContent, isTextContent, runTool } from '../../__tests__/helpers/runTool';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -33,11 +32,6 @@ class FakeOscService implements OscGateway {
 
 describe('effect tools', () => {
   let service: FakeOscService;
-
-  const runTool = async (tool: any, args: unknown): Promise<any> => {
-    const handler = tool.handler as ToolHandler;
-    return handler(args, {});
-  };
 
   beforeEach(() => {
     service = new FakeOscService();
@@ -111,11 +105,18 @@ describe('effect tools', () => {
 
     const result = await promise;
 
-    const textContent = (result.content as any[]).find((item) => item.type === 'text');
+    const textContent = result.content.find(isTextContent);
+    expect(textContent).toBeDefined();
+    if (!textContent) {
+      throw new Error('Expected text content');
+    }
     expect(textContent.text).toBe('Effet 907 "Dyn Circle" (Relative Dynamic, rate 120, scale 150%).');
 
-    const objectContent = (result.content as any[]).find((item) => item.type === 'object');
+    const objectContent = result.content.find(isObjectContent);
     expect(objectContent).toBeDefined();
+    if (!objectContent) {
+      throw new Error('Expected object content');
+    }
 
     expect(objectContent.data).toMatchObject({
       action: 'effect_get_info',
@@ -147,14 +148,13 @@ describe('effect tools', () => {
           description: '150%'
         },
         rate: 120,
-        duration: 30
+        duration: 30,
+        raw: { waveform: 'Sine' }
       },
       osc: {
         address: oscMappings.effects.info
       }
     });
-
-    expect(objectContent.data.effect.raw).toMatchObject({ waveform: 'Sine' });
   });
 
   it('signale une erreur lorsque le numero ne correspond a aucun effet', async () => {
@@ -179,10 +179,18 @@ describe('effect tools', () => {
 
     const result = await promise;
 
-    const textContent = (result.content as any[]).find((item) => item.type === 'text');
+    const textContent = result.content.find(isTextContent);
+    expect(textContent).toBeDefined();
+    if (!textContent) {
+      throw new Error('Expected text content');
+    }
     expect(textContent.text).toBe('Effet 99 introuvable (Effect not found).');
 
-    const objectContent = (result.content as any[]).find((item) => item.type === 'object');
+    const objectContent = result.content.find(isObjectContent);
+    expect(objectContent).toBeDefined();
+    if (!objectContent) {
+      throw new Error('Expected object content');
+    }
     expect(objectContent.data).toMatchObject({
       action: 'effect_get_info',
       status: 'error',

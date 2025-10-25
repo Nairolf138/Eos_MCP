@@ -6,8 +6,7 @@ import {
   eosMagicSheetOpenTool,
   eosMagicSheetSendStringTool
 } from '../index';
-
-type ToolHandler = (args: unknown, extra?: unknown) => Promise<any>;
+import { isObjectContent, isTextContent, runTool } from '../../__tests__/helpers/runTool';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -32,11 +31,6 @@ class FakeOscService implements OscGateway {
 
 describe('magic sheet tools', () => {
   let service: FakeOscService;
-
-  const runTool = async (tool: any, args: unknown, extra: unknown = {}): Promise<any> => {
-    const handler = tool.handler as ToolHandler;
-    return handler(args, extra);
-  };
 
   beforeEach(() => {
     service = new FakeOscService();
@@ -85,10 +79,18 @@ describe('magic sheet tools', () => {
     );
 
     expect(service.sentMessages).toHaveLength(0);
-    const textContent = (result.content as any[]).find((item) => item.type === 'text');
+    const textContent = result.content.find(isTextContent);
+    expect(textContent).toBeDefined();
+    if (!textContent) {
+      throw new Error('Expected text content');
+    }
     expect(textContent.text).toContain('connexion Primary');
 
-    const objectContent = (result.content as any[]).find((item) => item.type === 'object');
+    const objectContent = result.content.find(isObjectContent);
+    expect(objectContent).toBeDefined();
+    if (!objectContent) {
+      throw new Error('Expected object content');
+    }
     expect(objectContent.data).toMatchObject({
       action: 'magic_sheet_send_string',
       required_role: 'Primary',
@@ -121,7 +123,11 @@ describe('magic sheet tools', () => {
     });
 
     const result = await promise;
-    const objectContent = (result.content as any[]).find((item) => item.type === 'object');
+    const objectContent = result.content.find(isObjectContent);
+    expect(objectContent).toBeDefined();
+    if (!objectContent) {
+      throw new Error('Expected object content');
+    }
 
     expect(objectContent.data).toMatchObject({
       status: 'ok',
@@ -154,10 +160,18 @@ describe('magic sheet tools', () => {
     });
 
     const result = await promise;
-    const textContent = (result.content as any[]).find((item) => item.type === 'text');
+    const textContent = result.content.find(isTextContent);
+    expect(textContent).toBeDefined();
+    if (!textContent) {
+      throw new Error('Expected text content');
+    }
     expect(textContent.text).toContain('introuvable');
 
-    const objectContent = (result.content as any[]).find((item) => item.type === 'object');
+    const objectContent = result.content.find(isObjectContent);
+    expect(objectContent).toBeDefined();
+    if (!objectContent) {
+      throw new Error('Expected object content');
+    }
     expect(objectContent.data).toMatchObject({
       status: 'error',
       magic_sheet: {

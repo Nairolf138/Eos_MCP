@@ -7,6 +7,7 @@ import {
   eosDirectSelectPageTool,
   eosDirectSelectPressTool
 } from '../index';
+import { isObjectContent, runTool } from '../../__tests__/helpers/runTool';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -24,11 +25,6 @@ class FakeOscService implements OscGateway {
     };
   }
 }
-
-const runTool = async (tool: any, args: unknown): Promise<any> => {
-  const handler = tool.handler as unknown as (input: unknown, extra?: unknown) => Promise<any>;
-  return handler(args, {});
-};
 
 describe('direct select tools', () => {
   let service: FakeOscService;
@@ -88,7 +84,11 @@ describe('direct select tools', () => {
     const forwardPayload = JSON.parse(String(forwardMessage.args?.[0]?.value));
     expect(forwardPayload).toEqual({ bank: 4, delta: 2 });
 
-    const forwardData = (nextPageResult.content as any[]).find((item) => item.type === 'object');
+    const forwardData = nextPageResult.content.find(isObjectContent);
+    expect(forwardData).toBeDefined();
+    if (!forwardData) {
+      throw new Error('Expected object content');
+    }
     expect(forwardData.data).toMatchObject({ previousPage: 1, page: 3 });
 
     service.sentMessages.length = 0;
@@ -100,7 +100,11 @@ describe('direct select tools', () => {
     const backPayload = JSON.parse(String(backMessage.args?.[0]?.value));
     expect(backPayload).toEqual({ bank: 4, delta: -5 });
 
-    const backData = (backResult.content as any[]).find((item) => item.type === 'object');
+    const backData = backResult.content.find(isObjectContent);
+    expect(backData).toBeDefined();
+    if (!backData) {
+      throw new Error('Expected object content');
+    }
     expect(backData.data).toMatchObject({ previousPage: 3, page: 0 });
 
     service.sentMessages.length = 0;

@@ -6,8 +6,7 @@ import {
   eosAddressSetLevelTool,
   eosAddressSetDmxTool
 } from '../index';
-
-type ToolHandler = (args: unknown, extra?: unknown) => Promise<any>;
+import { isObjectContent, runTool } from '../../__tests__/helpers/runTool';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -32,11 +31,6 @@ class FakeOscService implements OscGateway {
 
 describe('dmx address tools', () => {
   let service: FakeOscService;
-
-  const runTool = async (tool: any, args: unknown): Promise<any> => {
-    const handler = tool.handler as ToolHandler;
-    return handler(args, {});
-  };
 
   beforeEach(() => {
     service = new FakeOscService();
@@ -71,10 +65,12 @@ describe('dmx address tools', () => {
     const payload = JSON.parse(String(service.sentMessages[0]?.args?.[0]?.value ?? '{}'));
     expect(payload).toEqual({ address: '2/041' });
 
-    const objectContent = (result.content as Array<{ type: string; data?: any }>).find(
-      (item) => item.type === 'object'
-    );
-    expect(objectContent?.data.status).toBe('ok');
+    const objectContent = result.content.find(isObjectContent);
+    expect(objectContent).toBeDefined();
+    if (!objectContent) {
+      throw new Error('Expected object content');
+    }
+    expect(objectContent.data.status).toBe('ok');
   });
 
   it('convertit full en 100% pour le niveau', async () => {
