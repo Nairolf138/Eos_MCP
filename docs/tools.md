@@ -605,7 +605,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cue/stop/back s:'{"cuelist_number":1}'
+oscsend 127.0.0.1 8001 /eos/cmd s:'Cue 1 Stop#'
 ```
 
 <a id="eos-cuelist-bank-create"></a>

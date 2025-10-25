@@ -328,13 +328,72 @@ function formatCliArgs(args?: Record<string, unknown>): string {
   return json.replace(/'/g, "\\'");
 }
 
-function formatOscExample(pathValue: unknown, args?: Record<string, unknown>): string[] {
-  if (!pathValue || (typeof pathValue !== 'string' && !Array.isArray(pathValue))) {
+function normaliseOscPath(value: unknown): string | undefined {
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      if (typeof entry === 'string') {
+        return entry;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function applyCommandTemplate(template: string, args?: Record<string, unknown>): string {
+  if (!args) {
+    return template;
+  }
+
+  return template.replace(/\{([^}]+)\}/g, (match, key) => {
+    const value = args[key];
+    if (value == null) {
+      return match;
+    }
+    if (Array.isArray(value)) {
+      return value.map((item) => String(item)).join(',');
+    }
+    return String(value);
+  });
+}
+
+function formatOscExample(mappingValue: unknown, args?: Record<string, unknown>): string[] {
+  if (!mappingValue) {
     return ['_Pas de mapping OSC documenté._'];
   }
 
-  const paths = Array.isArray(pathValue) ? pathValue : [pathValue];
-  const targetPath = paths[0];
+  let targetPath: string | undefined;
+  let commandTemplate: string | undefined;
+
+  if (typeof mappingValue === 'string' || Array.isArray(mappingValue)) {
+    targetPath = normaliseOscPath(mappingValue);
+  } else if (typeof mappingValue === 'object') {
+    const details = mappingValue as Record<string, unknown>;
+    targetPath = normaliseOscPath(details.osc);
+    if (typeof details.commandExample === 'string') {
+      commandTemplate = details.commandExample;
+    }
+  }
+
+  if (!targetPath) {
+    return ['_Pas de mapping OSC documenté._'];
+  }
+
+  if (commandTemplate) {
+    const command = applyCommandTemplate(commandTemplate, args);
+    const escapedCommand = command.replace(/'/g, "\\'");
+    return [
+      '```bash',
+      "# Exemple d'envoi OSC via oscsend",
+      `oscsend 127.0.0.1 8001 ${targetPath} s:'${escapedCommand}'`,
+      '```'
+    ];
+  }
+
   const payload = args ?? {};
   const json = JSON.stringify(payload);
   const escaped = json.replace(/'/g, "\\'");
@@ -444,8 +503,8 @@ function buildDocumentation(tools: ToolDefinition[]): { markdown: string; metada
     lines.push('');
     lines.push('_OSC_');
     lines.push('');
-    const mapping = (tool.config.annotations as Record<string, unknown> | undefined)?.mapping as Record<string, unknown> | undefined;
-    const oscExample = formatOscExample(mapping?.osc, data.exampleArgs);
+    const mapping = (tool.config.annotations as Record<string, unknown> | undefined)?.mapping;
+    const oscExample = formatOscExample(mapping, data.exampleArgs);
     lines.push(...oscExample);
     lines.push('');
   }
