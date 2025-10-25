@@ -52,18 +52,17 @@ describe('group tools', () => {
     expect(service.sentMessages).toHaveLength(1);
     expect(service.sentMessages[0]).toMatchObject({ address: oscMappings.groups.select });
 
-    const payload = JSON.parse(String(service.sentMessages[0]?.args?.[0]?.value ?? '{}'));
-    expect(payload).toMatchObject({ group: 5 });
+    expect(service.sentMessages[0]?.args?.[0]).toMatchObject({ type: 'i', value: 5 });
   });
 
   it('convertit le mot-cle full en 100 pour le reglage de niveau', async () => {
     await runTool(eosGroupSetLevelTool, { group_number: 12, level: 'full' });
 
     expect(service.sentMessages).toHaveLength(1);
-    expect(service.sentMessages[0]).toMatchObject({ address: oscMappings.groups.level });
+    const expectedAddress = oscMappings.groups.level.replace('{group}', '12');
+    expect(service.sentMessages[0]).toMatchObject({ address: expectedAddress });
 
-    const payload = JSON.parse(String(service.sentMessages[0]?.args?.[0]?.value ?? '{}'));
-    expect(payload).toMatchObject({ group: 12, level: 100 });
+    expect(service.sentMessages[0]?.args?.[0]).toMatchObject({ type: 'f', value: 100 });
   });
 
   it('normalise la reponse groupe avec plusieurs membres', async () => {

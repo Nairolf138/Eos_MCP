@@ -103,16 +103,6 @@ interface PresetInfo {
   flags: PresetFlags;
 }
 
-function buildJsonArgs(payload: Record<string, unknown>): OscMessageArgument[] {
-  const json = JSON.stringify(payload);
-  return [
-    {
-      type: 's' as const,
-      value: json
-    }
-  ];
-}
-
 function extractTargetOptions(options: { targetAddress?: string; targetPort?: number }): {
   targetAddress?: string;
   targetPort?: number;
@@ -486,18 +476,21 @@ export const eosPresetFireTool: ToolDefinition<typeof presetFireInputSchema> = {
     const schema = z.object(presetFireInputSchema).strict();
     const options = schema.parse(args ?? {});
     const client = getOscClient();
-    const payload = {
-      preset: options.preset_number
-    };
+    const oscArgs: OscMessageArgument[] = [
+      {
+        type: 'i',
+        value: options.preset_number
+      }
+    ];
 
-    await client.sendMessage(oscMappings.presets.fire, buildJsonArgs(payload), extractTargetOptions(options));
+    await client.sendMessage(oscMappings.presets.fire, oscArgs, extractTargetOptions(options));
 
     return createResult(`Preset ${options.preset_number} declenche`, {
       action: 'preset_fire',
       preset_number: options.preset_number,
       osc: {
         address: oscMappings.presets.fire,
-        args: payload
+        args: oscArgs
       }
     });
   }
@@ -524,18 +517,21 @@ export const eosPresetSelectTool: ToolDefinition<typeof presetFireInputSchema> =
     const schema = z.object(presetFireInputSchema).strict();
     const options = schema.parse(args ?? {});
     const client = getOscClient();
-    const payload = {
-      preset: options.preset_number
-    };
+    const oscArgs: OscMessageArgument[] = [
+      {
+        type: 'i',
+        value: options.preset_number
+      }
+    ];
 
-    await client.sendMessage(oscMappings.presets.select, buildJsonArgs(payload), extractTargetOptions(options));
+    await client.sendMessage(oscMappings.presets.select, oscArgs, extractTargetOptions(options));
 
     return createResult(`Preset ${options.preset_number} selectionne`, {
       action: 'preset_select',
       preset_number: options.preset_number,
       osc: {
         address: oscMappings.presets.select,
-        args: payload
+        args: oscArgs
       }
     });
   }

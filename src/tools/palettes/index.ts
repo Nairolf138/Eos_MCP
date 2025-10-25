@@ -65,15 +65,6 @@ const paletteGetInfoInputSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
-function buildJsonArgs(payload: Record<string, unknown>): OscMessageArgument[] {
-  return [
-    {
-      type: 's' as const,
-      value: JSON.stringify(payload)
-    }
-  ];
-}
-
 function extractTargetOptions(options: { targetAddress?: string; targetPort?: number }): {
   targetAddress?: string;
   targetPort?: number;
@@ -353,11 +344,14 @@ function createPaletteFireTool({ type, name, title, description, mapping }: Pale
       const schema = z.object(paletteFireInputSchema).strict();
       const options = schema.parse(args ?? {});
       const client = getOscClient();
-      const payload = {
-        palette: options.palette_number
-      };
+      const oscArgs: OscMessageArgument[] = [
+        {
+          type: 'i',
+          value: options.palette_number
+        }
+      ];
 
-      await client.sendMessage(mapping, buildJsonArgs(payload), extractTargetOptions(options));
+      await client.sendMessage(mapping, oscArgs, extractTargetOptions(options));
 
       return createResult(`Palette ${paletteTypeLabels[type]} ${options.palette_number} declenchee`, {
         action: 'palette_fire',
@@ -365,7 +359,7 @@ function createPaletteFireTool({ type, name, title, description, mapping }: Pale
         palette_number: options.palette_number,
         osc: {
           address: mapping,
-          args: payload
+          args: oscArgs
         }
       });
     }

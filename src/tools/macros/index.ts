@@ -66,21 +66,13 @@ const getInfoInputSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
-function buildJsonArgs(payload: Record<string, unknown>): OscMessageArgument[] {
-  return [
-    {
-      type: 's' as const,
-      value: JSON.stringify(payload)
-    }
-  ];
-}
-
 function createSimpleResult(
   action: string,
   text: string,
   macroNumber: number,
   payload: Record<string, unknown>,
-  oscAddress: string
+  oscAddress: string,
+  oscArgs: OscMessageArgument[]
 ): ToolExecutionResult {
   return {
     content: [
@@ -93,7 +85,7 @@ function createSimpleResult(
           request: payload,
           osc: {
             address: oscAddress,
-            args: payload
+            args: oscArgs
           }
         }
       }
@@ -367,10 +359,16 @@ export const eosMacroFireTool: ToolDefinition<typeof fireInputSchema> = {
     const payload = {
       macro: options.macro_number
     };
+    const oscArgs: OscMessageArgument[] = [
+      {
+        type: 'i',
+        value: options.macro_number
+      }
+    ];
 
     await client.sendMessage(
       oscMappings.macros.fire,
-      buildJsonArgs(payload),
+      oscArgs,
       {
         targetAddress: options.targetAddress,
         targetPort: options.targetPort
@@ -382,7 +380,8 @@ export const eosMacroFireTool: ToolDefinition<typeof fireInputSchema> = {
       `Macro ${options.macro_number} declenchee`,
       options.macro_number,
       payload,
-      oscMappings.macros.fire
+      oscMappings.macros.fire,
+      oscArgs
     );
   }
 };
@@ -415,10 +414,16 @@ export const eosMacroSelectTool: ToolDefinition<typeof selectInputSchema> = {
     const payload = {
       macro: options.macro_number
     };
+    const oscArgs: OscMessageArgument[] = [
+      {
+        type: 'i',
+        value: options.macro_number
+      }
+    ];
 
     await client.sendMessage(
       oscMappings.macros.select,
-      buildJsonArgs(payload),
+      oscArgs,
       {
         targetAddress: options.targetAddress,
         targetPort: options.targetPort
@@ -430,7 +435,8 @@ export const eosMacroSelectTool: ToolDefinition<typeof selectInputSchema> = {
       `Macro ${options.macro_number} selectionnee`,
       options.macro_number,
       payload,
-      oscMappings.macros.select
+      oscMappings.macros.select,
+      oscArgs
     );
   }
 };

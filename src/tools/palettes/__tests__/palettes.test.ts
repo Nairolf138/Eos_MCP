@@ -57,15 +57,14 @@ describe('palette tools', () => {
     setOscClient(null);
   });
 
-  it('envoie un message json lors du declenchement dune palette', async () => {
+  it('envoie un argument numerique lors du declenchement dune palette', async () => {
     await runTool(eosColorPaletteFireTool, { palette_number: 42 });
 
     expect(service.sentMessages).toHaveLength(1);
     const [message] = service.sentMessages;
     expect(message.address).toBe(oscMappings.palettes.color.fire);
     expect(message.args).toHaveLength(1);
-    const payload = JSON.parse(String(message.args?.[0]?.value ?? '{}'));
-    expect(payload).toMatchObject({ palette: 42 });
+    expect(message.args?.[0]).toMatchObject({ type: 'i', value: 42 });
   });
 
   it('normalise les informations de palette et les canaux par type', async () => {

@@ -48,8 +48,7 @@ describe('macro tools', () => {
     expect(service.sentMessages).toHaveLength(1);
     expect(service.sentMessages[0]).toMatchObject({ address: oscMappings.macros.fire });
 
-    const payload = JSON.parse(String(service.sentMessages[0]?.args?.[0]?.value ?? '{}'));
-    expect(payload).toMatchObject({ macro: 7 });
+    expect(service.sentMessages[0]?.args?.[0]).toMatchObject({ type: 'i', value: 7 });
   });
 
   it('envoie la selection de macro avec le numero attendu', async () => {
@@ -58,8 +57,7 @@ describe('macro tools', () => {
     expect(service.sentMessages).toHaveLength(1);
     expect(service.sentMessages[0]).toMatchObject({ address: oscMappings.macros.select });
 
-    const payload = JSON.parse(String(service.sentMessages[0]?.args?.[0]?.value ?? '{}'));
-    expect(payload).toMatchObject({ macro: 5 });
+    expect(service.sentMessages[0]?.args?.[0]).toMatchObject({ type: 'i', value: 5 });
   });
 
   it('normalise les informations renvoyees pour une macro', async () => {
