@@ -51,16 +51,6 @@ const groupDetailsOutputSchema = z.object({
   members: z.array(groupMemberOutputSchema)
 });
 
-function buildJsonArgs(payload: Record<string, unknown>): OscMessageArgument[] {
-  const json = JSON.stringify(payload);
-  return [
-    {
-      type: 's' as const,
-      value: json
-    }
-  ];
-}
-
 function annotate(osc: string): Record<string, unknown> {
   return {
     mapping: {
@@ -244,13 +234,16 @@ export const eosGroupSelectTool: ToolDefinition<typeof selectInputSchema> = {
     const schema = z.object(selectInputSchema).strict();
     const options = schema.parse(args ?? {});
     const client = getOscClient();
-    const payload = {
-      group: options.group_number
-    };
+    const oscArgs: OscMessageArgument[] = [
+      {
+        type: 'i',
+        value: options.group_number
+      }
+    ];
 
     await client.sendMessage(
       oscMappings.groups.select,
-      buildJsonArgs(payload),
+      oscArgs,
       {
         targetAddress: options.targetAddress,
         targetPort: options.targetPort
@@ -262,7 +255,7 @@ export const eosGroupSelectTool: ToolDefinition<typeof selectInputSchema> = {
       group_number: options.group_number,
       osc: {
         address: oscMappings.groups.select,
-        args: payload
+        args: oscArgs
       }
     });
   }
@@ -290,18 +283,24 @@ export const eosGroupSetLevelTool: ToolDefinition<typeof setLevelInputSchema> = 
     const options = schema.parse(args ?? {});
     const client = getOscClient();
     const level = resolveLevelValue(options.level);
-    const payload: Record<string, unknown> = {
-      group: options.group_number,
-      level
-    };
+    const address = oscMappings.groups.level.replace(
+      '{group}',
+      String(options.group_number)
+    );
+    const oscArgs: OscMessageArgument[] = [
+      {
+        type: 'f',
+        value: level
+      }
+    ];
 
     if (typeof options.snap === 'boolean') {
-      payload.snap = options.snap;
+      oscArgs.push({ type: 'i', value: options.snap ? 1 : 0 });
     }
 
     await client.sendMessage(
-      oscMappings.groups.level,
-      buildJsonArgs(payload),
+      address,
+      oscArgs,
       {
         targetAddress: options.targetAddress,
         targetPort: options.targetPort
@@ -316,8 +315,8 @@ export const eosGroupSetLevelTool: ToolDefinition<typeof setLevelInputSchema> = 
       level,
       snap: options.snap ?? false,
       osc: {
-        address: oscMappings.groups.level,
-        args: payload
+        address,
+        args: oscArgs
       }
     });
   }

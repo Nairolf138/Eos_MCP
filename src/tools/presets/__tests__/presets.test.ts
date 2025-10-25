@@ -80,8 +80,7 @@ describe('preset tools', () => {
     expect(service.sentMessages).toHaveLength(1);
     expect(service.sentMessages[0]).toMatchObject({ address: oscMappings.presets.fire });
 
-    const payload = JSON.parse(String(service.sentMessages[0]?.args?.[0]?.value ?? '{}'));
-    expect(payload).toMatchObject({ preset: 7 });
+    expect(service.sentMessages[0]?.args?.[0]).toMatchObject({ type: 'i', value: 7 });
   });
 
   it('envoie la selection de preset avec le numero attendu', async () => {
@@ -90,8 +89,7 @@ describe('preset tools', () => {
     expect(service.sentMessages).toHaveLength(1);
     expect(service.sentMessages[0]).toMatchObject({ address: oscMappings.presets.select });
 
-    const payload = JSON.parse(String(service.sentMessages[0]?.args?.[0]?.value ?? '{}'));
-    expect(payload).toMatchObject({ preset: 9 });
+    expect(service.sentMessages[0]?.args?.[0]).toMatchObject({ type: 'i', value: 9 });
   });
 
   it('normalise la reponse preset avec effets et flags', async () => {

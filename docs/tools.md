@@ -134,7 +134,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/bp/fire s:'{"palette_number":1}'
+oscsend 127.0.0.1 8001 /eos/bp/fire i 1
 ```
 
 <a id="eos-channel-get-info"></a>
@@ -291,7 +291,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cp/fire s:'{"palette_number":1}'
+oscsend 127.0.0.1 8001 /eos/cp/fire i 1
 ```
 
 <a id="eos-command"></a>
@@ -1163,7 +1163,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/fp/fire s:'{"palette_number":1}'
+oscsend 127.0.0.1 8001 /eos/fp/fire i 1
 ```
 
 <a id="eos-fpe-get-point-info"></a>
@@ -1635,7 +1635,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/group/select s:'{"group_number":1}'
+oscsend 127.0.0.1 8001 /eos/group i 1
 ```
 
 <a id="eos-group-set-level"></a>
@@ -1667,7 +1667,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/group/level s:'{"group_number":1,"level":1}'
+oscsend 127.0.0.1 8001 /eos/group/1/level f 1
 ```
 
 <a id="eos-intensity-palette-fire"></a>
@@ -1697,7 +1697,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/ip/fire s:'{"palette_number":1}'
+oscsend 127.0.0.1 8001 /eos/ip/fire i 1
 ```
 
 <a id="eos-key-press"></a>
@@ -1758,7 +1758,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/macro/fire s:'{"macro_number":1}'
+oscsend 127.0.0.1 8001 /eos/macro/fire i 1
 ```
 
 <a id="eos-macro-get-info"></a>
@@ -1819,7 +1819,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/macro/select s:'{"macro_number":1}'
+oscsend 127.0.0.1 8001 /eos/macro/select i 1
 ```
 
 <a id="eos-magic-sheet-get-info"></a>
@@ -2194,7 +2194,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/preset/fire s:'{"preset_number":1}'
+oscsend 127.0.0.1 8001 /eos/preset/fire i 1
 ```
 
 <a id="eos-preset-get-info"></a>
@@ -2256,7 +2256,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/preset/select s:'{"preset_number":1}'
+oscsend 127.0.0.1 8001 /eos/preset i 1
 ```
 
 <a id="eos-reset"></a>

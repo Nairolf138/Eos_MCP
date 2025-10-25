@@ -12,8 +12,8 @@ export const oscMappings = {
     addressDmx: '/eos/dmx/address/dmx'
   },
   groups: {
-    select: '/eos/group/select',
-    level: '/eos/group/level',
+    select: '/eos/group',
+    level: '/eos/group/{group}/level',
     info: '/eos/group/info',
     list: '/eos/group/list'
   },
@@ -38,7 +38,7 @@ export const oscMappings = {
   },
   presets: {
     fire: '/eos/preset/fire',
-    select: '/eos/preset/select',
+    select: '/eos/preset',
     info: '/eos/get/preset'
   },
   macros: {
