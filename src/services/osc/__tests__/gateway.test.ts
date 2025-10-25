@@ -262,4 +262,78 @@ describe('OscConnectionGateway', () => {
       expect.objectContaining({ localPort: 8100, localAddress: '192.168.1.10' })
     );
   });
+
+  it('reinitialise les statistiques et le temps de fonctionnement lors de la reconfiguration', async () => {
+    jest.useFakeTimers();
+    try {
+      jest.setSystemTime(new Date('2024-01-01T00:00:00.000Z'));
+
+      const gateway = createOscConnectionGateway({
+        host: '127.0.0.1',
+        tcpPort: 3032,
+        udpPort: 8001,
+        localPort: 8000
+      });
+
+      const initialManager = instances.at(-1);
+      if (!initialManager) {
+        throw new Error('Gestionnaire de connexion non initialise');
+      }
+
+      initialManager.transportSequence = ['udp'];
+
+      jest.setSystemTime(new Date('2024-01-01T00:00:10.000Z'));
+      await gateway.send({ address: '/initial' });
+
+      const incomingPacket = {
+        address: '/initial',
+        args: [
+          {
+            type: 's' as const,
+            value: 'payload'
+          }
+        ]
+      };
+      const encoded = Buffer.from(osc.writePacket(incomingPacket, { metadata: true }) as Uint8Array);
+      initialManager.emitMessage('udp', encoded);
+
+      jest.setSystemTime(new Date('2024-01-01T00:01:00.000Z'));
+      const diagnosticsBefore = gateway.getDiagnostics();
+      expect(diagnosticsBefore.uptimeMs).toBe(60_000);
+      expect(diagnosticsBefore.stats.outgoing.count).toBe(1);
+      expect(diagnosticsBefore.stats.incoming.count).toBe(1);
+
+      jest.setSystemTime(new Date('2024-01-01T00:02:00.000Z'));
+      gateway.reconfigure({
+        host: '127.0.0.2',
+        tcpPort: 4040,
+        udpPort: 9001,
+        localPort: 9000
+      });
+
+      const newManager = instances.at(-1);
+      if (!newManager) {
+        throw new Error('Gestionnaire de connexion non reinitialise');
+      }
+
+      expect(newManager).not.toBe(initialManager);
+
+      jest.setSystemTime(new Date('2024-01-01T00:02:05.000Z'));
+      const diagnosticsAfter = gateway.getDiagnostics();
+
+      expect(diagnosticsAfter.uptimeMs).toBe(5_000);
+      expect(diagnosticsAfter.stats.outgoing).toEqual(
+        expect.objectContaining({ count: 0, bytes: 0, lastTimestamp: null, lastMessage: null })
+      );
+      expect(diagnosticsAfter.stats.incoming).toEqual(
+        expect.objectContaining({ count: 0, bytes: 0, lastTimestamp: null, lastMessage: null })
+      );
+      expect(diagnosticsAfter.stats.outgoing.addresses).toEqual([]);
+      expect(diagnosticsAfter.stats.incoming.addresses).toEqual([]);
+
+      gateway.close();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });

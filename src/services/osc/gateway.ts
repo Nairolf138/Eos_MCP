@@ -77,12 +77,9 @@ export class OscConnectionGateway implements OscGateway {
 
   private readonly loggingState: OscLoggingState = { incoming: false, outgoing: false };
 
-  private readonly stats: Record<Direction, DirectionStats> = {
-    incoming: { count: 0, bytes: 0, lastTimestamp: null, lastMessage: null, addresses: new Map() },
-    outgoing: { count: 0, bytes: 0, lastTimestamp: null, lastMessage: null, addresses: new Map() }
-  };
+  private stats: Record<Direction, DirectionStats> = this.createInitialStats();
 
-  private readonly startedAt = Date.now();
+  private startedAt = Date.now();
 
   private metadata: boolean;
 
@@ -107,6 +104,7 @@ export class OscConnectionGateway implements OscGateway {
       localPort: options.localPort ?? 0
     };
 
+    this.resetRuntimeState();
     this.manager = this.createManager(options);
     this.attachManagerEvents(this.manager);
   }
@@ -226,6 +224,7 @@ export class OscConnectionGateway implements OscGateway {
     this.metadata = options.metadata ?? this.metadata;
 
     this.manager = this.createManager(options);
+    this.resetRuntimeState();
     this.attachManagerEvents(this.manager);
   }
 
@@ -377,6 +376,28 @@ export class OscConnectionGateway implements OscGateway {
       lastMessage: stats.lastMessage,
       addresses
     };
+  }
+
+  private createInitialStats(): Record<Direction, DirectionStats> {
+    return {
+      incoming: this.createEmptyDirectionStats(),
+      outgoing: this.createEmptyDirectionStats()
+    };
+  }
+
+  private createEmptyDirectionStats(): DirectionStats {
+    return {
+      count: 0,
+      bytes: 0,
+      lastTimestamp: null,
+      lastMessage: null,
+      addresses: new Map()
+    };
+  }
+
+  private resetRuntimeState(): void {
+    this.stats = this.createInitialStats();
+    this.startedAt = Date.now();
   }
 }
 
