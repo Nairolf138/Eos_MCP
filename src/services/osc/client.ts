@@ -882,12 +882,30 @@ export class OscClient {
   }
 
   private parseHandshakeResponse(message: OscMessage): HandshakeData {
-    const payload = this.extractPayload(message);
+    const args = message.args ?? [];
+    const sentinelArg = args[0];
+    const sentinelValue = typeof sentinelArg?.value === 'string' ? sentinelArg.value : null;
+
+    if (sentinelValue !== 'ETCOSC!') {
+      throw createConnectionLostError('le handshake OSC', {
+        address: HANDSHAKE_REPLY,
+        message: 'Reponse de handshake invalide: sentinelle manquante ou incorrecte.',
+        sentinelleAttendue: 'ETCOSC!',
+        valeurRecue: sentinelValue,
+        payload: message
+      });
+    }
+
+    const dataArgs = args.slice(1);
+    const firstDataValue = dataArgs[0]?.value;
+    const payload = this.parseOscValue(firstDataValue);
+
     this.ensureConnectionActive('le handshake OSC', payload, {
       address: HANDSHAKE_REPLY
     });
+
     let version: string | null = null;
-    let protocols: string[] = [];
+    const protocols: string[] = [];
 
     if (payload && typeof payload === 'object') {
       const maybeVersion = (payload as { version?: unknown }).version;
@@ -897,25 +915,19 @@ export class OscClient {
 
       const maybeProtocols = (payload as { protocols?: unknown }).protocols;
       if (Array.isArray(maybeProtocols)) {
-        protocols = maybeProtocols.filter((item): item is string => typeof item === 'string');
+        this.appendNormalisedProtocols(protocols, maybeProtocols);
       }
-    } else if (typeof payload === 'string') {
+    } else if (typeof payload === 'string' && payload.length > 0) {
       version = payload;
     }
 
-    if (!version) {
-      const firstString = message.args?.find((arg) => typeof arg.value === 'string');
-      if (firstString && typeof firstString.value === 'string') {
-        version = firstString.value;
-      }
+    if (!version && typeof firstDataValue === 'string' && firstDataValue.length > 0) {
+      version = firstDataValue;
     }
 
-    if (protocols.length === 0 && message.args) {
-      protocols = message.args
-        .map((arg) => arg.value)
-        .filter((value): value is string => typeof value === 'string')
-        .filter((value) => value.startsWith('proto:'))
-        .map((value) => value.replace('proto:', ''));
+    if (dataArgs.length > 1) {
+      const remaining = dataArgs.slice(1).map((arg) => arg.value);
+      this.appendNormalisedProtocols(protocols, remaining);
     }
 
     return {
@@ -923,6 +935,49 @@ export class OscClient {
       protocols,
       raw: payload ?? message
     };
+  }
+
+  private parseOscValue(value: unknown): unknown {
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value);
+      } catch (_error) {
+        return value;
+      }
+    }
+
+    if (value === undefined) {
+      return null;
+    }
+
+    return value;
+  }
+
+  private appendNormalisedProtocols(target: string[], values: unknown[]): void {
+    for (const value of values) {
+      const normalised = this.normaliseProtocol(value);
+      if (normalised && !target.includes(normalised)) {
+        target.push(normalised);
+      }
+    }
+  }
+
+  private normaliseProtocol(value: unknown): string | null {
+    if (typeof value !== 'string') {
+      return null;
+    }
+
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    if (trimmed.startsWith('proto:')) {
+      const suffix = trimmed.slice('proto:'.length).trim();
+      return suffix ? suffix : null;
+    }
+
+    return trimmed;
   }
 
   private extractPayload(message: OscMessage): unknown {
