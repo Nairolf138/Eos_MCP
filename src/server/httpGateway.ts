@@ -235,11 +235,12 @@ class HttpGateway {
 
       const capabilities = mcp.capabilities;
       if (capabilities && typeof capabilities === 'object') {
-        const updatedCapabilities = { ...capabilities } as Record<string, unknown>;
-        const tools = capabilities.tools as Record<string, unknown> | undefined;
+        const capabilitiesRecord = capabilities as Record<string, unknown>;
+        const updatedCapabilities = { ...capabilitiesRecord };
+        const tools = capabilitiesRecord.tools;
 
         if (tools && typeof tools === 'object') {
-          const normalizedTools = { ...tools } as Record<string, unknown>;
+          const normalizedTools = { ...(tools as Record<string, unknown>) };
 
           const listEndpoint = normalizedTools.list_endpoint;
           if (typeof listEndpoint === 'string') {
@@ -262,7 +263,6 @@ class HttpGateway {
           if (typeof schemaBasePath === 'string') {
             normalizedTools.schema_base_path = normalizeStringValue(schemaBasePath);
           }
-
           updatedCapabilities.tools = normalizedTools as typeof tools;
         }
 
