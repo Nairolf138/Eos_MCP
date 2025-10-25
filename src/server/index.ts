@@ -238,6 +238,41 @@ interface BootstrapOptions {
   readonly skipOscHandshake?: boolean;
 }
 
+type McpTokenValidationResult =
+  | { status: 'ok' }
+  | { status: 'warn' | 'error'; message: string };
+
+const DEFAULT_MCP_HTTP_TOKEN_PLACEHOLDER = 'change-me';
+
+function validateMcpTokenConfiguration(
+  config: AppConfig,
+  env: NodeJS.ProcessEnv = process.env
+): McpTokenValidationResult {
+  const tcpPort = config.mcp.tcpPort;
+  if (tcpPort === undefined || tcpPort === null) {
+    return { status: 'ok' };
+  }
+
+  const rawTokens = config.httpGateway.security.mcpTokens ?? [];
+  const tokens = rawTokens.map((token) => token.trim()).filter((token) => token.length > 0);
+
+  const hasNoTokens = tokens.length === 0;
+  const onlyPlaceholderTokens =
+    tokens.length > 0 && tokens.every((token) => token === DEFAULT_MCP_HTTP_TOKEN_PLACEHOLDER);
+
+  if (!hasNoTokens && !onlyPlaceholderTokens) {
+    return { status: 'ok' };
+  }
+
+  const message =
+    'Passerelle HTTP/WS MCP activee mais aucun jeton MCP securise n\'est defini (valeur par defaut "change-me"). ' +
+    'Definissez MCP_HTTP_MCP_TOKENS avec au moins une valeur robuste avant d\'exposer le service.';
+  const nodeEnv = env.NODE_ENV ?? '';
+  const status: 'warn' | 'error' = nodeEnv === 'production' ? 'error' : 'warn';
+
+  return { status, message };
+}
+
 interface StdioStatusSnapshot {
   status: 'starting' | 'listening' | 'stopped';
   clients: number;
@@ -275,6 +310,17 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
   }
 
   const effectiveConfig = applyBootstrapOverrides(config, options);
+
+  const tokenValidation = validateMcpTokenConfiguration(effectiveConfig);
+  if (tokenValidation.status === 'error') {
+    logger.error(tokenValidation.message);
+    process.exit(1);
+    throw new Error(tokenValidation.message);
+  }
+
+  if (tokenValidation.status === 'warn') {
+    logger.warn(tokenValidation.message);
+  }
 
   try {
     const mcpTcpPort = effectiveConfig.mcp.tcpPort;
@@ -610,7 +656,20 @@ async function runFromCommandLine(argv: NodeJS.Process['argv']): Promise<void> {
 
   if (options.checkConfig) {
     try {
-      getConfig();
+      const config = getConfig();
+      const effectiveConfig = applyBootstrapOverrides(config, {});
+      const validation = validateMcpTokenConfiguration(effectiveConfig);
+      if (validation.status === 'error') {
+        console.error('Configuration invalide :');
+        console.error(validation.message);
+        process.exit(1);
+        return;
+      }
+
+      if (validation.status === 'warn') {
+        console.warn(validation.message);
+      }
+
       console.log('Configuration valide.');
       process.exit(0);
     } catch (error) {
@@ -641,4 +700,10 @@ if (require.main === module) {
   });
 }
 
-export { bootstrap, ToolRegistry, parseCliArguments, applyBootstrapOverrides };
+export {
+  bootstrap,
+  ToolRegistry,
+  parseCliArguments,
+  applyBootstrapOverrides,
+  validateMcpTokenConfiguration
+};
