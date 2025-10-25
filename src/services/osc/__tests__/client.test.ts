@@ -210,6 +210,48 @@ describe('OscClient', () => {
     ]);
   });
 
+  it("demarre le timeout du handshake uniquement une fois l'envoi effectue", async () => {
+    jest.useFakeTimers();
+    const service = new FakeOscService();
+    service.delayMs = 40;
+    const client = new OscClient(service);
+
+    const connectPromise = client.connect({ preferredProtocols: ['tcp'], handshakeTimeoutMs: 50 });
+
+    queueMicrotask(() => {
+      setTimeout(() => {
+        service.emit({
+          address: '/eos/handshake/reply',
+          args: [
+            {
+              type: 's',
+              value: JSON.stringify({ version: '3.2.0', protocols: ['tcp'] })
+            }
+          ]
+        });
+
+        queueMicrotask(() => {
+          service.emit({
+            address: '/eos/protocol/select/reply',
+            args: [{ type: 's', value: 'ok' }]
+          });
+        });
+      }, 45);
+    });
+
+    await jest.advanceTimersByTimeAsync(45);
+    await Promise.resolve();
+    await Promise.resolve();
+    await jest.advanceTimersByTimeAsync(50);
+
+    const result = await connectPromise;
+
+    expect(result.status).toBe('ok');
+    expect(result.version).toBe('3.2.0');
+    expect(result.selectedProtocol).toBe('tcp');
+    expect(result.protocolStatus).toBe('ok');
+  });
+
   it("retourne un statut timeout lorsque la console ne repond pas au handshake", async () => {
     jest.useFakeTimers();
     const service = new FakeOscService();
@@ -217,7 +259,7 @@ describe('OscClient', () => {
 
     const promise = client.connect({ handshakeTimeoutMs: 10 });
 
-    jest.advanceTimersByTime(11);
+    await jest.advanceTimersByTimeAsync(11);
 
     await expect(promise).resolves.toMatchObject<Partial<ConnectResult>>({
       status: 'timeout',

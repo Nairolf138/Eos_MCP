@@ -748,7 +748,8 @@ export class OscClient {
       timeout,
       'Aucune reponse de handshake recue avant expiration',
       'le handshake OSC',
-      { address: HANDSHAKE_REPLY }
+      { address: HANDSHAKE_REPLY },
+      { autoStartTimer: false }
     );
 
     try {
@@ -764,6 +765,7 @@ export class OscClient {
           details: { address: HANDSHAKE_REQUEST }
         }
       );
+      awaiter.startTimer();
     } catch (error) {
       awaiter.cancel();
       throw error;
@@ -1077,9 +1079,11 @@ export class OscClient {
     timeoutMs: number,
     timeoutMessage: string,
     operation: string,
-    metadata: Record<string, unknown> = {}
-  ): { promise: Promise<T>; cancel: () => void } {
+    metadata: Record<string, unknown> = {},
+    options: { autoStartTimer?: boolean } = {}
+  ): { promise: Promise<T>; cancel: () => void; startTimer: () => void } {
     let cancel = (): void => {};
+    let startTimer = (): void => {};
 
     const promise = new Promise<T>((resolve, reject) => {
       const dispose = this.gateway.onMessage((message: OscMessage) => {
@@ -1090,20 +1094,43 @@ export class OscClient {
         }
       });
 
-      const timer = setTimeout(() => {
-        cleanup();
-        reject(createTimeoutError(operation, timeoutMs, timeoutMessage, { ...metadata, timeoutMessage }));
-      }, timeoutMs);
+      let timer: NodeJS.Timeout | null = null;
+      let timerStarted = false;
+      let completed = false;
 
       const cleanup = (): void => {
-        clearTimeout(timer);
+        if (completed) {
+          return;
+        }
+        completed = true;
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
         dispose();
       };
 
+      startTimer = (): void => {
+        if (timerStarted || completed) {
+          return;
+        }
+        timerStarted = true;
+        timer = setTimeout(() => {
+          cleanup();
+          reject(
+            createTimeoutError(operation, timeoutMs, timeoutMessage, { ...metadata, timeoutMessage })
+          );
+        }, timeoutMs);
+      };
+
       cancel = cleanup;
+
+      if (options.autoStartTimer ?? true) {
+        startTimer();
+      }
     });
 
-    return { promise, cancel };
+    return { promise, cancel, startTimer };
   }
 }
 
