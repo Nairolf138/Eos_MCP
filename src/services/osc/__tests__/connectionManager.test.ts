@@ -61,6 +61,55 @@ describe('OscConnectionManager', () => {
     return Buffer.concat([lengthPrefix, payload]);
   };
 
+  it('frames TCP payloads with a length prefix before sending', async () => {
+    let createdTcpSocket: MockTcpSocket | null = null;
+    const createTcpSocket = jest.fn(() => {
+      const socket = new MockTcpSocket();
+      createdTcpSocket = socket;
+      queueMicrotask(() => socket.emit('connect'));
+      return socket as unknown as TcpSocket;
+    });
+
+    const createUdpSocket = jest.fn(() => new MockUdpSocket() as unknown as UdpSocket);
+
+    const manager = new OscConnectionManager({
+      host: '127.0.0.1',
+      tcpPort: 9000,
+      udpPort: 9001,
+      heartbeatIntervalMs: 10_000,
+      connectionTimeoutMs: 1_000,
+      createTcpSocket,
+      createUdpSocket,
+      logger: {}
+    });
+
+    await Promise.resolve();
+
+    const socket = createdTcpSocket;
+    if (!socket) {
+      throw new Error('TCP socket not created');
+    }
+
+    socket.write.mockClear();
+
+    const payload = Buffer.from('hello world');
+    const transportUsed = manager.send('tool-123', payload);
+
+    expect(transportUsed).toBe('tcp');
+    expect(socket.write).toHaveBeenCalledTimes(1);
+
+    const [framedBuffer] = socket.write.mock.calls[0];
+    if (!Buffer.isBuffer(framedBuffer)) {
+      throw new Error('Expected framed buffer to be a Buffer instance');
+    }
+
+    expect(framedBuffer.length).toBe(payload.length + 4);
+    expect(framedBuffer.readUInt32BE(0)).toBe(payload.length);
+    expect(framedBuffer.subarray(4)).toEqual(payload);
+
+    manager.stop();
+  });
+
   it('applies exponential backoff when scheduling reconnections', () => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date('2024-01-01T00:00:00.000Z'));
