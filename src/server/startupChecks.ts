@@ -46,6 +46,7 @@ export async function assertUdpPortAvailable(port: number, host = '0.0.0.0'): Pr
     const cleanup = () => {
       socket.removeAllListeners('error');
       socket.removeAllListeners('listening');
+      socket.removeAllListeners('close');
     };
 
     socket.once('error', (error) => {
@@ -55,14 +56,12 @@ export async function assertUdpPortAvailable(port: number, host = '0.0.0.0'): Pr
     });
 
     socket.once('listening', () => {
-      cleanup();
-      socket.close((error) => {
-        if (error) {
-          reject(createPortInUseError(port, 'UDP', error));
-        } else {
-          resolve();
-        }
+      socket.once('close', () => {
+        cleanup();
+        resolve();
       });
+
+      socket.close();
     });
 
     socket.bind({ port, address: host, exclusive: true });
