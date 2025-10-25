@@ -9,6 +9,15 @@ import {
 } from '../index';
 import { isObjectContent, runTool } from '../../__tests__/helpers/runTool';
 
+function formatPattern(pattern: string, values: Record<string, string | number>): string {
+  return pattern.replace(/\{(\w+)\}/g, (match, key) => {
+    if (!(key in values)) {
+      throw new Error(`Missing value for ${match}`);
+    }
+    return String(values[key]);
+  });
+}
+
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
 
@@ -51,10 +60,16 @@ describe('direct select tools', () => {
 
     expect(service.sentMessages).toHaveLength(1);
     const message = service.sentMessages[0];
-    expect(message.address).toBe(oscMappings.directSelects.bankCreate);
-
-    const payload = JSON.parse(String(message.args?.[0]?.value));
-    expect(payload).toEqual({ bank: 2, target: 'Group', buttons: 40, flexi: true, page: 3 });
+    expect(message.address).toBe(
+      formatPattern(oscMappings.directSelects.bankCreate, {
+        index: 2,
+        target: 'Group',
+        buttons: 40,
+        flexi: 1,
+        page: 3
+      })
+    );
+    expect(message.args ?? []).toEqual([]);
 
     service.sentMessages.length = 0;
 
@@ -62,7 +77,13 @@ describe('direct select tools', () => {
 
     expect(service.sentMessages).toHaveLength(1);
     const pressMessage = service.sentMessages[0];
-    expect(pressMessage.address).toBe(`${oscMappings.directSelects.base}/2/3/5`);
+    expect(pressMessage.address).toBe(
+      formatPattern(oscMappings.directSelects.base, {
+        index: 2,
+        page: 3,
+        button: 5
+      })
+    );
     expect(pressMessage.args?.[0]).toMatchObject({ type: 'f', value: 1 });
   });
 
@@ -80,9 +101,13 @@ describe('direct select tools', () => {
     const nextPageResult = await runTool(eosDirectSelectPageTool, { bank_index: 4, delta: 2 });
     expect(service.sentMessages).toHaveLength(1);
     const forwardMessage = service.sentMessages[0];
-    expect(forwardMessage.address).toBe(oscMappings.directSelects.bankPage);
-    const forwardPayload = JSON.parse(String(forwardMessage.args?.[0]?.value));
-    expect(forwardPayload).toEqual({ bank: 4, delta: 2 });
+    expect(forwardMessage.address).toBe(
+      formatPattern(oscMappings.directSelects.bankPage, {
+        index: 4,
+        delta: 2
+      })
+    );
+    expect(forwardMessage.args ?? []).toEqual([]);
 
     const forwardData = nextPageResult.content.find(isObjectContent);
     expect(forwardData).toBeDefined();
@@ -96,9 +121,13 @@ describe('direct select tools', () => {
     const backResult = await runTool(eosDirectSelectPageTool, { bank_index: 4, delta: -5 });
     expect(service.sentMessages).toHaveLength(1);
     const backMessage = service.sentMessages[0];
-    expect(backMessage.address).toBe(oscMappings.directSelects.bankPage);
-    const backPayload = JSON.parse(String(backMessage.args?.[0]?.value));
-    expect(backPayload).toEqual({ bank: 4, delta: -5 });
+    expect(backMessage.address).toBe(
+      formatPattern(oscMappings.directSelects.bankPage, {
+        index: 4,
+        delta: -5
+      })
+    );
+    expect(backMessage.args ?? []).toEqual([]);
 
     const backData = backResult.content.find(isObjectContent);
     expect(backData).toBeDefined();
@@ -111,7 +140,13 @@ describe('direct select tools', () => {
 
     await runTool(eosDirectSelectPressTool, { bank_index: 4, button_index: 1, state: 0 });
     expect(service.sentMessages).toHaveLength(1);
-    expect(service.sentMessages[0].address).toBe(`${oscMappings.directSelects.base}/4/0/1`);
+    expect(service.sentMessages[0].address).toBe(
+      formatPattern(oscMappings.directSelects.base, {
+        index: 4,
+        page: 0,
+        button: 1
+      })
+    );
   });
 
   it('supporte plusieurs types de cibles', async () => {
@@ -132,9 +167,16 @@ describe('direct select tools', () => {
 
       expect(service.sentMessages).toHaveLength(1);
       const message = service.sentMessages[0];
-      expect(message.address).toBe(oscMappings.directSelects.bankCreate);
-      const payload = JSON.parse(String(message.args?.[0]?.value));
-      expect(payload.target).toBe(combo.expected);
+      expect(message.address).toBe(
+        formatPattern(oscMappings.directSelects.bankCreate, {
+          index: 10 + index,
+          target: combo.expected,
+          buttons: 8,
+          flexi: 0,
+          page: 0
+        })
+      );
+      expect(message.args ?? []).toEqual([]);
     }
   });
 

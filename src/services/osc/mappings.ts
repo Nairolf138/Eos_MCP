@@ -79,9 +79,9 @@ export const oscMappings = {
     bankPage: '/eos/fader/{index}/page/{delta}'
   },
   directSelects: {
-    base: '/eos/direct_select/bank',
-    bankCreate: '/eos/direct_select/bank/create',
-    bankPage: '/eos/direct_select/bank/page'
+    base: '/eos/ds/{index}/button/{page}/{button}',
+    bankCreate: '/eos/ds/{index}/config/{target}/{buttons}/{flexi}/{page}',
+    bankPage: '/eos/ds/{index}/page/{delta}'
   },
   pixelMaps: {
     select: '/eos/pixmap/select',
