@@ -312,14 +312,16 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
   const effectiveConfig = applyBootstrapOverrides(config, options);
 
   const tokenValidation = validateMcpTokenConfiguration(effectiveConfig);
-  if (tokenValidation.status === 'error') {
-    logger.error(tokenValidation.message);
-    process.exit(1);
-    throw new Error(tokenValidation.message);
-  }
+  if (tokenValidation.status !== 'ok') {
+    const { message } = tokenValidation;
 
-  if (tokenValidation.status === 'warn') {
-    logger.warn(tokenValidation.message);
+    if (tokenValidation.status === 'error') {
+      logger.error(message);
+      process.exit(1);
+      throw new Error(message);
+    }
+
+    logger.warn(message);
   }
 
   try {
