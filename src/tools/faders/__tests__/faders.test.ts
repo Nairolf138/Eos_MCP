@@ -47,13 +47,8 @@ describe('fader tools', () => {
 
     expect(service.sentMessages).toHaveLength(1);
     const message = service.sentMessages[0];
-    expect(message).toMatchObject({ address: oscMappings.faders.bankCreate });
-
-    const payloadArg = message.args?.[0];
-    expect(payloadArg).toMatchObject({ type: 's' });
-
-    const payload = JSON.parse(String(payloadArg?.value));
-    expect(payload).toEqual({ bank: 2, faders: 12, page: 3 });
+    expect(message.address).toBe(`${oscMappings.faders.base}/2/config/12/3`);
+    expect(message.args).toBeUndefined();
   });
 
   it('normalise les niveaux et respecte la page courante', async () => {
@@ -99,10 +94,8 @@ describe('fader tools', () => {
 
     expect(service.sentMessages).toHaveLength(1);
     const message = service.sentMessages[0];
-    expect(message.address).toBe(oscMappings.faders.bankPage);
-
-    const payload = JSON.parse(String(message.args?.[0]?.value));
-    expect(payload).toEqual({ bank: 7, delta: 1 });
+    expect(message.address).toBe(`${oscMappings.faders.base}/7/page/1`);
+    expect(message.args).toBeUndefined();
 
     const objectContent = result.content.find(isObjectContent);
     expect(objectContent).toBeDefined();

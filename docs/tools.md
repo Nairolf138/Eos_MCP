@@ -980,7 +980,8 @@ _Pas de mapping OSC documenté._
 <a id="eos-fader-bank-create"></a>
 ## Creation de bank de faders (`eos_fader_bank_create`)
 
-**Description :** Cree un bank de faders OSC avec pagination optionnelle.
+**Description :** Cree un bank de faders OSC avec pagination optionnelle. La commande OSC utilise
+`/eos/fader/{bank_index}/config/{fader_count}/{page_number}`.
 
 **Arguments :**
 
@@ -1005,8 +1006,8 @@ npx @modelcontextprotocol/cli call --tool eos_fader_bank_create --args '{"bank_i
 _OSC_
 
 ```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/fader/bank/create s:'{"bank_index":1,"fader_count":1}'
+# Exemple d'envoi OSC via oscsend (page implicite = 0)
+oscsend 127.0.0.1 8001 /eos/fader/1/config/1/0
 ```
 
 <a id="eos-fader-load"></a>
@@ -1043,7 +1044,8 @@ oscsend 127.0.0.1 8001 /eos/fader/{bank}/{page}/{fader}/load s:'{"bank_index":1,
 <a id="eos-fader-page"></a>
 ## Navigation de bank de faders (`eos_fader_page`)
 
-**Description :** Change de page dans le bank en ajoutant le delta specifie.
+**Description :** Change de page dans le bank en ajoutant le delta specifie. La commande OSC utilise
+`/eos/fader/{bank_index}/page/{delta}`.
 
 **Arguments :**
 
@@ -1068,7 +1070,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/fader/bank/page s:'{"bank_index":1,"delta":1}'
+oscsend 127.0.0.1 8001 /eos/fader/1/page/1
 ```
 
 <a id="eos-fader-set-level"></a>

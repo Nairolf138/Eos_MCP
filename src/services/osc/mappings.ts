@@ -75,8 +75,8 @@ export const oscMappings = {
   },
   faders: {
     base: '/eos/fader',
-    bankCreate: '/eos/fader/bank/create',
-    bankPage: '/eos/fader/bank/page'
+    bankCreate: '/eos/fader/{index}/config/{faders}/{page}',
+    bankPage: '/eos/fader/{index}/page/{delta}'
   },
   directSelects: {
     base: '/eos/direct_select/bank',
