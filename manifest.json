@@ -10,7 +10,7 @@
         "server": {
           "transport": {
             "type": "http",
-            "url": ""
+            "url": "http://{HOST}:{PORT}"
           },
           "endpoints": {
             "manifest": "/manifest.json",

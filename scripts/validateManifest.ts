@@ -3,6 +3,8 @@ import path from 'node:path';
 import process from 'node:process';
 import Ajv, { type JSONSchemaType } from 'ajv';
 
+const HTTP_PUBLIC_URL_PLACEHOLDER = 'http://{HOST}:{PORT}';
+
 interface Manifest {
   name: string;
   description: string;
@@ -147,6 +149,42 @@ function ensureToolSchemaLinks(manifest: Manifest): void {
   }
 }
 
+function ensureHttpTransportUrls(manifest: Manifest): void {
+  manifest.mcp.servers.forEach((definition, index) => {
+    const transport = definition.server.transport;
+    if (transport.type !== 'http') {
+      return;
+    }
+
+    const rawUrl = transport.url;
+    if (typeof rawUrl !== 'string' || rawUrl.trim().length === 0) {
+      throw new Error(
+        `Le transport HTTP du serveur MCP #${index + 1} doit définir une URL absolue ou le placeholder ${HTTP_PUBLIC_URL_PLACEHOLDER}.`
+      );
+    }
+
+    if (rawUrl === HTTP_PUBLIC_URL_PLACEHOLDER) {
+      return;
+    }
+
+    try {
+      const parsed = new URL(rawUrl);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        throw new Error(
+          `Le transport HTTP du serveur MCP #${index + 1} doit utiliser le schéma http ou https (valeur actuelle: ${rawUrl}).`
+        );
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith('Le transport HTTP')) {
+        throw error;
+      }
+      throw new Error(
+        `Le transport HTTP du serveur MCP #${index + 1} doit être une URL absolue valide (valeur actuelle: ${rawUrl}).`
+      );
+    }
+  });
+}
+
 async function main(): Promise<void> {
   const manifestPath = path.resolve(process.cwd(), 'manifest.json');
   const raw = await fs.readFile(manifestPath, 'utf-8');
@@ -168,6 +206,7 @@ async function main(): Promise<void> {
   }
 
   ensureToolSchemaLinks(manifest);
+  ensureHttpTransportUrls(manifest);
   console.log('Manifest valide ✅');
 }
 

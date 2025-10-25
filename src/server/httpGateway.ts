@@ -80,6 +80,7 @@ interface InvokeErrorResponse {
 
 const logger = createLogger('http-gateway');
 const manifestPath = path.resolve(process.cwd(), 'manifest.json');
+const HTTP_PUBLIC_URL_PLACEHOLDER = 'http://{HOST}:{PORT}';
 
 interface ManifestTransport {
   type?: string;
@@ -210,7 +211,7 @@ class HttpGateway {
                 ? { ...transport }
                 : {
                     ...transport,
-                    url: normalizedPublicUrl
+                    url: this.resolveTransportUrl(transport.url, normalizedPublicUrl)
                   }
               : undefined;
 
@@ -281,6 +282,47 @@ class HttpGateway {
     }
 
     return manifest;
+  }
+
+  private resolveTransportUrl(rawUrl: unknown, fallbackUrl: string): string {
+    if (typeof rawUrl !== 'string') {
+      return fallbackUrl;
+    }
+
+    const trimmed = rawUrl.trim();
+    if (trimmed.length === 0) {
+      return fallbackUrl;
+    }
+
+    if (this.isTransportPlaceholder(trimmed)) {
+      return fallbackUrl;
+    }
+
+    const normalized = this.normalizeHttpUrl(trimmed);
+    if (!normalized) {
+      return fallbackUrl;
+    }
+
+    return normalized;
+  }
+
+  private isTransportPlaceholder(url: string): boolean {
+    return url === HTTP_PUBLIC_URL_PLACEHOLDER;
+  }
+
+  private normalizeHttpUrl(rawUrl: string): string | undefined {
+    try {
+      const parsed = new URL(rawUrl);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        return undefined;
+      }
+
+      const sanitizedPath = parsed.pathname.replace(/\/+$/, '');
+      const normalizedPath = sanitizedPath.length > 0 ? `${sanitizedPath}/` : '/';
+      return `${parsed.origin}${normalizedPath}${parsed.search}${parsed.hash}`;
+    } catch (_error) {
+      return undefined;
+    }
   }
 
   private resolvePublicUrl(req: Request): string {

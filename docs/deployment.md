@@ -10,6 +10,7 @@ Ce guide explique comment executer Eos MCP en tant que service durable sous Linu
    npm run package
    ```
 2. Le binaire autonome est produit dans `dist/bin/eos-mcp`. Copiez-le sur la machine cible avec votre fichier `.env` et le dossier `logs/` si vous souhaitez reutiliser la meme arborescence.
+3. Ajustez l'URL publique exposee par la passerelle HTTP si necessaire : le manifest contient le placeholder `http://{HOST}:{PORT}` et le serveur le remplace automatiquement. Pour une adresse statique (reverse proxy, tunnel), declarez `MCP_HTTP_PUBLIC_URL=https://mcp.example.com` dans votre fichier `.env` afin que le manifest distribue l'URL correcte.
 
 ## Linux (systemd)
 
