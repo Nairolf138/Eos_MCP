@@ -217,6 +217,10 @@ describe('OscClient', () => {
         args: [
           {
             type: 's',
+            value: 'ETCOSC!'
+          },
+          {
+            type: 's',
             value: JSON.stringify({ version: '3.2.0', protocols: ['udp', 'tcp'] })
           }
         ]
@@ -247,6 +251,63 @@ describe('OscClient', () => {
     ]);
   });
 
+  it('interprete les reponses canoniques du handshake et normalise les protocoles', async () => {
+    const service = new FakeOscService();
+    const client = new OscClient(service);
+
+    const connectPromise = client.connect({ preferredProtocols: ['udp'] });
+
+    queueMicrotask(() => {
+      service.emit({
+        address: '/eos/handshake/reply',
+        args: [
+          { type: 's', value: 'ETCOSC!' },
+          { type: 's', value: '3.2.0' },
+          { type: 's', value: 'proto:udp' },
+          { type: 's', value: 'tcp' }
+        ]
+      });
+
+      setTimeout(() => {
+        service.emit({
+          address: '/eos/protocol/select/reply',
+          args: [{ type: 's', value: 'ok' }]
+        });
+      }, 0);
+    });
+
+    const result = await connectPromise;
+
+    expect(result.status).toBe('ok');
+    expect(result.version).toBe('3.2.0');
+    expect(result.availableProtocols).toEqual(['udp', 'tcp']);
+    expect(result.selectedProtocol).toBe('udp');
+    expect(result.protocolStatus).toBe('ok');
+  });
+
+  it('signale une erreur lorsque la sentinelle de handshake est absente', async () => {
+    const service = new FakeOscService();
+    const client = new OscClient(service);
+
+    const connectPromise = client.connect();
+
+    queueMicrotask(() => {
+      service.emit({
+        address: '/eos/handshake/reply',
+        args: [{ type: 's', value: 'INVALID' }]
+      });
+    });
+
+    await expect(connectPromise).resolves.toMatchObject<Partial<ConnectResult>>({
+      status: 'error',
+      availableProtocols: [],
+      version: null,
+      protocolStatus: 'skipped',
+      selectedProtocol: null,
+      error: expect.stringContaining('sentinelle')
+    });
+  });
+
   it("demarre le timeout du handshake uniquement une fois l'envoi effectue", async () => {
     jest.useFakeTimers();
     const service = new FakeOscService();
@@ -260,6 +321,10 @@ describe('OscClient', () => {
         service.emit({
           address: '/eos/handshake/reply',
           args: [
+            {
+              type: 's',
+              value: 'ETCOSC!'
+            },
             {
               type: 's',
               value: JSON.stringify({ version: '3.2.0', protocols: ['tcp'] })
@@ -331,6 +396,10 @@ describe('OscClient', () => {
     service.emit({
       address: '/eos/handshake/reply',
       args: [
+        {
+          type: 's',
+          value: 'ETCOSC!'
+        },
         {
           type: 's',
           value: JSON.stringify({ version: '3.2.0', protocols: ['udp'] })
@@ -509,6 +578,10 @@ describe('OscClient', () => {
         {
           address: '/eos/handshake/reply',
           args: [
+            {
+              type: 's',
+              value: 'ETCOSC!'
+            },
             {
               type: 's',
               value: JSON.stringify({ version: '3.2.0', protocols: ['tcp', 'udp'] })
