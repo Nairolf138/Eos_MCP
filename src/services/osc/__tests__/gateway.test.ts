@@ -21,57 +21,53 @@ const instances: Array<{
   emitStatus: (status: TransportStatus) => void;
 }> = [];
 
-jest.mock('../connectionManager.js', () => {
-  const { EventEmitter } = require('node:events');
+jest.mock('../connectionManager.js', () => ({
+  OscConnectionManager: class extends EventEmitter {
+    public transportSequence: TransportType[] = [];
 
-  return {
-    OscConnectionManager: class extends EventEmitter {
-      public transportSequence: TransportType[] = [];
+    public readonly toolPreferences = new Map<string, string>();
 
-      public readonly toolPreferences = new Map<string, string>();
+    public readonly sendCalls: SendCall[] = [];
 
-      public readonly sendCalls: SendCall[] = [];
+    public stopped = false;
 
-      public stopped = false;
-
-      public constructor(options: Record<string, unknown>) {
-        super();
-        Object.assign(this, { options });
-        instances.push(this);
-      }
-
-      public send(toolId: string, payload: Buffer): TransportType {
-        const transport = this.transportSequence.shift() ?? 'udp';
-        this.sendCalls.push({ toolId, transport, payload: Buffer.from(payload) });
-        return transport as TransportType;
-      }
-
-      public stop(): void {
-        this.stopped = true;
-      }
-
-      public setToolPreference(toolId: string, preference: string): void {
-        this.toolPreferences.set(toolId, preference);
-      }
-
-      public getToolPreference(toolId: string): string {
-        return this.toolPreferences.get(toolId) ?? 'auto';
-      }
-
-      public removeTool(toolId: string): void {
-        this.toolPreferences.delete(toolId);
-      }
-
-      public emitMessage(type: TransportType, data: Buffer): void {
-        this.emit('message', { type, data });
-      }
-
-      public emitStatus(status: TransportStatus): void {
-        this.emit('status', status);
-      }
+    public constructor(options: Record<string, unknown>) {
+      super();
+      Object.assign(this, { options });
+      instances.push(this);
     }
-  };
-});
+
+    public send(toolId: string, payload: Buffer): TransportType {
+      const transport = this.transportSequence.shift() ?? 'udp';
+      this.sendCalls.push({ toolId, transport, payload: Buffer.from(payload) });
+      return transport as TransportType;
+    }
+
+    public stop(): void {
+      this.stopped = true;
+    }
+
+    public setToolPreference(toolId: string, preference: string): void {
+      this.toolPreferences.set(toolId, preference);
+    }
+
+    public getToolPreference(toolId: string): string {
+      return this.toolPreferences.get(toolId) ?? 'auto';
+    }
+
+    public removeTool(toolId: string): void {
+      this.toolPreferences.delete(toolId);
+    }
+
+    public emitMessage(type: TransportType, data: Buffer): void {
+      this.emit('message', { type, data });
+    }
+
+    public emitStatus(status: TransportStatus): void {
+      this.emit('status', status);
+    }
+  }
+}));
 
 describe('OscConnectionGateway', () => {
   beforeEach(() => {
