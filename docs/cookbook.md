@@ -102,7 +102,7 @@ Réaliser un « fade » rapide ou un ajustement ponctuel de niveau depuis un a
 ### Commande OSC commentée
 ```bash
 # Mise à 65 % des canaux 101 et 102
-oscsend 127.0.0.1 8001 /eos/channel/level s:'{"channels":[101,102],"level":65}'
+oscsend 127.0.0.1 8001 /eos/cmd s:"Chan 101 Thru 102 Sneak 65 Enter"
 ```
 
 ### Astuces d'intégration
