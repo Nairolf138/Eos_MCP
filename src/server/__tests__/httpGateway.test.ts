@@ -101,6 +101,31 @@ describe('HttpGateway integration', () => {
     });
   });
 
+  test('expose manifest with resolved HTTP transport URL', async () => {
+    const response = await fetch(`${baseUrl}/manifest.json`, {
+      headers: {
+        'content-type': 'application/json'
+      }
+    });
+
+    expect(response.status).toBe(200);
+    const manifest = (await response.json()) as {
+      mcp?: {
+        servers?: Array<{
+          server?: { transport?: { url?: string; type?: string } };
+        }>;
+      };
+    };
+    const transport = manifest.mcp?.servers?.[0]?.server?.transport;
+    expect(transport).toBeDefined();
+    if (!transport) {
+      throw new Error('HTTP transport missing from manifest');
+    }
+    expect(transport.type).toBe('http');
+    expect(transport.url).toBe(baseUrl);
+    expect(transport.url).not.toContain('{{SERVER_URL}}');
+  });
+
   test('reports health status via HTTP GET', async () => {
     const response = await fetch(`${baseUrl}/health`, {
       headers: {
@@ -258,7 +283,8 @@ describe('HttpGateway integration', () => {
     expect(servers).not.toHaveLength(0);
     const [httpServer] = servers;
     expect(httpServer?.server?.transport?.type).toBe('http');
-    expect(httpServer?.server?.transport?.url).toBe('{{SERVER_URL}}');
+    expect(httpServer?.server?.transport?.url).toBe(baseUrl);
+    expect(httpServer?.server?.transport?.url).not.toContain('{{SERVER_URL}}');
     const endpoints = httpServer?.server?.endpoints ?? {};
     expect(endpoints.manifest).toBe('/manifest.json');
     expect(endpoints.health).toBe('/health');
