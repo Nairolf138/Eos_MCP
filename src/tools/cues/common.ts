@@ -165,3 +165,12 @@ export function createCueCommandResult(
     ]
   } as ToolExecutionResult;
 }
+
+export function resolveOscAddress(template: string, params: Record<string, number | string>): string {
+  return template.replace(/\{(\w+)\}/g, (_, key: string) => {
+    if (!(key in params)) {
+      throw new Error(`Valeur manquante pour le parametre OSC "${key}".`);
+    }
+    return String(params[key]);
+  });
+}

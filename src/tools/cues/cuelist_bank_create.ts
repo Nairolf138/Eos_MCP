@@ -1,14 +1,14 @@
 import { z, type ZodRawShape } from 'zod';
 import { getOscClient } from '../../services/osc/client';
 import { oscMappings } from '../../services/osc/mappings';
+import type { OscMessageArgument } from '../../services/osc/index';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 import {
-  buildCueCommandPayload,
-  buildJsonArgs,
   createCueIdentifierFromOptions,
   cuelistNumberSchema,
   extractTargetOptions,
   formatCueDescription,
+  resolveOscAddress,
   targetOptionsSchema
 } from './common';
 
@@ -38,7 +38,7 @@ export const eosCuelistBankCreateTool: ToolDefinition<typeof bankCreateInputSche
     inputSchema: bankCreateInputSchema,
     annotations: {
       mapping: {
-        osc: oscMappings.cues.bankCreate
+        osc: oscMappings.cues.bankCreate.list
       }
     }
   },
@@ -47,22 +47,36 @@ export const eosCuelistBankCreateTool: ToolDefinition<typeof bankCreateInputSche
     const options = schema.parse(args ?? {});
     const client = getOscClient();
     const identifier = createCueIdentifierFromOptions(options);
-    const payload = {
-      ...buildCueCommandPayload({
-        cuelistNumber: identifier.cuelistNumber,
-        cueNumber: null,
-        cuePart: null
-      }),
-      bank: options.bank_index,
-      previous: options.num_prev_cues,
-      pending: options.num_pending_cues
-    } as Record<string, unknown>;
+    const bankIndex = options.bank_index;
+    const target = extractTargetOptions(options);
+
+    const configTemplates = oscMappings.cues.bankCreate;
+
+    const messages: Array<{ address: string; args: OscMessageArgument[] }> = [
+      {
+        address: resolveOscAddress(configTemplates.list, { index: bankIndex }),
+        args: buildIntArgs(options.cuelist_number)
+      },
+      {
+        address: resolveOscAddress(configTemplates.previous, { index: bankIndex }),
+        args: buildIntArgs(options.num_prev_cues)
+      },
+      {
+        address: resolveOscAddress(configTemplates.pending, { index: bankIndex }),
+        args: buildIntArgs(options.num_pending_cues)
+      }
+    ];
 
     if (typeof options.offset === 'number') {
-      payload.offset = Math.trunc(options.offset);
+      messages.push({
+        address: resolveOscAddress(configTemplates.offset, { index: bankIndex }),
+        args: buildIntArgs(options.offset)
+      });
     }
 
-    await client.sendMessage(oscMappings.cues.bankCreate, buildJsonArgs(payload), extractTargetOptions(options));
+    for (const message of messages) {
+      await client.sendMessage(message.address, message.args, target);
+    }
 
     const text = `Bank ${options.bank_index} assigne a ${formatCueDescription({
       ...identifier,
@@ -77,10 +91,15 @@ export const eosCuelistBankCreateTool: ToolDefinition<typeof bankCreateInputSche
           type: 'object',
           data: {
             action: 'cuelist_bank_create',
-            request: payload,
+            request: {
+              bank: bankIndex,
+              cuelist: identifier.cuelistNumber,
+              previous: options.num_prev_cues,
+              pending: options.num_pending_cues,
+              ...(typeof options.offset === 'number' ? { offset: options.offset } : {})
+            },
             osc: {
-              address: oscMappings.cues.bankCreate,
-              args: payload
+              messages
             }
           }
         }
@@ -92,3 +111,12 @@ export const eosCuelistBankCreateTool: ToolDefinition<typeof bankCreateInputSche
 };
 
 export default eosCuelistBankCreateTool;
+
+function buildIntArgs(value: number): OscMessageArgument[] {
+  return [
+    {
+      type: 'i',
+      value: Math.trunc(value)
+    }
+  ];
+}

@@ -4,6 +4,8 @@ import { oscMappings } from '../../../services/osc/mappings';
 import {
   eosCueGoTool,
   eosCueStopBackTool,
+  eosCuelistBankCreateTool,
+  eosCuelistBankPageTool,
   eosGetActiveCueTool
 } from '../index';
 import { isObjectContent, runTool } from '../../__tests__/helpers/runTool';
@@ -55,8 +57,7 @@ describe('cue tools', () => {
 
     const stopMessage = service.sentMessages[1];
     expect(stopMessage.address).toBe(oscMappings.cues.stopBack);
-    const stopPayload = JSON.parse(String(stopMessage?.args?.[0]?.value ?? '{}'));
-    expect(stopPayload).toMatchObject({ cuelist: 5, back: true });
+    expect(stopMessage.args?.[0]).toMatchObject({ type: 's', value: 'Cue 5 Back#' });
   });
 
   it('normalise les donnees renvoyees par get_active_cue', async () => {
@@ -142,6 +143,70 @@ describe('cue tools', () => {
         durationSeconds: 45,
         progressPercent: 50,
         remainingSeconds: 30
+      }
+    });
+  });
+
+  it('configure un bank de cuelist via des chemins parametres', async () => {
+    const result = await runTool(eosCuelistBankCreateTool, {
+      bank_index: 2,
+      cuelist_number: 7,
+      num_prev_cues: 3,
+      num_pending_cues: 4,
+      offset: 5
+    });
+
+    expect(service.sentMessages).toHaveLength(4);
+    const addresses = service.sentMessages.map((message) => message.address);
+    expect(addresses).toEqual([
+      '/eos/cuelist/2/config/list',
+      '/eos/cuelist/2/config/previous',
+      '/eos/cuelist/2/config/pending',
+      '/eos/cuelist/2/config/offset'
+    ]);
+
+    expect(service.sentMessages[0]?.args).toEqual([{ type: 'i', value: 7 }]);
+    expect(service.sentMessages[1]?.args).toEqual([{ type: 'i', value: 3 }]);
+    expect(service.sentMessages[2]?.args).toEqual([{ type: 'i', value: 4 }]);
+    expect(service.sentMessages[3]?.args).toEqual([{ type: 'i', value: 5 }]);
+
+    const objectContent = result.content.find(isObjectContent);
+    expect(objectContent).toBeDefined();
+    if (!objectContent) {
+      throw new Error('Expected object content');
+    }
+
+    expect(objectContent.data).toMatchObject({
+      action: 'cuelist_bank_create',
+      osc: {
+        messages: [
+          { address: '/eos/cuelist/2/config/list' },
+          { address: '/eos/cuelist/2/config/previous' },
+          { address: '/eos/cuelist/2/config/pending' },
+          { address: '/eos/cuelist/2/config/offset' }
+        ]
+      }
+    });
+  });
+
+  it('navigue dans un bank de cuelist avec un delta signe', async () => {
+    const result = await runTool(eosCuelistBankPageTool, { bank_index: 3, delta: -2 });
+
+    expect(service.sentMessages).toHaveLength(1);
+    const message = service.sentMessages[0];
+    expect(message.address).toBe('/eos/cuelist/3/page/-2');
+    expect(message.args ?? []).toEqual([]);
+
+    const objectContent = result.content.find(isObjectContent);
+    expect(objectContent).toBeDefined();
+    if (!objectContent) {
+      throw new Error('Expected object content');
+    }
+
+    expect(objectContent.data).toMatchObject({
+      action: 'cuelist_bank_page',
+      osc: {
+        address: '/eos/cuelist/3/page/-2'
       }
     });
   });

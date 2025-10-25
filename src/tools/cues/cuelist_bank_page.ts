@@ -2,7 +2,7 @@ import { z, type ZodRawShape } from 'zod';
 import { getOscClient } from '../../services/osc/client';
 import { oscMappings } from '../../services/osc/mappings';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
-import { buildJsonArgs, extractTargetOptions, targetOptionsSchema } from './common';
+import { extractTargetOptions, resolveOscAddress, targetOptionsSchema } from './common';
 
 const bankPageInputSchema = {
   bank_index: z.number().int().min(0),
@@ -35,14 +35,14 @@ export const eosCuelistBankPageTool: ToolDefinition<typeof bankPageInputSchema> 
     const schema = z.object(bankPageInputSchema).strict();
     const options = schema.parse(args ?? {});
     const client = getOscClient();
-    const payload = {
-      bank: options.bank_index,
-      delta: options.delta
-    };
+    const bankIndex = options.bank_index;
+    const delta = Math.trunc(options.delta);
+    const target = extractTargetOptions(options);
+    const address = resolveOscAddress(oscMappings.cues.bankPage, { index: bankIndex, delta });
 
-    await client.sendMessage(oscMappings.cues.bankPage, buildJsonArgs(payload), extractTargetOptions(options));
+    await client.sendMessage(address, [], target);
 
-    const text = `Bank ${options.bank_index}: changement de page (${options.delta >= 0 ? '+' : ''}${options.delta})`;
+    const text = `Bank ${options.bank_index}: changement de page (${delta >= 0 ? '+' : ''}${delta})`;
 
     const result: ToolExecutionResult = {
       content: [
@@ -51,10 +51,13 @@ export const eosCuelistBankPageTool: ToolDefinition<typeof bankPageInputSchema> 
           type: 'object',
           data: {
             action: 'cuelist_bank_page',
-            request: payload,
+            request: {
+              bank: bankIndex,
+              delta
+            },
             osc: {
-              address: oscMappings.cues.bankPage,
-              args: payload
+              address,
+              args: []
             }
           }
         }

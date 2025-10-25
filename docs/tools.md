@@ -639,7 +639,11 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cuelist/bank/create s:'{"bank_index":1,"cuelist_number":1,"num_prev_cues":1,"num_pending_cues":1}'
+oscsend 127.0.0.1 8001 /eos/cuelist/1/config/list i 1
+oscsend 127.0.0.1 8001 /eos/cuelist/1/config/previous i 1
+oscsend 127.0.0.1 8001 /eos/cuelist/1/config/pending i 1
+# Offset optionnel
+oscsend 127.0.0.1 8001 /eos/cuelist/1/config/offset i 0
 ```
 
 <a id="eos-cuelist-bank-page"></a>
@@ -670,7 +674,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cuelist/bank/page s:'{"bank_index":1,"delta":1}'
+oscsend 127.0.0.1 8001 /eos/cuelist/1/page/1
 ```
 
 <a id="eos-cuelist-get-info"></a>
