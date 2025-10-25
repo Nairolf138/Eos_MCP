@@ -3,8 +3,6 @@ import { getOscClient } from '../../services/osc/client';
 import { oscMappings } from '../../services/osc/mappings';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 import {
-  buildCueCommandPayload,
-  buildJsonArgs,
   createCueIdentifierFromOptions,
   cuelistNumberSchema,
   extractTargetOptions,
@@ -38,7 +36,8 @@ export const eosCuelistBankCreateTool: ToolDefinition<typeof bankCreateInputSche
     inputSchema: bankCreateInputSchema,
     annotations: {
       mapping: {
-        osc: oscMappings.cues.bankCreate
+        osc: oscMappings.cues.bankCreate,
+        args: []
       }
     }
   },
@@ -47,28 +46,47 @@ export const eosCuelistBankCreateTool: ToolDefinition<typeof bankCreateInputSche
     const options = schema.parse(args ?? {});
     const client = getOscClient();
     const identifier = createCueIdentifierFromOptions(options);
-    const payload = {
-      ...buildCueCommandPayload({
-        cuelistNumber: identifier.cuelistNumber,
-        cueNumber: null,
-        cuePart: null
-      }),
-      bank: options.bank_index,
-      previous: options.num_prev_cues,
-      pending: options.num_pending_cues
-    } as Record<string, unknown>;
 
-    if (typeof options.offset === 'number') {
-      payload.offset = Math.trunc(options.offset);
+    if (identifier.cuelistNumber == null) {
+      throw new Error("Le numero de cuelist est requis pour configurer un bank.");
     }
 
-    await client.sendMessage(oscMappings.cues.bankCreate, buildJsonArgs(payload), extractTargetOptions(options));
+    const segments = [
+      'eos',
+      'cuelist',
+      String(options.bank_index),
+      'config',
+      String(identifier.cuelistNumber),
+      String(options.num_prev_cues),
+      String(options.num_pending_cues)
+    ];
+
+    let offset: number | undefined;
+    if (typeof options.offset === 'number') {
+      offset = Math.trunc(options.offset);
+      segments.push(String(offset));
+    }
+
+    const address = `/${segments.join('/')}`;
+
+    await client.sendMessage(address, [], extractTargetOptions(options));
 
     const text = `Bank ${options.bank_index} assigne a ${formatCueDescription({
       ...identifier,
       cueNumber: null,
       cuePart: null
     })}`;
+
+    const request: Record<string, number> & { offset?: number } = {
+      bankIndex: options.bank_index,
+      cuelistNumber: identifier.cuelistNumber,
+      previousCount: options.num_prev_cues,
+      pendingCount: options.num_pending_cues
+    };
+
+    if (offset != null) {
+      request.offset = offset;
+    }
 
     const result: ToolExecutionResult = {
       content: [
@@ -77,10 +95,10 @@ export const eosCuelistBankCreateTool: ToolDefinition<typeof bankCreateInputSche
           type: 'object',
           data: {
             action: 'cuelist_bank_create',
-            request: payload,
+            request,
             osc: {
-              address: oscMappings.cues.bankCreate,
-              args: payload
+              address,
+              args: [] as const
             }
           }
         }

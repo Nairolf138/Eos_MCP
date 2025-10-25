@@ -4,6 +4,8 @@ import { oscMappings } from '../../../services/osc/mappings';
 import {
   eosCueGoTool,
   eosCueStopBackTool,
+  eosCuelistBankCreateTool,
+  eosCuelistBankPageTool,
   eosGetActiveCueTool
 } from '../index';
 import { isObjectContent, runTool } from '../../__tests__/helpers/runTool';
@@ -148,5 +150,32 @@ describe('cue tools', () => {
         remainingSeconds: 30
       }
     });
+  });
+
+  it('configure un bank de cuelist via un chemin parametre', async () => {
+    await runTool(eosCuelistBankCreateTool, {
+      bank_index: 3,
+      cuelist_number: 99,
+      num_prev_cues: 2,
+      num_pending_cues: 4,
+      offset: 7
+    });
+
+    expect(service.sentMessages).toHaveLength(1);
+    const message = service.sentMessages[0];
+    expect(message.address).toBe('/eos/cuelist/3/config/99/2/4/7');
+    expect(message.args ?? []).toEqual([]);
+  });
+
+  it('navigue dans un bank de cuelist via un chemin parametre', async () => {
+    await runTool(eosCuelistBankPageTool, {
+      bank_index: 5,
+      delta: -2
+    });
+
+    expect(service.sentMessages).toHaveLength(1);
+    const message = service.sentMessages[0];
+    expect(message.address).toBe('/eos/cuelist/5/page/-2');
+    expect(message.args ?? []).toEqual([]);
   });
 });
