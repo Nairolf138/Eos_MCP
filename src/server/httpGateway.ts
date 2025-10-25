@@ -682,7 +682,6 @@ class HttpGateway {
   }
 
   private createErrorHandler() {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     return (error: unknown, _req: Request, res: Response, _next: NextFunction): void => {
       const err = error instanceof Error ? error : new Error('Erreur inconnue');
       logger.error({ error: err }, "Erreur HTTP lors de l'appel d'un outil");
