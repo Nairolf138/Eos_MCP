@@ -6,7 +6,6 @@ import {
   getResourceCache
 } from '../../services/cache/index';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
-import type { OscMessageArgument } from '../../services/osc/index';
 import { oscMappings } from '../../services/osc/mappings';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 
@@ -110,7 +109,7 @@ interface Augment3dBeamInfo {
   hide_beam: boolean | null;
 }
 
-const patchChannelTextOutputShape = {
+export const patchChannelTextOutputSchema = z.object({
   text1: z.string().nullable(),
   text2: z.string().nullable(),
   text3: z.string().nullable(),
@@ -121,42 +120,42 @@ const patchChannelTextOutputShape = {
   text8: z.string().nullable(),
   text9: z.string().nullable(),
   text10: z.string().nullable()
-} satisfies ZodRawShape;
+});
 
-const patchChannelPartOutputShape = {
+export const patchChannelPartOutputSchema = z.object({
   part_number: partNumberSchema,
   label: z.string().nullable(),
   manufacturer: z.string().nullable(),
   model: z.string().nullable(),
   dmx_address: z.string().nullable(),
   gel: z.string().nullable(),
-  text: z.object(patchChannelTextOutputShape),
+  text: patchChannelTextOutputSchema,
   notes: z.string().nullable()
-} satisfies ZodRawShape;
+});
 
-const patchChannelInfoOutputShape = {
+export const patchChannelInfoOutputSchema = z.object({
   channel_number: channelNumberSchema,
   label: z.string().nullable(),
   part_count: z.number().int().min(0).nullable(),
   notes: z.string().nullable(),
-  parts: z.array(z.object(patchChannelPartOutputShape))
-} satisfies ZodRawShape;
+  parts: z.array(patchChannelPartOutputSchema)
+});
 
-const augment3dVectorOutputShape = {
+export const augment3dVectorOutputSchema = z.object({
   x: z.number().nullable(),
   y: z.number().nullable(),
   z: z.number().nullable()
-} satisfies ZodRawShape;
+});
 
-const augment3dPositionOutputShape = {
+export const augment3dPositionOutputSchema = z.object({
   channel_number: channelNumberSchema,
   part_number: partNumberSchema,
-  position: z.object(augment3dVectorOutputShape),
-  orientation: z.object(augment3dVectorOutputShape),
+  position: augment3dVectorOutputSchema,
+  orientation: augment3dVectorOutputSchema,
   fpe_set: z.number().int().min(0).nullable()
-} satisfies ZodRawShape;
+});
 
-const augment3dBeamOutputShape = {
+export const augment3dBeamOutputSchema = z.object({
   channel_number: channelNumberSchema,
   part_number: partNumberSchema,
   beam_angle: z.number().nullable(),
@@ -165,23 +164,7 @@ const augment3dBeamOutputShape = {
   gobo: z.string().nullable(),
   gobo_rotation: z.number().nullable(),
   hide_beam: z.boolean().nullable()
-} satisfies ZodRawShape;
-
-const patchChannelTextOutputSchema = z.object(patchChannelTextOutputShape);
-const patchChannelPartOutputSchema = z.object(patchChannelPartOutputShape);
-const patchChannelInfoOutputSchema = z.object(patchChannelInfoOutputShape);
-const augment3dVectorOutputSchema = z.object(augment3dVectorOutputShape);
-const augment3dPositionOutputSchema = z.object(augment3dPositionOutputShape);
-const augment3dBeamOutputSchema = z.object(augment3dBeamOutputShape);
-
-function buildJsonArgs(payload: Record<string, unknown>): OscMessageArgument[] {
-  return [
-    {
-      type: 's' as const,
-      value: JSON.stringify(payload)
-    }
-  ];
-}
+});
 
 function annotate(osc: string): Record<string, unknown> {
   return {
@@ -687,7 +670,7 @@ export const eosPatchGetChannelInfoTool: ToolDefinition<typeof channelInfoInputS
     title: 'Informations de patch',
     description: 'Recupere les informations de patch pour un canal donne.',
     inputSchema: channelInfoInputSchema,
-    outputSchema: patchChannelInfoOutputShape,
+    outputSchema: patchChannelInfoOutputSchema.shape,
     annotations: annotate(oscMappings.patch.channelInfo)
   },
   handler: async (args, _extra) => {
@@ -763,7 +746,7 @@ export const eosPatchGetAugment3dPositionTool: ToolDefinition<typeof augment3dIn
     title: 'Position Augment3d',
     description: "Recupere la position Augment3d d'une partie de canal.",
     inputSchema: augment3dInputSchema,
-    outputSchema: augment3dPositionOutputShape,
+    outputSchema: augment3dPositionOutputSchema.shape,
     annotations: annotate(oscMappings.patch.augment3dPosition)
   },
   handler: async (args, _extra) => {
@@ -836,7 +819,7 @@ export const eosPatchGetAugment3dBeamTool: ToolDefinition<typeof augment3dInputS
     title: 'Faisceau Augment3d',
     description: 'Recupere les informations de faisceau Augment3d pour une partie de canal.',
     inputSchema: augment3dInputSchema,
-    outputSchema: augment3dBeamOutputShape,
+    outputSchema: augment3dBeamOutputSchema.shape,
     annotations: annotate(oscMappings.patch.augment3dBeam)
   },
   handler: async (args, _extra) => {
