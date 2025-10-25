@@ -166,7 +166,7 @@ export const oscMappings = {
   cues: {
     fire: '/eos/cue/fire',
     go: '/eos/cue/go',
-    stopBack: '/eos/cmd',
+    stopBackCommand: '/eos/cmd',
     select: '/eos/cue/select',
     info: '/eos/get/cue',
     list: '/eos/get/cuelist',

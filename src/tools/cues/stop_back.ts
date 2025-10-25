@@ -34,7 +34,7 @@ export const eosCueStopBackTool: ToolDefinition<typeof stopBackInputSchema> = {
     inputSchema: stopBackInputSchema,
     annotations: {
       mapping: {
-        osc: oscMappings.cues.stopBack,
+        osc: oscMappings.cues.stopBackCommand,
         commandExample: 'Cue {cuelist_number} Stop#'
       },
       highlighted: true
@@ -52,15 +52,14 @@ export const eosCueStopBackTool: ToolDefinition<typeof stopBackInputSchema> = {
 
     const action = options.back ? 'cue_back' : 'cue_stop';
     const command = `Cue ${listNumber} ${options.back ? 'Back#' : 'Stop#'}`;
-    const commandPayload = { command };
 
     await client.sendCommand(command, extractTargetOptions(options));
 
     return createCueCommandResult(
       action,
       identifier,
-      commandPayload,
-      oscMappings.cues.stopBack,
+      { command },
+      oscMappings.cues.stopBackCommand,
       {
         summary: `${options.back ? 'Back' : 'Stop'} sur ${formatCueDescription(identifier)}`
       },

@@ -54,9 +54,13 @@ describe('cue tools', () => {
     expect(goPayload).toMatchObject({ cuelist: 5 });
 
     const stopMessage = service.sentMessages[1];
-    expect(stopMessage.address).toBe(oscMappings.cues.stopBack);
-    const stopPayload = JSON.parse(String(stopMessage?.args?.[0]?.value ?? '{}'));
-    expect(stopPayload).toMatchObject({ cuelist: 5, back: true });
+    expect(stopMessage.address).toBe(oscMappings.cues.stopBackCommand);
+    expect(stopMessage.args).toEqual([
+      {
+        type: 's',
+        value: 'Cue 5 Back#'
+      }
+    ]);
   });
 
   it('normalise les donnees renvoyees par get_active_cue', async () => {
