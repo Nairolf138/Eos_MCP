@@ -176,7 +176,7 @@ describe('bootstrap OSC handshake', () => {
 
     expect(mockConnect).toHaveBeenCalledWith({
       toolId: 'startup_preflight',
-      handshakeTimeoutMs: 2000,
+      handshakeTimeoutMs: 10000,
       protocolTimeoutMs: 2000
     });
 
