@@ -12,7 +12,7 @@ import {
   OscConnectionStateProvider
 } from '../services/osc/index';
 import { initializeOscClient } from '../services/osc/client';
-import { ErrorCode, describeError, toAppError } from './errors';
+import { ErrorCode, describeError, isAppError, toAppError } from './errors';
 import { createLogger, initialiseLogger } from './logger';
 import { toolDefinitions } from '../tools/index';
 import { registerToolSchemas } from '../schemas/index';
@@ -20,6 +20,7 @@ import type { ToolDefinition } from '../tools/types';
 import { createHttpGateway, type HttpGateway } from './httpGateway';
 import { ToolRegistry } from './toolRegistry';
 import { getPackageVersion } from '../utils/version';
+import { assertTcpPortAvailable, assertUdpPortAvailable } from './startupChecks';
 
 const logger = createLogger('mcp-server');
 
@@ -261,6 +262,47 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
   }
 
   const effectiveConfig = applyBootstrapOverrides(config, options);
+
+  try {
+    const mcpTcpPort = effectiveConfig.mcp.tcpPort;
+    if (mcpTcpPort !== undefined && mcpTcpPort !== null) {
+      await assertTcpPortAvailable(mcpTcpPort);
+    }
+
+    await assertTcpPortAvailable(effectiveConfig.osc.tcpPort);
+    await assertUdpPortAvailable(effectiveConfig.osc.udpInPort);
+    await assertUdpPortAvailable(effectiveConfig.osc.udpOutPort);
+  } catch (error) {
+    const appError = isAppError(error)
+      ? error
+      : toAppError(error, { code: ErrorCode.MCP_STARTUP_FAILURE });
+
+    const details = appError.details ?? {};
+    const port = typeof details.port === 'number' ? details.port : undefined;
+    const protocol =
+      typeof details.protocol === 'string' ? String(details.protocol).toUpperCase() : undefined;
+
+    const context: Record<string, unknown> = {
+      error: describeError(appError)
+    };
+
+    if (port !== undefined) {
+      context.port = port;
+    }
+
+    if (protocol !== undefined) {
+      context.protocol = protocol;
+    }
+
+    const location = protocol && port !== undefined
+      ? `${protocol} ${port}`
+      : port !== undefined
+        ? `port ${port}`
+        : 'port reseau';
+    logger.fatal(context, `Impossible de reserver le ${location}: ${appError.message}`);
+    process.exit(1);
+    throw appError;
+  }
 
   initialiseLogger(effectiveConfig);
 
