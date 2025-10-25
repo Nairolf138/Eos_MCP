@@ -171,8 +171,8 @@ export const oscMappings = {
     info: '/eos/get/cue',
     list: '/eos/get/cuelist',
     cuelistInfo: '/eos/get/cuelist/info',
-    bankCreate: '/eos/cuelist/bank/create',
-    bankPage: '/eos/cuelist/bank/page',
+    bankCreate: '/eos/cuelist/{bank_index}/config/{cuelist_number}/{num_prev_cues}/{num_pending_cues}',
+    bankPage: '/eos/cuelist/{bank_index}/page/{delta}',
     active: '/eos/get/active/cue',
     pending: '/eos/get/pending/cue'
   },

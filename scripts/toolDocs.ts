@@ -368,6 +368,7 @@ function formatOscExample(mappingValue: unknown, args?: Record<string, unknown>)
 
   let targetPath: string | undefined;
   let commandTemplate: string | undefined;
+  let argTemplates: string[] | undefined;
 
   if (typeof mappingValue === 'string' || Array.isArray(mappingValue)) {
     targetPath = normaliseOscPath(mappingValue);
@@ -377,11 +378,16 @@ function formatOscExample(mappingValue: unknown, args?: Record<string, unknown>)
     if (typeof details.commandExample === 'string') {
       commandTemplate = details.commandExample;
     }
+    if (Array.isArray(details.args)) {
+      argTemplates = details.args.filter((item): item is string => typeof item === 'string');
+    }
   }
 
   if (!targetPath) {
     return ['_Pas de mapping OSC documenté._'];
   }
+
+  const resolvedPath = applyCommandTemplate(targetPath, args);
 
   if (commandTemplate) {
     const command = applyCommandTemplate(commandTemplate, args);
@@ -389,7 +395,19 @@ function formatOscExample(mappingValue: unknown, args?: Record<string, unknown>)
     return [
       '```bash',
       "# Exemple d'envoi OSC via oscsend",
-      `oscsend 127.0.0.1 8001 ${targetPath} s:'${escapedCommand}'`,
+      `oscsend 127.0.0.1 8001 ${resolvedPath} s:'${escapedCommand}'`,
+      '```'
+    ];
+  }
+
+  if (argTemplates) {
+    const resolvedArgs = argTemplates.map((template) => applyCommandTemplate(template, args));
+    const escapedArgs = resolvedArgs.map((value) => value.replace(/'/g, "\\'"));
+    const suffix = escapedArgs.length > 0 ? ` ${escapedArgs.join(' ')}` : '';
+    return [
+      '```bash',
+      "# Exemple d'envoi OSC via oscsend",
+      `oscsend 127.0.0.1 8001 ${resolvedPath}${suffix}`,
       '```'
     ];
   }
@@ -400,7 +418,7 @@ function formatOscExample(mappingValue: unknown, args?: Record<string, unknown>)
   return [
     '```bash',
     "# Exemple d'envoi OSC via oscsend",
-    `oscsend 127.0.0.1 8001 ${targetPath} s:'${escaped}'`,
+    `oscsend 127.0.0.1 8001 ${resolvedPath} s:'${escaped}'`,
     '```'
   ];
 }

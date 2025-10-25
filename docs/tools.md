@@ -606,8 +606,6 @@ _OSC_
 ```bash
 # Exemple d'envoi OSC via oscsend
 oscsend 127.0.0.1 8001 /eos/cmd s:'Cue 1 Stop#'
-# Pour effectuer un back sur la liste 1
-oscsend 127.0.0.1 8001 /eos/cmd s:'Cue 1 Back#'
 ```
 
 <a id="eos-cuelist-bank-create"></a>
@@ -641,7 +639,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cuelist/bank/create s:'{"bank_index":1,"cuelist_number":1,"num_prev_cues":1,"num_pending_cues":1}'
+oscsend 127.0.0.1 8001 /eos/cuelist/1/config/1/1/1
 ```
 
 <a id="eos-cuelist-bank-page"></a>
@@ -672,7 +670,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cuelist/bank/page s:'{"bank_index":1,"delta":1}'
+oscsend 127.0.0.1 8001 /eos/cuelist/1/page/1
 ```
 
 <a id="eos-cuelist-get-info"></a>
