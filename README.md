@@ -88,7 +88,7 @@ npx ts-node src/server/index.ts --list-tools
 npx ts-node src/server/index.ts --check-config
 ```
 
-Ces commandes peuvent également être lancées sur la version compilée avec `node dist/server/index.js <option>`. Utilisez `--list-tools` pour inspecter rapidement les outils disponibles et `--check-config` afin de valider votre fichier `.env` ou les variables d'environnement avant un déploiement.
+Ces commandes peuvent également être lancées sur la version compilée avec `node dist/server/index.js <option>`. Utilisez `--list-tools` pour inspecter rapidement les outils disponibles et `--check-config` afin de valider votre fichier `.env` ou les variables d'environnement avant un déploiement. Si la passerelle HTTP/WS MCP est activée via `MCP_TCP_PORT`, la validation échoue désormais lorsque `MCP_HTTP_MCP_TOKENS` est vide ou resté sur la valeur par défaut `change-me`.
 
 Lorsque vous démarrez réellement le serveur (sans combiner d'option utilitaire ci-dessus), plusieurs modificateurs sont disponibles :
 
@@ -405,6 +405,8 @@ MCP_HTTP_RATE_LIMIT_MAX=60
 ```
 
 Cette configuration laisse la passerelle HTTP/WS activée mais verrouillée : aucune adresse IP ni origine n'est autorisée tant que les listes restent vides (deny all), et un jeton MCP est exigé pour toute requête.
+
+> ⚠️ Lorsque `MCP_TCP_PORT` est défini, le serveur refuse désormais de démarrer en production si `MCP_HTTP_MCP_TOKENS` est vide ou encore fixé à `change-me`. En développement (`NODE_ENV !== "production"`), le démarrage continue mais un avertissement est journalisé pour inciter au changement.
 
 | Paramètre | Mode strict (défaut) | Mode LAN (exemple) |
 | --- | --- | --- |
