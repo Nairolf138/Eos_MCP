@@ -121,18 +121,37 @@ jest.mock('../connectionManager.js', () => {
 });
 
 describe('OscClient', () => {
-  function decodeOscAddress(payload: Buffer): string {
+  function decodeOscMessage(payload: Buffer): { address: string; args: { type: string; value: unknown }[] } {
     const packet = osc.readPacket(payload, { metadata: true });
     if (!packet || typeof packet !== 'object' || packet === null) {
       throw new Error('Paquet OSC inattendu');
     }
 
-    const message = packet as { address?: unknown };
+    const message = packet as { address?: unknown; args?: unknown };
     if (typeof message.address !== 'string') {
       throw new Error('Adresse OSC manquante');
     }
 
-    return message.address;
+    const args = Array.isArray(message.args)
+      ? message.args.map((arg) => {
+          if (!arg || typeof arg !== 'object') {
+            throw new Error('Argument OSC inattendu');
+          }
+
+          const typed = arg as { type?: unknown; value?: unknown };
+          if (typeof typed.type !== 'string') {
+            throw new Error('Type d\'argument OSC invalide');
+          }
+
+          return { type: typed.type, value: typed.value };
+        })
+      : [];
+
+    return { address: message.address, args };
+  }
+
+  function decodeOscAddress(payload: Buffer): string {
+    return decodeOscMessage(payload).address;
   }
 
   class FakeOscService implements OscGateway {
@@ -221,6 +240,11 @@ describe('OscClient', () => {
       '/eos/handshake',
       '/eos/protocol/select'
     ]);
+    expect(service.sentMessages[0]?.args).toEqual([
+      { type: 's', value: 'ETCOSC?' },
+      { type: 's', value: 'mcp' },
+      { type: 's', value: JSON.stringify({ preferredProtocols: ['udp', 'tcp'] }) }
+    ]);
   });
 
   it("demarre le timeout du handshake uniquement une fois l'envoi effectue", async () => {
@@ -263,6 +287,11 @@ describe('OscClient', () => {
     expect(result.version).toBe('3.2.0');
     expect(result.selectedProtocol).toBe('tcp');
     expect(result.protocolStatus).toBe('ok');
+    expect(service.sentMessages[0]?.args).toEqual([
+      { type: 's', value: 'ETCOSC?' },
+      { type: 's', value: 'mcp' },
+      { type: 's', value: JSON.stringify({ preferredProtocols: ['tcp'] }) }
+    ]);
   });
 
   it("retourne un statut timeout lorsque la console ne repond pas au handshake", async () => {
@@ -324,6 +353,10 @@ describe('OscClient', () => {
     expect(result.version).toBe('3.2.0');
     expect(result.selectedProtocol).toBe('udp');
     expect(service.sendOptions[1]?.transportPreference).toBe('speed');
+    expect(service.sentMessages[0]?.args).toEqual([
+      { type: 's', value: 'ETCOSC?' },
+      { type: 's', value: 'mcp' }
+    ]);
   });
 
   it('retourne le statut du ping et l\'echo', async () => {
@@ -528,6 +561,18 @@ describe('OscClient', () => {
       '/eos/handshake',
       '/eos/handshake',
       '/eos/protocol/select'
+    ]);
+    expect(manager.sendCalls.slice(0, 2).map((call) => decodeOscMessage(call.payload).args)).toEqual([
+      [
+        { type: 's', value: 'ETCOSC?' },
+        { type: 's', value: 'mcp' },
+        { type: 's', value: JSON.stringify({ preferredProtocols: ['tcp', 'udp'] }) }
+      ],
+      [
+        { type: 's', value: 'ETCOSC?' },
+        { type: 's', value: 'mcp' },
+        { type: 's', value: JSON.stringify({ preferredProtocols: ['tcp', 'udp'] }) }
+      ]
     ]);
 
     gateway.close?.();
