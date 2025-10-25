@@ -13,7 +13,8 @@ import {
   OscConnectionManager,
   type OscConnectionManagerOptions,
   type ToolTransportPreference,
-  type TransportStatus
+  type TransportStatus,
+  type TransportType
 } from './connectionManager';
 import { OscConnectionStateProvider } from './connectionState';
 import type { OscGateway, OscGatewaySendOptions } from './client';
@@ -85,6 +86,8 @@ export class OscConnectionGateway implements OscGateway {
 
   private readonly connectionStateProvider?: OscConnectionStateProvider;
 
+  private readonly transportReadyTimeoutMs: number;
+
   private readonly config: {
     host: string;
     tcpPort: number;
@@ -96,6 +99,7 @@ export class OscConnectionGateway implements OscGateway {
   constructor(options: OscConnectionGatewayOptions) {
     this.metadata = options.metadata ?? DEFAULT_METADATA;
     this.connectionStateProvider = options.connectionStateProvider;
+    this.transportReadyTimeoutMs = this.resolveTransportReadyTimeout(options);
     this.config = {
       host: options.host,
       tcpPort: options.tcpPort,
@@ -117,7 +121,7 @@ export class OscConnectionGateway implements OscGateway {
       this.setToolPreference(toolId, options.transportPreference);
     }
 
-    try {
+    const attemptSend = (): void => {
       const transport = this.manager.send(toolId, encoded);
       this.updateStats('outgoing', message, encoded.byteLength);
       if (this.loggingState.outgoing) {
@@ -126,13 +130,37 @@ export class OscConnectionGateway implements OscGateway {
           `[OSC][${transport}] -> ${message.address}`
         );
       }
+    };
+
+    try {
+      attemptSend();
+      return;
     } catch (error) {
-      const errorData =
-        error instanceof Error
-          ? { err: error, address: message.address }
-          : { error, address: message.address };
-      this.logger.error(errorData, "Erreur lors de l'envoi OSC");
-      throw error;
+      if (this.shouldWaitForTransport(error)) {
+        try {
+          await this.waitForTransportReady(message.address);
+        } catch (waitError) {
+          this.logSendError(
+            waitError,
+            message,
+            "Delai depasse en attendant un transport OSC pret"
+          );
+          throw waitError instanceof Error ? waitError : new Error(String(waitError));
+        }
+
+        try {
+          attemptSend();
+          return;
+        } catch (retryError) {
+          this.logSendError(retryError, message);
+          throw retryError instanceof Error
+            ? retryError
+            : new Error(String(retryError));
+        }
+      }
+
+      this.logSendError(error, message);
+      throw error instanceof Error ? error : new Error(String(error));
     }
   }
 
@@ -398,6 +426,100 @@ export class OscConnectionGateway implements OscGateway {
   private resetRuntimeState(): void {
     this.stats = this.createInitialStats();
     this.startedAt = Date.now();
+  }
+
+  private resolveTransportReadyTimeout(options: OscConnectionGatewayOptions): number {
+    const DEFAULT_CONNECTION_TIMEOUT_MS = 3_000;
+    const connectionTimeout = Math.max(0, options.connectionTimeoutMs ?? DEFAULT_CONNECTION_TIMEOUT_MS);
+    const reconnectTimeout =
+      typeof options.reconnectTimeoutMs === 'number' && options.reconnectTimeoutMs > 0
+        ? options.reconnectTimeoutMs
+        : 0;
+    return reconnectTimeout > 0 ? Math.max(connectionTimeout, reconnectTimeout) : connectionTimeout;
+  }
+
+  private getTransportStatuses(): TransportStatus[] {
+    const transportTypes: TransportType[] = ['tcp', 'udp'];
+    return transportTypes.map((type) => this.manager.getStatus(type));
+  }
+
+  private hasConnectingTransport(): boolean {
+    return this.getTransportStatuses().some((status) => status.state === 'connecting');
+  }
+
+  private hasConnectedTransport(): boolean {
+    return this.getTransportStatuses().some((status) => status.state === 'connected');
+  }
+
+  private isTransportUnavailableError(error: unknown): error is Error {
+    return (
+      error instanceof Error &&
+      error.message.includes(
+        "Aucun transport OSC disponible pour l'outil. Les connexions TCP et UDP sont indisponibles."
+      )
+    );
+  }
+
+  private shouldWaitForTransport(error: unknown): boolean {
+    return this.isTransportUnavailableError(error) && this.hasConnectingTransport();
+  }
+
+  private waitForTransportReady(address: string): Promise<void> {
+    if (this.hasConnectedTransport()) {
+      return Promise.resolve();
+    }
+
+    const timeoutMs = this.transportReadyTimeoutMs;
+    if (timeoutMs <= 0) {
+      return Promise.reject(this.createTransportReadyTimeoutError(address, timeoutMs));
+    }
+
+    return new Promise<void>((resolve, reject) => {
+      let timer: NodeJS.Timeout | null = null;
+
+      const cleanup = (): void => {
+        this.manager.off('status', onStatus);
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
+      };
+
+      const onStatus = (status: TransportStatus): void => {
+        if (status.state === 'connected') {
+          cleanup();
+          resolve();
+        }
+      };
+
+      this.manager.on('status', onStatus);
+
+      if (this.hasConnectedTransport()) {
+        cleanup();
+        resolve();
+        return;
+      }
+
+      timer = setTimeout(() => {
+        cleanup();
+        reject(this.createTransportReadyTimeoutError(address, timeoutMs));
+      }, timeoutMs);
+      timer.unref?.();
+    });
+  }
+
+  private createTransportReadyTimeoutError(address: string, timeoutMs: number): Error {
+    return new Error(
+      `Impossible d'envoyer le message OSC ${address} : aucun transport pret apres ${timeoutMs} ms.`
+    );
+  }
+
+  private logSendError(error: unknown, message: OscMessage, logMessage = "Erreur lors de l'envoi OSC"): void {
+    const errorData =
+      error instanceof Error
+        ? { err: error, address: message.address }
+        : { error, address: message.address };
+    this.logger.error(errorData, logMessage);
   }
 }
 
