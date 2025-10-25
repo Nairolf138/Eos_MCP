@@ -84,15 +84,6 @@ function setBankState(bankIndex: number, state: DirectSelectBankState): void {
   bankStateCache.set(bankIndex, state);
 }
 
-function buildJsonArgs(payload: Record<string, unknown>): OscMessageArgument[] {
-  return [
-    {
-      type: 's',
-      value: JSON.stringify(payload)
-    }
-  ];
-}
-
 function buildFloatArgs(value: number): OscMessageArgument[] {
   return [
     {
@@ -120,6 +111,18 @@ function createResult(text: string, data: Record<string, unknown>): ToolExecutio
       { type: 'object', data }
     ]
   } as ToolExecutionResult;
+}
+
+function formatDirectSelectPath(
+  pattern: string,
+  values: Record<string, string | number>
+): string {
+  return pattern.replace(/\{(\w+)\}/g, (match, key) => {
+    if (!(key in values)) {
+      throw new Error(`Valeur manquante pour le parametre ${match}`);
+    }
+    return String(values[key]);
+  });
 }
 
 function normaliseTargetType(value: string): string | null {
@@ -233,13 +236,6 @@ export const eosDirectSelectBankCreateTool: ToolDefinition<typeof bankCreateInpu
     const options: BankCreateOptions = bankCreateSchema.parse(args ?? {});
     const client = getOscClient();
 
-    const payload: Record<string, unknown> = {
-      bank: options.bank_index,
-      target: options.target_type,
-      buttons: options.button_count,
-      flexi: options.flexi_mode
-    };
-
     const state: DirectSelectBankState = {
       page: options.page_number ?? 0,
       targetType: options.target_type,
@@ -247,17 +243,17 @@ export const eosDirectSelectBankCreateTool: ToolDefinition<typeof bankCreateInpu
       flexiMode: options.flexi_mode
     };
 
-    if (typeof options.page_number === 'number') {
-      payload.page = options.page_number;
-    }
-
     setBankState(options.bank_index, state);
 
-    await client.sendMessage(
-      oscMappings.directSelects.bankCreate,
-      buildJsonArgs(payload),
-      extractTargetOptions(options)
-    );
+    const address = formatDirectSelectPath(oscMappings.directSelects.bankCreate, {
+      index: options.bank_index,
+      target: state.targetType,
+      buttons: state.buttonCount,
+      flexi: state.flexiMode ? 1 : 0,
+      page: state.page
+    });
+
+    await client.sendMessage(address, [], extractTargetOptions(options));
 
     const textParts = [
       `Bank ${options.bank_index} configure en ${options.target_type}`,
@@ -276,10 +272,16 @@ export const eosDirectSelectBankCreateTool: ToolDefinition<typeof bankCreateInpu
       targetType: state.targetType,
       buttonCount: state.buttonCount,
       flexiMode: state.flexiMode,
-      request: payload,
+      request: {
+        bank: options.bank_index,
+        target: state.targetType,
+        buttons: state.buttonCount,
+        flexi: state.flexiMode,
+        page: state.page
+      },
       osc: {
-        address: oscMappings.directSelects.bankCreate,
-        args: payload
+        address,
+        args: []
       }
     });
   }
@@ -312,7 +314,11 @@ export const eosDirectSelectPressTool: ToolDefinition<typeof pressInputSchema> =
       );
     }
 
-    const address = `${oscMappings.directSelects.base}/${options.bank_index}/${state.page}/${options.button_index}`;
+    const address = formatDirectSelectPath(oscMappings.directSelects.base, {
+      index: options.bank_index,
+      page: state.page,
+      button: options.button_index
+    });
     const stateValue: number = options.state;
 
     await client.sendMessage(address, buildFloatArgs(stateValue), extractTargetOptions(options));
@@ -364,21 +370,17 @@ export const eosDirectSelectPageTool: ToolDefinition<typeof pageInputSchema> = {
     const state = getBankState(options.bank_index);
     const previousPage = state.page;
 
-    const payload = {
-      bank: options.bank_index,
+    const address = formatDirectSelectPath(oscMappings.directSelects.bankPage, {
+      index: options.bank_index,
       delta: options.delta
-    };
+    });
 
-    await client.sendMessage(
-      oscMappings.directSelects.bankPage,
-      buildJsonArgs(payload),
-      extractTargetOptions(options)
-    );
+    await client.sendMessage(address, [], extractTargetOptions(options));
 
     const nextPage = Math.max(0, previousPage + options.delta);
     state.page = nextPage;
 
-    return createResult(
+      return createResult(
       `Bank ${options.bank_index}: passage de la page ${previousPage} a ${nextPage}.`,
       {
         action: 'direct_select_bank_page',
@@ -388,10 +390,13 @@ export const eosDirectSelectPageTool: ToolDefinition<typeof pageInputSchema> = {
         targetType: state.targetType,
         buttonCount: state.buttonCount,
         flexiMode: state.flexiMode,
-        request: payload,
+        request: {
+          bank: options.bank_index,
+          delta: options.delta
+        },
         osc: {
-          address: oscMappings.directSelects.bankPage,
-          args: payload
+          address,
+          args: []
         }
       }
     );

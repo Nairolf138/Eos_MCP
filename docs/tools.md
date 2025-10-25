@@ -789,14 +789,14 @@ oscsend 127.0.0.1 8001 /eos/curve/select s:'{"curve_number":1}'
 _CLI_
 
 ```bash
-npx @modelcontextprotocol/cli call --tool eos_direct_select_bank_create --args '{"bank_index":1,"target_type":"exemple","button_count":1,"flexi_mode":true}'
+npx @modelcontextprotocol/cli call --tool eos_direct_select_bank_create --args '{"bank_index":1,"target_type":"Group","button_count":1,"flexi_mode":true}'
 ```
 
 _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/direct_select/bank/create s:'{"bank_index":1,"target_type":"exemple","button_count":1,"flexi_mode":true}'
+oscsend 127.0.0.1 8001 /eos/ds/1/config/Group/1/1/0
 ```
 
 <a id="eos-direct-select-page"></a>
@@ -827,7 +827,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/direct_select/bank/page s:'{"bank_index":1,"delta":1}'
+oscsend 127.0.0.1 8001 /eos/ds/1/page/1
 ```
 
 <a id="eos-direct-select-press"></a>
