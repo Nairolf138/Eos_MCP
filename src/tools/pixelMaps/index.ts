@@ -95,8 +95,6 @@ const pixelMapInfoOutputShape = {
   fixtures: z.array(z.object(pixelMapFixtureOutputShape))
 } satisfies ZodRawShape;
 
-const pixelMapFixtureSegmentOutputSchema = z.object(pixelMapFixtureSegmentOutputShape);
-const pixelMapFixtureOutputSchema = z.object(pixelMapFixtureOutputShape);
 const pixelMapInfoOutputSchema = z.object(pixelMapInfoOutputShape);
 
 function buildJsonArgs(payload: Record<string, unknown>): OscMessageArgument[] {
