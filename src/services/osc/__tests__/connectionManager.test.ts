@@ -33,7 +33,18 @@ describe('OscConnectionManager', () => {
 
   class MockUdpSocket extends EventEmitter {
     public readonly send = jest.fn(
-      (msg: Uint8Array | string, callback?: (error: Error | null, bytes: number) => void) => {
+      (
+        msg: Uint8Array | string,
+        arg2?: number | ((error: Error | null, bytes: number) => void),
+        arg3?: string | ((error: Error | null, bytes: number) => void),
+        arg4?: (error: Error | null, bytes: number) => void
+      ) => {
+        const callback =
+          typeof arg2 === 'function'
+            ? arg2
+            : typeof arg3 === 'function'
+              ? arg3
+              : arg4;
         const bytes = typeof msg === 'string' ? Buffer.byteLength(msg) : msg.length;
         callback?.(null, bytes);
       }
@@ -422,27 +433,21 @@ describe('OscConnectionManager', () => {
     expect(udpSocket.send.mock.calls.length).toBeGreaterThan(previousCalls);
     expect(Buffer.isBuffer(lastCall[0])).toBe(true);
     expect((lastCall[0] as Buffer).toString()).toBe('hello');
+    expect(lastCall[1]).toBe(9001);
+    expect(lastCall[2]).toBe('127.0.0.1');
 
     expect(manager.getActiveTransport('snapshot')).toBe('udp');
 
     manager.stop();
   });
 
-  it('binds the UDP socket to the configured local endpoint before connecting', async () => {
+  it('binds the UDP socket to the configured local endpoint', async () => {
     const order: string[] = [];
 
     class BoundUdpSocket extends EventEmitter {
       public readonly bind = jest.fn(
         (options: Parameters<UdpSocket['bind']>[0], callback?: () => void) => {
           order.push('bind');
-          callback?.();
-          return this as unknown as UdpSocket;
-        }
-      );
-
-      public readonly connect = jest.fn(
-        (port: number, host: string, callback?: () => void) => {
-          order.push('connect');
           callback?.();
           return this as unknown as UdpSocket;
         }
@@ -458,6 +463,12 @@ describe('OscConnectionManager', () => {
     const udpSocket = new BoundUdpSocket();
     jest.mocked(createUdpSocket).mockReturnValueOnce(udpSocket as unknown as UdpSocket);
 
+    const createTcpSocket = jest.fn(() => {
+      const socket = new MockTcpSocket();
+      queueMicrotask(() => socket.emit('connect'));
+      return socket as unknown as TcpSocket;
+    });
+
     const manager = new OscConnectionManager({
       host: '192.0.2.5',
       tcpPort: 9000,
@@ -467,17 +478,123 @@ describe('OscConnectionManager', () => {
       heartbeatIntervalMs: 10_000,
       connectionTimeoutMs: 5_000,
       reconnectDelayMs: 50,
+      createTcpSocket,
       logger: {}
     });
 
     await Promise.resolve();
 
-    expect(order).toEqual(['bind', 'connect']);
+    expect(order).toEqual(['bind']);
     expect(udpSocket.bind).toHaveBeenCalledWith(
       expect.objectContaining({ address: '0.0.0.0', port: 9200 }),
       expect.any(Function)
     );
-    expect(udpSocket.connect).toHaveBeenCalledWith(9100, '192.0.2.5', expect.any(Function));
+
+    expect(manager.getStatus('udp').state).toBe('connected');
+
+    manager.stop();
+  });
+
+  it('emits UDP messages even when they originate from a different remote port', async () => {
+    class FilteringUdpSocket extends EventEmitter {
+      public readonly bind = jest.fn(
+        (_options: Parameters<UdpSocket['bind']>[0], callback?: () => void) => {
+          callback?.();
+          return this as unknown as UdpSocket;
+        }
+      );
+
+      public readonly send = jest.fn(
+        (
+          msg: Uint8Array | string,
+          arg2?: number | ((error: Error | null, bytes: number) => void),
+          arg3?: string | ((error: Error | null, bytes: number) => void),
+          arg4?: (error: Error | null, bytes: number) => void
+        ) => {
+          const callback =
+            typeof arg2 === 'function'
+              ? arg2
+              : typeof arg3 === 'function'
+                ? arg3
+                : arg4;
+          const bytes = typeof msg === 'string' ? Buffer.byteLength(msg) : msg.length;
+          callback?.(null, bytes);
+        }
+      );
+
+      public readonly close = jest.fn(() => {
+        this.emit('close');
+      });
+
+      public deliver(message: Buffer, port: number): void {
+        this.emit('message', message, {
+          address: '127.0.0.1',
+          family: 'IPv4',
+          port,
+          size: message.length
+        });
+      }
+    }
+
+    const udpSockets: FilteringUdpSocket[] = [];
+    const createUdpSocket = jest.fn(() => {
+      const socket = new FilteringUdpSocket();
+      udpSockets.push(socket);
+      return socket as unknown as UdpSocket;
+    });
+
+    const createTcpSocket = jest.fn(() => {
+      const socket = new MockTcpSocket();
+      queueMicrotask(() => socket.emit('connect'));
+      return socket as unknown as TcpSocket;
+    });
+
+    const manager = new OscConnectionManager({
+      host: '127.0.0.1',
+      tcpPort: 9000,
+      udpPort: 9001,
+      heartbeatIntervalMs: 10_000,
+      connectionTimeoutMs: 5_000,
+      reconnectDelayMs: 50,
+      createTcpSocket,
+      createUdpSocket,
+      logger: {}
+    });
+
+    await Promise.resolve();
+
+    const udpSocket = udpSockets[0];
+    if (!udpSocket) {
+      throw new Error('UDP socket not created');
+    }
+
+    const received: Buffer[] = [];
+    manager.on('message', (event) => {
+      if (event.type === 'udp') {
+        received.push(Buffer.from(event.data));
+      }
+    });
+
+    const handshake = Buffer.from(
+      osc.writePacket(
+        {
+          address: '/eos/handshake/reply',
+          args: [
+            { type: 's', value: 'ETCOSC!' },
+            {
+              type: 's',
+              value: JSON.stringify({ version: '3.2.0', protocols: ['tcp', 'udp'] })
+            }
+          ]
+        },
+        { metadata: true }
+      ) as Uint8Array
+    );
+
+    udpSocket.deliver(handshake, 9100);
+
+    expect(received).toHaveLength(1);
+    expect(received[0]).toEqual(handshake);
 
     manager.stop();
   });

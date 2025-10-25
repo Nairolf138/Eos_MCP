@@ -53,6 +53,8 @@ interface TransportInternals {
   readonly type: TransportType;
   state: TransportState;
   socket: TcpSocket | UdpSocket | null;
+  targetHost: string | null;
+  targetPort: number | null;
   buffer: Buffer;
   heartbeatTimer: NodeJS.Timeout | null;
   heartbeatTimeoutTimer: NodeJS.Timeout | null;
@@ -233,6 +235,8 @@ export class OscConnectionManager extends EventEmitter {
       type,
       state: 'disconnected',
       socket: null,
+      targetHost: null,
+      targetPort: null,
       buffer: Buffer.alloc(0),
       heartbeatTimer: null,
       heartbeatTimeoutTimer: null,
@@ -367,15 +371,12 @@ export class OscConnectionManager extends EventEmitter {
       if (state.state !== 'connecting' || state.socket !== socket) {
         return;
       }
+      state.targetHost = this.options.host;
+      state.targetPort = this.options.udpPort;
       this.logger.info?.(
         `[OSC][udp] Connecte a ${this.options.host}:${this.options.udpPort}`
       );
       this.onTransportConnected(state);
-    };
-
-    const connectSocket = (): void => {
-      socket.connect(this.options.udpPort, this.options.host, markConnected);
-      queueMicrotask(markConnected);
     };
 
     const shouldBind =
@@ -390,9 +391,9 @@ export class OscConnectionManager extends EventEmitter {
         bindOptions.port = this.options.localPort;
       }
 
-      socket.bind(bindOptions, connectSocket);
+      socket.bind(bindOptions, markConnected);
     } else {
-      connectSocket();
+      markConnected();
     }
   }
 
@@ -483,6 +484,8 @@ export class OscConnectionManager extends EventEmitter {
 
     const socket = state.socket;
     state.socket = null;
+    state.targetHost = null;
+    state.targetPort = null;
     state.buffer = Buffer.alloc(0);
 
     if (state.type === 'tcp') {
@@ -653,7 +656,9 @@ export class OscConnectionManager extends EventEmitter {
       });
     } else {
       const socket = state.socket as UdpSocket;
-      socket.send(buffer, (error) => {
+      const targetPort = state.targetPort ?? this.options.udpPort;
+      const targetHost = state.targetHost ?? this.options.host;
+      socket.send(buffer, targetPort, targetHost, (error) => {
         if (error) {
           this.logger.error?.('[OSC][udp] Echec lors de l\'envoi', error);
           this.handleTransportFailure(state, error);
