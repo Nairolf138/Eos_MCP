@@ -121,8 +121,9 @@ describe('HttpGateway integration', () => {
     if (!transport) {
       throw new Error('HTTP transport missing from manifest');
     }
+    const expectedPublicUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
     expect(transport.type).toBe('http');
-    expect(transport.url).toBe(baseUrl);
+    expect(transport.url).toBe(expectedPublicUrl);
     expect(transport.url).not.toContain('{{SERVER_URL}}');
   });
 
@@ -283,19 +284,20 @@ describe('HttpGateway integration', () => {
     expect(servers).not.toHaveLength(0);
     const [httpServer] = servers;
     expect(httpServer?.server?.transport?.type).toBe('http');
-    expect(httpServer?.server?.transport?.url).toBe(baseUrl);
+    const expectedPublicUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+    expect(httpServer?.server?.transport?.url).toBe(expectedPublicUrl);
     expect(httpServer?.server?.transport?.url).not.toContain('{{SERVER_URL}}');
     const endpoints = httpServer?.server?.endpoints ?? {};
-    expect(endpoints.manifest).toBe('/manifest.json');
-    expect(endpoints.health).toBe('/health');
-    expect(endpoints.tools).toBe('/tools');
-    expect(endpoints.invoke).toBe('/tools/{toolName}');
-    expect(endpoints.websocket).toBe('/ws');
+    expect(endpoints.manifest).toBe('manifest.json');
+    expect(endpoints.health).toBe('health');
+    expect(endpoints.tools).toBe('tools');
+    expect(endpoints.invoke).toBe('tools/{toolName}');
+    expect(endpoints.websocket).toBe('ws');
 
     const catalogRefs = mcp.capabilities?.tools?.schema_catalogs ?? [];
-    expect(catalogRefs).toContain('/schemas/tools/index.json');
+    expect(catalogRefs).toContain('schemas/tools/index.json');
     const basePath = mcp.capabilities?.tools?.schema_base_path;
-    expect(basePath).toBe('/schemas/tools/{toolName}.json');
+    expect(basePath).toBe('schemas/tools/{toolName}.json');
   });
 
   test('execute tool via WebSocket', async () => {
