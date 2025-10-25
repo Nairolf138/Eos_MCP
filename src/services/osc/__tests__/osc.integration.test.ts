@@ -46,7 +46,7 @@ describe('OscService integration (UDP sockets)', () => {
     resources.splice(0).forEach((resource) => {
       try {
         resource.close();
-      } catch (error) {
+      } catch (_error) {
         // Ignore cleanup errors in tests
       }
     });
