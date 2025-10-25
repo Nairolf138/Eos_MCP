@@ -244,7 +244,7 @@ Réponse attendue :
 
 #### Publier la passerelle via un tunnel ou un reverse proxy
 
-L'endpoint `/manifest.json` annonce une URL absolue à destination des clients MCP. Par défaut, cette URL est déduite dynamiquement de la requête entrante (en tenant compte des en-têtes `Host`, `X-Forwarded-Host` et `X-Forwarded-Proto`). Lorsque vous exposez le serveur derrière un tunnel (`ngrok`, `Cloudflare Tunnel`, etc.) ou un reverse proxy (Nginx, Traefik, Caddy), vous pouvez forcer l'URL publiée via la variable d’environnement `MCP_HTTP_PUBLIC_URL` :
+L'endpoint `/manifest.json` annonce une URL absolue à destination des clients MCP. Le manifest embarqué fournit désormais le placeholder explicite `http://{HOST}:{PORT}` : il est remplacé au moment de la réponse HTTP par l'adresse détectée (`Host`, `X-Forwarded-Host`, `X-Forwarded-Proto`) ou par la valeur de `MCP_HTTP_PUBLIC_URL`. Lorsque vous exposez le serveur derrière un tunnel (`ngrok`, `Cloudflare Tunnel`, etc.) ou un reverse proxy (Nginx, Traefik, Caddy), vous pouvez forcer l'URL publiée via la variable d’environnement `MCP_HTTP_PUBLIC_URL` :
 
 ```bash
 MCP_TCP_PORT=3032 \
@@ -254,7 +254,7 @@ npm run start:dev
 
 - Si votre proxy réécrit le chemin (ex. `https://example.com/mcp`), incluez-le dans `MCP_HTTP_PUBLIC_URL` afin que les clients MCP résolvent correctement les endpoints (`/manifest.json`, `/health`, `/tools`, `/ws`).
 - Conservez les en-têtes `X-Forwarded-*` lorsque vous terminez TLS en amont : le serveur peut ainsi détecter automatiquement le schéma `https` et générer un manifest cohérent, même sans variable dédiée.
-- Pour les tunnels dynamiques (adresse changeante), automatisez la mise à jour de `MCP_HTTP_PUBLIC_URL` ou vérifiez que l’outil propage bien les en-têtes originaux.
+- Pour les tunnels dynamiques (adresse changeante), automatisez la mise à jour de `MCP_HTTP_PUBLIC_URL` ou vérifiez que l’outil propage bien les en-têtes originaux. Si la variable n'est pas définie, le placeholder `http://{HOST}:{PORT}` est résolu à chaque requête.
 
 Une URL publique correctement configurée garantit que les assistants IA et orchestrateurs MCP peuvent établir des connexions WebSocket et HTTP sans dépendre d’un placeholder statique.
 
