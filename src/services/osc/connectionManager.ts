@@ -590,10 +590,8 @@ export class OscConnectionManager extends EventEmitter {
 
   private pickTransport(toolId: string): TransportInternals | null {
     const preference = this.getToolPreference(toolId);
-    const tcpState = this.transports.tcp;
-    const udpState = this.transports.udp;
 
-    const order: TransportType[] = this.getTransportPriority(preference, tcpState, udpState);
+    const order: TransportType[] = this.getTransportPriority(preference);
 
     for (const type of order) {
       const candidate = this.transports[type];
@@ -607,18 +605,31 @@ export class OscConnectionManager extends EventEmitter {
     return null;
   }
 
-  private getTransportPriority(
-    preference: ToolTransportPreference,
-    tcpState: TransportInternals,
-    udpState: TransportInternals
-  ): TransportType[] {
+  private getTransportPriority(preference: ToolTransportPreference): TransportType[] {
     if (preference === 'reliability') {
       return ['tcp', 'udp'];
     }
     if (preference === 'speed') {
       return ['udp', 'tcp'];
     }
-    return tcpState.state === 'connected' ? ['tcp', 'udp'] : ['udp', 'tcp'];
+    const stateWeight: Record<TransportState, number> = {
+      disconnected: 0,
+      connecting: 1,
+      connected: 2
+    };
+
+    const defaultOrder: TransportType[] = ['tcp', 'udp'];
+
+    return (['tcp', 'udp'] as TransportType[])
+      .map((type) => ({ type, state: this.transports[type].state }))
+      .sort((a, b) => {
+        const diff = stateWeight[b.state] - stateWeight[a.state];
+        if (diff !== 0) {
+          return diff;
+        }
+        return defaultOrder.indexOf(a.type) - defaultOrder.indexOf(b.type);
+      })
+      .map((transport) => transport.type);
   }
 
   private sendThroughState(state: TransportInternals, buffer: Buffer): void {
