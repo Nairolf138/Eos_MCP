@@ -1,9 +1,140 @@
+import { EventEmitter } from 'node:events';
+import osc from 'osc';
 import { ErrorCode } from '../../../server/errors';
 import { OscClient, type ConnectResult } from '../client';
 import type { OscGateway, OscGatewaySendOptions } from '../client';
+import { createOscConnectionGateway } from '../gateway';
 import type { OscMessage } from '../index';
 
+type TransportType = 'tcp' | 'udp';
+
+type TransportState = 'disconnected' | 'connecting' | 'connected';
+
+interface TransportStatus {
+  type: TransportType;
+  state: TransportState;
+  lastHeartbeatSentAt: number | null;
+  lastHeartbeatAckAt: number | null;
+  consecutiveFailures: number;
+}
+
+interface SendCall {
+  toolId: string;
+  payload: Buffer;
+  transport: TransportType;
+}
+
+interface MockConnectionManager extends EventEmitter {
+  ready: boolean;
+  stopped: boolean;
+  options: Record<string, unknown>;
+  toolPreferences: Map<string, string>;
+  sendCalls: SendCall[];
+  emitMessage(type: TransportType, data: Buffer): void;
+  emitStatus(status: TransportStatus): void;
+  getStatus(type: TransportType): TransportStatus;
+  stop(): void;
+  setToolPreference(toolId: string, preference: string): void;
+  getToolPreference(toolId: string): string;
+  removeTool(toolId: string): void;
+}
+
+const gatewayManagers: MockConnectionManager[] = [];
+
+jest.mock('../connectionManager.js', () => {
+  return {
+    OscConnectionManager: class extends EventEmitter {
+      public readonly options: Record<string, unknown>;
+
+      public readonly toolPreferences = new Map<string, string>();
+
+      public readonly sendCalls: SendCall[] = [];
+
+      public stopped = false;
+
+      public ready = false;
+
+      private readonly statuses: Record<TransportType, TransportStatus> = {
+        tcp: {
+          type: 'tcp',
+          state: 'connecting',
+          lastHeartbeatAckAt: null,
+          lastHeartbeatSentAt: null,
+          consecutiveFailures: 0
+        },
+        udp: {
+          type: 'udp',
+          state: 'disconnected',
+          lastHeartbeatAckAt: null,
+          lastHeartbeatSentAt: null,
+          consecutiveFailures: 0
+        }
+      };
+
+      public constructor(options: Record<string, unknown>) {
+        super();
+        this.options = options;
+        gatewayManagers.push(this as unknown as MockConnectionManager);
+      }
+
+      public send(toolId: string, payload: Buffer): TransportType {
+        const buffer = Buffer.isBuffer(payload) ? Buffer.from(payload) : Buffer.from(payload as Buffer);
+        this.sendCalls.push({ toolId, payload: buffer, transport: 'tcp' });
+        if (!this.ready) {
+          throw new Error(
+            "Aucun transport OSC disponible pour l'outil. Les connexions TCP et UDP sont indisponibles."
+          );
+        }
+        return 'tcp';
+      }
+
+      public stop(): void {
+        this.stopped = true;
+      }
+
+      public setToolPreference(toolId: string, preference: string): void {
+        this.toolPreferences.set(toolId, preference);
+      }
+
+      public getToolPreference(toolId: string): string {
+        return this.toolPreferences.get(toolId) ?? 'auto';
+      }
+
+      public removeTool(toolId: string): void {
+        this.toolPreferences.delete(toolId);
+      }
+
+      public emitMessage(type: TransportType, data: Buffer): void {
+        this.emit('message', { type, data });
+      }
+
+      public emitStatus(status: TransportStatus): void {
+        this.statuses[status.type] = { ...status };
+        this.emit('status', status);
+      }
+
+      public getStatus(type: TransportType): TransportStatus {
+        return { ...this.statuses[type] };
+      }
+    }
+  };
+});
+
 describe('OscClient', () => {
+  function decodeOscAddress(payload: Buffer): string {
+    const packet = osc.readPacket(payload, { metadata: true });
+    if (!packet || typeof packet !== 'object' || packet === null) {
+      throw new Error('Paquet OSC inattendu');
+    }
+
+    const message = packet as { address?: unknown };
+    if (typeof message.address !== 'string') {
+      throw new Error('Adresse OSC manquante');
+    }
+
+    return message.address;
+  }
+
   class FakeOscService implements OscGateway {
     public readonly sentMessages: OscMessage[] = [];
 
@@ -39,6 +170,7 @@ describe('OscClient', () => {
 
   afterEach(() => {
     jest.useRealTimers();
+    gatewayManagers.splice(0, gatewayManagers.length);
   });
 
   it('realise un handshake et selectionne le protocole prefere', async () => {
@@ -223,5 +355,82 @@ describe('OscClient', () => {
     await expect(client.sendMessage('/test/timeout')).rejects.toMatchObject({
       code: ErrorCode.OSC_TIMEOUT
     });
+  });
+
+  it("reessaye le handshake lorsqu'aucun transport n'est encore pret", async () => {
+    const gateway = createOscConnectionGateway({
+      host: '127.0.0.1',
+      tcpPort: 3032,
+      udpPort: 8001,
+      connectionTimeoutMs: 100
+    });
+
+    const manager = gatewayManagers.at(-1);
+    if (!manager) {
+      throw new Error('Gestionnaire de connexion non initialise');
+    }
+
+    const client = new OscClient(gateway);
+
+    const handshakeReply = Buffer.from(
+      osc.writePacket(
+        {
+          address: '/eos/handshake/reply',
+          args: [
+            {
+              type: 's',
+              value: JSON.stringify({ version: '3.2.0', protocols: ['tcp', 'udp'] })
+            }
+          ]
+        },
+        { metadata: true }
+      ) as Uint8Array
+    );
+
+    const protocolReply = Buffer.from(
+      osc.writePacket(
+        {
+          address: '/eos/protocol/select/reply',
+          args: [{ type: 's', value: 'ok' }]
+        },
+        { metadata: true }
+      ) as Uint8Array
+    );
+
+    const connectPromise = client.connect({ preferredProtocols: ['tcp', 'udp'] });
+
+    setTimeout(() => {
+      manager.ready = true;
+      manager.emitStatus({
+        type: 'tcp',
+        state: 'connected',
+        lastHeartbeatAckAt: Date.now(),
+        lastHeartbeatSentAt: Date.now(),
+        consecutiveFailures: 0
+      });
+
+      setTimeout(() => {
+        manager.emitMessage('tcp', handshakeReply);
+
+        setTimeout(() => {
+          manager.emitMessage('tcp', protocolReply);
+        }, 0);
+      }, 0);
+    }, 0);
+
+    const result = await connectPromise;
+
+    expect(result.status).toBe('ok');
+    expect(result.version).toBe('3.2.0');
+    expect(result.selectedProtocol).toBe('tcp');
+    expect(result.protocolStatus).toBe('ok');
+
+    expect(manager.sendCalls.map((call) => decodeOscAddress(call.payload))).toEqual([
+      '/eos/handshake',
+      '/eos/handshake',
+      '/eos/protocol/select'
+    ]);
+
+    gateway.close?.();
   });
 });
