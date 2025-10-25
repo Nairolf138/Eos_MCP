@@ -5,6 +5,8 @@ const mockConnect = jest.fn();
 const mockClose = jest.fn().mockResolvedValue(undefined);
 const mockRegisterTool = jest.fn();
 const mockSendToolListChanged = jest.fn();
+const mockAssertTcpPortAvailable = jest.fn();
+const mockAssertUdpPortAvailable = jest.fn();
 
 const MockMcpServer = jest.fn().mockImplementation(() => ({
   connect: jest.fn().mockResolvedValue(undefined),
@@ -23,7 +25,9 @@ jest.mock('@modelcontextprotocol/sdk/server/stdio.js', () => ({
 
 jest.mock('../../config/index.js', () => ({
   getConfig: jest.fn(() => ({
-    mcp: {},
+    mcp: {
+      tcpPort: 3100
+    },
     osc: {
       remoteAddress: '127.0.0.1',
       tcpPort: 3032,
@@ -97,6 +101,21 @@ jest.mock('../../services/osc/client.js', () => ({
   }))
 }));
 
+const mockGatewayInstance = {
+  start: jest.fn().mockResolvedValue(undefined),
+  stop: jest.fn().mockResolvedValue(undefined),
+  getAddress: jest.fn()
+};
+
+jest.mock('../httpGateway.js', () => ({
+  createHttpGateway: jest.fn(() => mockGatewayInstance)
+}));
+
+jest.mock('../startupChecks.js', () => ({
+  assertTcpPortAvailable: mockAssertTcpPortAvailable,
+  assertUdpPortAvailable: mockAssertUdpPortAvailable
+}));
+
 jest.mock('../../schemas/index.js', () => ({
   registerToolSchemas: jest.fn()
 }));
@@ -121,6 +140,11 @@ describe('bootstrap OSC handshake', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockConnect.mockReset();
+    mockAssertTcpPortAvailable.mockReset().mockResolvedValue(undefined);
+    mockAssertUdpPortAvailable.mockReset().mockResolvedValue(undefined);
+    mockGatewayInstance.start.mockClear();
+    mockGatewayInstance.stop.mockClear();
+    mockGatewayInstance.getAddress.mockClear();
     delete process.env.MCP_SKIP_OSC_HANDSHAKE;
   });
 
@@ -137,6 +161,13 @@ describe('bootstrap OSC handshake', () => {
 
     const { bootstrap } = await import('../index.js');
     const context = await bootstrap();
+
+    expect(mockAssertTcpPortAvailable).toHaveBeenCalledTimes(1);
+    expect(mockAssertTcpPortAvailable).toHaveBeenCalledWith(3100);
+    expect(mockAssertUdpPortAvailable).toHaveBeenCalledTimes(1);
+    expect(mockAssertUdpPortAvailable).toHaveBeenCalledWith(8000);
+    expect(mockAssertUdpPortAvailable).not.toHaveBeenCalledWith(8001);
+    expect(mockAssertTcpPortAvailable).not.toHaveBeenCalledWith(3032);
 
     expect(mockConnect).toHaveBeenCalledWith({
       toolId: 'startup_preflight',
@@ -155,6 +186,7 @@ describe('bootstrap OSC handshake', () => {
     );
 
     await context.server.close();
+    await context.gateway?.stop?.();
     context.oscGateway.close?.();
   });
 
@@ -190,6 +222,7 @@ describe('bootstrap OSC handshake', () => {
     );
 
     await context.server.close();
+    await context.gateway?.stop?.();
     context.oscGateway.close?.();
   });
 });
