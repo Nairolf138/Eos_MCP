@@ -203,19 +203,21 @@ export class OscConnectionGateway implements OscGateway {
     this.manager.removeTool(toolId);
   }
 
-  public close(): void {
+  public close(options: { preserveListeners?: boolean } = {}): void {
     this.detachManagerEvents(this.manager);
     this.manager.stop();
     if (this.connectionStateProvider) {
       this.connectionStateProvider.setStatus(this.manager.getStatus('tcp'));
       this.connectionStateProvider.setStatus(this.manager.getStatus('udp'));
     }
-    this.listeners.clear();
-    this.statusListeners.clear();
+    if (!options.preserveListeners) {
+      this.listeners.clear();
+      this.statusListeners.clear();
+    }
   }
 
   public reconfigure(options: OscConnectionGatewayOptions): void {
-    this.close();
+    this.close({ preserveListeners: true });
     this.config.host = options.host;
     this.config.tcpPort = options.tcpPort;
     this.config.udpPort = options.udpPort;

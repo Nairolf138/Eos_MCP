@@ -174,6 +174,76 @@ describe('OscConnectionGateway', () => {
     gateway.close();
   });
 
+  it('preserve les ecouteurs lors de la reconfiguration', () => {
+    const gateway = createOscConnectionGateway({
+      host: '127.0.0.1',
+      tcpPort: 3032,
+      udpPort: 8001,
+      localPort: 8000
+    });
+
+    const initialManager = instances.at(-1);
+    if (!initialManager) {
+      throw new Error('Gestionnaire de connexion non initialise');
+    }
+
+    const received: OscMessage[] = [];
+    const statuses: TransportStatus[] = [];
+
+    gateway.onMessage((message) => {
+      received.push(message);
+    });
+
+    gateway.onStatus((status) => {
+      statuses.push(status);
+    });
+
+    gateway.reconfigure({
+      host: '127.0.0.2',
+      tcpPort: 4040,
+      udpPort: 9001,
+      localPort: 9000
+    });
+
+    const newManager = instances.at(-1);
+    if (!newManager || newManager === initialManager) {
+      throw new Error('Gestionnaire de connexion non reinitialise');
+    }
+
+    expect(initialManager.stopped).toBe(true);
+
+    const packet = {
+      address: '/reconfigure',
+      args: [
+        {
+          type: 's' as const,
+          value: 'preserved'
+        }
+      ]
+    };
+    const encoded = Buffer.from(osc.writePacket(packet, { metadata: true }) as Uint8Array);
+    newManager.emitMessage('udp', encoded);
+
+    const statusUpdate: TransportStatus = {
+      type: 'udp',
+      state: 'connected',
+      lastHeartbeatAckAt: Date.now(),
+      lastHeartbeatSentAt: Date.now(),
+      consecutiveFailures: 0
+    };
+    newManager.emitStatus(statusUpdate);
+
+    expect(received).toEqual([
+      {
+        address: '/reconfigure',
+        args: [{ type: 's', value: 'preserved' }]
+      }
+    ]);
+    expect(statuses).toEqual([expect.objectContaining({ type: 'udp', state: 'connected' })]);
+
+    gateway.close();
+  });
+
   it('transmet les options de liaison locales au gestionnaire de connexion', () => {
     createOscConnectionGateway({
       host: '127.0.0.1',
