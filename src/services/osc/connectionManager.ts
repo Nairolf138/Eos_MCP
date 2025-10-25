@@ -374,12 +374,7 @@ export class OscConnectionManager extends EventEmitter {
     };
 
     const connectSocket = (): void => {
-      try {
-        socket.connect(this.options.udpPort, this.options.host, markConnected);
-      } catch (error) {
-        throw error;
-      }
-
+      socket.connect(this.options.udpPort, this.options.host, markConnected);
       queueMicrotask(markConnected);
     };
 
@@ -395,11 +390,7 @@ export class OscConnectionManager extends EventEmitter {
         bindOptions.port = this.options.localPort;
       }
 
-      try {
-        socket.bind(bindOptions, connectSocket);
-      } catch (error) {
-        throw error;
-      }
+      socket.bind(bindOptions, connectSocket);
     } else {
       connectSocket();
     }
