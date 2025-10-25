@@ -138,6 +138,8 @@ describe('OscClient', () => {
   class FakeOscService implements OscGateway {
     public readonly sentMessages: OscMessage[] = [];
 
+    public readonly sendOptions: (OscGatewaySendOptions | undefined)[] = [];
+
     private readonly listeners = new Set<(message: OscMessage) => void>();
 
     public delayMs = 0;
@@ -146,10 +148,11 @@ describe('OscClient', () => {
 
     public maxActiveSends = 0;
 
-    public async send(message: OscMessage, _options?: OscGatewaySendOptions): Promise<void> {
+    public async send(message: OscMessage, options?: OscGatewaySendOptions): Promise<void> {
       this.activeSends += 1;
       this.maxActiveSends = Math.max(this.maxActiveSends, this.activeSends);
       this.sentMessages.push(message);
+      this.sendOptions.push(options ? { ...options } : undefined);
       if (this.delayMs > 0) {
         await new Promise<void>((resolve) => setTimeout(resolve, this.delayMs));
       }
@@ -165,6 +168,16 @@ describe('OscClient', () => {
 
     public emit(message: OscMessage): void {
       this.listeners.forEach((listener) => listener(message));
+    }
+  }
+
+  async function waitFor(condition: () => boolean, timeoutMs = 500): Promise<void> {
+    const start = Date.now();
+    while (!condition()) {
+      if (Date.now() - start > timeoutMs) {
+        throw new Error('Condition not met within timeout');
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1));
     }
   }
 
@@ -260,6 +273,9 @@ describe('OscClient', () => {
     const promise = client.connect({ handshakeTimeoutMs: 10 });
 
     await jest.advanceTimersByTimeAsync(11);
+    await Promise.resolve();
+    await Promise.resolve();
+    await jest.advanceTimersByTimeAsync(11);
 
     await expect(promise).resolves.toMatchObject<Partial<ConnectResult>>({
       status: 'timeout',
@@ -267,6 +283,47 @@ describe('OscClient', () => {
       version: null,
       error: expect.stringContaining('expire')
     });
+  });
+
+  it('retente le handshake en mode speed apres un timeout TCP', async () => {
+    const service = new FakeOscService();
+    const client = new OscClient(service);
+
+    const connectPromise = client.connect({ handshakeTimeoutMs: 20 });
+
+    await waitFor(() => service.sendOptions.length >= 1);
+
+    expect(service.sendOptions[0]?.transportPreference).toBeUndefined();
+
+    await waitFor(() => service.sendOptions.length >= 2);
+
+    expect(service.sendOptions[1]?.transportPreference).toBe('speed');
+
+    service.emit({
+      address: '/eos/handshake/reply',
+      args: [
+        {
+          type: 's',
+          value: JSON.stringify({ version: '3.2.0', protocols: ['udp'] })
+        }
+      ]
+    });
+
+    await waitFor(() => service.sentMessages.length >= 3);
+
+    expect(service.sentMessages[2]?.address).toBe('/eos/protocol/select');
+
+    service.emit({
+      address: '/eos/protocol/select/reply',
+      args: [{ type: 's', value: 'ok' }]
+    });
+
+    const result = await connectPromise;
+
+    expect(result.status).toBe('ok');
+    expect(result.version).toBe('3.2.0');
+    expect(result.selectedProtocol).toBe('udp');
+    expect(service.sendOptions[1]?.transportPreference).toBe('speed');
   });
 
   it('retourne le statut du ping et l\'echo', async () => {

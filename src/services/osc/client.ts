@@ -743,37 +743,58 @@ export class OscClient {
       args.push({ type: 's', value: JSON.stringify({ preferredProtocols: options.preferredProtocols }) });
     }
 
-    const awaiter = this.createResponseAwaiter(
-      (incoming) => (incoming.address === HANDSHAKE_REPLY ? incoming : null),
-      timeout,
-      'Aucune reponse de handshake recue avant expiration',
-      'le handshake OSC',
-      { address: HANDSHAKE_REPLY },
-      { autoStartTimer: false }
-    );
+    const attemptHandshake = async (attemptOptions: ConnectOptions): Promise<HandshakeData> => {
+      const awaiter = this.createResponseAwaiter(
+        (incoming) => (incoming.address === HANDSHAKE_REPLY ? incoming : null),
+        timeout,
+        'Aucune reponse de handshake recue avant expiration',
+        'le handshake OSC',
+        { address: HANDSHAKE_REPLY },
+        { autoStartTimer: false }
+      );
+
+      try {
+        await this.send(
+          {
+            address: HANDSHAKE_REQUEST,
+            args
+          },
+          attemptOptions,
+          {
+            operation: 'le handshake OSC',
+            timeoutMs: timeout,
+            details: { address: HANDSHAKE_REQUEST }
+          }
+        );
+        awaiter.startTimer();
+
+        const response = await awaiter.promise;
+
+        return this.parseHandshakeResponse(response);
+      } catch (error) {
+        awaiter.cancel();
+        throw error;
+      }
+    };
 
     try {
-      await this.send(
-        {
-          address: HANDSHAKE_REQUEST,
-          args
-        },
-        options,
-        {
-          operation: 'le handshake OSC',
-          timeoutMs: timeout,
-          details: { address: HANDSHAKE_REQUEST }
-        }
-      );
-      awaiter.startTimer();
+      return await attemptHandshake(options);
     } catch (error) {
-      awaiter.cancel();
+      const timeoutError = this.asAppError(error, ErrorCode.OSC_TIMEOUT);
+      const transportForced =
+        options.transportPreference === 'reliability' || options.transportPreference === 'speed';
+
+      if (timeoutError && !transportForced) {
+        const retryOptions: ConnectOptions = {
+          ...options,
+          transportPreference: 'speed'
+        };
+
+        return await attemptHandshake(retryOptions);
+      }
+
       throw error;
     }
-
-    const response = await awaiter.promise;
-
-    return this.parseHandshakeResponse(response);
   }
 
   private async selectProtocol(
