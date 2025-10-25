@@ -481,7 +481,9 @@ export class OscClient {
   public async requestJson(address: string, options: OscJsonRequestOptions = {}): Promise<OscJsonResponse> {
     const targetOptions: TargetOptions = {
       targetAddress: options.targetAddress,
-      targetPort: options.targetPort
+      targetPort: options.targetPort,
+      toolId: options.toolId,
+      transportPreference: options.transportPreference
     };
     const timeoutMs = options.timeoutMs ?? this.config.defaultTimeoutMs ?? DEFAULT_OPERATION_TIMEOUT_MS;
     const responseAddress = options.responseAddress ?? address;

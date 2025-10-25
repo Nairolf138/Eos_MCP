@@ -532,6 +532,38 @@ describe('OscClient', () => {
     expect(service.maxActiveSends).toBe(1);
   });
 
+  it('transmet les preferences de transport personnalisees pour les requetes JSON', async () => {
+    const service = new FakeOscService();
+    const client = new OscClient(service);
+
+    const responsePromise = client.requestJson('/custom/request', {
+      toolId: 'custom_tool',
+      transportPreference: 'reliability',
+      responseAddress: '/custom/reply',
+      payload: { status: 'ok' }
+    });
+
+    await waitFor(() => service.sendOptions.length >= 1);
+
+    expect(service.sendOptions[0]?.toolId).toBe('custom_tool');
+    expect(service.sendOptions[0]?.transportPreference).toBe('reliability');
+
+    queueMicrotask(() => {
+      service.emit({
+        address: '/custom/reply',
+        args: [{ type: 's', value: JSON.stringify({ status: 'ok', data: {} }) }]
+      });
+    });
+
+    const result = await responsePromise;
+
+    expect(result.status).toBe('ok');
+    expect(result.payload).toEqual({
+      address: '/custom/reply',
+      args: [{ type: 's', value: JSON.stringify({ status: 'ok', data: {} }) }]
+    });
+  });
+
   it('respecte la limite de concurrence configuree', async () => {
     const service = new FakeOscService();
     service.delayMs = 10;

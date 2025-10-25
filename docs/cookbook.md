@@ -113,3 +113,4 @@ oscsend 127.0.0.1 8001 /eos/cmd s:"Chan 101 Thru 102 Sneak 65 Enter"
 - Les commandes CLI générées automatiquement sont disponibles dans [`docs/tools.md`](tools.md) pour chaque outil.
 - Ajoutez des validations côté LLM (ex. : confirmation vocale) avant d'exécuter une commande critique.
 - Utilisez les champs `targetAddress` / `targetPort` lorsque le serveur MCP doit router des messages vers une console distante spécifique.
+- Pour affiner le choix du transport OSC lors des requêtes JSON, ajoutez `transportPreference` (`"reliability"`, `"speed"` ou `"auto"`) et, si besoin, un `toolId` personnalisé : ces options sont transmises au client OSC pour sélectionner le canal TCP/UDP adéquat.
