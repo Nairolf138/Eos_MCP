@@ -125,6 +125,56 @@ function buildJsonArgs(payload: Record<string, unknown>): OscMessageArgument[] {
   ];
 }
 
+function createCommandArgs(command: string): OscMessageArgument[] {
+  return [
+    {
+      type: 's' as const,
+      value: command
+    }
+  ];
+}
+
+function formatNumeric(value: number): string {
+  if (Number.isInteger(value)) {
+    return value.toString();
+  }
+  return value.toFixed(2).replace(/\.0+$/, '').replace(/(\.\d+?)0+$/, '$1');
+}
+
+function formatRangeList(values: number[]): Array<{ start: number; end: number }> {
+  if (values.length === 0) {
+    return [];
+  }
+
+  const ranges: Array<{ start: number; end: number }> = [];
+  let start = values[0];
+  let previous = values[0];
+
+  for (let index = 1; index <= values.length; index += 1) {
+    const current = values[index];
+    if (current === previous + 1) {
+      previous = current;
+      continue;
+    }
+
+    ranges.push({ start, end: previous });
+
+    if (current != null) {
+      start = current;
+      previous = current;
+    }
+  }
+
+  return ranges;
+}
+
+function buildChannelExpression(values: number[]): string {
+  const ranges = formatRangeList(values);
+  return ranges
+    .map(({ start, end }) => (start === end ? `${start}` : `${start} Thru ${end}`))
+    .join(' + ');
+}
+
 function createResult(text: string, data: Record<string, unknown>): ToolExecutionResult {
   return {
     content: [
@@ -190,27 +240,28 @@ export const eosChannelSelectTool: ToolDefinition<typeof selectInputSchema> = {
     title: 'Selection de canaux',
     description: 'Selectionne un ou plusieurs canaux sur la console.',
     inputSchema: selectInputSchema,
-    annotations: annotate(oscMappings.channels.select)
+    annotations: annotate(oscMappings.channels.command)
   },
   handler: async (args, _extra) => {
     const schema = z.object(selectInputSchema).strict();
     const options = schema.parse(args ?? {});
     const client = getOscClient();
     const channels = normaliseChannels(options.channels);
-    const payload: Record<string, unknown> = {
-      channels,
-      exclusive: options.exclusive ?? false
-    };
+    const expression = buildChannelExpression(channels);
+    const exclusive = options.exclusive ?? false;
+    const command = `Chan ${expression}${exclusive ? '' : ' +'} Enter`;
+    const argsList = createCommandArgs(command);
 
-    await client.sendMessage(oscMappings.channels.select, buildJsonArgs(payload), extractTargetOptions(options));
+    await client.sendMessage(oscMappings.channels.command, argsList, extractTargetOptions(options));
 
     return createResult(`Canaux selectionnes: ${channels.join(', ')}`, {
       action: 'select',
       channels,
-      exclusive: options.exclusive ?? false,
+      exclusive,
+      command,
       osc: {
-        address: oscMappings.channels.select,
-        args: payload
+        address: oscMappings.channels.command,
+        args: argsList
       }
     });
   }
@@ -232,7 +283,7 @@ export const eosChannelSetLevelTool: ToolDefinition<typeof setLevelSchema> = {
     description: 'Ajuste le niveau intensite de canaux specifiques (0-100).',
     inputSchema: setLevelSchema,
     annotations: {
-      ...annotate(oscMappings.channels.level),
+      ...annotate(oscMappings.channels.command),
       highlighted: true
     }
   },
@@ -242,22 +293,22 @@ export const eosChannelSetLevelTool: ToolDefinition<typeof setLevelSchema> = {
     const client = getOscClient();
     const channels = normaliseChannels(options.channels);
     const level = resolveLevelValue(options.level);
-    const payload: Record<string, unknown> = {
-      channels,
-      level,
-      snap: options.snap ?? false
-    };
+    const expression = buildChannelExpression(channels);
+    const mode = options.snap ? 'At' : 'Sneak';
+    const command = `Chan ${expression} ${mode} ${formatNumeric(level)} Enter`;
+    const argsList = createCommandArgs(command);
 
-    await client.sendMessage(oscMappings.channels.level, buildJsonArgs(payload), extractTargetOptions(options));
+    await client.sendMessage(oscMappings.channels.command, argsList, extractTargetOptions(options));
 
     return createResult(`Niveau regle a ${level}% pour les canaux ${channels.join(', ')}`, {
       action: 'set_level',
       channels,
       level,
       snap: options.snap ?? false,
+      command,
       osc: {
-        address: oscMappings.channels.level,
-        args: payload
+        address: oscMappings.channels.command,
+        args: argsList
       }
     });
   }
@@ -278,7 +329,7 @@ export const eosSetDmxTool: ToolDefinition<typeof setDmxSchema> = {
     title: 'Reglage DMX',
     description: 'Fixe une valeur DMX (0-255) sur une ou plusieurs adresses.',
     inputSchema: setDmxSchema,
-    annotations: annotate(oscMappings.channels.dmx)
+    annotations: annotate(oscMappings.dmx.command)
   },
   handler: async (args, _extra) => {
     const schema = z.object(setDmxSchema).strict();
@@ -286,20 +337,20 @@ export const eosSetDmxTool: ToolDefinition<typeof setDmxSchema> = {
     const client = getOscClient();
     const addresses = normaliseChannels(options.addresses);
     const value = resolveDmxValue(options.value);
-    const payload: Record<string, unknown> = {
-      addresses,
-      value
-    };
+    const expression = buildChannelExpression(addresses);
+    const command = `Address ${expression} At ${formatNumeric(value)} Enter`;
+    const argsList = createCommandArgs(command);
 
-    await client.sendMessage(oscMappings.channels.dmx, buildJsonArgs(payload), extractTargetOptions(options));
+    await client.sendMessage(oscMappings.dmx.command, argsList, extractTargetOptions(options));
 
     return createResult(`Valeur DMX ${value} envoyee sur les adresses ${addresses.join(', ')}`, {
       action: 'set_dmx',
       addresses,
       value,
+      command,
       osc: {
-        address: oscMappings.channels.dmx,
-        args: payload
+        address: oscMappings.dmx.command,
+        args: argsList
       }
     });
   }

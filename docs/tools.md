@@ -179,7 +179,7 @@ oscsend 127.0.0.1 8001 /eos/get/channels s:'{"channels":1}'
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
 | `channels` | number \| array<number> | Oui | Un numero de canal ou une liste de canaux |
-| `exclusive` | boolean | Non | — |
+| `exclusive` | boolean | Non | Ajoute un `+` final pour conserver la selection existante |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
@@ -197,7 +197,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/chan/select s:'{"channels":1}'
+oscsend 127.0.0.1 8001 /eos/cmd s:"Chan 1 Enter"
 ```
 
 <a id="eos-channel-set-level"></a>
@@ -211,7 +211,7 @@ oscsend 127.0.0.1 8001 /eos/chan/select s:'{"channels":1}'
 | --- | --- | --- | --- |
 | `channels` | number \| array<number> | Oui | Un numero de canal ou une liste de canaux |
 | `level` | number \| string | Oui | — |
-| `snap` | boolean | Non | — |
+| `snap` | boolean | Non | Utilise `At` (snap immediat) si vrai, `Sneak` sinon |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
@@ -229,7 +229,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/chan/level s:'{"channels":1,"level":1}'
+oscsend 127.0.0.1 8001 /eos/cmd s:"Chan 1 Sneak 1 Enter"
 ```
 
 <a id="eos-channel-set-parameter"></a>
@@ -2420,7 +2420,7 @@ oscsend 127.0.0.1 8001 /eos/set/cue/send_string s:'{"format_string":"exemple"}'
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
-| `addresses` | number \| array<number> | Oui | — |
+| `addresses` | number \| array<number> | Oui | Liste d'adresses absolues ou sequences DMX |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 | `value` | number \| string | Oui | — |
@@ -2439,7 +2439,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/dmx/level s:'{"addresses":1,"value":1}'
+oscsend 127.0.0.1 8001 /eos/cmd s:"Address 1 At 1 Enter"
 ```
 
 <a id="eos-set-pantilt-xy"></a>
