@@ -74,14 +74,18 @@ const pixelMapFixtureSegmentOutputShape = {
   string_number: z.number().int().min(0).nullable()
 } satisfies ZodRawShape;
 
+export const pixelMapFixtureSegmentOutputSchema = z.object(pixelMapFixtureSegmentOutputShape);
+
 const pixelMapFixtureOutputShape = {
   channel: z.number().int().min(1),
   label: z.string().nullable(),
   start_pixel: z.number().int().min(0).nullable(),
   end_pixel: z.number().int().min(0).nullable(),
   pixel_count: z.number().int().min(0).nullable(),
-  segments: z.array(z.object(pixelMapFixtureSegmentOutputShape))
+  segments: z.array(pixelMapFixtureSegmentOutputSchema)
 } satisfies ZodRawShape;
+
+export const pixelMapFixtureOutputSchema = z.object(pixelMapFixtureOutputShape);
 
 const pixelMapInfoOutputShape = {
   pixmap_number: pixmapNumberSchema,
@@ -92,7 +96,7 @@ const pixelMapInfoOutputShape = {
   height: z.number().int().min(0).nullable(),
   pixel_count: z.number().int().min(0).nullable(),
   fixture_count: z.number().int().min(0).nullable(),
-  fixtures: z.array(z.object(pixelMapFixtureOutputShape))
+  fixtures: z.array(pixelMapFixtureOutputSchema)
 } satisfies ZodRawShape;
 
 const pixelMapInfoOutputSchema = z.object(pixelMapInfoOutputShape);
