@@ -1,5 +1,6 @@
 import type { AddressInfo } from 'node:net';
 import path from 'node:path';
+import { readFile } from 'node:fs/promises';
 import { createServer, type IncomingHttpHeaders, type IncomingMessage, type Server } from 'node:http';
 import express, {
   type Request,
@@ -28,6 +29,7 @@ interface HttpGatewayOptions {
   port: number;
   host?: string;
   websocketPath?: string;
+  publicUrl?: string;
   security?: HttpGatewaySecurityOptions;
   oscConnectionProvider?: OscConnectionStateProvider;
   oscGateway?: { getDiagnostics: () => OscDiagnostics };
@@ -79,6 +81,28 @@ interface InvokeErrorResponse {
 const logger = createLogger('http-gateway');
 const manifestPath = path.resolve(process.cwd(), 'manifest.json');
 
+interface ManifestTransport {
+  type?: string;
+  url?: string;
+  readonly [key: string]: unknown;
+}
+
+interface ManifestServerDefinition {
+  server?: {
+    transport?: ManifestTransport;
+    readonly [key: string]: unknown;
+  };
+  readonly [key: string]: unknown;
+}
+
+interface ManifestDocument {
+  mcp?: {
+    servers?: ManifestServerDefinition[];
+    readonly [key: string]: unknown;
+  };
+  readonly [key: string]: unknown;
+}
+
 class HttpGateway {
   private server?: Server;
 
@@ -89,6 +113,8 @@ class HttpGateway {
   private startTimestamp?: number;
 
   private readonly rateLimitState = new Map<string, { windowStart: number; count: number }>();
+
+  private manifestTemplate?: ManifestDocument;
 
   constructor(
     private readonly registry: ToolRegistry,
@@ -105,32 +131,197 @@ class HttpGateway {
 
   private readonly stdioStatusProvider?: () => StdioStatusSnapshot | undefined;
 
+  private async loadManifestTemplate(): Promise<void> {
+    if (this.manifestTemplate) {
+      return;
+    }
+
+    try {
+      const raw = await readFile(manifestPath, 'utf8');
+      this.manifestTemplate = JSON.parse(raw) as ManifestDocument;
+    } catch (error) {
+      logger.error({ err: error }, 'Impossible de charger le manifest MCP.');
+      throw error;
+    }
+  }
+
+  private buildManifestResponse(req: Request): ManifestDocument {
+    if (!this.manifestTemplate) {
+      throw new Error('Manifest MCP non initialisé');
+    }
+
+    const manifest = JSON.parse(JSON.stringify(this.manifestTemplate)) as ManifestDocument;
+    const publicUrl = this.resolvePublicUrl(req);
+    const servers = manifest.mcp?.servers;
+
+    if (Array.isArray(servers)) {
+      manifest.mcp = {
+        ...(manifest.mcp ?? {}),
+        servers: servers.map((definition) => {
+          if (!definition.server) {
+            return { ...definition };
+          }
+
+          const transport = definition.server.transport;
+          if (!transport || typeof transport !== 'object') {
+            return {
+              ...definition,
+              server: { ...definition.server }
+            };
+          }
+
+          if (transport.type && transport.type !== 'http') {
+            return {
+              ...definition,
+              server: {
+                ...definition.server,
+                transport: { ...transport }
+              }
+            };
+          }
+
+          return {
+            ...definition,
+            server: {
+              ...definition.server,
+              transport: {
+                ...transport,
+                url: publicUrl
+              }
+            }
+          };
+        })
+      };
+    }
+
+    const pathPrefix = this.extractPathPrefix(publicUrl);
+    if (pathPrefix) {
+      this.applyPathPrefix(manifest, pathPrefix);
+    }
+
+    return manifest;
+  }
+
+  private extractPathPrefix(urlString: string): string {
+    try {
+      const parsed = new URL(urlString);
+      const pathname = parsed.pathname;
+      if (!pathname || pathname === '/' || pathname === '') {
+        return '';
+      }
+
+      return pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+    } catch (_error) {
+      return '';
+    }
+  }
+
+  private prefixPath(path: string, prefix: string): string {
+    if (!path.startsWith('/') || !prefix || prefix === '/') {
+      return path;
+    }
+
+    const trimmedPrefix = prefix.endsWith('/') ? prefix.slice(0, -1) : prefix;
+    const trimmedPath = path.slice(1);
+
+    if (trimmedPath.length === 0) {
+      return trimmedPrefix;
+    }
+
+    return `${trimmedPrefix}/${trimmedPath}`;
+  }
+
+  private applyPathPrefix(value: unknown, prefix: string): void {
+    if (!prefix || prefix === '/') {
+      return;
+    }
+
+    if (Array.isArray(value)) {
+      for (let index = 0; index < value.length; index += 1) {
+        const element = value[index];
+        if (typeof element === 'string') {
+          value[index] = this.prefixPath(element, prefix);
+        } else if (element && typeof element === 'object') {
+          this.applyPathPrefix(element, prefix);
+        }
+      }
+      return;
+    }
+
+    if (!value || typeof value !== 'object') {
+      return;
+    }
+
+    const record = value as Record<string, unknown>;
+    for (const [key, entry] of Object.entries(record)) {
+      if (typeof entry === 'string') {
+        record[key] = this.prefixPath(entry, prefix);
+        continue;
+      }
+
+      if (entry && typeof entry === 'object') {
+        this.applyPathPrefix(entry, prefix);
+      }
+    }
+  }
+
+  private resolvePublicUrl(req: Request): string {
+    const configured = this.options.publicUrl?.trim();
+    if (configured && configured.length > 0) {
+      return configured;
+    }
+
+    const forwardedProtoHeader = req.headers['x-forwarded-proto'];
+    const forwardedProto = Array.isArray(forwardedProtoHeader)
+      ? forwardedProtoHeader[0]
+      : forwardedProtoHeader?.split(',')[0];
+    const protocol = forwardedProto?.trim().toLowerCase() || req.protocol || 'http';
+
+    const forwardedHostHeader = req.headers['x-forwarded-host'];
+    const forwardedHost = Array.isArray(forwardedHostHeader)
+      ? forwardedHostHeader[0]
+      : forwardedHostHeader?.split(',')[0];
+    const host = forwardedHost?.trim() || req.get('host');
+
+    if (!host) {
+      throw new Error(
+        "Impossible de déterminer l'URL publique du serveur MCP. Définissez MCP_HTTP_PUBLIC_URL ou configurez correctement le proxy."
+      );
+    }
+
+    return `${protocol}://${host}`;
+  }
+
   public async start(): Promise<void> {
     if (this.started) {
       return;
     }
+
+    await this.loadManifestTemplate();
 
     const app = express();
     app.use(express.json());
 
     this.applySecurityMiddlewares(app);
 
-    app.get('/manifest.json', (_req: Request, res: Response, next: NextFunction) => {
-      res.type('application/json');
-      res.sendFile(manifestPath, (error) => {
-        if (error) {
-          next(error);
-        }
-      });
+    app.get('/manifest.json', (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const manifest = this.buildManifestResponse(req);
+        res.type('application/json');
+        res.send(JSON.stringify(manifest, null, 2));
+      } catch (error) {
+        next(error);
+      }
     });
 
-    app.get('/schemas/tools/index.json', (_req: Request, res: Response) => {
+    app.get('/schemas/tools/index.json', (req: Request, res: Response) => {
+      const prefix = this.extractPathPrefix(this.resolvePublicUrl(req));
       const tools = toolJsonSchemas.map((schema) => ({
         name: schema.name,
         title: schema.title ?? schema.name,
         description: schema.description,
         uri: schema.uri,
-        schemaUrl: `/schemas/tools/${schema.name}.json`
+        schemaUrl: this.prefixPath(`/schemas/tools/${schema.name}.json`, prefix)
       }));
 
       res.json({ tools });

@@ -33,11 +33,12 @@ describe('HttpGateway integration', () => {
   let connectionState: OscConnectionStateProvider;
 
   const updateTransportStatus = (
+    provider: OscConnectionStateProvider,
     type: TransportStatus['type'],
     state: TransportStatus['state']
   ): void => {
     const timestamp = Date.now();
-    connectionState.setStatus({
+    provider.setStatus({
       type,
       state,
       lastHeartbeatAckAt: state === 'connected' ? timestamp : null,
@@ -54,8 +55,8 @@ describe('HttpGateway integration', () => {
     registry = new ToolRegistry(server);
     registry.register(tool);
     connectionState = new OscConnectionStateProvider();
-    updateTransportStatus('tcp', 'connected');
-    updateTransportStatus('udp', 'connected');
+    updateTransportStatus(connectionState, 'tcp', 'connected');
+    updateTransportStatus(connectionState, 'udp', 'connected');
     gateway = createHttpGateway(registry, { port: 0, oscConnectionProvider: connectionState });
     await gateway.start();
     const address = gateway.getAddress();
@@ -66,8 +67,8 @@ describe('HttpGateway integration', () => {
   });
 
   beforeEach(() => {
-    updateTransportStatus('tcp', 'connected');
-    updateTransportStatus('udp', 'connected');
+    updateTransportStatus(connectionState, 'tcp', 'connected');
+    updateTransportStatus(connectionState, 'udp', 'connected');
   });
 
   afterAll(async () => {
@@ -99,6 +100,111 @@ describe('HttpGateway integration', () => {
         }
       ]
     });
+  });
+
+  test('expose manifest with resolved HTTP transport URL', async () => {
+    const response = await fetch(`${baseUrl}/manifest.json`, {
+      headers: {
+        'content-type': 'application/json'
+      }
+    });
+
+    expect(response.status).toBe(200);
+    const manifest = (await response.json()) as {
+      mcp?: {
+        servers?: Array<{
+          server?: { transport?: { url?: string; type?: string } };
+        }>;
+      };
+    };
+    const transport = manifest.mcp?.servers?.[0]?.server?.transport;
+    expect(transport).toBeDefined();
+    if (!transport) {
+      throw new Error('HTTP transport missing from manifest');
+    }
+    expect(transport.type).toBe('http');
+    expect(transport.url).toBe(baseUrl);
+    expect(transport.url).not.toContain('{{SERVER_URL}}');
+  });
+
+  test('expose manifest and schemas with configured public path prefix', async () => {
+    const prefixedConnection = new OscConnectionStateProvider();
+    updateTransportStatus(prefixedConnection, 'tcp', 'connected');
+    updateTransportStatus(prefixedConnection, 'udp', 'connected');
+
+    const prefixedGateway = createHttpGateway(registry, {
+      port: 0,
+      oscConnectionProvider: prefixedConnection,
+      publicUrl: 'https://example.com/mcp'
+    });
+
+    await prefixedGateway.start();
+
+    try {
+      const address = prefixedGateway.getAddress();
+      if (!address) {
+        throw new Error('Adresse de la passerelle introuvable');
+      }
+
+      const localBaseUrl = `http://127.0.0.1:${address.port}`;
+      const manifestResponse = await fetch(`${localBaseUrl}/manifest.json`, {
+        headers: {
+          'content-type': 'application/json'
+        }
+      });
+
+      expect(manifestResponse.status).toBe(200);
+      const manifest = (await manifestResponse.json()) as {
+        mcp?: {
+          servers?: Array<{
+            server?: {
+              transport?: { url?: string; type?: string };
+              endpoints?: Record<string, string>;
+            };
+          }>;
+          capabilities?: {
+            tools?: {
+              list_endpoint?: string;
+              invoke_endpoint?: string;
+              schema_base_path?: string;
+              schema_catalogs?: string[];
+            };
+          };
+        };
+      };
+
+      const transport = manifest.mcp?.servers?.[0]?.server?.transport;
+      expect(transport?.url).toBe('https://example.com/mcp');
+      const endpoints = manifest.mcp?.servers?.[0]?.server?.endpoints;
+      expect(endpoints?.manifest).toBe('/mcp/manifest.json');
+      expect(endpoints?.health).toBe('/mcp/health');
+      expect(endpoints?.tools).toBe('/mcp/tools');
+      expect(endpoints?.invoke).toBe('/mcp/tools/{toolName}');
+      expect(endpoints?.websocket).toBe('/mcp/ws');
+
+      const toolCapabilities = manifest.mcp?.capabilities?.tools;
+      expect(toolCapabilities?.list_endpoint).toBe('/mcp/tools');
+      expect(toolCapabilities?.invoke_endpoint).toBe('/mcp/tools/{toolName}');
+      expect(toolCapabilities?.schema_base_path).toBe('/mcp/schemas/tools/{toolName}.json');
+      expect(toolCapabilities?.schema_catalogs?.[0]).toBe('/mcp/schemas/tools/index.json');
+
+      const schemaIndexResponse = await fetch(`${localBaseUrl}/schemas/tools/index.json`, {
+        headers: {
+          'content-type': 'application/json'
+        }
+      });
+
+      expect(schemaIndexResponse.status).toBe(200);
+      const schemaIndex = (await schemaIndexResponse.json()) as {
+        tools: Array<{ name: string; schemaUrl: string }>;
+      };
+      expect(schemaIndex.tools.length).toBeGreaterThan(0);
+      for (const toolSchema of schemaIndex.tools) {
+        expect(toolSchema.schemaUrl).toMatch(/^\/mcp\/schemas\/tools\//);
+      }
+    } finally {
+      await prefixedGateway.stop();
+    }
   });
 
   test('reports health status via HTTP GET', async () => {
@@ -143,8 +249,8 @@ describe('HttpGateway integration', () => {
   });
 
   test('reports degraded status when a single transport is connected', async () => {
-    updateTransportStatus('tcp', 'connected');
-    updateTransportStatus('udp', 'disconnected');
+    updateTransportStatus(connectionState, 'tcp', 'connected');
+    updateTransportStatus(connectionState, 'udp', 'disconnected');
 
     const response = await fetch(`${baseUrl}/health`, {
       headers: {
@@ -172,8 +278,8 @@ describe('HttpGateway integration', () => {
   });
 
   test('reports offline status when no transports are connected', async () => {
-    updateTransportStatus('tcp', 'disconnected');
-    updateTransportStatus('udp', 'disconnected');
+    updateTransportStatus(connectionState, 'tcp', 'disconnected');
+    updateTransportStatus(connectionState, 'udp', 'disconnected');
 
     const response = await fetch(`${baseUrl}/health`, {
       headers: {
@@ -258,7 +364,8 @@ describe('HttpGateway integration', () => {
     expect(servers).not.toHaveLength(0);
     const [httpServer] = servers;
     expect(httpServer?.server?.transport?.type).toBe('http');
-    expect(httpServer?.server?.transport?.url).toBe('{{SERVER_URL}}');
+    expect(httpServer?.server?.transport?.url).toBe(baseUrl);
+    expect(httpServer?.server?.transport?.url).not.toContain('{{SERVER_URL}}');
     const endpoints = httpServer?.server?.endpoints ?? {};
     expect(endpoints.manifest).toBe('/manifest.json');
     expect(endpoints.health).toBe('/health');
