@@ -11,9 +11,13 @@ interface Manifest {
     schema_version: string;
     documentation_url?: string;
     servers: Array<{
-      type: string;
-      url?: string;
-      endpoints?: Record<string, string>;
+      server: {
+        transport: {
+          type: string;
+          url?: string;
+        };
+        endpoints?: Record<string, string>;
+      };
     }>;
     capabilities: {
       tools?: {
@@ -50,15 +54,29 @@ const manifestSchema: JSONSchemaType<Manifest> = {
           items: {
             type: 'object',
             additionalProperties: true,
-            required: ['type'],
+            required: ['server'],
             properties: {
-              type: { type: 'string', minLength: 1 },
-              url: { type: 'string', nullable: true },
-              endpoints: {
+              server: {
                 type: 'object',
-                nullable: true,
-                required: [],
-                additionalProperties: { type: 'string' }
+                additionalProperties: true,
+                required: ['transport'],
+                properties: {
+                  transport: {
+                    type: 'object',
+                    additionalProperties: true,
+                    required: ['type'],
+                    properties: {
+                      type: { type: 'string', minLength: 1 },
+                      url: { type: 'string', nullable: true }
+                    }
+                  },
+                  endpoints: {
+                    type: 'object',
+                    nullable: true,
+                    required: [],
+                    additionalProperties: { type: 'string' }
+                  }
+                }
               }
             }
           }

@@ -7,14 +7,18 @@
     "documentation_url": "https://github.com/Nairolf138/Eos_MCP",
     "servers": [
       {
-        "type": "http",
-        "url": "{{SERVER_URL}}",
-        "endpoints": {
-          "manifest": "/manifest.json",
-          "health": "/health",
-          "tools": "/tools",
-          "invoke": "/tools/{toolName}",
-          "websocket": "/ws"
+        "server": {
+          "transport": {
+            "type": "http",
+            "url": "{{SERVER_URL}}"
+          },
+          "endpoints": {
+            "manifest": "/manifest.json",
+            "health": "/health",
+            "tools": "/tools",
+            "invoke": "/tools/{toolName}",
+            "websocket": "/ws"
+          }
         }
       }
     ],

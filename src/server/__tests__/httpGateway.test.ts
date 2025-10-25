@@ -215,6 +215,12 @@ describe('HttpGateway integration', () => {
       description?: unknown;
       version?: string;
       mcp?: {
+        servers?: Array<{
+          server?: {
+            transport?: { type?: string; url?: string };
+            endpoints?: Record<string, string>;
+          };
+        }>;
         capabilities?: {
           tools?: {
             schema_catalogs?: string[];
@@ -229,6 +235,12 @@ describe('HttpGateway integration', () => {
     expect(typedManifest.version).toBe('1.0.0');
     const mcp = typedManifest.mcp as
       | {
+          servers?: Array<{
+            server?: {
+              transport?: { type?: string; url?: string };
+              endpoints?: Record<string, string>;
+            };
+          }>;
           capabilities?: {
             tools?: {
               schema_catalogs?: string[];
@@ -241,6 +253,18 @@ describe('HttpGateway integration', () => {
     if (!mcp) {
       throw new Error('Manifest MCP block missing');
     }
+
+    const servers = mcp.servers ?? [];
+    expect(servers).not.toHaveLength(0);
+    const [httpServer] = servers;
+    expect(httpServer?.server?.transport?.type).toBe('http');
+    expect(httpServer?.server?.transport?.url).toBe('{{SERVER_URL}}');
+    const endpoints = httpServer?.server?.endpoints ?? {};
+    expect(endpoints.manifest).toBe('/manifest.json');
+    expect(endpoints.health).toBe('/health');
+    expect(endpoints.tools).toBe('/tools');
+    expect(endpoints.invoke).toBe('/tools/{toolName}');
+    expect(endpoints.websocket).toBe('/ws');
 
     const catalogRefs = mcp.capabilities?.tools?.schema_catalogs ?? [];
     expect(catalogRefs).toContain('/schemas/tools/index.json');
