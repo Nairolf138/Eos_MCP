@@ -56,12 +56,10 @@ export async function assertUdpPortAvailable(port: number, host = '0.0.0.0'): Pr
     });
 
     socket.once('listening', () => {
-      socket.once('close', () => {
+      socket.close(() => {
         cleanup();
         resolve();
       });
-
-      socket.close();
     });
 
     socket.bind({ port, address: host, exclusive: true });
