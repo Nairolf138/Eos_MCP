@@ -641,7 +641,11 @@ export class OscConnectionManager extends EventEmitter {
 
     if (state.type === 'tcp') {
       const socket = state.socket as TcpSocket;
-      socket.write(buffer, (error?: Error | null) => {
+      const lengthPrefix = Buffer.alloc(4);
+      lengthPrefix.writeUInt32BE(buffer.length, 0);
+      const framedBuffer = Buffer.concat([lengthPrefix, buffer]);
+
+      socket.write(framedBuffer, (error?: Error | null) => {
         if (error) {
           this.logger.error?.("[OSC][tcp] Echec lors de l'envoi", error);
           this.handleTransportFailure(state, error);
