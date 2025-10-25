@@ -2,6 +2,7 @@ import type { OscMessage } from '../../../services/osc/index';
 import { OscClient, setOscClient, type OscGateway, type OscGatewaySendOptions } from '../../../services/osc/client';
 import { oscMappings } from '../../../services/osc/mappings';
 import { eosGetCountTool, eosGetListAllTool } from '../index';
+import { isObjectContent, runTool } from '../../__tests__/helpers/runTool';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -23,11 +24,6 @@ class FakeOscService implements OscGateway {
     this.listeners.forEach((listener) => listener(message));
   }
 }
-
-const runTool = async (tool: any, args: unknown): Promise<any> => {
-  const handler = tool.handler as unknown as (input: unknown, extra?: unknown) => Promise<any>;
-  return handler(args, {});
-};
 
 describe('query tools', () => {
   let service: FakeOscService;
@@ -61,8 +57,11 @@ describe('query tools', () => {
     });
 
     const result = await promise;
-    const objectContent = (result.content as any[])?.find((item) => item.type === 'object');
+    const objectContent = result.content.find(isObjectContent);
     expect(objectContent).toBeDefined();
+    if (!objectContent) {
+      throw new Error('Expected object content');
+    }
     expect(objectContent.data).toMatchObject({
       action: 'get_count',
       status: 'ok',
@@ -95,8 +94,11 @@ describe('query tools', () => {
     });
 
     const result = await promise;
-    const objectContent = (result.content as any[])?.find((item) => item.type === 'object');
+    const objectContent = result.content.find(isObjectContent);
     expect(objectContent).toBeDefined();
+    if (!objectContent) {
+      throw new Error('Expected object content');
+    }
 
     expect(objectContent.data).toMatchObject({
       action: 'list_all',
@@ -131,8 +133,11 @@ describe('query tools', () => {
     });
 
     const result = await promise;
-    const objectContent = (result.content as any[])?.find((item) => item.type === 'object');
+    const objectContent = result.content.find(isObjectContent);
     expect(objectContent).toBeDefined();
+    if (!objectContent) {
+      throw new Error('Expected object content');
+    }
 
     expect(objectContent.data).toMatchObject({
       action: 'list_all',
@@ -167,8 +172,11 @@ describe('query tools', () => {
     });
 
     const result = await promise;
-    const objectContent = (result.content as any[])?.find((item) => item.type === 'object');
+    const objectContent = result.content.find(isObjectContent);
     expect(objectContent).toBeDefined();
+    if (!objectContent) {
+      throw new Error('Expected object content');
+    }
 
     expect(objectContent.data).toMatchObject({
       target_type: 'ms',

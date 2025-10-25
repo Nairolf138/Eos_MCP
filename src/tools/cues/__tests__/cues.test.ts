@@ -6,8 +6,7 @@ import {
   eosCueStopBackTool,
   eosGetActiveCueTool
 } from '../index';
-
-type ToolHandler = (args: unknown, extra?: unknown) => Promise<any>;
+import { isObjectContent, runTool } from '../../__tests__/helpers/runTool';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -32,11 +31,6 @@ class FakeOscService implements OscGateway {
 
 describe('cue tools', () => {
   let service: FakeOscService;
-
-  const runTool = async (tool: any, args: unknown): Promise<any> => {
-    const handler = tool.handler as ToolHandler;
-    return handler(args, {});
-  };
 
   beforeEach(() => {
     service = new FakeOscService();
@@ -111,36 +105,44 @@ describe('cue tools', () => {
     });
 
     const result = await promise;
-    const objectContent = (result.content as any[]).find((item) => item.type === 'object');
+    const objectContent = result.content.find(isObjectContent);
     expect(objectContent).toBeDefined();
+    if (!objectContent) {
+      throw new Error('Expected object content');
+    }
 
-    const cueState = objectContent.data.cue;
-    expect(cueState.details.identifier).toEqual({
-      cuelistNumber: 1,
-      cueNumber: '2',
-      cuePart: 1
+    expect(objectContent.data).toMatchObject({
+      cue: {
+        details: {
+          identifier: {
+            cuelistNumber: 1,
+            cueNumber: '2',
+            cuePart: 1
+          },
+          timings: {
+            up: 5,
+            down: 10,
+            focus: 2.5
+          },
+          flags: {
+            mark: true,
+            block: false,
+            assert: true,
+            solo: false,
+            timecode: true
+          },
+          links: {
+            link: '2.5',
+            follow: 3.5,
+            hang: 2,
+            loop: 0
+          },
+          notes: 'Example'
+        },
+        durationSeconds: 45,
+        progressPercent: 50,
+        remainingSeconds: 30
+      }
     });
-    expect(cueState.details.timings).toMatchObject({
-      up: 5,
-      down: 10,
-      focus: 2.5
-    });
-    expect(cueState.details.flags).toMatchObject({
-      mark: true,
-      block: false,
-      assert: true,
-      solo: false,
-      timecode: true
-    });
-    expect(cueState.details.links).toMatchObject({
-      link: '2.5',
-      follow: 3.5,
-      hang: 2,
-      loop: 0
-    });
-    expect(cueState.details.notes).toBe('Example');
-    expect(cueState.durationSeconds).toBe(45);
-    expect(cueState.progressPercent).toBe(50);
-    expect(cueState.remainingSeconds).toBe(30);
   });
 });

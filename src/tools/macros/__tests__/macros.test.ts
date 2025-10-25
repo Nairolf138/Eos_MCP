@@ -6,8 +6,7 @@ import {
   eosMacroGetInfoTool,
   eosMacroSelectTool
 } from '../index';
-
-type ToolHandler = (args: unknown, extra?: unknown) => Promise<any>;
+import { isObjectContent, isTextContent, runTool } from '../../__tests__/helpers/runTool';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -32,11 +31,6 @@ class FakeOscService implements OscGateway {
 
 describe('macro tools', () => {
   let service: FakeOscService;
-
-  const runTool = async (tool: any, args: unknown): Promise<any> => {
-    const handler = tool.handler as ToolHandler;
-    return handler(args, {});
-  };
 
   beforeEach(() => {
     service = new FakeOscService();
@@ -98,11 +92,18 @@ describe('macro tools', () => {
     });
 
     const result = await promise;
-    const textContent = (result.content as any[]).find((item) => item.type === 'text');
+    const textContent = result.content.find(isTextContent);
+    expect(textContent).toBeDefined();
+    if (!textContent) {
+      throw new Error('Expected text content');
+    }
     expect(textContent.text).toBe('Macro 12 "Blackout" (3 commandes).');
 
-    const objectContent = (result.content as any[]).find((item) => item.type === 'object');
+    const objectContent = result.content.find(isObjectContent);
     expect(objectContent).toBeDefined();
+    if (!objectContent) {
+      throw new Error('Expected object content');
+    }
 
     expect(objectContent.data).toMatchObject({
       status: 'ok',
@@ -142,10 +143,18 @@ describe('macro tools', () => {
     });
 
     const result = await promise;
-    const textContent = (result.content as any[]).find((item) => item.type === 'text');
+    const textContent = result.content.find(isTextContent);
+    expect(textContent).toBeDefined();
+    if (!textContent) {
+      throw new Error('Expected text content');
+    }
     expect(textContent.text).toBe('Macro 99 introuvable.');
 
-    const objectContent = (result.content as any[]).find((item) => item.type === 'object');
+    const objectContent = result.content.find(isObjectContent);
+    expect(objectContent).toBeDefined();
+    if (!objectContent) {
+      throw new Error('Expected object content');
+    }
     expect(objectContent.data).toMatchObject({
       status: 'error',
       error: 'Macro not found',

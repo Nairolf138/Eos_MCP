@@ -7,6 +7,7 @@ import {
   eosGetCommandLineTool
 } from '../command_tools';
 import { clearCurrentUserId, setCurrentUserId } from '../../session';
+import { isObjectContent, runTool } from '../../__tests__/helpers/runTool';
 
 describe('command tools', () => {
   class FakeOscService implements OscGateway {
@@ -32,11 +33,6 @@ describe('command tools', () => {
 
   let service: FakeOscService;
 
-  const runTool = async (tool: any, args: unknown): Promise<any> => {
-    const handler = tool.handler as unknown as (input: unknown, extra?: unknown) => Promise<any>;
-    return handler(args, {});
-  };
-
   beforeEach(() => {
     service = new FakeOscService();
     const client = new OscClient(service, { defaultTimeoutMs: 50 });
@@ -61,8 +57,11 @@ describe('command tools', () => {
       ]
     });
 
-    const objectContent = (result.content as any[])?.find((item) => item.type === 'object');
+    const objectContent = result.content.find(isObjectContent);
     expect(objectContent).toBeDefined();
+    if (!objectContent) {
+      throw new Error('Expected object content');
+    }
   });
 
   it('applique la substitution et efface la ligne pour eos_new_command', async () => {
@@ -125,10 +124,13 @@ describe('command tools', () => {
     });
 
     const result = await promise;
-    const objectContent = (result.content as any[])?.find((item) => item.type === 'object');
+    const objectContent = result.content.find(isObjectContent);
 
     expect(objectContent).toBeDefined();
-    expect((objectContent as { type: string; data: unknown }).data).toMatchObject({
+    if (!objectContent) {
+      throw new Error('Expected object content');
+    }
+    expect(objectContent.data).toMatchObject({
       status: 'ok',
       text: 'Chan 1 At 50',
       user: 4

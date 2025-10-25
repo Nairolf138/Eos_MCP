@@ -6,6 +6,7 @@ import {
   eosPresetSelectTool,
   eosPresetGetInfoTool
 } from '../index';
+import { isObjectContent, runTool } from '../../__tests__/helpers/runTool';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -28,10 +29,37 @@ class FakeOscService implements OscGateway {
   }
 }
 
-const runTool = async (tool: any, args: unknown): Promise<any> => {
-  const handler = tool.handler as unknown as (input: unknown, extra?: unknown) => Promise<any>;
-  return handler(args, {});
-};
+function assertHasPresetDetails(
+  data: Record<string, unknown>
+): asserts data is {
+  action: string;
+  status: string;
+  preset: {
+    flags: Record<string, boolean>;
+    effects: unknown[];
+    channels: unknown[];
+  };
+} {
+  const preset = (data as { preset?: unknown }).preset;
+  if (typeof preset !== 'object' || preset === null) {
+    throw new Error('Expected preset details');
+  }
+
+  const presetData = preset as {
+    flags?: unknown;
+    effects?: unknown;
+    channels?: unknown;
+  };
+
+  if (
+    typeof presetData.flags !== 'object' ||
+    presetData.flags === null ||
+    !Array.isArray(presetData.effects) ||
+    !Array.isArray(presetData.channels)
+  ) {
+    throw new Error('Preset details missing expected properties');
+  }
+}
 
 describe('preset tools', () => {
   let service: FakeOscService;
@@ -127,10 +155,15 @@ describe('preset tools', () => {
     });
 
     const result = await promise;
-    const objectContent = (result.content as any[])?.find((item) => item.type === 'object');
+    const objectContent = result.content.find(isObjectContent);
     expect(objectContent).toBeDefined();
+    if (!objectContent) {
+      throw new Error('Expected object content');
+    }
 
     const data = objectContent.data;
+    assertHasPresetDetails(data);
+
     expect(data).toMatchObject({
       action: 'preset_get_info',
       status: 'ok',

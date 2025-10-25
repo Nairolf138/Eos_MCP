@@ -8,8 +8,7 @@ import {
   eosSetCueSendStringTool,
   eosSetCueReceiveStringTool
 } from '../index';
-
-type ToolHandler = (args: unknown, extra?: unknown) => Promise<any>;
+import { isObjectContent, isTextContent, runTool } from '../../__tests__/helpers/runTool';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -34,11 +33,6 @@ class FakeOscService implements OscGateway {
 
 describe('show control tools', () => {
   let service: FakeOscService;
-
-  const runTool = async (tool: any, args: unknown): Promise<any> => {
-    const handler = tool.handler as ToolHandler;
-    return handler(args, {});
-  };
 
   beforeEach(() => {
     service = new FakeOscService();
@@ -70,15 +64,19 @@ describe('show control tools', () => {
     expect(service.sentMessages).toHaveLength(1);
     expect(service.sentMessages[0]?.address).toBe(oscMappings.showControl.showName);
 
-    const textContent = (result.content as Array<{ type: string; text?: string }>).find(
-      (item) => item.type === 'text'
-    );
-    expect(textContent?.text).toContain('Festival 2024');
+    const textContent = result.content.find(isTextContent);
+    expect(textContent).toBeDefined();
+    if (!textContent) {
+      throw new Error('Expected text content');
+    }
+    expect(textContent.text).toContain('Festival 2024');
 
-    const objectContent = (result.content as Array<{ type: string; data?: any }>).find(
-      (item) => item.type === 'object'
-    );
-    expect(objectContent?.data.show_name).toBe('Festival 2024');
+    const objectContent = result.content.find(isObjectContent);
+    expect(objectContent).toBeDefined();
+    if (!objectContent) {
+      throw new Error('Expected object content');
+    }
+    expect(objectContent.data.show_name).toBe('Festival 2024');
   });
 
   it('normalise et valide le mode Live/Blind', async () => {
@@ -97,15 +95,19 @@ describe('show control tools', () => {
     });
 
     const result = await promise;
-    const textContent = (result.content as Array<{ type: string; text?: string }>).find(
-      (item) => item.type === 'text'
-    );
-    expect(textContent?.text).toContain('Blind');
+    const textContent = result.content.find(isTextContent);
+    expect(textContent).toBeDefined();
+    if (!textContent) {
+      throw new Error('Expected text content');
+    }
+    expect(textContent.text).toContain('Blind');
 
-    const objectContent = (result.content as Array<{ type: string; data?: any }>).find(
-      (item) => item.type === 'object'
-    );
-    expect(objectContent?.data.state).toEqual({ numeric: 0, label: 'Blind' });
+    const objectContent = result.content.find(isObjectContent);
+    expect(objectContent).toBeDefined();
+    if (!objectContent) {
+      throw new Error('Expected object content');
+    }
+    expect(objectContent.data.state).toEqual({ numeric: 0, label: 'Blind' });
   });
 
   it('renvoie une erreur lisible quand le mode Live/Blind est invalide', async () => {
@@ -124,10 +126,12 @@ describe('show control tools', () => {
     });
 
     const result = await promise;
-    const objectContent = (result.content as Array<{ type: string; data?: any }>).find(
-      (item) => item.type === 'object'
-    );
-    expect(objectContent?.data.error).toContain('Etat Live/Blind invalide');
+    const objectContent = result.content.find(isObjectContent);
+    expect(objectContent).toBeDefined();
+    if (!objectContent) {
+      throw new Error('Expected object content');
+    }
+    expect(objectContent.data.error).toContain('Etat Live/Blind invalide');
   });
 
   it('bascule le mode staging et retourne un accusé', async () => {
@@ -147,10 +151,12 @@ describe('show control tools', () => {
 
     const result = await promise;
     expect(service.sentMessages[0]?.address).toBe(oscMappings.showControl.toggleStagingMode);
-    const textContent = (result.content as Array<{ type: string; text?: string }>).find(
-      (item) => item.type === 'text'
-    );
-    expect(textContent?.text).toContain('Mode staging bascule');
+    const textContent = result.content.find(isTextContent);
+    expect(textContent).toBeDefined();
+    if (!textContent) {
+      throw new Error('Expected text content');
+    }
+    expect(textContent.text).toContain('Mode staging bascule');
   });
 
   it('valide et configure le format d\'envoi des cues', async () => {
@@ -173,10 +179,12 @@ describe('show control tools', () => {
     const payload = JSON.parse(String(service.sentMessages[0]?.args?.[0]?.value ?? '{}'));
     expect(payload).toEqual({ format: 'Cue %1 -> %2 (%3)' });
 
-    const objectContent = (result.content as Array<{ type: string; data?: any }>).find(
-      (item) => item.type === 'object'
-    );
-    expect(objectContent?.data.format).toBe('Cue %1 -> %2 (%3)');
+    const objectContent = result.content.find(isObjectContent);
+    expect(objectContent).toBeDefined();
+    if (!objectContent) {
+      throw new Error('Expected object content');
+    }
+    expect(objectContent.data.format).toBe('Cue %1 -> %2 (%3)');
   });
 
   it('refuse les placeholders invalides pour le format d\'envoi', async () => {

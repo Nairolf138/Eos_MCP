@@ -9,6 +9,7 @@ import {
   eosFaderUnloadTool,
   eosFaderPageTool
 } from '../index';
+import { isObjectContent, runTool } from '../../__tests__/helpers/runTool';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -26,11 +27,6 @@ class FakeOscService implements OscGateway {
     };
   }
 }
-
-const runTool = async (tool: any, args: unknown): Promise<any> => {
-  const handler = tool.handler as unknown as (input: unknown, extra?: unknown) => Promise<any>;
-  return handler(args, {});
-};
 
 describe('fader tools', () => {
   let service: FakeOscService;
@@ -78,7 +74,11 @@ describe('fader tools', () => {
     await runTool(eosFaderPageTool, { bank_index: 3, delta: 1 });
 
     const pageResult = await runTool(eosFaderPageTool, { bank_index: 3, delta: -2 });
-    const pageData = (pageResult.content as any[]).find((item) => item.type === 'object');
+    const pageData = pageResult.content.find(isObjectContent);
+    expect(pageData).toBeDefined();
+    if (!pageData) {
+      throw new Error('Expected object content');
+    }
     expect(pageData.data).toMatchObject({ page: 1 });
 
     service.sentMessages.length = 0;
@@ -104,7 +104,11 @@ describe('fader tools', () => {
     const payload = JSON.parse(String(message.args?.[0]?.value));
     expect(payload).toEqual({ bank: 7, delta: 1 });
 
-    const objectContent = (result.content as any[]).find((item) => item.type === 'object');
+    const objectContent = result.content.find(isObjectContent);
+    expect(objectContent).toBeDefined();
+    if (!objectContent) {
+      throw new Error('Expected object content');
+    }
     expect(objectContent.data).toMatchObject({ previousPage: 0, page: 1 });
   });
 });
