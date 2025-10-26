@@ -457,21 +457,33 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
     }
   }
 
-  const server = new McpServer({
+  const serverInfo = {
     name: 'eos-mcp-server',
     version: getPackageVersion()
-  });
+  } as const;
+
+  const tools = await loadToolDefinitions();
+
+  const registerToolsOnServer = (target: McpServer): ToolRegistry => {
+    const toolRegistry = new ToolRegistry(target);
+    toolRegistry.registerMany(tools);
+    return toolRegistry;
+  };
+
+  const createConfiguredServer = (): { server: McpServer; registry: ToolRegistry } => {
+    const instance = new McpServer(serverInfo);
+    registerToolSchemas(instance);
+    const instanceRegistry = registerToolsOnServer(instance);
+    return { server: instance, registry: instanceRegistry };
+  };
+
+  const { server, registry } = createConfiguredServer();
 
   if (tcpPort) {
     logger.info({ tcpPort }, `Passerelle HTTP/WS MCP activee sur ${tcpPort}`);
   } else {
     logger.info('Passerelle HTTP/WS MCP desactivee (MCP_TCP_PORT non defini).');
   }
-
-  const registry = new ToolRegistry(server);
-  registerToolSchemas(server);
-  const tools = await loadToolDefinitions();
-  registry.registerMany(tools);
 
   const transport = new StdioServerTransport();
   const stdioStatus: StdioStatusSnapshot = {
@@ -498,6 +510,7 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
     gateway = createHttpGateway(registry, {
       port: tcpPort,
       publicUrl: effectiveConfig.httpGateway.publicUrl,
+      serverFactory: () => createConfiguredServer().server,
       oscConnectionProvider: oscConnectionState,
       security: securityOptions,
       oscGateway: {

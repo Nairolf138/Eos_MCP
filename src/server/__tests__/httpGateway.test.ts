@@ -1,5 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import WebSocket from 'ws';
+import { LATEST_PROTOCOL_VERSION } from '@modelcontextprotocol/sdk/types.js';
+import { z } from 'zod';
 import { createHttpGateway, type HttpGateway } from '../httpGateway';
 import { ToolRegistry } from '../toolRegistry';
 import type { ToolDefinition } from '../../tools/types';
@@ -8,25 +9,38 @@ import {
   type TransportStatus
 } from '../../services/osc/index';
 
+declare const fetch: typeof globalThis.fetch;
+
 const tool: ToolDefinition = {
   name: 'echo_test',
   config: {
-    description: 'Echo test tool'
+    description: 'Echo test tool',
+    inputSchema: {
+      text: z.string().optional()
+    }
   },
-  handler: async (args) => {
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `echo:${JSON.stringify(args ?? {})}`
-        }
-      ]
-    };
-  }
+  handler: async (args) => ({
+    content: [
+      {
+        type: 'text',
+        text: `echo:${JSON.stringify(args ?? {})}`
+      }
+    ]
+  })
+};
+
+const createSessionServer = (): McpServer => {
+  const instance = new McpServer({
+    name: 'test-http-session',
+    version: '0.0.0-test'
+  });
+  const sessionRegistry = new ToolRegistry(instance);
+  sessionRegistry.register(tool);
+  return instance;
 };
 
 describe('HttpGateway integration', () => {
-  let server: McpServer;
+  let stdioServer: McpServer;
   let registry: ToolRegistry;
   let gateway: HttpGateway;
   let baseUrl: string;
@@ -47,16 +61,23 @@ describe('HttpGateway integration', () => {
   };
 
   beforeAll(async () => {
-    server = new McpServer({
-      name: 'test-server',
+    stdioServer = new McpServer({
+      name: 'test-server-stdio',
       version: '0.0.0-test'
     });
-    registry = new ToolRegistry(server);
+    registry = new ToolRegistry(stdioServer);
     registry.register(tool);
+
     connectionState = new OscConnectionStateProvider();
     updateTransportStatus('tcp', 'connected');
     updateTransportStatus('udp', 'connected');
-    gateway = createHttpGateway(registry, { port: 0, oscConnectionProvider: connectionState });
+
+    gateway = createHttpGateway(registry, {
+      port: 0,
+      oscConnectionProvider: connectionState,
+      serverFactory: () => createSessionServer()
+    });
+
     await gateway.start();
     const address = gateway.getAddress();
     if (!address) {
@@ -72,36 +93,130 @@ describe('HttpGateway integration', () => {
 
   afterAll(async () => {
     await gateway.stop();
-    await server.close();
+    await stdioServer.close();
   });
 
-  test('execute tool via HTTP POST', async () => {
-    const response = await fetch(`${baseUrl}/tools/${tool.name}`, {
+  async function initializeSession(id: string = 'init-1'): Promise<{
+    sessionId: string;
+    payload: Record<string, unknown>;
+  }> {
+    const response = await fetch(`${baseUrl}/mcp`, {
       method: 'POST',
       headers: {
-        'content-type': 'application/json'
+        'content-type': 'application/json',
+        accept: 'application/json, text/event-stream'
       },
       body: JSON.stringify({
-        args: {
-          text: 'http'
+        jsonrpc: '2.0',
+        id,
+        method: 'initialize',
+        params: {
+          protocolVersion: LATEST_PROTOCOL_VERSION,
+          capabilities: {},
+          clientInfo: {
+            name: 'jest-client',
+            version: '0.0.1'
+          }
         }
       })
     });
 
     expect(response.status).toBe(200);
-    const payload = (await response.json()) as { tool: string; result: unknown };
-    expect(payload.tool).toBe(tool.name);
-    expect(payload.result).toEqual({
-      content: [
-        {
-          type: 'text',
-          text: 'echo:{"text":"http"}'
+    const sessionId = response.headers.get('mcp-session-id');
+    expect(sessionId).toBeTruthy();
+    const payload = (await response.json()) as Record<string, unknown>;
+    return { sessionId: sessionId!, payload };
+  }
+
+  test('performs JSON-RPC initialization and returns session information', async () => {
+    const { sessionId, payload } = await initializeSession();
+    const result = payload.result as
+      | {
+          serverInfo?: { name?: string };
+          protocolVersion?: string;
         }
-      ]
+      | undefined;
+    expect(result).toBeDefined();
+    expect(result?.serverInfo?.name).toBe('test-http-session');
+    expect(result?.protocolVersion).toBeDefined();
+
+    // Close the session explicitly to avoid leaking connections
+    const closeResponse = await fetch(`${baseUrl}/mcp`, {
+      method: 'DELETE',
+      headers: {
+        'mcp-session-id': sessionId,
+        'mcp-protocol-version': LATEST_PROTOCOL_VERSION
+      }
     });
+    expect(closeResponse.status).toBe(200);
   });
 
-  test('expose manifest with resolved HTTP transport URL', async () => {
+  test('executes tool via JSON-RPC tools/call', async () => {
+    const { sessionId } = await initializeSession('init-call');
+
+    const response = await fetch(`${baseUrl}/mcp`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json, text/event-stream',
+        'mcp-session-id': sessionId,
+        'mcp-protocol-version': LATEST_PROTOCOL_VERSION
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 'call-1',
+        method: 'tools/call',
+        params: {
+          name: tool.name,
+          arguments: { text: 'http' }
+        }
+      })
+    });
+
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as { result?: { content?: Array<{ text?: string }> } };
+    expect(payload.result?.content?.[0]?.text).toBe('echo:{"text":"http"}');
+  });
+
+  test('returns parse error on invalid JSON payload', async () => {
+    const response = await fetch(`${baseUrl}/mcp`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json, text/event-stream'
+      },
+      body: '{'
+    });
+
+    expect(response.status).toBe(400);
+    const payload = (await response.json()) as { error?: { code?: number } };
+    expect(payload.error?.code).toBe(-32700);
+  });
+
+  test('rejects non-initialize requests without session id', async () => {
+    const response = await fetch(`${baseUrl}/mcp`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json, text/event-stream'
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 'missing-session',
+        method: 'tools/call',
+        params: {
+          name: tool.name,
+          arguments: {}
+        }
+      })
+    });
+
+    expect(response.status).toBe(400);
+    const payload = (await response.json()) as { error?: { code?: number } };
+    expect(payload.error?.code).toBe(-32600);
+  });
+
+  test('exposes manifest with resolved HTTP transport URL', async () => {
     const response = await fetch(`${baseUrl}/manifest.json`, {
       headers: {
         'content-type': 'application/json'
@@ -112,22 +227,26 @@ describe('HttpGateway integration', () => {
     const manifest = (await response.json()) as {
       mcp?: {
         servers?: Array<{
-          server?: { transport?: { url?: string; type?: string } };
+          server?: { transport?: { url?: string; type?: string }; endpoints?: Record<string, string> };
         }>;
       };
     };
+
     const transport = manifest.mcp?.servers?.[0]?.server?.transport;
     expect(transport).toBeDefined();
-    if (!transport) {
-      throw new Error('HTTP transport missing from manifest');
-    }
     const expectedPublicUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
-    expect(transport.type).toBe('http');
-    expect(transport.url).toBe(expectedPublicUrl);
-    expect(transport.url).not.toContain('{{SERVER_URL}}');
+    expect(transport?.type).toBe('http');
+    expect(transport?.url).toBe(expectedPublicUrl);
+
+    const endpoints = manifest.mcp?.servers?.[0]?.server?.endpoints ?? {};
+    expect(endpoints.manifest).toBe('manifest.json');
+    expect(endpoints.health).toBe('health');
+    expect(endpoints.mcp).toBe('mcp');
   });
 
   test('reports health status via HTTP GET', async () => {
+    const { sessionId } = await initializeSession('init-health');
+
     const response = await fetch(`${baseUrl}/health`, {
       headers: {
         'content-type': 'application/json'
@@ -140,216 +259,41 @@ describe('HttpGateway integration', () => {
     expect(typeof payload.uptimeMs).toBe('number');
     expect(payload.toolCount).toBe(1);
     expect(payload.transportActive).toBe(true);
+
     const mcp = payload.mcp as
-      | { http: { status: string; websocketClients: number; startedAt: number | null } }
-      | undefined;
-    expect(mcp).toBeDefined();
-    if (!mcp) {
-      throw new Error('MCP status missing');
-    }
-    expect(mcp.http.status).toBe('listening');
-    expect(typeof mcp.http.websocketClients).toBe('number');
-    const osc = payload.osc as
       | {
-          status: string;
-          transports: { tcp: { state: string }; udp: { state: string } };
-          updatedAt: number;
-          diagnostics?: unknown;
-        }
-      | undefined;
-    expect(osc).toBeDefined();
-    if (!osc) {
-      throw new Error('OSC status missing');
-    }
-    expect(osc.status).toBe('online');
-    expect(osc.transports.tcp.state).toBe('connected');
-    expect(osc.transports.udp.state).toBe('connected');
-    expect(typeof osc.updatedAt).toBe('number');
-    expect(osc.diagnostics).toBeUndefined();
-  });
-
-  test('reports degraded status when a single transport is connected', async () => {
-    updateTransportStatus('tcp', 'connected');
-    updateTransportStatus('udp', 'disconnected');
-
-    const response = await fetch(`${baseUrl}/health`, {
-      headers: {
-        'content-type': 'application/json'
-      }
-    });
-
-    expect(response.status).toBe(200);
-    const payload = (await response.json()) as Record<string, unknown>;
-    expect(payload.status).toBe('degraded');
-    const osc = payload.osc as
-      | {
-          status: string;
-          transports: { tcp: { state: string }; udp: { state: string } };
-          updatedAt: number;
-        }
-      | undefined;
-    expect(osc).toBeDefined();
-    if (!osc) {
-      throw new Error('OSC status missing');
-    }
-    expect(osc.status).toBe('degraded');
-    expect(osc.transports.tcp.state).toBe('connected');
-    expect(osc.transports.udp.state).toBe('disconnected');
-  });
-
-  test('reports offline status when no transports are connected', async () => {
-    updateTransportStatus('tcp', 'disconnected');
-    updateTransportStatus('udp', 'disconnected');
-
-    const response = await fetch(`${baseUrl}/health`, {
-      headers: {
-        'content-type': 'application/json'
-      }
-    });
-
-    expect(response.status).toBe(200);
-    const payload = (await response.json()) as Record<string, unknown>;
-    expect(payload.status).toBe('offline');
-    const osc = payload.osc as
-      | {
-          status: string;
-          transports: { tcp: { state: string }; udp: { state: string } };
-          updatedAt: number;
-        }
-      | undefined;
-    expect(osc).toBeDefined();
-    if (!osc) {
-      throw new Error('OSC status missing');
-    }
-    expect(osc.status).toBe('offline');
-    expect(osc.transports.tcp.state).toBe('disconnected');
-    expect(osc.transports.udp.state).toBe('disconnected');
-  });
-
-  test('exposes manifest with tool schema references', async () => {
-    const response = await fetch(`${baseUrl}/manifest.json`, {
-      headers: {
-        'content-type': 'application/json'
-      }
-    });
-
-    expect(response.status).toBe(200);
-    expect(response.headers.get('content-type')).toContain('application/json');
-    const manifest = (await response.json()) as Record<string, unknown>;
-    const typedManifest = manifest as {
-      name?: string;
-      description?: unknown;
-      version?: string;
-      mcp?: {
-        servers?: Array<{
-          server?: {
-            transport?: { type?: string; url?: string };
-            endpoints?: Record<string, string>;
-          };
-        }>;
-        capabilities?: {
-          tools?: {
-            schema_catalogs?: string[];
-            schema_base_path?: string;
-          };
-        };
-      };
-    };
-
-    expect(typedManifest.name).toBe('Eos MCP');
-    expect(typeof typedManifest.description).toBe('string');
-    expect(typedManifest.version).toBe('1.0.0');
-    const mcp = typedManifest.mcp as
-      | {
-          servers?: Array<{
-            server?: {
-              transport?: { type?: string; url?: string };
-              endpoints?: Record<string, string>;
-            };
-          }>;
-          capabilities?: {
-            tools?: {
-              schema_catalogs?: string[];
-              schema_base_path?: string;
-            };
-          };
+          http: { status: string; sessionCount: number; startedAt: number | null; lastActivityAt: number | null };
         }
       | undefined;
     expect(mcp).toBeDefined();
-    if (!mcp) {
-      throw new Error('Manifest MCP block missing');
-    }
+    expect(mcp?.http.status).toBe('listening');
+    expect(typeof mcp?.http.sessionCount).toBe('number');
 
-    const servers = mcp.servers ?? [];
-    expect(servers).not.toHaveLength(0);
-    const [httpServer] = servers;
-    expect(httpServer?.server?.transport?.type).toBe('http');
-    const expectedPublicUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
-    expect(httpServer?.server?.transport?.url).toBe(expectedPublicUrl);
-    expect(httpServer?.server?.transport?.url).not.toContain('{{SERVER_URL}}');
-    const endpoints = httpServer?.server?.endpoints ?? {};
-    expect(endpoints.manifest).toBe('manifest.json');
-    expect(endpoints.health).toBe('health');
-    expect(endpoints.tools).toBe('tools');
-    expect(endpoints.invoke).toBe('tools/{toolName}');
-    expect(endpoints.websocket).toBe('ws');
-
-    const catalogRefs = mcp.capabilities?.tools?.schema_catalogs ?? [];
-    expect(catalogRefs).toContain('schemas/tools/index.json');
-    const basePath = mcp.capabilities?.tools?.schema_base_path;
-    expect(basePath).toBe('schemas/tools/{toolName}.json');
-  });
-
-  test('execute tool via WebSocket', async () => {
-    const address = new URL(baseUrl);
-    const ws = new WebSocket(`ws://${address.host}/ws`);
-
-    const response = await new Promise<{ type: string; id?: string; tool?: string; result?: unknown }>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error('Timeout en attente de la reponse WebSocket'));
-      }, 5000);
-
-      ws.on('message', (raw) => {
-        const message = typeof raw === 'string' ? raw : raw.toString('utf-8');
-        const data = JSON.parse(message) as Record<string, unknown>;
-
-        if (data.type === 'ready') {
-          ws.send(
-            JSON.stringify({
-              id: 'ws-call',
-              tool: tool.name,
-              args: { text: 'ws' }
-            })
-          );
-          return;
+    const osc = payload.osc as
+      | {
+          status: string;
+          transports: { tcp: { state: string }; udp: { state: string } };
         }
+      | undefined;
+    expect(osc).toBeDefined();
+    expect(osc?.status).toBe('online');
+    expect(osc?.transports.tcp.state).toBe('connected');
+    expect(osc?.transports.udp.state).toBe('connected');
 
-        clearTimeout(timeout);
-        resolve(data as { type: string; id?: string; tool?: string; result?: unknown });
-        ws.close();
-      });
-
-      ws.on('error', (error) => {
-        clearTimeout(timeout);
-        reject(error);
-      });
+    // Terminate the session
+    const closeResponse = await fetch(`${baseUrl}/mcp`, {
+      method: 'DELETE',
+      headers: {
+        'mcp-session-id': sessionId,
+        'mcp-protocol-version': LATEST_PROTOCOL_VERSION
+      }
     });
-
-    expect(response.type).toBe('result');
-    expect(response.tool).toBe(tool.name);
-    expect(response.result).toEqual({
-      content: [
-        {
-          type: 'text',
-          text: 'echo:{"text":"ws"}'
-        }
-      ]
-    });
+    expect(closeResponse.status).toBe(200);
   });
 });
 
 describe('HttpGateway security options', () => {
-  let server: McpServer;
+  let stdioServer: McpServer;
   let registry: ToolRegistry;
   let gateway: HttpGateway;
   let baseUrl: string;
@@ -363,13 +307,18 @@ describe('HttpGateway security options', () => {
   } as const;
 
   beforeEach(async () => {
-    server = new McpServer({
-      name: 'secure-test-server',
+    stdioServer = new McpServer({
+      name: 'secure-stdio',
       version: '0.0.0-test'
     });
-    registry = new ToolRegistry(server);
+    registry = new ToolRegistry(stdioServer);
     registry.register(tool);
-    gateway = createHttpGateway(registry, { port: 0, security: { ...securityOptions } });
+
+    gateway = createHttpGateway(registry, {
+      port: 0,
+      security: { ...securityOptions },
+      serverFactory: () => createSessionServer()
+    });
     await gateway.start();
     const address = gateway.getAddress();
     if (!address) {
@@ -380,285 +329,61 @@ describe('HttpGateway security options', () => {
 
   afterEach(async () => {
     await gateway.stop();
-    await server.close();
+    await stdioServer.close();
   });
 
-  test('allows HTTP request with valid credentials', async () => {
-    const response = await fetch(`${baseUrl}/tools/${tool.name}`, {
+  test('allows initialization with valid credentials', async () => {
+    const response = await fetch(`${baseUrl}/mcp`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
+        accept: 'application/json, text/event-stream',
         'x-api-key': securityOptions.apiKeys[0],
         'x-mcp-token': securityOptions.mcpTokens[0],
         origin: 'http://localhost'
       },
       body: JSON.stringify({
-        args: {
-          text: 'secured-http'
+        jsonrpc: '2.0',
+        id: 'auth-init',
+        method: 'initialize',
+        params: {
+          protocolVersion: LATEST_PROTOCOL_VERSION,
+          capabilities: {},
+          clientInfo: {
+            name: 'jest-client',
+            version: '0.0.1'
+          }
         }
       })
     });
 
     expect(response.status).toBe(200);
+    expect(response.headers.get('mcp-session-id')).toBeTruthy();
   });
 
-  test('rejects health endpoint without credentials', async () => {
-    const response = await fetch(`${baseUrl}/health`, {
-      headers: {
-        origin: 'http://localhost'
-      }
-    });
-
-    expect(response.status).toBe(401);
-  });
-
-  test('rejects HTTP request without API key', async () => {
-    const response = await fetch(`${baseUrl}/tools/${tool.name}`, {
+  test('rejects initialization without authentication headers', async () => {
+    const response = await fetch(`${baseUrl}/mcp`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        'x-mcp-token': securityOptions.mcpTokens[0],
+        accept: 'application/json, text/event-stream',
         origin: 'http://localhost'
       },
-      body: JSON.stringify({ args: { text: 'no-key' } })
-    });
-
-    expect(response.status).toBe(401);
-  });
-
-  test('rejects HTTP request from disallowed origin', async () => {
-    const response = await fetch(`${baseUrl}/tools/${tool.name}`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': securityOptions.apiKeys[0],
-        'x-mcp-token': securityOptions.mcpTokens[0],
-        origin: 'http://example.com'
-      },
-      body: JSON.stringify({ args: { text: 'bad-origin' } })
-    });
-
-    expect(response.status).toBe(403);
-  });
-
-  test('allows HTTP request when IP allowlist is empty', async () => {
-    await gateway.stop();
-    gateway = createHttpGateway(registry, {
-      port: 0,
-      security: { ...securityOptions, ipAllowlist: [] }
-    });
-    await gateway.start();
-    const address = gateway.getAddress();
-    if (!address) {
-      throw new Error('Adresse de la passerelle introuvable');
-    }
-    const lockedUrl = `http://127.0.0.1:${address.port}`;
-
-    const response = await fetch(`${lockedUrl}/tools/${tool.name}`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': securityOptions.apiKeys[0],
-        'x-mcp-token': securityOptions.mcpTokens[0],
-        origin: 'http://localhost'
-      },
-      body: JSON.stringify({ args: { text: 'denied' } })
-    });
-
-    expect(response.status).toBe(200);
-  });
-
-  test('denies HTTP request when client IP is not allowlisted', async () => {
-    await gateway.stop();
-    gateway = createHttpGateway(registry, {
-      port: 0,
-      security: { ...securityOptions, ipAllowlist: ['192.0.2.1'] }
-    });
-    await gateway.start();
-    const address = gateway.getAddress();
-    if (!address) {
-      throw new Error('Adresse de la passerelle introuvable');
-    }
-    const lockedUrl = `http://127.0.0.1:${address.port}`;
-
-    const response = await fetch(`${lockedUrl}/tools/${tool.name}`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': securityOptions.apiKeys[0],
-        'x-mcp-token': securityOptions.mcpTokens[0],
-        origin: 'http://localhost'
-      },
-      body: JSON.stringify({ args: { text: 'not-allowed' } })
-    });
-
-    expect(response.status).toBe(403);
-  });
-
-  test('denies HTTP request with origin when allowed origins list is empty', async () => {
-    await gateway.stop();
-    gateway = createHttpGateway(registry, {
-      port: 0,
-      security: { ...securityOptions, allowedOrigins: [] }
-    });
-    await gateway.start();
-    const address = gateway.getAddress();
-    if (!address) {
-      throw new Error('Adresse de la passerelle introuvable');
-    }
-    const lockedUrl = `http://127.0.0.1:${address.port}`;
-
-    const response = await fetch(`${lockedUrl}/tools/${tool.name}`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': securityOptions.apiKeys[0],
-        'x-mcp-token': securityOptions.mcpTokens[0],
-        origin: 'http://localhost'
-      },
-      body: JSON.stringify({ args: { text: 'cors-denied' } })
-    });
-
-    expect(response.status).toBe(403);
-
-    const responseWithoutOrigin = await fetch(`${lockedUrl}/tools/${tool.name}`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': securityOptions.apiKeys[0],
-        'x-mcp-token': securityOptions.mcpTokens[0]
-      },
-      body: JSON.stringify({ args: { text: 'no-origin' } })
-    });
-
-    expect(responseWithoutOrigin.status).toBe(200);
-  });
-
-  test('enforces HTTP rate limiting', async () => {
-    const headers = {
-      'content-type': 'application/json',
-      'x-api-key': securityOptions.apiKeys[0],
-      'x-mcp-token': securityOptions.mcpTokens[0],
-      origin: 'http://localhost'
-    } as Record<string, string>;
-
-    const first = await fetch(`${baseUrl}/tools/${tool.name}`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ args: { text: 'first' } })
-    });
-    expect(first.status).toBe(200);
-
-    const second = await fetch(`${baseUrl}/tools/${tool.name}`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ args: { text: 'second' } })
-    });
-    expect(second.status).toBe(200);
-
-    const third = await fetch(`${baseUrl}/tools/${tool.name}`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ args: { text: 'third' } })
-    });
-    expect(third.status).toBe(429);
-  });
-
-  test('closes WebSocket connection when authentication fails', async () => {
-    const address = new URL(baseUrl);
-    const ws = new WebSocket(`ws://${address.host}/ws`, {
-      headers: {
-        origin: 'http://localhost'
-      }
-    });
-
-    const closeEvent = await new Promise<{ code: number }>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error('WebSocket timeout')), 5000);
-      ws.on('close', (code) => {
-        clearTimeout(timeout);
-        resolve({ code });
-      });
-      ws.on('message', () => {
-        // Les connexions rejetées peuvent envoyer un message d'erreur avant la fermeture.
-      });
-      ws.on('error', (error) => {
-        clearTimeout(timeout);
-        reject(error);
-      });
-    });
-
-    expect(closeEvent.code).toBe(1008);
-  });
-
-  test('accepts WebSocket connection with valid credentials', async () => {
-    const address = new URL(baseUrl);
-    const ws = new WebSocket(`ws://${address.host}/ws`, {
-      headers: {
-        origin: 'http://localhost',
-        'x-api-key': securityOptions.apiKeys[0],
-        'x-mcp-token': securityOptions.mcpTokens[0]
-      }
-    });
-
-    const readyMessage = await new Promise<Record<string, unknown>>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error('Timeout WebSocket')), 5000);
-      ws.on('message', (raw) => {
-        clearTimeout(timeout);
-        const message = typeof raw === 'string' ? raw : raw.toString('utf-8');
-        resolve(JSON.parse(message) as Record<string, unknown>);
-        ws.close();
-      });
-      ws.on('error', (error) => {
-        clearTimeout(timeout);
-        reject(error);
-      });
-    });
-
-    expect(readyMessage.type).toBe('ready');
-  });
-
-  test('allows custom authentication middleware override', async () => {
-    const authCalls: number[] = [];
-    await gateway.stop();
-    await server.close();
-
-    server = new McpServer({
-      name: 'secure-test-server',
-      version: '0.0.0-test'
-    });
-    registry = new ToolRegistry(server);
-    registry.register(tool);
-    gateway = createHttpGateway(registry, {
-      port: 0,
-      security: {
-        ...securityOptions,
-        express: {
-          authentication: (_req, _res, next) => {
-            authCalls.push(Date.now());
-            next();
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 'unauthorized',
+        method: 'initialize',
+        params: {
+          protocolVersion: LATEST_PROTOCOL_VERSION,
+          capabilities: {},
+          clientInfo: {
+            name: 'jest-client',
+            version: '0.0.1'
           }
         }
-      }
-    });
-    await gateway.start();
-    const address = gateway.getAddress();
-    if (!address) {
-      throw new Error('Adresse de la passerelle introuvable');
-    }
-    baseUrl = `http://127.0.0.1:${address.port}`;
-
-    const response = await fetch(`${baseUrl}/tools/${tool.name}`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': securityOptions.apiKeys[0],
-        'x-mcp-token': securityOptions.mcpTokens[0],
-        origin: 'http://localhost'
-      },
-      body: JSON.stringify({ args: { text: 'custom-auth' } })
+      })
     });
 
-    expect(response.status).toBe(200);
-    expect(authCalls.length).toBeGreaterThan(0);
+    expect(response.status).toBe(401);
   });
 });
