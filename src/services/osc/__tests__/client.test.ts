@@ -682,4 +682,113 @@ describe('OscClient', () => {
 
     gateway.close?.();
   });
+
+  it("traite les reponses de handshake contenues dans un bundle apres une commande", async () => {
+    const gateway = createOscConnectionGateway({
+      host: '127.0.0.1',
+      tcpPort: 3032,
+      udpPort: 8001,
+      connectionTimeoutMs: 100
+    });
+
+    const manager = gatewayManagers.at(-1);
+    if (!manager) {
+      throw new Error('Gestionnaire de connexion non initialise');
+    }
+
+    manager.ready = true;
+    const now = Date.now();
+    manager.emitStatus({
+      type: 'tcp',
+      state: 'connected',
+      lastHeartbeatAckAt: now,
+      lastHeartbeatSentAt: now,
+      consecutiveFailures: 0
+    });
+
+    const client = new OscClient(gateway);
+
+    const handshakeBundle = Buffer.from(
+      osc.writePacket(
+        {
+          timeTag: osc.timeTag(0),
+          packets: [
+            {
+              address: '/eos/out/cmd',
+              args: [
+                { type: 's', value: '1' },
+                { type: 's', value: 'Hello' }
+              ]
+            },
+            {
+              address: '/eos/handshake/reply',
+              args: [
+                { type: 's', value: 'ETCOSC!' },
+                {
+                  type: 's',
+                  value: JSON.stringify({ version: '3.2.0', protocols: ['tcp', 'udp'] })
+                }
+              ]
+            }
+          ]
+        },
+        { metadata: true }
+      ) as Uint8Array
+    );
+
+    const protocolReply = Buffer.from(
+      osc.writePacket(
+        {
+          address: '/eos/protocol/select/reply',
+          args: [{ type: 's', value: 'ok' }]
+        },
+        { metadata: true }
+      ) as Uint8Array
+    );
+
+    const received: OscMessage[] = [];
+    gateway.onMessage((message) => {
+      received.push(message);
+    });
+
+    const connectPromise = client.connect({ preferredProtocols: ['tcp', 'udp'] });
+
+    setTimeout(() => {
+      manager.emitMessage('tcp', handshakeBundle);
+
+      setTimeout(() => {
+        manager.emitMessage('tcp', protocolReply);
+      }, 0);
+    }, 0);
+
+    const result = await connectPromise;
+
+    expect(result.status).toBe('ok');
+    expect(result.version).toBe('3.2.0');
+    expect(result.selectedProtocol).toBe('tcp');
+    expect(result.protocolStatus).toBe('ok');
+
+    expect(received.slice(0, 2)).toEqual([
+      {
+        address: '/eos/out/cmd',
+        args: [
+          { type: 's', value: '1' },
+          { type: 's', value: 'Hello' }
+        ]
+      },
+      {
+        address: '/eos/handshake/reply',
+        args: [
+          { type: 's', value: 'ETCOSC!' },
+          {
+            type: 's',
+            value: JSON.stringify({ version: '3.2.0', protocols: ['tcp', 'udp'] })
+          }
+        ]
+      }
+    ]);
+    expect(received.map((message) => message.address)).toContain('/eos/handshake/reply');
+
+    gateway.close?.();
+  });
 });

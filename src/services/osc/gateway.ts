@@ -272,8 +272,8 @@ export class OscConnectionGateway implements OscGateway {
     }
 
     manager.on('message', ({ type, data }) => {
-      const message = this.decodeMessage(data);
-      if (!message) {
+      const messages = this.decodeMessages(data);
+      if (messages.length === 0) {
         this.logger.error(
           { type, data },
           "[OSC] Message recu dans un format inattendu"
@@ -281,25 +281,23 @@ export class OscConnectionGateway implements OscGateway {
         return;
       }
 
-      this.updateStats('incoming', message, data.byteLength ?? data.length ?? 0);
-      if (this.loggingState.incoming) {
-        this.logger.debug(
-          { args: message.args ?? [] },
-          `[OSC][${type}] <- ${message.address}`
-        );
-      }
+      const totalBytes =
+        typeof data?.byteLength === 'number'
+          ? data.byteLength
+          : typeof data?.length === 'number'
+            ? data.length
+            : 0;
 
-      this.listeners.forEach((listener) => {
-        try {
-          listener(message);
-        } catch (error) {
-          const errorData =
-            error instanceof Error ? { err: error } : { error };
-          this.logger.error(
-            errorData,
-            "[OSC] Erreur lors du traitement du message"
+      messages.forEach((message, index) => {
+        this.updateStats('incoming', message, index === 0 ? totalBytes : 0);
+        if (this.loggingState.incoming) {
+          this.logger.debug(
+            { args: message.args ?? [] },
+            `[OSC][${type}] <- ${message.address}`
           );
         }
+
+        this.notifyListeners(message);
       });
     });
 
@@ -335,7 +333,7 @@ export class OscConnectionGateway implements OscGateway {
     return Buffer.from(encoded);
   }
 
-  private decodeMessage(data: Buffer): OscMessage | null {
+  private decodeMessages(data: Buffer): OscMessage[] {
     let packet: unknown;
     try {
       packet = osc.readPacket(data, { metadata: this.metadata });
@@ -345,31 +343,51 @@ export class OscConnectionGateway implements OscGateway {
         errorData,
         '[OSC] Impossible de decoder le paquet OSC'
       );
-      return null;
+      return [];
     }
 
     if (!packet || typeof packet !== 'object') {
-      return null;
+      return [];
+    }
+
+    return this.extractMessagesFromPacket(packet);
+  }
+
+  private extractMessagesFromPacket(packet: unknown): OscMessage[] {
+    if (!packet || typeof packet !== 'object') {
+      return [];
     }
 
     const message = packet as Partial<OscMessage> & { packets?: unknown[]; type?: string };
-    if (typeof message.address !== 'string') {
-      if (Array.isArray(message.packets) && message.packets.length > 0) {
-        const first = message.packets[0] as Partial<OscMessage>;
-        if (first && typeof first.address === 'string') {
-          return {
-            address: first.address,
-            args: cloneArgs(first.args ?? [])
-          };
+
+    if (typeof message.address === 'string') {
+      return [
+        {
+          address: message.address,
+          args: cloneArgs(message.args ?? [])
         }
-      }
-      return null;
+      ];
     }
 
-    return {
-      address: message.address,
-      args: cloneArgs(message.args ?? [])
-    };
+    if (Array.isArray(message.packets)) {
+      return message.packets.flatMap((child) => this.extractMessagesFromPacket(child));
+    }
+
+    return [];
+  }
+
+  private notifyListeners(message: OscMessage): void {
+    this.listeners.forEach((listener) => {
+      try {
+        listener(message);
+      } catch (error) {
+        const errorData = error instanceof Error ? { err: error } : { error };
+        this.logger.error(
+          errorData,
+          '[OSC] Erreur lors du traitement du message'
+        );
+      }
+    });
   }
 
   private updateStats(direction: Direction, message: OscMessage, bytes: number): void {
