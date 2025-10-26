@@ -416,7 +416,7 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
       const handshakeResult = await client.connect({
         toolId: 'startup_preflight',
         handshakeTimeoutMs: 10000,
-        protocolTimeoutMs: 2000
+        protocolTimeoutMs: 10000
       });
 
       if (handshakeResult.status === 'timeout' || handshakeResult.status === 'error') {
