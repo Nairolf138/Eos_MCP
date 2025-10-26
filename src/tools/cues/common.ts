@@ -146,22 +146,17 @@ export function createCueCommandResult(
   const cli = overrides.cli;
 
   return {
-    content: [
-      { type: 'text', text },
-      {
-        type: 'object',
-        data: {
-          action,
-          identifier,
-          request,
-          osc: {
-            address,
-            args: oscArgs
-          },
-          ...(cli ? { cli } : {}),
-          ...extra
-        }
-      }
-    ]
+    content: [{ type: 'text', text }],
+    structuredContent: {
+      action,
+      identifier,
+      request,
+      osc: {
+        address,
+        args: oscArgs
+      },
+      ...(cli ? { cli } : {}),
+      ...extra
+    }
   } as ToolExecutionResult;
 }

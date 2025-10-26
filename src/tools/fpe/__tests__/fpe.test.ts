@@ -6,7 +6,7 @@ import {
   eosFpeGetSetInfoTool,
   eosFpeGetPointInfoTool
 } from '../index';
-import { isObjectContent, isTextContent, runTool } from '../../__tests__/helpers/runTool';
+import { getStructuredContent, isTextContent, runTool } from '../../__tests__/helpers/runTool';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -70,10 +70,10 @@ describe('fpe tools', () => {
 
     const result = await promise;
     const textContent = result.content.find(isTextContent);
-    const objectContent = result.content.find(isObjectContent);
+    const structuredContent = getStructuredContent(result);
 
     expect(textContent?.text).toBe('Nombre de sets FPE: 5.');
-    expect(objectContent?.data).toMatchObject({
+    expect(structuredContent).toMatchObject({
       action: 'get_set_count',
       set_count: 5,
       status: 'ok'
@@ -119,10 +119,10 @@ describe('fpe tools', () => {
 
     const result = await promise;
     const textContent = result.content.find(isTextContent);
-    const objectContent = result.content.find(isObjectContent);
+    const structuredContent = getStructuredContent(result);
 
     expect(textContent?.text).toBe('Set FPE 3 "Main Stage" - 2 points.');
-    expect(objectContent?.data).toMatchObject({
+    expect(structuredContent).toMatchObject({
       action: 'get_set_info',
       status: 'ok',
       set_number: 3,
@@ -195,12 +195,12 @@ describe('fpe tools', () => {
 
     const result = await promise;
     const textContent = result.content.find(isTextContent);
-    const objectContent = result.content.find(isObjectContent);
+    const structuredContent = getStructuredContent(result);
 
     expect(textContent?.text).toBe(
       'Point FPE 4.2 "Right Balcony" - Palette focus 202 - Position (4.5, 6.1, 0).'
     );
-    expect(objectContent?.data).toMatchObject({
+    expect(structuredContent).toMatchObject({
       action: 'get_point_info',
       status: 'ok',
       set_number: 4,
@@ -237,10 +237,10 @@ describe('fpe tools', () => {
 
     const result = await promise;
     const textContent = result.content.find(isTextContent);
-    const objectContent = result.content.find(isObjectContent);
+    const structuredContent = getStructuredContent(result);
 
     expect(textContent?.text).toBe('Set FPE 12 introuvable.');
-    expect(objectContent?.data).toMatchObject({
+    expect(structuredContent).toMatchObject({
       status: 'error',
       set_number: 12,
       error: 'Set not found'

@@ -6,7 +6,7 @@ import {
   eosAddressSetLevelTool,
   eosAddressSetDmxTool
 } from '../index';
-import { isObjectContent, runTool } from '../../__tests__/helpers/runTool';
+import { getStructuredContent, runTool } from '../../__tests__/helpers/runTool';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -65,12 +65,12 @@ describe('dmx address tools', () => {
     const payload = JSON.parse(String(service.sentMessages[0]?.args?.[0]?.value ?? '{}'));
     expect(payload).toEqual({ address: '2/041' });
 
-    const objectContent = result.content.find(isObjectContent);
-    expect(objectContent).toBeDefined();
-    if (!objectContent) {
-      throw new Error('Expected object content');
+    const structuredContent = getStructuredContent(result);
+    expect(structuredContent).toBeDefined();
+    if (!structuredContent) {
+      throw new Error('Expected structured content');
     }
-    expect(objectContent.data.status).toBe('ok');
+    expect(structuredContent.status).toBe('ok');
   });
 
   it('convertit full en 100% pour le niveau', async () => {

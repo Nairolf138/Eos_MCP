@@ -83,22 +83,17 @@ export const eosCueListAllTool: ToolDefinition<typeof listAllInputSchema> = {
         const text = `${listLabel}: ${cues.length} cue(s).`;
 
         const result: ToolExecutionResult = {
-          content: [
-            { type: 'text', text },
-            {
-              type: 'object',
-              data: {
-                action: 'cue_list_all',
-                status: response.status,
-                request: payload,
-                cues,
-                osc: {
-                  address: oscMappings.cues.list,
-                  response: response.payload
-                }
-              }
+          content: [{ type: 'text', text }],
+          structuredContent: {
+            action: 'cue_list_all',
+            status: response.status,
+            request: payload,
+            cues,
+            osc: {
+              address: oscMappings.cues.list,
+              response: response.payload
             }
-          ]
+          }
         } as ToolExecutionResult;
 
         return result;

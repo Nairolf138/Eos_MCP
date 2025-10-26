@@ -59,12 +59,10 @@ function normaliseButtonState(value: ButtonStateInput): 0 | 1 {
   return 1;
 }
 
-function buildResult(text: string, data: Record<string, unknown>): ToolExecutionResult {
+function buildResult(text: string, structuredContent: Record<string, unknown>): ToolExecutionResult {
   return {
-    content: [
-      { type: 'text', text },
-      { type: 'object', data }
-    ]
+    content: [{ type: 'text', text }],
+    structuredContent
   } as ToolExecutionResult;
 }
 

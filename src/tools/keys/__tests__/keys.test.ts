@@ -5,7 +5,7 @@ import {
   eosKeyPressTool,
   eosSoftkeyPressTool
 } from '../index';
-import { isObjectContent, runTool } from '../../__tests__/helpers/runTool';
+import { getStructuredContent, runTool } from '../../__tests__/helpers/runTool';
 
 describe('key tools', () => {
   class FakeOscService implements OscGateway {
@@ -98,13 +98,13 @@ describe('key tools', () => {
     });
 
     const result = await promise;
-    const objectContent = result.content.find(isObjectContent);
+    const structuredContent = getStructuredContent(result);
 
-    expect(objectContent).toBeDefined();
-    if (!objectContent) {
-      throw new Error('Expected object content');
+    expect(structuredContent).toBeDefined();
+    if (!structuredContent) {
+      throw new Error('Expected structured content');
     }
-    expect(objectContent.data).toMatchObject({
+    expect(structuredContent).toMatchObject({
       action: 'get_softkey_labels',
       status: 'ok',
       labels: {

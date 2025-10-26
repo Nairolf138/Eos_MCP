@@ -58,22 +58,17 @@ export const eosGetPendingCueTool: ToolDefinition<typeof getPendingCueInputSchem
     const text = `Cue en attente ${formatCueDescription(state.details.identifier)} (${state.details.label ?? 'sans label'})`;
 
     const result: ToolExecutionResult = {
-      content: [
-        { type: 'text', text },
-        {
-          type: 'object',
-          data: {
-            action: 'get_pending_cue',
-            status: response.status,
-            request: payload,
-            cue: state,
-            osc: {
-              address: oscMappings.cues.pending,
-              response: response.payload
-            }
-          }
+      content: [{ type: 'text', text }],
+      structuredContent: {
+        action: 'get_pending_cue',
+        status: response.status,
+        request: payload,
+        cue: state,
+        osc: {
+          address: oscMappings.cues.pending,
+          response: response.payload
         }
-      ]
+      }
     } as ToolExecutionResult;
 
     return result;

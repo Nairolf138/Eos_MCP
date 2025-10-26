@@ -53,12 +53,9 @@ export const eosResetTool: ToolDefinition<typeof inputSchema> = {
         {
           type: 'text',
           text: lines.join('\n')
-        },
-        {
-          type: 'object',
-          data: result
         }
-      ]
+      ],
+      structuredContent: result
     };
   }
 };

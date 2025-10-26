@@ -2,7 +2,7 @@ import type { OscMessage } from '../../../services/osc/index';
 import { OscClient, setOscClient, type OscGateway, type OscGatewaySendOptions } from '../../../services/osc/client';
 import { oscMappings } from '../../../services/osc/mappings';
 import { eosGetCountTool, eosGetListAllTool } from '../index';
-import { isObjectContent, runTool } from '../../__tests__/helpers/runTool';
+import { getStructuredContent, runTool } from '../../__tests__/helpers/runTool';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -57,12 +57,12 @@ describe('query tools', () => {
     });
 
     const result = await promise;
-    const objectContent = result.content.find(isObjectContent);
-    expect(objectContent).toBeDefined();
-    if (!objectContent) {
-      throw new Error('Expected object content');
+    const structuredContent = getStructuredContent(result);
+    expect(structuredContent).toBeDefined();
+    if (!structuredContent) {
+      throw new Error('Expected structured content');
     }
-    expect(objectContent.data).toMatchObject({
+    expect(structuredContent).toMatchObject({
       action: 'get_count',
       status: 'ok',
       target_type: 'fx',
@@ -94,13 +94,13 @@ describe('query tools', () => {
     });
 
     const result = await promise;
-    const objectContent = result.content.find(isObjectContent);
-    expect(objectContent).toBeDefined();
-    if (!objectContent) {
-      throw new Error('Expected object content');
+    const structuredContent = getStructuredContent(result);
+    expect(structuredContent).toBeDefined();
+    if (!structuredContent) {
+      throw new Error('Expected structured content');
     }
 
-    expect(objectContent.data).toMatchObject({
+    expect(structuredContent).toMatchObject({
       action: 'list_all',
       status: 'ok',
       target_type: 'cue',
@@ -133,13 +133,13 @@ describe('query tools', () => {
     });
 
     const result = await promise;
-    const objectContent = result.content.find(isObjectContent);
-    expect(objectContent).toBeDefined();
-    if (!objectContent) {
-      throw new Error('Expected object content');
+    const structuredContent = getStructuredContent(result);
+    expect(structuredContent).toBeDefined();
+    if (!structuredContent) {
+      throw new Error('Expected structured content');
     }
 
-    expect(objectContent.data).toMatchObject({
+    expect(structuredContent).toMatchObject({
       action: 'list_all',
       status: 'ok',
       target_type: 'macro',
@@ -172,13 +172,13 @@ describe('query tools', () => {
     });
 
     const result = await promise;
-    const objectContent = result.content.find(isObjectContent);
-    expect(objectContent).toBeDefined();
-    if (!objectContent) {
-      throw new Error('Expected object content');
+    const structuredContent = getStructuredContent(result);
+    expect(structuredContent).toBeDefined();
+    if (!structuredContent) {
+      throw new Error('Expected structured content');
     }
 
-    expect(objectContent.data).toMatchObject({
+    expect(structuredContent).toMatchObject({
       target_type: 'ms',
       items: [
         { number: '1', uid: 'ms:1', label: 'Layout' },

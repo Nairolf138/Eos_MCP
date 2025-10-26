@@ -6,7 +6,7 @@ import {
   eosPresetSelectTool,
   eosPresetGetInfoTool
 } from '../index';
-import { isObjectContent, runTool } from '../../__tests__/helpers/runTool';
+import { getStructuredContent, runTool } from '../../__tests__/helpers/runTool';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -153,13 +153,13 @@ describe('preset tools', () => {
     });
 
     const result = await promise;
-    const objectContent = result.content.find(isObjectContent);
-    expect(objectContent).toBeDefined();
-    if (!objectContent) {
-      throw new Error('Expected object content');
+    const structuredContent = getStructuredContent(result);
+    expect(structuredContent).toBeDefined();
+    if (!structuredContent) {
+      throw new Error('Expected structured content');
     }
 
-    const data = objectContent.data;
+    const data = structuredContent;
     assertHasPresetDetails(data);
 
     expect(data).toMatchObject({

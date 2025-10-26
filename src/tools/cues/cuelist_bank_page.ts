@@ -48,20 +48,15 @@ export const eosCuelistBankPageTool: ToolDefinition<typeof bankPageInputSchema> 
     };
 
     const result: ToolExecutionResult = {
-      content: [
-        { type: 'text', text },
-        {
-          type: 'object',
-          data: {
-            action: 'cuelist_bank_page',
-            request,
-            osc: {
-              address,
-              args: [] as const
-            }
-          }
+      content: [{ type: 'text', text }],
+      structuredContent: {
+        action: 'cuelist_bank_page',
+        request,
+        osc: {
+          address,
+          args: [] as const
         }
-      ]
+      }
     } as ToolExecutionResult;
 
     return result;

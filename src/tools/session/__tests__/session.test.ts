@@ -4,7 +4,7 @@ import {
   sessionGetCurrentUserTool,
   sessionSetCurrentUserTool
 } from '../index';
-import { isObjectContent, runTool } from '../../__tests__/helpers/runTool';
+import { getStructuredContent, runTool } from '../../__tests__/helpers/runTool';
 
 describe('session tools', () => {
   beforeEach(() => {
@@ -15,23 +15,23 @@ describe('session tools', () => {
     const result = await runTool(sessionSetCurrentUserTool, { user: 7 });
 
     expect(getCurrentUserId()).toBe(7);
-    const objectContent = result.content.find(isObjectContent);
-    expect(objectContent).toBeDefined();
-    if (!objectContent) {
-      throw new Error('Expected object content');
+    const structuredContent = getStructuredContent(result);
+    expect(structuredContent).toBeDefined();
+    if (!structuredContent) {
+      throw new Error('Expected structured content');
     }
-    expect(objectContent.data).toEqual({ user: 7 });
+    expect(structuredContent).toEqual({ user: 7 });
   });
 
   it('renvoie null lorsqu aucun utilisateur nest defini', async () => {
     const result = await runTool(sessionGetCurrentUserTool, undefined);
 
-    const objectContent = result.content.find(isObjectContent);
-    expect(objectContent).toBeDefined();
-    if (!objectContent) {
-      throw new Error('Expected object content');
+    const structuredContent = getStructuredContent(result);
+    expect(structuredContent).toBeDefined();
+    if (!structuredContent) {
+      throw new Error('Expected structured content');
     }
-    expect(objectContent.data).toEqual({ user: null });
+    expect(structuredContent).toEqual({ user: null });
   });
 
   it('renvoie l utilisateur courant memorise', async () => {
@@ -39,11 +39,11 @@ describe('session tools', () => {
     await runTool(sessionSetCurrentUserTool, { user: 3 });
 
     const result = await runTool(sessionGetCurrentUserTool, undefined);
-    const objectContent = result.content.find(isObjectContent);
-    expect(objectContent).toBeDefined();
-    if (!objectContent) {
-      throw new Error('Expected object content');
+    const structuredContent = getStructuredContent(result);
+    expect(structuredContent).toBeDefined();
+    if (!structuredContent) {
+      throw new Error('Expected structured content');
     }
-    expect(objectContent.data).toEqual({ user: 3 });
+    expect(structuredContent).toEqual({ user: 3 });
   });
 });

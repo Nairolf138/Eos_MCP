@@ -7,7 +7,7 @@ import {
   eosEffectSelectTool,
   eosEffectStopTool
 } from '../index';
-import { isObjectContent, isTextContent, runTool } from '../../__tests__/helpers/runTool';
+import { getStructuredContent, isTextContent, runTool } from '../../__tests__/helpers/runTool';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -112,13 +112,13 @@ describe('effect tools', () => {
     }
     expect(textContent.text).toBe('Effet 907 "Dyn Circle" (Relative Dynamic, rate 120, scale 150%).');
 
-    const objectContent = result.content.find(isObjectContent);
-    expect(objectContent).toBeDefined();
-    if (!objectContent) {
-      throw new Error('Expected object content');
+    const structuredContent = getStructuredContent(result);
+    expect(structuredContent).toBeDefined();
+    if (!structuredContent) {
+      throw new Error('Expected structured content');
     }
 
-    expect(objectContent.data).toMatchObject({
+    expect(structuredContent).toMatchObject({
       action: 'effect_get_info',
       status: 'ok',
       request: { effect: 907 },
@@ -186,12 +186,12 @@ describe('effect tools', () => {
     }
     expect(textContent.text).toBe('Effet 99 introuvable (Effect not found).');
 
-    const objectContent = result.content.find(isObjectContent);
-    expect(objectContent).toBeDefined();
-    if (!objectContent) {
-      throw new Error('Expected object content');
+    const structuredContent = getStructuredContent(result);
+    expect(structuredContent).toBeDefined();
+    if (!structuredContent) {
+      throw new Error('Expected structured content');
     }
-    expect(objectContent.data).toMatchObject({
+    expect(structuredContent).toMatchObject({
       action: 'effect_get_info',
       status: 'error',
       error: 'Effect not found',

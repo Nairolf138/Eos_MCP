@@ -100,22 +100,17 @@ export const eosCueGetInfoTool: ToolDefinition<typeof getInfoInputSchema> = {
         const text = formatCueInfoText(details);
 
         const result: ToolExecutionResult = {
-          content: [
-            { type: 'text', text },
-            {
-              type: 'object',
-              data: {
-                action: 'cue_get_info',
-                status: response.status,
-                request: payload,
-                cue: details,
-                osc: {
-                  address: oscMappings.cues.info,
-                  response: response.payload
-                }
-              }
+          content: [{ type: 'text', text }],
+          structuredContent: {
+            action: 'cue_get_info',
+            status: response.status,
+            request: payload,
+            cue: details,
+            osc: {
+              address: oscMappings.cues.info,
+              response: response.payload
             }
-          ]
+          }
         } as ToolExecutionResult;
 
         return result;

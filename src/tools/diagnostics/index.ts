@@ -101,12 +101,9 @@ export const eosEnableLoggingTool: ToolDefinition<typeof loggingInputSchema> = {
         {
           type: 'text',
           text: summary
-        },
-        {
-          type: 'object',
-          data: { logging: state }
         }
-      ]
+      ],
+      structuredContent: { logging: state }
     };
   }
 };
@@ -139,12 +136,9 @@ export const eosGetDiagnosticsTool: ToolDefinition<typeof emptyInputSchema> = {
         {
           type: 'text',
           text: summary
-        },
-        {
-          type: 'object',
-          data: diagnostics
         }
-      ]
+      ],
+      structuredContent: diagnostics
     };
   }
 };

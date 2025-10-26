@@ -75,21 +75,16 @@ function createSimpleResult(
   oscArgs: OscMessageArgument[]
 ): ToolExecutionResult {
   return {
-    content: [
-      { type: 'text', text },
-      {
-        type: 'object',
-        data: {
-          action,
-          macro_number: macroNumber,
-          request: payload,
-          osc: {
-            address: oscAddress,
-            args: oscArgs
-          }
-        }
+    content: [{ type: 'text', text }],
+    structuredContent: {
+      action,
+      macro_number: macroNumber,
+      request: payload,
+      osc: {
+        address: oscAddress,
+        args: oscArgs
       }
-    ]
+    }
   } as ToolExecutionResult;
 }
 
@@ -311,23 +306,18 @@ function buildMacroInfoResult(
   }
 
   return {
-    content: [
-      { type: 'text', text },
-      {
-        type: 'object',
-        data: {
-          action: 'macro_get_info',
-          status: response.status,
-          request: payload,
-          macro: details,
-          error: meaningfulMessage,
-          osc: {
-            address: oscMappings.macros.info,
-            response: response.payload
-          }
-        }
+    content: [{ type: 'text', text }],
+    structuredContent: {
+      action: 'macro_get_info',
+      status: response.status,
+      request: payload,
+      macro: details,
+      error: meaningfulMessage,
+      osc: {
+        address: oscMappings.macros.info,
+        response: response.payload
       }
-    ]
+    }
   } as ToolExecutionResult;
 }
 

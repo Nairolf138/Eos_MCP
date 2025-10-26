@@ -71,12 +71,9 @@ export const eosConfigureTool: ToolDefinition<typeof inputSchema> = {
         {
           type: 'text',
           text: summary
-        },
-        {
-          type: 'object',
-          data: { diagnostics }
         }
-      ]
+      ],
+      structuredContent: { diagnostics }
     };
   }
 };

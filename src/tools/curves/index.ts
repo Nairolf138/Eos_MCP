@@ -71,21 +71,16 @@ function createSelectResult(
   oscAddress: string
 ): ToolExecutionResult {
   return {
-    content: [
-      { type: 'text', text: `Courbe ${curveNumber} selectionnee.` },
-      {
-        type: 'object',
-        data: {
-          action: 'curve_select',
-          curve_number: curveNumber,
-          request: payload,
-          osc: {
-            address: oscAddress,
-            args: payload
-          }
-        }
+    content: [{ type: 'text', text: `Courbe ${curveNumber} selectionnee.` }],
+    structuredContent: {
+      action: 'curve_select',
+      curve_number: curveNumber,
+      request: payload,
+      osc: {
+        address: oscAddress,
+        args: payload
       }
-    ]
+    }
   } as ToolExecutionResult;
 }
 
@@ -330,23 +325,18 @@ function buildCurveInfoResult(
   }
 
   return {
-    content: [
-      { type: 'text', text },
-      {
-        type: 'object',
-        data: {
-          action: 'curve_get_info',
-          status: response.status,
-          request: payload,
-          curve: details,
-          error: meaningfulMessage,
-          osc: {
-            address: oscMappings.curves.info,
-            response: response.payload
-          }
-        }
+    content: [{ type: 'text', text }],
+    structuredContent: {
+      action: 'curve_get_info',
+      status: response.status,
+      request: payload,
+      curve: details,
+      error: meaningfulMessage,
+      osc: {
+        address: oscMappings.curves.info,
+        response: response.payload
       }
-    ]
+    }
   } as ToolExecutionResult;
 }
 

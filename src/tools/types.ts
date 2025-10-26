@@ -7,6 +7,7 @@ export interface ToolResultContent {
 
 export interface ToolExecutionResult {
   content: ToolResultContent[];
+  structuredContent?: Record<string, unknown>;
   [key: string]: unknown;
 }
 

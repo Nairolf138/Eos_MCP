@@ -6,7 +6,7 @@ import {
   eosMagicSheetOpenTool,
   eosMagicSheetSendStringTool
 } from '../index';
-import { isObjectContent, isTextContent, runTool } from '../../__tests__/helpers/runTool';
+import { getStructuredContent, isTextContent, runTool } from '../../__tests__/helpers/runTool';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -86,12 +86,12 @@ describe('magic sheet tools', () => {
     }
     expect(textContent.text).toContain('connexion Primary');
 
-    const objectContent = result.content.find(isObjectContent);
-    expect(objectContent).toBeDefined();
-    if (!objectContent) {
-      throw new Error('Expected object content');
+    const structuredContent = getStructuredContent(result);
+    expect(structuredContent).toBeDefined();
+    if (!structuredContent) {
+      throw new Error('Expected structured content');
     }
-    expect(objectContent.data).toMatchObject({
+    expect(structuredContent).toMatchObject({
       action: 'magic_sheet_send_string',
       required_role: 'Primary',
       provided_role: 'Secondary'
@@ -123,13 +123,13 @@ describe('magic sheet tools', () => {
     });
 
     const result = await promise;
-    const objectContent = result.content.find(isObjectContent);
-    expect(objectContent).toBeDefined();
-    if (!objectContent) {
-      throw new Error('Expected object content');
+    const structuredContent = getStructuredContent(result);
+    expect(structuredContent).toBeDefined();
+    if (!structuredContent) {
+      throw new Error('Expected structured content');
     }
 
-    expect(objectContent.data).toMatchObject({
+    expect(structuredContent).toMatchObject({
       status: 'ok',
       magic_sheet: {
         ms_number: 7,
@@ -167,12 +167,12 @@ describe('magic sheet tools', () => {
     }
     expect(textContent.text).toContain('introuvable');
 
-    const objectContent = result.content.find(isObjectContent);
-    expect(objectContent).toBeDefined();
-    if (!objectContent) {
-      throw new Error('Expected object content');
+    const structuredContent = getStructuredContent(result);
+    expect(structuredContent).toBeDefined();
+    if (!structuredContent) {
+      throw new Error('Expected structured content');
     }
-    expect(objectContent.data).toMatchObject({
+    expect(structuredContent).toMatchObject({
       status: 'error',
       magic_sheet: {
         ms_number: 42

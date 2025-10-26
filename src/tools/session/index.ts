@@ -51,14 +51,11 @@ export const sessionSetCurrentUserTool: ToolDefinition<typeof setCurrentUserInpu
         {
           type: 'text',
           text: `Utilisateur courant defini sur ${options.user}`
-        },
-        {
-          type: 'object',
-          data: {
-            user: options.user
-          }
         }
-      ]
+      ],
+      structuredContent: {
+        user: options.user
+      }
     } as ToolExecutionResult;
   }
 };
@@ -86,14 +83,11 @@ export const sessionGetCurrentUserTool: ToolDefinition = {
         {
           type: 'text',
           text: typeof user === 'number' ? `Utilisateur courant: ${user}` : 'Aucun utilisateur courant defini'
-        },
-        {
-          type: 'object',
-          data: {
-            user: user ?? null
-          }
         }
-      ]
+      ],
+      structuredContent: {
+        user: user ?? null
+      }
     } as ToolExecutionResult;
   }
 };
