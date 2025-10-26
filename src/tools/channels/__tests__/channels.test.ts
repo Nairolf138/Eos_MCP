@@ -6,7 +6,7 @@ import {
   eosSetDmxTool,
   eosChannelGetInfoTool
 } from '../index';
-import { isObjectContent, runTool } from '../../__tests__/helpers/runTool';
+import { getStructuredContent, runTool } from '../../__tests__/helpers/runTool';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -83,13 +83,13 @@ describe('channel tools', () => {
     });
 
     const result = await promise;
-    const objectContent = result.content.find(isObjectContent);
-    expect(objectContent).toBeDefined();
-    if (!objectContent) {
-      throw new Error('Expected object content');
+    const structuredContent = getStructuredContent(result);
+    expect(structuredContent).toBeDefined();
+    if (!structuredContent) {
+      throw new Error('Expected structured content');
     }
 
-    expect(objectContent.data).toMatchObject({
+    expect(structuredContent).toMatchObject({
       status: 'ok',
       request: { channels: [1], fields: ['label'] },
       data: {

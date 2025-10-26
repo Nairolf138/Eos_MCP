@@ -7,7 +7,7 @@ import {
   eosGetCommandLineTool
 } from '../command_tools';
 import { clearCurrentUserId, setCurrentUserId } from '../../session';
-import { isObjectContent, runTool } from '../../__tests__/helpers/runTool';
+import { getStructuredContent, runTool } from '../../__tests__/helpers/runTool';
 
 describe('command tools', () => {
   class FakeOscService implements OscGateway {
@@ -57,11 +57,7 @@ describe('command tools', () => {
       ]
     });
 
-    const objectContent = result.content.find(isObjectContent);
-    expect(objectContent).toBeDefined();
-    if (!objectContent) {
-      throw new Error('Expected object content');
-    }
+    expect(getStructuredContent(result)).toBeDefined();
   });
 
   it('applique la substitution et efface la ligne pour eos_new_command', async () => {
@@ -124,13 +120,13 @@ describe('command tools', () => {
     });
 
     const result = await promise;
-    const objectContent = result.content.find(isObjectContent);
+    const structuredContent = getStructuredContent(result);
 
-    expect(objectContent).toBeDefined();
-    if (!objectContent) {
-      throw new Error('Expected object content');
+    expect(structuredContent).toBeDefined();
+    if (!structuredContent) {
+      throw new Error('Expected structured content');
     }
-    expect(objectContent.data).toMatchObject({
+    expect(structuredContent).toMatchObject({
       status: 'ok',
       text: 'Chan 1 At 50',
       user: 4

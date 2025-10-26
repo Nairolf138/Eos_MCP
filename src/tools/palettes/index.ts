@@ -87,12 +87,10 @@ function annotate(osc: string): Record<string, unknown> {
   };
 }
 
-function createResult(text: string, data: Record<string, unknown>): ToolExecutionResult {
+function createResult(text: string, structuredContent: Record<string, unknown>): ToolExecutionResult {
   return {
-    content: [
-      { type: 'text', text },
-      { type: 'object', data }
-    ]
+    content: [{ type: 'text', text }],
+    structuredContent
   } as ToolExecutionResult;
 }
 
@@ -510,22 +508,17 @@ export const eosPaletteGetInfoTool: ToolDefinition<typeof paletteGetInfoInputSch
         const text = formatPaletteDescription(info);
 
         const result: ToolExecutionResult = {
-          content: [
-            { type: 'text', text },
-            {
-              type: 'object',
-              data: {
-                action: 'palette_get_info',
-                status: response.status,
-                request: payload,
-                palette: info,
-                osc: {
-                  address: mapping,
-                  response: response.payload
-                }
-              }
+          content: [{ type: 'text', text }],
+          structuredContent: {
+            action: 'palette_get_info',
+            status: response.status,
+            request: payload,
+            palette: info,
+            osc: {
+              address: mapping,
+              response: response.payload
             }
-          ]
+          }
         } as ToolExecutionResult;
 
         return result;

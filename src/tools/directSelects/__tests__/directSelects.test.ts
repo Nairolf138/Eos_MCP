@@ -7,7 +7,7 @@ import {
   eosDirectSelectPageTool,
   eosDirectSelectPressTool
 } from '../index';
-import { isObjectContent, runTool } from '../../__tests__/helpers/runTool';
+import { getStructuredContent, runTool } from '../../__tests__/helpers/runTool';
 
 function formatPattern(pattern: string, values: Record<string, string | number>): string {
   return pattern.replace(/\{(\w+)\}/g, (match, key) => {
@@ -109,12 +109,12 @@ describe('direct select tools', () => {
     );
     expect(forwardMessage.args ?? []).toEqual([]);
 
-    const forwardData = nextPageResult.content.find(isObjectContent);
+    const forwardData = getStructuredContent(nextPageResult);
     expect(forwardData).toBeDefined();
     if (!forwardData) {
-      throw new Error('Expected object content');
+      throw new Error('Expected structured content');
     }
-    expect(forwardData.data).toMatchObject({ previousPage: 1, page: 3 });
+    expect(forwardData).toMatchObject({ previousPage: 1, page: 3 });
 
     service.sentMessages.length = 0;
 
@@ -129,12 +129,12 @@ describe('direct select tools', () => {
     );
     expect(backMessage.args ?? []).toEqual([]);
 
-    const backData = backResult.content.find(isObjectContent);
+    const backData = getStructuredContent(backResult);
     expect(backData).toBeDefined();
     if (!backData) {
-      throw new Error('Expected object content');
+      throw new Error('Expected structured content');
     }
-    expect(backData.data).toMatchObject({ previousPage: 3, page: 0 });
+    expect(backData).toMatchObject({ previousPage: 3, page: 0 });
 
     service.sentMessages.length = 0;
 

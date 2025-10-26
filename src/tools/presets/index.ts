@@ -125,12 +125,10 @@ function annotate(osc: string): Record<string, unknown> {
   };
 }
 
-function createResult(text: string, data: Record<string, unknown>): ToolExecutionResult {
+function createResult(text: string, structuredContent: Record<string, unknown>): ToolExecutionResult {
   return {
-    content: [
-      { type: 'text', text },
-      { type: 'object', data }
-    ]
+    content: [{ type: 'text', text }],
+    structuredContent
   } as ToolExecutionResult;
 }
 
@@ -595,22 +593,17 @@ export const eosPresetGetInfoTool: ToolDefinition<typeof presetGetInfoInputSchem
         const text = formatPresetDescription(info);
 
         const result: ToolExecutionResult = {
-          content: [
-            { type: 'text', text },
-            {
-              type: 'object',
-              data: {
-                action: 'preset_get_info',
-                status: response.status,
-                request: payload,
-                preset: info,
-                osc: {
-                  address: oscMappings.presets.info,
-                  response: response.payload
-                }
-              }
+          content: [{ type: 'text', text }],
+          structuredContent: {
+            action: 'preset_get_info',
+            status: response.status,
+            request: payload,
+            preset: info,
+            osc: {
+              address: oscMappings.presets.info,
+              response: response.payload
             }
-          ]
+          }
         } as ToolExecutionResult;
 
         return result;

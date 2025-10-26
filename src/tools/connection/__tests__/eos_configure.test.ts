@@ -86,18 +86,15 @@ describe('eos_configure tool', () => {
     expect(clientModule.resetOscClient).toHaveBeenCalledTimes(1);
     expect(mockGetDiagnostics).toHaveBeenCalledTimes(1);
 
-    expect(result.content).toHaveLength(2);
-    const [textContent, objectContent] = result.content;
+    expect(result.content).toHaveLength(1);
+    const [textContent] = result.content;
     if (textContent.type !== 'text') {
       throw new Error('Le premier contenu doit etre du texte');
     }
     expect(textContent.text).toContain('10.1.0.5:9002');
     expect(textContent.text).toContain('Local : 0.0.0.0:7001');
 
-    if (objectContent.type !== 'object') {
-      throw new Error('Le second contenu doit etre un objet');
-    }
-    expect(objectContent.data).toEqual({ diagnostics });
+    expect(result.structuredContent).toEqual({ diagnostics });
   });
 
   it('rejette les configurations invalides', async () => {

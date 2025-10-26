@@ -51,12 +51,9 @@ export const eosConnectTool: ToolDefinition<typeof inputSchema> = {
         {
           type: 'text',
           text: summaryParts.join('\n')
-        },
-        {
-          type: 'object',
-          data: result
         }
-      ]
+      ],
+      structuredContent: result
     };
   }
 };

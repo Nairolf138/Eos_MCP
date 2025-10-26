@@ -64,22 +64,17 @@ export const eosGetActiveCueTool: ToolDefinition<typeof getActiveCueInputSchema>
     const text = formatActiveText(state.details.identifier, state.progressPercent);
 
     const result: ToolExecutionResult = {
-      content: [
-        { type: 'text', text },
-        {
-          type: 'object',
-          data: {
-            action: 'get_active_cue',
-            status: response.status,
-            request: payload,
-            cue: state,
-            osc: {
-              address: oscMappings.cues.active,
-              response: response.payload
-            }
-          }
+      content: [{ type: 'text', text }],
+      structuredContent: {
+        action: 'get_active_cue',
+        status: response.status,
+        request: payload,
+        cue: state,
+        osc: {
+          address: oscMappings.cues.active,
+          response: response.payload
         }
-      ]
+      }
     } as ToolExecutionResult;
 
     return result;

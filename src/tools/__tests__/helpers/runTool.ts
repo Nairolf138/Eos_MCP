@@ -2,11 +2,6 @@ import type { ToolDefinition, ToolExecutionResult } from '../../types';
 
 type ToolContentEntry = ToolExecutionResult['content'][number];
 
-export interface ObjectContent extends ToolContentEntry {
-  type: 'object';
-  data: Record<string, unknown>;
-}
-
 export interface TextContent extends ToolContentEntry {
   type: 'text';
   text: string;
@@ -20,13 +15,14 @@ export async function runTool(
   return tool.handler(args, extra);
 }
 
-export function isObjectContent(entry: ToolContentEntry): entry is ObjectContent {
-  if (entry.type !== 'object') {
-    return false;
+export function getStructuredContent(
+  result: ToolExecutionResult
+): Record<string, unknown> | undefined {
+  const { structuredContent } = result;
+  if (structuredContent && typeof structuredContent === 'object' && !Array.isArray(structuredContent)) {
+    return structuredContent as Record<string, unknown>;
   }
-
-  const candidate = entry as { data?: unknown };
-  return typeof candidate.data === 'object' && candidate.data !== null;
+  return undefined;
 }
 
 export function isTextContent(entry: ToolContentEntry): entry is TextContent {

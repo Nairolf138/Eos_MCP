@@ -10,7 +10,7 @@ import {
   eosWheelSwitchContinuousTool,
   eosWheelTickTool
 } from '../index';
-import { isObjectContent, runTool } from '../../__tests__/helpers/runTool';
+import { getStructuredContent, runTool } from '../../__tests__/helpers/runTool';
 
 function assertHasWheelData(
   data: Record<string, unknown>
@@ -157,15 +157,15 @@ describe('parameter tools', () => {
     });
 
     const result = await promise;
-    const objectContent = result.content.find(isObjectContent);
-    expect(objectContent).toBeDefined();
-    if (!objectContent) {
-      throw new Error('Expected object content');
+    const structuredContent = getStructuredContent(result);
+    expect(structuredContent).toBeDefined();
+    if (!structuredContent) {
+      throw new Error('Expected structured content');
     }
 
-    assertHasWheelData(objectContent.data);
-    expect(objectContent.data.status).toBe('ok');
-    expect(objectContent.data.wheels).toEqual([
+    assertHasWheelData(structuredContent);
+    expect(structuredContent.status).toBe('ok');
+    expect(structuredContent.wheels).toEqual([
       {
         wheelIndex: 1,
         parameter: 'Pan',

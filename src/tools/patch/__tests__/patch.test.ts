@@ -7,7 +7,7 @@ import {
   eosPatchGetChannelInfoTool
 } from '../index';
 import type { ToolExecutionResult } from '../../types';
-import { isObjectContent, runTool } from '../../__tests__/helpers/runTool';
+import { getStructuredContent, runTool } from '../../__tests__/helpers/runTool';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -30,9 +30,8 @@ class FakeOscService implements OscGateway {
   }
 }
 
-function extractObjectContent(result: ToolExecutionResult): Record<string, unknown> | null {
-  const objectContent = result.content.find(isObjectContent);
-  return objectContent?.data ?? null;
+function extractStructuredContent(result: ToolExecutionResult): Record<string, unknown> | null {
+  return getStructuredContent(result) ?? null;
 }
 
 describe('patch tools', () => {
@@ -121,9 +120,9 @@ describe('patch tools', () => {
     });
 
     const result = await promise;
-    const objectContent = extractObjectContent(result);
+    const structuredContent = extractStructuredContent(result);
 
-    expect(objectContent).toMatchObject({
+    expect(structuredContent).toMatchObject({
       status: 'ok',
       channel: {
         channel_number: 205,
@@ -188,9 +187,9 @@ describe('patch tools', () => {
     });
 
     const result = await promise;
-    const objectContent = extractObjectContent(result);
+    const structuredContent = extractStructuredContent(result);
 
-    expect(objectContent).toMatchObject({
+    expect(structuredContent).toMatchObject({
       status: 'ok',
       augment3d: {
         channel_number: 12,
@@ -237,9 +236,9 @@ describe('patch tools', () => {
     });
 
     const result = await promise;
-    const objectContent = extractObjectContent(result);
+    const structuredContent = extractStructuredContent(result);
 
-    expect(objectContent).toMatchObject({
+    expect(structuredContent).toMatchObject({
       status: 'ok',
       augment3d: {
         channel_number: 12,

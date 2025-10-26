@@ -2,7 +2,7 @@ import type { OscMessage } from '../../../services/osc/index';
 import { OscClient, setOscClient, type OscGateway, type OscGatewaySendOptions } from '../../../services/osc/client';
 import { oscMappings } from '../../../services/osc/mappings';
 import { eosCurveGetInfoTool, eosCurveSelectTool } from '../index';
-import { isObjectContent, isTextContent, runTool } from '../../__tests__/helpers/runTool';
+import { getStructuredContent, isTextContent, runTool } from '../../__tests__/helpers/runTool';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -88,12 +88,12 @@ describe('curve tools', () => {
     }
     expect(textContent.text).toBe('Courbe 8 "Custom Fade" (Time) - 3 points.');
 
-    const objectContent = result.content.find(isObjectContent);
-    expect(objectContent).toBeDefined();
-    if (!objectContent) {
-      throw new Error('Expected object content');
+    const structuredContent = getStructuredContent(result);
+    expect(structuredContent).toBeDefined();
+    if (!structuredContent) {
+      throw new Error('Expected structured content');
     }
-    expect(objectContent.data).toMatchObject({
+    expect(structuredContent).toMatchObject({
       status: 'ok',
       error: null,
       curve: {
@@ -140,12 +140,12 @@ describe('curve tools', () => {
     }
     expect(textContent.text).toBe('Courbe 42 introuvable.');
 
-    const objectContent = result.content.find(isObjectContent);
-    expect(objectContent).toBeDefined();
-    if (!objectContent) {
-      throw new Error('Expected object content');
+    const structuredContent = getStructuredContent(result);
+    expect(structuredContent).toBeDefined();
+    if (!structuredContent) {
+      throw new Error('Expected structured content');
     }
-    expect(objectContent.data).toMatchObject({
+    expect(structuredContent).toMatchObject({
       status: 'error',
       error: 'Curve not found',
       curve: {

@@ -58,22 +58,19 @@ function formatSendResult(command: string, user: number | null, oscAddress: stri
       {
         type: 'text',
         text: `Commande envoyee sur ${oscAddress}: ${command}`
-      },
-      {
-        type: 'object',
-        data: {
-          command,
-          user,
-          osc: {
-            address: oscAddress,
-            ...buildOscDescriptor(command, user)
-          },
-          cli: {
-            text: command
-          }
-        }
       }
-    ]
+    ],
+    structuredContent: {
+      command,
+      user,
+      osc: {
+        address: oscAddress,
+        ...buildOscDescriptor(command, user)
+      },
+      cli: {
+        text: command
+      }
+    }
   } as ToolExecutionResult;
 }
 
@@ -85,12 +82,9 @@ function formatCommandLineState(result: CommandLineState): ToolExecutionResult {
         text: result.status === 'ok'
           ? `Ligne de commande utilisateur ${result.user ?? 'global'}: ${result.text}`
           : `Lecture de la ligne de commande indisponible (${result.status})`
-      },
-      {
-        type: 'object',
-        data: result
       }
-    ]
+    ],
+    structuredContent: result
   } as ToolExecutionResult;
 }
 

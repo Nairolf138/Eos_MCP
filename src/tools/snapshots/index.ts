@@ -77,21 +77,16 @@ function createRecallResult(
   oscAddress: string
 ): ToolExecutionResult {
   return {
-    content: [
-      { type: 'text', text: `Snapshot ${snapshotNumber} rappelle.` },
-      {
-        type: 'object',
-        data: {
-          action: 'snapshot_recall',
-          snapshot_number: snapshotNumber,
-          request: payload,
-          osc: {
-            address: oscAddress,
-            args: payload
-          }
-        }
+    content: [{ type: 'text', text: `Snapshot ${snapshotNumber} rappelle.` }],
+    structuredContent: {
+      action: 'snapshot_recall',
+      snapshot_number: snapshotNumber,
+      request: payload,
+      osc: {
+        address: oscAddress,
+        args: payload
       }
-    ]
+    }
   } as ToolExecutionResult;
 }
 
@@ -266,23 +261,18 @@ function buildSnapshotInfoResult(
   }
 
   return {
-    content: [
-      { type: 'text', text },
-      {
-        type: 'object',
-        data: {
-          action: 'snapshot_get_info',
-          status: response.status,
-          request: payload,
-          snapshot: details,
-          error: errorMessage,
-          osc: {
-            address: oscMappings.snapshots.info,
-            response: response.payload
-          }
-        }
+    content: [{ type: 'text', text }],
+    structuredContent: {
+      action: 'snapshot_get_info',
+      status: response.status,
+      request: payload,
+      snapshot: details,
+      error: errorMessage,
+      osc: {
+        address: oscMappings.snapshots.info,
+        response: response.payload
       }
-    ]
+    }
   } as ToolExecutionResult;
 }
 

@@ -8,7 +8,7 @@ import {
   eosSetCueSendStringTool,
   eosSetCueReceiveStringTool
 } from '../index';
-import { isObjectContent, isTextContent, runTool } from '../../__tests__/helpers/runTool';
+import { getStructuredContent, isTextContent, runTool } from '../../__tests__/helpers/runTool';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -71,12 +71,12 @@ describe('show control tools', () => {
     }
     expect(textContent.text).toContain('Festival 2024');
 
-    const objectContent = result.content.find(isObjectContent);
-    expect(objectContent).toBeDefined();
-    if (!objectContent) {
-      throw new Error('Expected object content');
+    const structuredContent = getStructuredContent(result);
+    expect(structuredContent).toBeDefined();
+    if (!structuredContent) {
+      throw new Error('Expected structured content');
     }
-    expect(objectContent.data.show_name).toBe('Festival 2024');
+    expect(structuredContent.show_name).toBe('Festival 2024');
   });
 
   it('normalise et valide le mode Live/Blind', async () => {
@@ -102,12 +102,12 @@ describe('show control tools', () => {
     }
     expect(textContent.text).toContain('Blind');
 
-    const objectContent = result.content.find(isObjectContent);
-    expect(objectContent).toBeDefined();
-    if (!objectContent) {
-      throw new Error('Expected object content');
+    const structuredContent = getStructuredContent(result);
+    expect(structuredContent).toBeDefined();
+    if (!structuredContent) {
+      throw new Error('Expected structured content');
     }
-    expect(objectContent.data.state).toEqual({ numeric: 0, label: 'Blind' });
+    expect(structuredContent.state).toEqual({ numeric: 0, label: 'Blind' });
   });
 
   it('renvoie une erreur lisible quand le mode Live/Blind est invalide', async () => {
@@ -126,12 +126,12 @@ describe('show control tools', () => {
     });
 
     const result = await promise;
-    const objectContent = result.content.find(isObjectContent);
-    expect(objectContent).toBeDefined();
-    if (!objectContent) {
-      throw new Error('Expected object content');
+    const structuredContent = getStructuredContent(result);
+    expect(structuredContent).toBeDefined();
+    if (!structuredContent) {
+      throw new Error('Expected structured content');
     }
-    expect(objectContent.data.error).toContain('Etat Live/Blind invalide');
+    expect(structuredContent.error).toContain('Etat Live/Blind invalide');
   });
 
   it('bascule le mode staging et retourne un accusé', async () => {
@@ -179,12 +179,12 @@ describe('show control tools', () => {
     const payload = JSON.parse(String(service.sentMessages[0]?.args?.[0]?.value ?? '{}'));
     expect(payload).toEqual({ format: 'Cue %1 -> %2 (%3)' });
 
-    const objectContent = result.content.find(isObjectContent);
-    expect(objectContent).toBeDefined();
-    if (!objectContent) {
-      throw new Error('Expected object content');
+    const structuredContent = getStructuredContent(result);
+    expect(structuredContent).toBeDefined();
+    if (!structuredContent) {
+      throw new Error('Expected structured content');
     }
-    expect(objectContent.data.format).toBe('Cue %1 -> %2 (%3)');
+    expect(structuredContent.format).toBe('Cue %1 -> %2 (%3)');
   });
 
   it('refuse les placeholders invalides pour le format d\'envoi', async () => {

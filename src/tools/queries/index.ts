@@ -349,12 +349,10 @@ function annotate(mode: 'count' | 'list'): Record<string, unknown> {
   };
 }
 
-function createResult(text: string, data: Record<string, unknown>): ToolExecutionResult {
+function createResult(text: string, structuredContent: Record<string, unknown>): ToolExecutionResult {
   return {
-    content: [
-      { type: 'text', text },
-      { type: 'object', data }
-    ]
+    content: [{ type: 'text', text }],
+    structuredContent
   } as ToolExecutionResult;
 }
 

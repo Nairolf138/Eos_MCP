@@ -508,23 +508,18 @@ function buildSetCountResult(
     : `Nombre de sets FPE: ${setCount}.`;
 
   return {
-    content: [
-      { type: 'text', text: message },
-      {
-        type: 'object',
-        data: {
-          action: 'get_set_count',
-          status: response.status,
-          set_count: setCount,
-          data: response.data,
-          error: response.error ?? null,
-          osc: {
-            address: oscAddress,
-            args: payload
-          }
-        }
+    content: [{ type: 'text', text: message }],
+    structuredContent: {
+      action: 'get_set_count',
+      status: response.status,
+      set_count: setCount,
+      data: response.data,
+      error: response.error ?? null,
+      osc: {
+        address: oscAddress,
+        args: payload
       }
-    ]
+    }
   } as ToolExecutionResult;
 }
 
@@ -555,24 +550,19 @@ function buildSetInfoResult(
   }
 
   return {
-    content: [
-      { type: 'text', text },
-      {
-        type: 'object',
-        data: {
-          action: 'get_set_info',
-          status: response.status,
-          set_number: setNumber,
-          set: details,
-          data: response.data,
-          error: rawMessage,
-          osc: {
-            address: oscAddress,
-            args: payload
-          }
-        }
+    content: [{ type: 'text', text }],
+    structuredContent: {
+      action: 'get_set_info',
+      status: response.status,
+      set_number: setNumber,
+      set: details,
+      data: response.data,
+      error: rawMessage,
+      osc: {
+        address: oscAddress,
+        args: payload
       }
-    ]
+    }
   } as ToolExecutionResult;
 }
 
@@ -624,26 +614,21 @@ function buildPointInfoResult(
   }
 
   return {
-    content: [
-      { type: 'text', text },
-      {
-        type: 'object',
-        data: {
-          action: 'get_point_info',
-          status: response.status,
-          set_number: setNumber,
-          point_number: pointNumber,
-          point: pointInfo,
-          set: setInfo,
-          data: response.data,
-          error: rawMessage,
-          osc: {
-            address: oscAddress,
-            args: payload
-          }
-        }
+    content: [{ type: 'text', text }],
+    structuredContent: {
+      action: 'get_point_info',
+      status: response.status,
+      set_number: setNumber,
+      point_number: pointNumber,
+      point: pointInfo,
+      set: setInfo,
+      data: response.data,
+      error: rawMessage,
+      osc: {
+        address: oscAddress,
+        args: payload
       }
-    ]
+    }
   } as ToolExecutionResult;
 }
 

@@ -143,21 +143,16 @@ function createSimpleResult(
   oscAddress: string
 ): ToolExecutionResult {
   return {
-    content: [
-      { type: 'text', text },
-      {
-        type: 'object',
-        data: {
-          action,
-          effect_number: effectNumber,
-          request: payload,
-          osc: {
-            address: oscAddress,
-            args: payload
-          }
-        }
+    content: [{ type: 'text', text }],
+    structuredContent: {
+      action,
+      effect_number: effectNumber,
+      request: payload,
+      osc: {
+        address: oscAddress,
+        args: payload
       }
-    ]
+    }
   } as ToolExecutionResult;
 }
 
@@ -507,23 +502,18 @@ function buildEffectInfoResult(
   const text = formatEffectInfoText(details, response.status, errorMessage);
 
   return {
-    content: [
-      { type: 'text', text },
-      {
-        type: 'object',
-        data: {
-          action: 'effect_get_info',
-          status: response.status,
-          request: payload,
-          effect: details,
-          error: errorMessage,
-          osc: {
-            address: oscMappings.effects.info,
-            response: response.payload
-          }
-        }
+    content: [{ type: 'text', text }],
+    structuredContent: {
+      action: 'effect_get_info',
+      status: response.status,
+      request: payload,
+      effect: details,
+      error: errorMessage,
+      osc: {
+        address: oscMappings.effects.info,
+        response: response.payload
       }
-    ]
+    }
   } as ToolExecutionResult;
 }
 

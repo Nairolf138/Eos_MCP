@@ -8,7 +8,7 @@ import {
   eosIntensityPaletteFireTool,
   eosPaletteGetInfoTool
 } from '../index';
-import { isObjectContent, runTool } from '../../__tests__/helpers/runTool';
+import { getStructuredContent, runTool } from '../../__tests__/helpers/runTool';
 
 function assertHasPalette(
   data: Record<string, unknown>
@@ -102,14 +102,14 @@ describe('palette tools', () => {
 
     const result = await promise;
 
-    const objectContent = result.content.find(isObjectContent);
-    expect(objectContent).toBeDefined();
-    if (!objectContent) {
-      throw new Error('Expected object content');
+    const structuredContent = getStructuredContent(result);
+    expect(structuredContent).toBeDefined();
+    if (!structuredContent) {
+      throw new Error('Expected structured content');
     }
 
-    assertHasPalette(objectContent.data);
-    const paletteInfo = objectContent.data.palette as Record<string, unknown> & {
+    assertHasPalette(structuredContent);
+    const paletteInfo = structuredContent.palette as Record<string, unknown> & {
       paletteType: string;
       paletteNumber: number;
       label: string | null;

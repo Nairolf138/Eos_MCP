@@ -9,7 +9,7 @@ import {
   eosFaderUnloadTool,
   eosFaderPageTool
 } from '../index';
-import { isObjectContent, runTool } from '../../__tests__/helpers/runTool';
+import { getStructuredContent, runTool } from '../../__tests__/helpers/runTool';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -69,12 +69,12 @@ describe('fader tools', () => {
     await runTool(eosFaderPageTool, { bank_index: 3, delta: 1 });
 
     const pageResult = await runTool(eosFaderPageTool, { bank_index: 3, delta: -2 });
-    const pageData = pageResult.content.find(isObjectContent);
+    const pageData = getStructuredContent(pageResult);
     expect(pageData).toBeDefined();
     if (!pageData) {
-      throw new Error('Expected object content');
+      throw new Error('Expected structured content');
     }
-    expect(pageData.data).toMatchObject({ page: 1 });
+    expect(pageData).toMatchObject({ page: 1 });
 
     service.sentMessages.length = 0;
 
@@ -97,11 +97,11 @@ describe('fader tools', () => {
     expect(message.address).toBe(`${oscMappings.faders.base}/7/page/1`);
     expect(message.args).toBeUndefined();
 
-    const objectContent = result.content.find(isObjectContent);
-    expect(objectContent).toBeDefined();
-    if (!objectContent) {
-      throw new Error('Expected object content');
+    const structuredContent = getStructuredContent(result);
+    expect(structuredContent).toBeDefined();
+    if (!structuredContent) {
+      throw new Error('Expected structured content');
     }
-    expect(objectContent.data).toMatchObject({ previousPage: 0, page: 1 });
+    expect(structuredContent).toMatchObject({ previousPage: 0, page: 1 });
   });
 });

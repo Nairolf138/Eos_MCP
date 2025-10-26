@@ -83,22 +83,17 @@ export const eosCuelistGetInfoTool: ToolDefinition<typeof cuelistInfoInputSchema
         const text = `${listLabel}: ${info.label ?? 'sans label'}`;
 
         const result: ToolExecutionResult = {
-          content: [
-            { type: 'text', text },
-            {
-              type: 'object',
-              data: {
-                action: 'cuelist_get_info',
-                status: response.status,
-                request: payload,
-                cuelist: info,
-                osc: {
-                  address: oscMappings.cues.cuelistInfo,
-                  response: response.payload
-                }
-              }
+          content: [{ type: 'text', text }],
+          structuredContent: {
+            action: 'cuelist_get_info',
+            status: response.status,
+            request: payload,
+            cuelist: info,
+            osc: {
+              address: oscMappings.cues.cuelistInfo,
+              response: response.payload
             }
-          ]
+          }
         } as ToolExecutionResult;
 
         return result;
