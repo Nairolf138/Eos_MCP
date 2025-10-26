@@ -26,10 +26,10 @@ jest.mock('@modelcontextprotocol/sdk/server/stdio.js', () => ({
 jest.mock('../../config/index.js', () => ({
   getConfig: jest.fn(() => ({
     mcp: {
-      tcpPort: 3100
+      tcpPort: 3033
     },
     osc: {
-      remoteAddress: '127.0.0.1',
+      remoteAddress: '192.168.1.176',
       tcpPort: 3032,
       udpOutPort: 8001,
       udpInPort: 8000,
@@ -43,9 +43,9 @@ jest.mock('../../config/index.js', () => ({
     httpGateway: {
       security: {
         apiKeys: [],
-        mcpTokens: ['change-me'],
-        ipAllowlist: [],
-        allowedOrigins: [],
+        mcpTokens: ['token-123456789-token-123456789'],
+        ipAllowlist: ['*'],
+        allowedOrigins: ['*'],
         rateLimit: { windowMs: 60000, max: 60 }
       }
     }
@@ -177,7 +177,7 @@ describe('bootstrap OSC handshake', () => {
     expect(mockConnect).toHaveBeenCalledWith({
       toolId: 'startup_preflight',
       handshakeTimeoutMs: 10000,
-      protocolTimeoutMs: 2000
+      protocolTimeoutMs: 10000
     });
 
     expect(mockLogger.info).toHaveBeenCalledWith(
