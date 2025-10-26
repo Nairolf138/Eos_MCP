@@ -234,6 +234,73 @@ describe('OscConnectionGateway', () => {
     gateway.close();
   });
 
+  it('relaye tous les messages contenus dans un bundle OSC', () => {
+    const gateway = createOscConnectionGateway({
+      host: '127.0.0.1',
+      tcpPort: 3032,
+      udpPort: 8001,
+      localPort: 8000
+    });
+
+    const manager = instances.at(-1);
+    if (!manager) {
+      throw new Error('Gestionnaire de connexion non initialise');
+    }
+
+    const received: OscMessage[] = [];
+    gateway.onMessage((message) => {
+      received.push(message);
+    });
+
+    const bundle = {
+      timeTag: osc.timeTag(0),
+      packets: [
+        {
+          address: '/eos/out/cmd',
+          args: [
+            { type: 's' as const, value: '1' },
+            { type: 's' as const, value: 'Hello' }
+          ]
+        },
+        {
+          address: '/eos/handshake/reply',
+          args: [
+            { type: 's' as const, value: 'ETCOSC!' },
+            {
+              type: 's' as const,
+              value: JSON.stringify({ version: '3.2.0', protocols: ['tcp', 'udp'] })
+            }
+          ]
+        }
+      ]
+    };
+
+    const encoded = Buffer.from(osc.writePacket(bundle, { metadata: true }) as Uint8Array);
+    manager.emitMessage('udp', encoded);
+
+    expect(received).toEqual([
+      {
+        address: '/eos/out/cmd',
+        args: [
+          { type: 's', value: '1' },
+          { type: 's', value: 'Hello' }
+        ]
+      },
+      {
+        address: '/eos/handshake/reply',
+        args: [
+          { type: 's', value: 'ETCOSC!' },
+          {
+            type: 's',
+            value: JSON.stringify({ version: '3.2.0', protocols: ['tcp', 'udp'] })
+          }
+        ]
+      }
+    ]);
+
+    gateway.close();
+  });
+
   it('preserve les ecouteurs lors de la reconfiguration', () => {
     const gateway = createOscConnectionGateway({
       host: '127.0.0.1',
