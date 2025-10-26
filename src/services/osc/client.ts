@@ -85,10 +85,26 @@ export interface ConnectOptions extends TargetOptions {
   clientId?: string;
 }
 
-interface HandshakeData {
+export interface HandshakeData {
   version: string | null;
   protocols: string[];
   raw: unknown;
+}
+
+export function parseLegacyHandshakeMessage(message: OscMessage): HandshakeData | null {
+  if (!message || typeof message.address !== 'string') {
+    return null;
+  }
+
+  if (!message.address.startsWith('/eos/out/')) {
+    return null;
+  }
+
+  return {
+    version: null,
+    protocols: [],
+    raw: message
+  };
 }
 
 export interface ConnectResult {
@@ -758,6 +774,8 @@ export class OscClient {
         { autoStartTimer: false }
       );
 
+      const legacyAwaiter = this.createLegacyHandshakeAwaiter();
+
       try {
         await this.send(
           {
@@ -772,12 +790,25 @@ export class OscClient {
           }
         );
         awaiter.startTimer();
+        const canonicalPromise = awaiter.promise
+          .then((response) => {
+            legacyAwaiter.cancel();
+            return this.parseHandshakeResponse(response);
+          })
+          .catch((error) => {
+            legacyAwaiter.cancel();
+            throw error;
+          });
 
-        const response = await awaiter.promise;
+        const legacyPromise = legacyAwaiter.promise.then((legacy) => {
+          awaiter.cancel();
+          return legacy;
+        });
 
-        return this.parseHandshakeResponse(response);
+        return await Promise.race([canonicalPromise, legacyPromise]);
       } catch (error) {
         awaiter.cancel();
+        legacyAwaiter.cancel();
         throw error;
       }
     };
@@ -939,6 +970,45 @@ export class OscClient {
       protocols,
       raw: payload ?? message
     };
+  }
+
+  private createLegacyHandshakeAwaiter(): { promise: Promise<HandshakeData>; cancel: () => void } {
+    let disposed = false;
+    let cancel = (): void => {};
+
+    const promise = new Promise<HandshakeData>((resolve) => {
+      let timer: NodeJS.Timeout | null = null;
+      const dispose = this.gateway.onMessage((message: OscMessage) => {
+        const legacy = parseLegacyHandshakeMessage(message);
+        if (!legacy) {
+          return;
+        }
+
+        timer = setTimeout(() => {
+          timer = null;
+          if (disposed) {
+            return;
+          }
+          disposed = true;
+          dispose();
+          resolve(legacy);
+        }, 0);
+      });
+
+      cancel = (): void => {
+        if (disposed) {
+          return;
+        }
+        disposed = true;
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
+        dispose();
+      };
+    });
+
+    return { promise, cancel };
   }
 
   private parseOscValue(value: unknown): unknown {

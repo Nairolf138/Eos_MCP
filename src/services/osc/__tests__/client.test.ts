@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import osc from 'osc';
 import { ErrorCode } from '../../../server/errors';
-import { OscClient, type ConnectResult } from '../client';
+import { OscClient, parseLegacyHandshakeMessage, type ConnectResult } from '../client';
 import type { OscGateway, OscGatewaySendOptions } from '../client';
 import { createOscConnectionGateway } from '../gateway';
 import type { OscMessage } from '../index';
@@ -283,6 +283,38 @@ describe('OscClient', () => {
     expect(result.availableProtocols).toEqual(['udp', 'tcp']);
     expect(result.selectedProtocol).toBe('udp');
     expect(result.protocolStatus).toBe('ok');
+  });
+
+  it('accepte un handshake legacy Onyx a partir des premiers messages /eos/out', async () => {
+    const service = new FakeOscService();
+    const client = new OscClient(service);
+
+    const legacyMessage: OscMessage = {
+      address: '/eos/out/event/state',
+      args: [{ type: 's', value: 'init' }]
+    };
+
+    const connectPromise = client.connect({ handshakeTimeoutMs: 50 });
+
+    queueMicrotask(() => {
+      service.emit(legacyMessage);
+    });
+
+    const result = await connectPromise;
+
+    expect(result.status).toBe('ok');
+    expect(result.version).toBeNull();
+    expect(result.availableProtocols).toEqual([]);
+    expect(result.protocolStatus).toBe('skipped');
+    expect(result.handshakePayload).toEqual(legacyMessage);
+    expect(result.error).toBeUndefined();
+    expect(service.sentMessages.map((message) => message.address)).toContain('/eos/handshake');
+
+    expect(parseLegacyHandshakeMessage(legacyMessage)).toEqual({
+      version: null,
+      protocols: [],
+      raw: legacyMessage
+    });
   });
 
   it('signale une erreur lorsque la sentinelle de handshake est absente', async () => {

@@ -392,6 +392,8 @@ _Pas de mapping OSC documenté._
 
 **Description :** Initie un handshake OSC avec la console EOS, choisit un protocole et retourne la version detectee.
 
+> ℹ️ Lorsque les firmwares Onyx legacy ne repondent pas sur `/eos/handshake/reply`, le client considere les premiers messages `/eos/out/...` comme un handshake implicite. Dans ce mode de secours, aucune version ni liste de protocoles n'est exposee et la selection de protocole est donc ignoree.
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
