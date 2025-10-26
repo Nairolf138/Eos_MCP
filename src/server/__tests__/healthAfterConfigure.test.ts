@@ -90,6 +90,13 @@ const tool: ToolDefinition = {
   })
 };
 
+const createSessionServer = (): McpServer => {
+  const instance = new McpServer({ name: 'health-session', version: '0.0.0-test' });
+  const sessionRegistry = new ToolRegistry(instance);
+  sessionRegistry.register(tool);
+  return instance;
+};
+
 describe('HTTP /health after eos_configure', () => {
   let server: McpServer;
   let registry: ToolRegistry;
@@ -137,6 +144,7 @@ describe('HTTP /health after eos_configure', () => {
     gateway = createHttpGateway(registry, {
       port: 0,
       oscConnectionProvider: connectionState,
+      serverFactory: () => createSessionServer(),
       oscGateway: {
         getDiagnostics: () => {
           const diagnostics = getOscGateway().getDiagnostics?.();

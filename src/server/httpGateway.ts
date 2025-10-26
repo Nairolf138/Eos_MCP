@@ -1,23 +1,31 @@
 import type { AddressInfo } from 'node:net';
 import path from 'node:path';
 import { readFile } from 'node:fs/promises';
-import { createServer, type IncomingHttpHeaders, type IncomingMessage, type Server } from 'node:http';
+import {
+  createServer,
+  type IncomingHttpHeaders,
+  type Server
+} from 'node:http';
+import { randomUUID } from 'node:crypto';
 import express, {
   type Request,
   type Response,
   type NextFunction,
-  type RequestHandler
+  type RequestHandler,
+  type ErrorRequestHandler,
+  Router
 } from 'express';
-import { WebSocketServer, type WebSocket, type RawData } from 'ws';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { ErrorCode as JsonRpcErrorCode, isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { createLogger } from './logger';
-import { ToolNotFoundError, type ToolRegistry } from './toolRegistry';
 import type {
   OscConnectionStateProvider,
   OscConnectionOverview,
-  OscDiagnostics,
-  TransportStatus
+  OscDiagnostics
 } from '../services/osc/index';
 import { getToolJsonSchema, toolJsonSchemas } from '../schemas/index';
+import type { ToolRegistry } from './toolRegistry';
 
 interface StdioStatusSnapshot {
   status: 'starting' | 'listening' | 'stopped';
@@ -28,8 +36,8 @@ interface StdioStatusSnapshot {
 interface HttpGatewayOptions {
   port: number;
   host?: string;
-  websocketPath?: string;
   publicUrl?: string;
+  serverFactory: () => McpServer;
   security?: HttpGatewaySecurityOptions;
   oscConnectionProvider?: OscConnectionStateProvider;
   oscGateway?: { getDiagnostics: () => OscDiagnostics };
@@ -55,27 +63,6 @@ interface ExpressSecurityMiddlewares {
 interface RateLimitOptions {
   windowMs: number;
   max: number;
-}
-
-interface InvokeRequestPayload {
-  id?: string;
-  tool: string;
-  args?: unknown;
-  extra?: unknown;
-}
-
-interface InvokeSuccessResponse {
-  type: 'result';
-  id?: string;
-  tool: string;
-  result: unknown;
-}
-
-interface InvokeErrorResponse {
-  type: 'error';
-  id?: string;
-  tool?: string;
-  error: { message: string };
 }
 
 const logger = createLogger('http-gateway');
@@ -104,18 +91,27 @@ export interface ManifestDocument {
   readonly [key: string]: unknown;
 }
 
+interface SessionRecord {
+  id: string;
+  server: McpServer;
+  transport: StreamableHTTPServerTransport;
+  createdAt: number;
+  lastActivityAt: number;
+  closed: boolean;
+}
+
 class HttpGateway {
   private server?: Server;
-
-  private wss?: WebSocketServer;
 
   private started = false;
 
   private startTimestamp?: number;
 
+  private manifestTemplate?: ManifestDocument;
+
   private readonly rateLimitState = new Map<string, { windowStart: number; count: number }>();
 
-  private manifestTemplate?: ManifestDocument;
+  private readonly sessions = new Map<string, SessionRecord>();
 
   constructor(
     private readonly registry: ToolRegistry,
@@ -148,7 +144,7 @@ class HttpGateway {
 
   private buildManifestResponse(req: Request): ManifestDocument {
     if (!this.manifestTemplate) {
-      throw new Error('Manifest MCP non initialisé');
+      throw new Error('Manifest MCP non initialise');
     }
 
     const manifest = JSON.parse(JSON.stringify(this.manifestTemplate)) as ManifestDocument;
@@ -197,7 +193,6 @@ class HttpGateway {
     if (mcp) {
       const updatedMcp = { ...mcp };
       const servers = mcp.servers;
-
       if (Array.isArray(servers)) {
         updatedMcp.servers = servers.map((definition) => {
           if (!definition.server) {
@@ -248,11 +243,6 @@ class HttpGateway {
             normalizedTools.list_endpoint = normalizeStringValue(listEndpoint);
           }
 
-          const invokeEndpoint = normalizedTools.invoke_endpoint;
-          if (typeof invokeEndpoint === 'string') {
-            normalizedTools.invoke_endpoint = normalizeStringValue(invokeEndpoint);
-          }
-
           const schemaCatalogs = normalizedTools.schema_catalogs;
           if (Array.isArray(schemaCatalogs)) {
             normalizedTools.schema_catalogs = schemaCatalogs.map((entry) =>
@@ -264,6 +254,7 @@ class HttpGateway {
           if (typeof schemaBasePath === 'string') {
             normalizedTools.schema_base_path = normalizeStringValue(schemaBasePath);
           }
+
           updatedCapabilities.tools = normalizedTools as typeof tools;
         }
 
@@ -345,7 +336,7 @@ class HttpGateway {
 
     if (!host) {
       throw new Error(
-        "Impossible de déterminer l'URL publique du serveur MCP. Définissez MCP_HTTP_PUBLIC_URL ou configurez correctement le proxy."
+        "Impossible de determiner l'URL publique du serveur MCP. Definissez MCP_HTTP_PUBLIC_URL ou configurez correctement le proxy."
       );
     }
 
@@ -360,7 +351,6 @@ class HttpGateway {
     await this.loadManifestTemplate();
 
     const app = express();
-    app.use(express.json());
 
     this.applySecurityMiddlewares(app);
 
@@ -420,12 +410,9 @@ class HttpGateway {
       const payload: Record<string, unknown> = {
         status,
         uptimeMs,
-        toolCount
+        toolCount,
+        transportActive: this.started
       };
-
-      if (this.wss) {
-        payload.transportActive = this.started;
-      }
 
       payload.mcp = this.buildMcpStatus(now);
 
@@ -442,98 +429,35 @@ class HttpGateway {
       res.json({ tools });
     });
 
-    app.post('/tools/:name', async (req: Request, res: Response, next: NextFunction) => {
+    const mcpRouter = Router();
+    mcpRouter.use(express.json({ limit: '4mb' }));
+    mcpRouter.use(this.createJsonParseErrorHandler());
+    mcpRouter.post('/', async (req: Request, res: Response, next: NextFunction) => {
       try {
-        const toolName = req.params.name;
-        const body = req.body;
-        const isObjectPayload = typeof body === 'object' && body !== null;
-        const args = isObjectPayload && 'args' in (body as Record<string, unknown>) ? (body as { args?: unknown }).args : body;
-        const extra = isObjectPayload && 'extra' in (body as Record<string, unknown>) ? (body as { extra?: unknown }).extra : undefined;
-        const result = await this.registry.invoke(toolName, args, extra);
-        res.json({ tool: toolName, result });
+        await this.handleMcpPost(req, res);
       } catch (error) {
         next(error);
       }
     });
+    mcpRouter.get('/', async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        await this.handleMcpStream(req, res);
+      } catch (error) {
+        next(error);
+      }
+    });
+    mcpRouter.delete('/', async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        await this.handleMcpStream(req, res);
+      } catch (error) {
+        next(error);
+      }
+    });
+    app.use('/mcp', mcpRouter);
 
     app.use(this.createErrorHandler());
 
     const server = createServer(app);
-    const wss = new WebSocketServer({
-      server,
-      path: this.options.websocketPath ?? '/ws'
-    });
-
-    wss.on('connection', (socket: WebSocket, request: IncomingMessage) => {
-      const securityValidation = this.validateWebSocketConnection(request);
-      if (!securityValidation.ok) {
-        const message = securityValidation.message ?? "Echec de l'authentification WebSocket";
-        logger.warn({ reason: message }, 'Connexion WebSocket refusee');
-        socket.send(
-          JSON.stringify({
-            type: 'error',
-            error: { message }
-          } satisfies InvokeErrorResponse)
-        );
-        socket.close(securityValidation.code ?? 1008, message);
-        return;
-      }
-
-      socket.on('error', (error: Error) => {
-        logger.error({ error }, 'Erreur socket WebSocket');
-      });
-
-      socket.on('message', async (rawMessage: RawData) => {
-        const messageText =
-          typeof rawMessage === 'string' ? rawMessage : rawMessage.toString('utf-8');
-        let payload: InvokeRequestPayload | undefined;
-        try {
-          payload = JSON.parse(messageText) as InvokeRequestPayload;
-        } catch (error) {
-          logger.warn({ error }, 'Message WebSocket invalide: %s', messageText);
-          socket.send(
-            JSON.stringify({
-              type: 'error',
-              error: { message: 'Payload JSON invalide' }
-            } satisfies InvokeErrorResponse)
-          );
-          return;
-        }
-
-        if (!payload.tool) {
-          socket.send(
-            JSON.stringify({
-              type: 'error',
-              id: payload.id,
-              error: { message: 'Champ "tool" manquant' }
-            } satisfies InvokeErrorResponse)
-          );
-          return;
-        }
-
-        try {
-          const result = await this.registry.invoke(payload.tool, payload.args, payload.extra);
-          const response: InvokeSuccessResponse = {
-            type: 'result',
-            id: payload.id,
-            tool: payload.tool,
-            result
-          };
-          socket.send(JSON.stringify(response));
-        } catch (error) {
-          const err = error instanceof Error ? error : new Error('Erreur inconnue');
-          const response: InvokeErrorResponse = {
-            type: 'error',
-            id: payload.id,
-            tool: payload.tool,
-            error: { message: err.message }
-          };
-          socket.send(JSON.stringify(response));
-        }
-      });
-
-      socket.send(JSON.stringify({ type: 'ready' }));
-    });
 
     await new Promise<void>((resolve, reject) => {
       server.once('error', reject);
@@ -542,8 +466,7 @@ class HttpGateway {
         this.started = true;
         this.startTimestamp = Date.now();
         this.server = server;
-        this.wss = wss;
-        logger.info({ address: this.getAddress() }, 'Passerelle HTTP/WS demarree');
+        logger.info({ address: this.getAddress() }, 'Passerelle HTTP MCP demarree');
         resolve();
       });
     });
@@ -554,25 +477,8 @@ class HttpGateway {
       return;
     }
 
-    const closeWebSocket = async (): Promise<void> => {
-      if (!this.wss) {
-        return;
-      }
-      const clients = Array.from(this.wss.clients);
-      clients.forEach((client) => {
-        try {
-          client.close();
-        } catch (error) {
-          logger.warn({ error }, "Erreur lors de la fermeture d'une connexion WebSocket");
-        }
-      });
-
-      await new Promise<void>((resolve) => {
-        this.wss?.close(() => resolve());
-      });
-    };
-
-    await closeWebSocket();
+    const sessionIds = Array.from(this.sessions.keys());
+    await Promise.all(sessionIds.map((sessionId) => this.finalizeSession(sessionId).catch(() => undefined)));
 
     await new Promise<void>((resolve, reject) => {
       if (!this.server) {
@@ -590,7 +496,6 @@ class HttpGateway {
 
     this.started = false;
     this.server = undefined;
-    this.wss = undefined;
     this.startTimestamp = undefined;
   }
 
@@ -599,107 +504,80 @@ class HttpGateway {
     if (!address || typeof address === 'string') {
       return undefined;
     }
+
     return address;
   }
 
-  private getOscOverview(): OscConnectionOverview | null {
-    if (!this.oscConnectionProvider) {
-      return null;
-    }
-    return this.oscConnectionProvider.getOverview();
-  }
+  private buildMcpStatus(now: number): Record<string, unknown> {
+    const lastActivity = Array.from(this.sessions.values()).reduce<number | null>((acc, session) => {
+      const candidate = session.lastActivityAt;
+      if (acc === null) {
+        return candidate;
+      }
+      return Math.max(acc, candidate);
+    }, null);
 
-  private mapOscHealthToStatus(
-    health: OscConnectionOverview['health']
-  ): 'ok' | 'degraded' | 'offline' {
-    switch (health) {
-      case 'online':
-        return 'ok';
-      case 'degraded':
-        return 'degraded';
-      default:
-        return 'offline';
-    }
-  }
+    const stdioStatus = this.getStdioStatus(now);
 
-  private getOscDiagnosticsSnapshot(): OscDiagnostics | null {
-    if (!this.oscGateway) {
-      return null;
-    }
-
-    try {
-      return this.oscGateway.getDiagnostics();
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      logger.warn({ error: err }, 'Impossible de recuperer les diagnostics OSC pour /health');
-      return null;
-    }
+    return {
+      http: {
+        status: this.started ? 'listening' : 'stopped',
+        sessionCount: this.sessions.size,
+        startedAt: this.startTimestamp ?? null,
+        lastActivityAt: lastActivity
+      },
+      ...(stdioStatus ? { stdio: stdioStatus } : {})
+    };
   }
 
   private buildOscStatus(
-    overview: OscConnectionOverview | null,
-    diagnostics: OscDiagnostics | null
+    overview: OscConnectionOverview | undefined,
+    diagnostics: OscDiagnostics | undefined
   ): Record<string, unknown> | undefined {
-    if (!overview && !diagnostics) {
+    if (!overview) {
       return undefined;
     }
 
-    const payload: Record<string, unknown> = {};
-
-    if (overview) {
-      payload.status = overview.health;
-      payload.updatedAt = overview.updatedAt;
-      payload.transports = {
-        tcp: this.serialiseTransportStatus(overview.transports.tcp),
-        udp: this.serialiseTransportStatus(overview.transports.udp)
-      };
-    }
+    const transports = overview.transports;
+    const status = overview.health;
+    const payload: Record<string, unknown> = {
+      status,
+      transports,
+      updatedAt: overview.updatedAt
+    };
 
     if (diagnostics) {
-      payload.diagnostics = {
-        config: diagnostics.config,
-        logging: diagnostics.logging,
-        stats: diagnostics.stats,
-        listeners: diagnostics.listeners,
-        startedAt: diagnostics.startedAt,
-        uptimeMs: diagnostics.uptimeMs
-      };
+      payload.diagnostics = diagnostics;
     }
 
     return payload;
   }
 
-  private serialiseTransportStatus(status: TransportStatus): Record<string, unknown> {
-    return {
-      type: status.type,
-      state: status.state,
-      lastHeartbeatSentAt: status.lastHeartbeatSentAt,
-      lastHeartbeatAckAt: status.lastHeartbeatAckAt,
-      consecutiveFailures: status.consecutiveFailures
-    };
+  private mapOscHealthToStatus(
+    health: OscConnectionOverview['health']
+  ): 'starting' | 'ok' | 'degraded' | 'offline' {
+    switch (health) {
+      case 'online':
+        return 'ok';
+      case 'degraded':
+        return 'degraded';
+      case 'offline':
+      default:
+        return 'offline';
+    }
   }
 
-  private buildMcpStatus(now: number): Record<string, unknown> {
-    const http = this.buildHttpStatus(now);
-    const stdio = this.getStdioStatus(now);
-
-    return stdio ? { http, stdio } : { http };
+  private getOscOverview(): OscConnectionOverview | undefined {
+    return this.oscConnectionProvider?.getOverview();
   }
 
-  private buildHttpStatus(now: number): Record<string, unknown> {
-    const address = this.getAddress();
-    const startedAt = this.startTimestamp ?? null;
-    const uptimeMs = this.startTimestamp ? now - this.startTimestamp : 0;
-
-    return {
-      status: this.started ? 'listening' : 'stopped',
-      startedAt,
-      uptimeMs,
-      address: address
-        ? { address: address.address, port: address.port, family: address.family }
-        : null,
-      websocketClients: this.wss ? this.wss.clients.size : 0
-    };
+  private getOscDiagnosticsSnapshot(): OscDiagnostics | undefined {
+    try {
+      return this.oscGateway?.getDiagnostics();
+    } catch (error) {
+      logger.warn({ error }, 'Impossible de recuperer les diagnostics OSC');
+      return undefined;
+    }
   }
 
   private getStdioStatus(now: number): Record<string, unknown> | undefined {
@@ -723,12 +601,192 @@ class HttpGateway {
     };
   }
 
+  private createJsonParseErrorHandler(): ErrorRequestHandler {
+    return (error, _req, res, next) => {
+      if (error instanceof SyntaxError) {
+        res.status(400).json({
+          jsonrpc: '2.0',
+          error: {
+            code: JsonRpcErrorCode.ParseError,
+            message: 'Parse error'
+          },
+          id: null
+        });
+        return;
+      }
+      next(error);
+    };
+  }
+
+  private async handleMcpPost(req: Request, res: Response): Promise<void> {
+    const body = req.body;
+    const sessionId = this.normalizeHeaderValue(req.headers['mcp-session-id']);
+
+    if (sessionId) {
+      const session = this.sessions.get(sessionId);
+      if (!session) {
+        this.sendJsonRpcError(res, JsonRpcErrorCode.ConnectionClosed, 'Session inconnue', 404);
+        return;
+      }
+
+      session.lastActivityAt = Date.now();
+      await session.transport.handleRequest(req, res, body);
+      return;
+    }
+
+    if (!isInitializeRequest(body)) {
+      this.sendJsonRpcError(
+        res,
+        JsonRpcErrorCode.InvalidRequest,
+        'Requete initialise invalide : envoyez un appel "initialize" sans Mcp-Session-Id'
+      );
+      return;
+    }
+
+    const sessionRecord = await this.createSession();
+    let initializationSucceeded = false;
+    try {
+      await sessionRecord.transport.handleRequest(req, res, body);
+      initializationSucceeded = sessionRecord.id.length > 0;
+    } finally {
+      if (!initializationSucceeded) {
+        await this.disposeEphemeralSession(sessionRecord);
+      }
+    }
+  }
+
+  private async handleMcpStream(req: Request, res: Response): Promise<void> {
+    const sessionId = this.normalizeHeaderValue(req.headers['mcp-session-id']);
+    if (!sessionId) {
+      this.sendJsonRpcError(
+        res,
+        JsonRpcErrorCode.InvalidRequest,
+        'En-tete Mcp-Session-Id requis pour cette requete'
+      );
+      return;
+    }
+
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      this.sendJsonRpcError(res, JsonRpcErrorCode.ConnectionClosed, 'Session inconnue', 404);
+      return;
+    }
+
+    session.lastActivityAt = Date.now();
+    await session.transport.handleRequest(req, res);
+  }
+
+  private async createSession(): Promise<SessionRecord> {
+    const server = this.options.serverFactory();
+
+    const record: SessionRecord = {
+      id: '',
+      server,
+      transport: undefined as unknown as StreamableHTTPServerTransport,
+      createdAt: Date.now(),
+      lastActivityAt: Date.now(),
+      closed: false
+    };
+
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: () => randomUUID(),
+      enableJsonResponse: true,
+      onsessioninitialized: async (sessionId) => {
+        record.id = sessionId;
+        record.lastActivityAt = Date.now();
+        this.sessions.set(sessionId, record);
+      },
+      onsessionclosed: async (sessionId) => {
+        if (sessionId) {
+          this.sessions.delete(sessionId);
+        }
+        await this.closeServer(record);
+      },
+      allowedOrigins: this.options.security?.allowedOrigins
+    });
+
+    record.transport = transport;
+
+    try {
+      await server.connect(transport);
+    } catch (error) {
+      await this.closeServer(record);
+      throw error;
+    }
+
+    return record;
+  }
+
+  private async finalizeSession(sessionId: string): Promise<void> {
+    const record = this.sessions.get(sessionId);
+    if (!record) {
+      return;
+    }
+
+    this.sessions.delete(sessionId);
+    try {
+      await record.transport.close();
+    } catch (error) {
+      logger.warn({ error }, 'Erreur lors de la fermeture du transport HTTP MCP');
+    }
+    await this.closeServer(record);
+  }
+
+  private async disposeEphemeralSession(record: SessionRecord): Promise<void> {
+    if (record.id && this.sessions.has(record.id)) {
+      await this.finalizeSession(record.id);
+      return;
+    }
+
+    try {
+      await record.transport.close();
+    } catch (error) {
+      logger.warn({ error }, 'Erreur lors de la fermeture du transport HTTP MCP');
+    }
+    await this.closeServer(record);
+  }
+
+  private async closeServer(record: SessionRecord): Promise<void> {
+    if (record.closed) {
+      return;
+    }
+
+    record.closed = true;
+
+    try {
+      await record.server.close();
+    } catch (error) {
+      logger.warn({ error }, 'Erreur lors de la fermeture du serveur MCP de session');
+    }
+  }
+
+  private sendJsonRpcError(
+    res: Response,
+    code: number,
+    message: string,
+    status: number = 400
+  ): void {
+    res.status(status).json({
+      jsonrpc: '2.0',
+      error: {
+        code,
+        message
+      },
+      id: null
+    });
+  }
+
   private createErrorHandler() {
-    return (error: unknown, _req: Request, res: Response, _next: NextFunction): void => {
+    return (error: unknown, req: Request, res: Response, _next: NextFunction): void => {
       const err = error instanceof Error ? error : new Error('Erreur inconnue');
-      logger.error({ error: err }, "Erreur HTTP lors de l'appel d'un outil");
-      const status = err instanceof ToolNotFoundError ? 404 : 500;
-      res.status(status).json({
+      logger.error({ error: err }, 'Erreur HTTP');
+
+      if (req.path.startsWith('/mcp')) {
+        this.sendJsonRpcError(res, JsonRpcErrorCode.InternalError, 'Internal server error', 500);
+        return;
+      }
+
+      res.status(500).json({
         error: err.message
       });
     };
@@ -823,14 +881,18 @@ class HttpGateway {
 
       if (origin && isAllowed) {
         res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Access-Control-Expose-Headers', 'Mcp-Session-Id');
         res.setHeader('Vary', 'Origin');
       }
 
       if (req.method.toUpperCase() === 'OPTIONS') {
-        res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+        res.setHeader(
+          'Access-Control-Allow-Methods',
+          'GET,POST,PUT,PATCH,DELETE,OPTIONS'
+        );
         res.setHeader(
           'Access-Control-Allow-Headers',
-          'Content-Type, Authorization, X-API-Key, X-MCP-Token, X-CSRF-Token'
+          'Content-Type, Authorization, X-API-Key, X-MCP-Token, X-CSRF-Token, Mcp-Session-Id, Mcp-Protocol-Version'
         );
 
         if ((origin && isAllowed) || (!origin && this.isOriginAllowed(undefined))) {
@@ -1037,35 +1099,6 @@ class HttpGateway {
     state.count += 1;
     this.rateLimitState.set(ip, state);
     return true;
-  }
-
-  private validateWebSocketConnection(
-    request: IncomingMessage
-  ): { ok: boolean; code?: number; message?: string } {
-    const security = this.options.security;
-    if (!security) {
-      return { ok: true };
-    }
-
-    const ip = this.getClientIp(request);
-    if (!ip || !this.isIpAllowed(ip)) {
-      return { ok: false, code: 1008, message: "Adresse IP non autorisee" };
-    }
-
-    const origin = this.extractOrigin(request);
-    if (!this.isOriginAllowed(origin)) {
-      return { ok: false, code: 1008, message: "Origine non autorisee" };
-    }
-
-    if (!this.hasValidCredentials(request.headers)) {
-      return { ok: false, code: 1008, message: 'Authentification requise' };
-    }
-
-    if (!this.consumeRateLimit(ip)) {
-      return { ok: false, code: 1013, message: 'Limite de requetes atteinte' };
-    }
-
-    return { ok: true };
   }
 }
 

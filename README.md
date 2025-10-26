@@ -318,19 +318,51 @@ Réponse attendue :
 
 Les outils munis d’un schéma Zod exposent le pointeur MCP correspondant dans `metadata.inputSchemaResourceUri` (`schema://tools/<nom>`).
 
-#### Appel REST
+#### Appel JSON-RPC (transport HTTP MCP)
+
+Le point d'entrée `/mcp` implémente [la spécification HTTP Streamable du protocole MCP](https://modelcontextprotocol.io/specification/latest/basic/transports/streamable-http). Toute session commence par une requête `initialize` qui négocie la version de protocole et retourne un identifiant de session dans l'en-tête `Mcp-Session-Id`.
 
 ```bash
-curl -X POST "http://localhost:3032/tools/ping" \
+curl -X POST "http://localhost:3032/mcp" \
   -H "Content-Type: application/json" \
-  -d '{"args":{"message":"Bonjour"}}'
+  -H "Accept: application/json, text/event-stream" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": "init-1",
+    "method": "initialize",
+    "params": {
+      "protocolVersion": "2025-06-18",
+      "capabilities": {},
+      "clientInfo": { "name": "curl", "version": "0.1" }
+    }
+  }'
+```
+
+La réponse contient les capacités du serveur et l'en-tête `Mcp-Session-Id`. Pour appeler un outil, renvoyez cet identifiant **et** l'en-tête `Mcp-Protocol-Version` (valeur négociée lors de l'initialisation) :
+
+```bash
+curl -X POST "http://localhost:3032/mcp" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Mcp-Session-Id: <session-id>" \
+  -H "Mcp-Protocol-Version: 2025-06-18" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": "call-1",
+    "method": "tools/call",
+    "params": {
+      "name": "ping",
+      "arguments": { "message": "Bonjour" }
+    }
+  }'
 ```
 
 Réponse attendue :
 
 ```json
 {
-  "tool": "ping",
+  "jsonrpc": "2.0",
+  "id": "call-1",
   "result": {
     "content": [
       {
@@ -342,27 +374,18 @@ Réponse attendue :
 }
 ```
 
-#### Appel WebSocket
+Pour fermer proprement une session, envoyez `DELETE /mcp` avec les mêmes en-têtes `Mcp-Session-Id` et `Mcp-Protocol-Version`.
 
-```bash
-npx wscat -c ws://localhost:3032/ws
-< {"type":"ready"}
-> {"tool":"ping","args":{"message":"Depuis WS"}}
-< {"type":"result","tool":"ping","result":{"content":[{"type":"text","text":"pong: Depuis WS"}]}}
-```
+#### Sécurisation du transport HTTP MCP
 
-> Le premier message `{"type":"ready"}` confirme l’ouverture de la connexion. Envoyez ensuite vos appels d’outils au format JSON (`tool`, `args`, `id` optionnel).
-
-#### Sécurisation de la passerelle HTTP/WS
-
-La fonction `createHttpGateway` accepte un objet `security` pour appliquer une politique de défense simple côté HTTP et WebSocket.
+La fonction `createHttpGateway` accepte un objet `security` pour appliquer une politique de défense simple côté HTTP MCP.
 
 | Option | Description |
 |--------|-------------|
 | `apiKeys` | Tableau de clés API autorisées. À transmettre dans l’en-tête `X-API-Key`. |
 | `mcpTokens` | Liste de jetons MCP pour l’authentification (en-tête `X-MCP-Token` ou `Authorization: Bearer <token>`). Ces jetons sont également requis pour les requêtes mutantes afin de limiter les attaques CSRF. |
 | `ipAllowlist` | Liste d’adresses IP autorisées (`"*"` pour tout accepter). |
-| `allowedOrigins` | Origines HTTP/WS autorisées pour CORS/CORS WS (`"*"` pour tout accepter). |
+| `allowedOrigins` | Origines HTTP autorisées pour CORS (`"*"` pour tout accepter). |
 | `rateLimit` | Limiteur de débit en mémoire `{ windowMs, max }` appliqué par adresse IP. |
 | `express` | Permet de surcharger les middlewares Express (`authentication`, `csrf`, `cors`, `throttling`). |
 
@@ -381,18 +404,7 @@ createHttpGateway(registry, {
 });
 ```
 
-Les clients HTTP doivent inclure les en-têtes `X-API-Key`, `X-MCP-Token` et `Origin` cohérents. Pour le WebSocket, fournissez les mêmes en-têtes lors de l’ouverture (`ws`, `wscat`, navigateur) :
-
-```bash
-wscat \
-  -c ws://localhost:3032/ws \
-  -H "Origin: http://localhost" \
-  -H "X-API-Key: test-key" \
-  -H "X-MCP-Token: token-123"
-```
-
-Si les middlewares intégrés ne conviennent pas, vous pouvez injecter vos propres middlewares Express via `security.express` (par exemple pour utiliser `helmet`, `cors` ou un proxy externe).
-
+Les clients doivent inclure les en-têtes `X-API-Key`, `X-MCP-Token`, `Origin` et, une fois la session ouverte, `Mcp-Session-Id` / `Mcp-Protocol-Version`. Si les middlewares intégrés ne conviennent pas, vous pouvez injecter vos propres middlewares Express via `security.express` (par exemple pour utiliser `helmet`, `cors` ou un proxy externe).
 #### Exemple `.env`
 
 ```env
