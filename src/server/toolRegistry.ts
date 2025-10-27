@@ -17,7 +17,10 @@ class ToolNotFoundError extends Error {
   }
 }
 
-type RegisteredCallback = (args: unknown, extra: unknown) => Promise<ToolExecutionResult>;
+type RegisteredCallback = (
+  first: unknown,
+  second?: unknown
+) => Promise<ToolExecutionResult>;
 
 interface RegisteredToolConfigSummary {
   title?: string;
@@ -46,7 +49,21 @@ class ToolRegistry {
 
   public register(tool: ToolDefinition): void {
     const callback = this.attachMiddlewares(tool);
-    this.server.registerTool(tool.name, tool.config as never, callback as never);
+    const hasInputSchema = Boolean(tool.config.inputSchema);
+
+    const handlerForServer = ((
+      first: unknown,
+      second?: unknown
+    ): Promise<ToolExecutionResult> => {
+      if (hasInputSchema) {
+        return callback(first, second);
+      }
+
+      const extra = second ?? first;
+      return callback(undefined, extra);
+    }) as never;
+
+    this.server.registerTool(tool.name, tool.config as never, handlerForServer);
     this.registeredTools.set(tool.name, tool);
     this.registeredCallbacks.set(tool.name, callback);
   }
@@ -100,18 +117,36 @@ class ToolRegistry {
 
   private attachMiddlewares(tool: ToolDefinition): RegisteredCallback {
     const middlewares = tool.middlewares ?? [];
+    const hasInputSchema = Boolean(tool.config.inputSchema);
+
+    const normalizeInputs = (
+      first: unknown,
+      second?: unknown
+    ): { args: unknown; extra: unknown } => {
+      if (hasInputSchema) {
+        return { args: first, extra: second };
+      }
+
+      const extra = second ?? first;
+      return { args: undefined, extra };
+    };
+
     if (middlewares.length === 0) {
-      return tool.handler;
+      return async (first: unknown, second?: unknown) => {
+        const { args, extra } = normalizeInputs(first, second);
+        return tool.handler(args, extra);
+      };
     }
 
-    return (async (args: unknown, extra: unknown) => {
+    return async (first: unknown, second?: unknown) => {
+      const { args, extra } = normalizeInputs(first, second);
       const context: ToolContext = { name: tool.name, args, extra };
 
       const executeHandler = (): Promise<ToolExecutionResult> =>
         Promise.resolve(tool.handler(args, extra));
 
       return this.compose(middlewares, executeHandler)(context);
-    }) as RegisteredCallback;
+    };
   }
 
   private compose(
