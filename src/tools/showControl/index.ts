@@ -5,10 +5,10 @@ import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
-  targetPort: z.number().int().min(1).max(65535).optional()
+  targetPort: z.coerce.number().int().min(1).max(65535).optional()
 } satisfies ZodRawShape;
 
-const timeoutSchema = z
+const timeoutSchema = z.coerce
   .number()
   .int()
   .min(50)

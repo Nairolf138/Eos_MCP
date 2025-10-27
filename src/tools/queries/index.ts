@@ -132,7 +132,7 @@ const listItemOutputSchema = z.object({
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
-  targetPort: z.number().int().min(1).max(65535).optional()
+  targetPort: z.coerce.number().int().min(1).max(65535).optional()
 } satisfies ZodRawShape;
 
 const targetTypeSchema = z
@@ -152,13 +152,13 @@ const targetTypeSchema = z
 
 const countInputSchema = {
   target_type: targetTypeSchema,
-  timeoutMs: z.number().int().min(50).optional(),
+  timeoutMs: z.coerce.number().int().min(50).optional(),
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
 const listInputSchema = {
   target_type: targetTypeSchema,
-  timeoutMs: z.number().int().min(50).optional(),
+  timeoutMs: z.coerce.number().int().min(50).optional(),
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
@@ -166,7 +166,7 @@ const countOutputSchema = {
   action: z.literal('get_count'),
   status: statusSchema,
   target_type: z.string(),
-  count: z.number().int().min(0),
+  count: z.coerce.number().int().min(0),
   data: z.unknown(),
   error: z.string().nullable(),
   osc: z.object({

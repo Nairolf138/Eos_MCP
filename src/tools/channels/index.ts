@@ -12,10 +12,10 @@ import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
-  targetPort: z.number().int().min(1).max(65535).optional()
+  targetPort: z.coerce.number().int().min(1).max(65535).optional()
 } satisfies ZodRawShape;
 
-const channelNumberSchema = z.number().int().min(1).max(99999);
+const channelNumberSchema = z.coerce.number().int().min(1).max(99999);
 const channelListSchema = z
   .union([channelNumberSchema, z.array(channelNumberSchema).min(1)])
   .describe('Un numero de canal ou une liste de canaux');
@@ -204,7 +204,7 @@ const setLevelSchema = {
 } satisfies ZodRawShape;
 
 const setDmxSchema = {
-  addresses: z.union([z.number().int().min(1).max(65535), z.array(z.number().int().min(1).max(65535)).min(1)]),
+  addresses: z.union([z.coerce.number().int().min(1).max(65535), z.array(z.coerce.number().int().min(1).max(65535)).min(1)]),
   value: dmxValueSchema,
   ...targetOptionsSchema
 } satisfies ZodRawShape;
@@ -219,7 +219,7 @@ const setParameterSchema = {
 const getInfoSchema = {
   channels: channelListSchema,
   fields: z.array(z.string().min(1)).optional(),
-  timeoutMs: z.number().int().min(50).optional(),
+  timeoutMs: z.coerce.number().int().min(50).optional(),
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 

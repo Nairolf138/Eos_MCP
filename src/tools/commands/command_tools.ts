@@ -7,7 +7,7 @@ type SubstitutionValue = string | number | boolean;
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
-  targetPort: z.number().int().min(1).max(65535).optional()
+  targetPort: z.coerce.number().int().min(1).max(65535).optional()
 };
 
 const substitutionsSchema = z.array(z.union([z.string(), z.number(), z.boolean()])).optional();
@@ -104,7 +104,7 @@ function resolveUserId(requested?: number | null): number | undefined {
 const commandInputSchema = {
   command: z.string().min(1, 'La commande ne peut pas etre vide'),
   terminateWithEnter: z.boolean().optional(),
-  user: z.number().int().min(0).optional(),
+  user: z.coerce.number().int().min(0).optional(),
   ...targetOptionsSchema
 };
 
@@ -148,7 +148,7 @@ const newCommandInputSchema = {
   substitutions: substitutionsSchema,
   terminateWithEnter: z.boolean().optional(),
   clearLine: z.boolean().optional(),
-  user: z.number().int().min(0).optional(),
+  user: z.coerce.number().int().min(0).optional(),
   ...targetOptionsSchema
 };
 
@@ -202,7 +202,7 @@ const substitutionCommandInputSchema = {
   template: z.string().min(1, 'Le gabarit ne peut pas etre vide'),
   values: substitutionsSchema,
   terminateWithEnter: z.boolean().optional(),
-  user: z.number().int().min(0).optional(),
+  user: z.coerce.number().int().min(0).optional(),
   ...targetOptionsSchema
 };
 
@@ -243,8 +243,8 @@ export const eosCommandWithSubstitutionTool: ToolDefinition<typeof substitutionC
 };
 
 const commandLineInputSchema = {
-  user: z.number().int().min(0).optional(),
-  timeoutMs: z.number().int().positive().optional(),
+  user: z.coerce.number().int().min(0).optional(),
+  timeoutMs: z.coerce.number().int().positive().optional(),
   ...targetOptionsSchema
 };
 

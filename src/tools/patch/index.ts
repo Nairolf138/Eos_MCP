@@ -11,26 +11,26 @@ import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
-  targetPort: z.number().int().min(1).max(65535).optional()
+  targetPort: z.coerce.number().int().min(1).max(65535).optional()
 } satisfies ZodRawShape;
 
-const timeoutSchema = z.number().int().min(50).optional();
+const timeoutSchema = z.coerce.number().int().min(50).optional();
 
-const channelNumberSchema = z
+const channelNumberSchema = z.coerce
   .number()
   .int()
   .min(1)
   .max(99999)
   .describe('Numero de canal (1-99999).');
 
-const partNumberSchema = z
+const partNumberSchema = z.coerce
   .number()
   .int()
   .min(1)
   .max(99)
   .describe('Numero de partie (1-99).');
 
-const partNumberWithAllSchema = z
+const partNumberWithAllSchema = z.coerce
   .number()
   .int()
   .min(0)
@@ -136,7 +136,7 @@ export const patchChannelPartOutputSchema = z.object({
 export const patchChannelInfoOutputSchema = z.object({
   channel_number: channelNumberSchema,
   label: z.string().nullable(),
-  part_count: z.number().int().min(0).nullable(),
+  part_count: z.coerce.number().int().min(0).nullable(),
   notes: z.string().nullable(),
   parts: z.array(patchChannelPartOutputSchema)
 });
@@ -152,7 +152,7 @@ export const augment3dPositionOutputSchema = z.object({
   part_number: partNumberSchema,
   position: augment3dVectorOutputSchema,
   orientation: augment3dVectorOutputSchema,
-  fpe_set: z.number().int().min(0).nullable()
+  fpe_set: z.coerce.number().int().min(0).nullable()
 });
 
 export const augment3dBeamOutputSchema = z.object({

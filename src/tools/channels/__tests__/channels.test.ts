@@ -52,6 +52,16 @@ describe('channel tools', () => {
     expect(message?.args?.[0]?.value).toBe('Chan 1 Thru 2 Sneak 0 Enter');
   });
 
+  it('accepte les numeros de canal fournis en chaine', async () => {
+    await runTool(eosChannelSetLevelTool, { channels: ['001', '002'], level: 50 });
+
+    expect(service.sentMessages).toHaveLength(1);
+    expect(service.sentMessages[0]).toMatchObject({ address: oscMappings.channels.command });
+
+    const message = service.sentMessages[0];
+    expect(message?.args?.[0]?.value).toBe('Chan 1 Thru 2 Sneak 50 Enter');
+  });
+
   it('transforme full en 255 pour le DMX', async () => {
     await runTool(eosSetDmxTool, { addresses: [101], value: 'full' });
 
@@ -60,6 +70,16 @@ describe('channel tools', () => {
 
     const message = service.sentMessages[0];
     expect(message?.args?.[0]?.value).toBe('Address 101 At 255 Enter');
+  });
+
+  it('accepte les adresses DMX en chaine', async () => {
+    await runTool(eosSetDmxTool, { addresses: ['010', '011'], value: 10 });
+
+    expect(service.sentMessages).toHaveLength(1);
+    expect(service.sentMessages[0]).toMatchObject({ address: oscMappings.dmx.command });
+
+    const message = service.sentMessages[0];
+    expect(message?.args?.[0]?.value).toBe('Address 10 Thru 11 At 10 Enter');
   });
 
   it('parse la reponse JSON pour la commande get_info', async () => {

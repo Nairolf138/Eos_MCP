@@ -11,11 +11,11 @@ import {
 } from './common';
 
 const bankCreateInputSchema = {
-  bank_index: z.number().int().min(0),
+  bank_index: z.coerce.number().int().min(0),
   cuelist_number: cuelistNumberSchema,
-  num_prev_cues: z.number().int().min(0),
-  num_pending_cues: z.number().int().min(0),
-  offset: z.number().int().optional(),
+  num_prev_cues: z.coerce.number().int().min(0),
+  num_pending_cues: z.coerce.number().int().min(0),
+  offset: z.coerce.number().int().optional(),
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 

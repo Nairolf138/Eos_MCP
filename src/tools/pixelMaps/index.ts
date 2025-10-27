@@ -12,17 +12,17 @@ import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
-  targetPort: z.number().int().min(1).max(65535).optional()
+  targetPort: z.coerce.number().int().min(1).max(65535).optional()
 } satisfies ZodRawShape;
 
-const pixmapNumberSchema = z
+const pixmapNumberSchema = z.coerce
   .number()
   .int()
   .min(1)
   .max(9999)
   .describe('Numero du pixel map (1-9999).');
 
-const timeoutSchema = z.number().int().min(50).optional();
+const timeoutSchema = z.coerce.number().int().min(50).optional();
 
 const selectInputSchema = {
   pixmap_number: pixmapNumberSchema,
@@ -66,22 +66,22 @@ interface PixelMapInfo {
 }
 
 const pixelMapFixtureSegmentOutputShape = {
-  start_pixel: z.number().int().min(0).nullable(),
-  end_pixel: z.number().int().min(0).nullable(),
-  pixel_count: z.number().int().min(0).nullable(),
-  universe: z.number().int().min(0).nullable(),
-  address: z.number().int().min(0).nullable(),
-  string_number: z.number().int().min(0).nullable()
+  start_pixel: z.coerce.number().int().min(0).nullable(),
+  end_pixel: z.coerce.number().int().min(0).nullable(),
+  pixel_count: z.coerce.number().int().min(0).nullable(),
+  universe: z.coerce.number().int().min(0).nullable(),
+  address: z.coerce.number().int().min(0).nullable(),
+  string_number: z.coerce.number().int().min(0).nullable()
 } satisfies ZodRawShape;
 
 export const pixelMapFixtureSegmentOutputSchema = z.object(pixelMapFixtureSegmentOutputShape);
 
 const pixelMapFixtureOutputShape = {
-  channel: z.number().int().min(1),
+  channel: z.coerce.number().int().min(1),
   label: z.string().nullable(),
-  start_pixel: z.number().int().min(0).nullable(),
-  end_pixel: z.number().int().min(0).nullable(),
-  pixel_count: z.number().int().min(0).nullable(),
+  start_pixel: z.coerce.number().int().min(0).nullable(),
+  end_pixel: z.coerce.number().int().min(0).nullable(),
+  pixel_count: z.coerce.number().int().min(0).nullable(),
   segments: z.array(pixelMapFixtureSegmentOutputSchema)
 } satisfies ZodRawShape;
 
@@ -90,12 +90,12 @@ export const pixelMapFixtureOutputSchema = z.object(pixelMapFixtureOutputShape);
 const pixelMapInfoOutputShape = {
   pixmap_number: pixmapNumberSchema,
   label: z.string().nullable(),
-  server_channel: z.number().int().min(0).nullable(),
+  server_channel: z.coerce.number().int().min(0).nullable(),
   interface: z.string().nullable(),
-  width: z.number().int().min(0).nullable(),
-  height: z.number().int().min(0).nullable(),
-  pixel_count: z.number().int().min(0).nullable(),
-  fixture_count: z.number().int().min(0).nullable(),
+  width: z.coerce.number().int().min(0).nullable(),
+  height: z.coerce.number().int().min(0).nullable(),
+  pixel_count: z.coerce.number().int().min(0).nullable(),
+  fixture_count: z.coerce.number().int().min(0).nullable(),
   fixtures: z.array(pixelMapFixtureOutputSchema)
 } satisfies ZodRawShape;
 

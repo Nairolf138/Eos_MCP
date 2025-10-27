@@ -12,24 +12,24 @@ import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
-  targetPort: z.number().int().min(1).max(65535).optional()
+  targetPort: z.coerce.number().int().min(1).max(65535).optional()
 } satisfies ZodRawShape;
 
-const magicSheetNumberSchema = z
+const magicSheetNumberSchema = z.coerce
   .number()
   .int()
   .min(1)
   .max(9999)
   .describe('Numero du magic sheet (1-9999).');
 
-const viewNumberSchema = z
+const viewNumberSchema = z.coerce
   .number()
   .int()
   .min(1)
   .max(99)
   .describe('Numero de vue (1-99).');
 
-const timeoutSchema = z.number().int().min(50).optional();
+const timeoutSchema = z.coerce.number().int().min(50).optional();
 
 const openInputSchema = {
   ms_number: magicSheetNumberSchema,

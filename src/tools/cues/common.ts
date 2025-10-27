@@ -5,14 +5,14 @@ import type { CueIdentifier } from './types';
 
 export const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
-  targetPort: z.number().int().min(1).max(65535).optional()
+  targetPort: z.coerce.number().int().min(1).max(65535).optional()
 } satisfies ZodRawShape;
 
-export const cuelistNumberSchema = z.number().int().min(1).max(99999);
+export const cuelistNumberSchema = z.coerce.number().int().min(1).max(99999);
 
 export const cueNumberSchema = z.union([z.string().min(1), z.number()]);
 
-export const cuePartSchema = z.number().int().min(0).max(99);
+export const cuePartSchema = z.coerce.number().int().min(0).max(99);
 
 export interface CueCommandOptions {
   cuelist_number?: number | null;

@@ -12,17 +12,17 @@ import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
-  targetPort: z.number().int().min(1).max(65535).optional()
+  targetPort: z.coerce.number().int().min(1).max(65535).optional()
 } satisfies ZodRawShape;
 
-const effectNumberSchema = z
+const effectNumberSchema = z.coerce
   .number()
   .int()
   .min(1)
   .max(9999)
   .describe("Numero d'effet (1-9999)");
 
-const timeoutSchema = z.number().int().min(50).optional();
+const timeoutSchema = z.coerce.number().int().min(50).optional();
 
 const selectInputSchema = {
   effect_number: effectNumberSchema,
