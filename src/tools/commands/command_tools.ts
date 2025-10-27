@@ -71,7 +71,7 @@ function formatSendResult(command: string, user: number | null, oscAddress: stri
         text: command
       }
     }
-  } as unknown as ToolExecutionResult;
+  };
 }
 
 function formatCommandLineState(result: CommandLineState): ToolExecutionResult {
@@ -84,8 +84,8 @@ function formatCommandLineState(result: CommandLineState): ToolExecutionResult {
           : `Lecture de la ligne de commande indisponible (${result.status})`
       }
     ],
-    structuredContent: result
-  } as unknown as ToolExecutionResult;
+    structuredContent: { ...result }
+  };
 }
 
 function resolveUserId(requested?: number | null): number | undefined {

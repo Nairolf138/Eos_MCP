@@ -107,7 +107,7 @@ export function parseLegacyHandshakeMessage(message: OscMessage): HandshakeData 
   };
 }
 
-export interface ConnectResult {
+export interface ConnectResult extends Record<string, unknown> {
   status: StepStatus;
   version: string | null;
   availableProtocols: string[];
@@ -123,7 +123,7 @@ export interface PingOptions extends TargetOptions {
   timeoutMs?: number;
 }
 
-export interface PingResult {
+export interface PingResult extends Record<string, unknown> {
   status: StepStatus;
   roundtripMs: number | null;
   echo: string | null;
@@ -136,7 +136,7 @@ export interface ResetOptions extends TargetOptions {
   timeoutMs?: number;
 }
 
-export interface ResetResult {
+export interface ResetResult extends Record<string, unknown> {
   status: StepStatus;
   payload: unknown;
   error?: string;
@@ -149,7 +149,7 @@ export interface SubscribeOptions extends TargetOptions {
   timeoutMs?: number;
 }
 
-export interface SubscribeResult {
+export interface SubscribeResult extends Record<string, unknown> {
   status: StepStatus;
   path: string;
   payload: unknown;
@@ -168,7 +168,7 @@ export interface CommandLineRequestOptions extends TargetOptions {
   timeoutMs?: number;
 }
 
-export interface CommandLineState {
+export interface CommandLineState extends Record<string, unknown> {
   status: StepStatus;
   text: string;
   user: number | null;
