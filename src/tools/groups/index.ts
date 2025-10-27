@@ -12,10 +12,10 @@ import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
-  targetPort: z.number().int().min(1).max(65535).optional()
+  targetPort: z.coerce.number().int().min(1).max(65535).optional()
 } satisfies ZodRawShape;
 
-const groupNumberSchema = z
+const groupNumberSchema = z.coerce
   .number()
   .int()
   .min(1)
@@ -41,7 +41,7 @@ interface NormalisedGroup {
 }
 
 const groupMemberOutputSchema = z.object({
-  channel: z.number().int().min(1),
+  channel: z.coerce.number().int().min(1),
   label: z.string().nullable()
 });
 
@@ -202,12 +202,12 @@ const setLevelInputSchema = {
 
 const getInfoInputSchema = {
   group_number: groupNumberSchema,
-  timeoutMs: z.number().int().min(50).optional(),
+  timeoutMs: z.coerce.number().int().min(50).optional(),
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
 const listAllInputSchema = {
-  timeoutMs: z.number().int().min(50).optional(),
+  timeoutMs: z.coerce.number().int().min(50).optional(),
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 

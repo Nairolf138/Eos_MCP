@@ -32,10 +32,10 @@ export interface SubmasterInfo {
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
-  targetPort: z.number().int().min(1).max(65535).optional()
+  targetPort: z.coerce.number().int().min(1).max(65535).optional()
 } satisfies ZodRawShape;
 
-const submasterNumberSchema = z
+const submasterNumberSchema = z.coerce
   .number()
   .int()
   .min(1)
@@ -56,7 +56,7 @@ const bumpInputSchema = {
 
 const getInfoInputSchema = {
   submaster_number: submasterNumberSchema,
-  timeoutMs: z.number().int().min(50).optional(),
+  timeoutMs: z.coerce.number().int().min(50).optional(),
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 

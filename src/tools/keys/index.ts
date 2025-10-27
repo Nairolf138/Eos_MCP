@@ -5,10 +5,10 @@ import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
-  targetPort: z.number().int().min(1).max(65535).optional()
+  targetPort: z.coerce.number().int().min(1).max(65535).optional()
 } satisfies ZodRawShape;
 
-const buttonStateSchema = z.union([z.number().int().min(0).max(1), z.boolean()]).optional();
+const buttonStateSchema = z.union([z.coerce.number().int().min(0).max(1), z.boolean()]).optional();
 
 type ButtonStateInput = z.infer<typeof buttonStateSchema>;
 
@@ -86,7 +86,7 @@ const keyPressInputSchema = {
 } satisfies ZodRawShape;
 
 const softkeyPressInputSchema = {
-  softkey_number: z
+  softkey_number: z.coerce
     .number()
     .int()
     .min(1, 'Le numero de softkey doit etre compris entre 1 et 12')
@@ -96,7 +96,7 @@ const softkeyPressInputSchema = {
 } satisfies ZodRawShape;
 
 const softkeyLabelsInputSchema = {
-  timeoutMs: z.number().int().min(50).optional(),
+  timeoutMs: z.coerce.number().int().min(50).optional(),
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 

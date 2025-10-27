@@ -12,20 +12,20 @@ import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
-  targetPort: z.number().int().min(1).max(65535).optional()
+  targetPort: z.coerce.number().int().min(1).max(65535).optional()
 } satisfies ZodRawShape;
 
-const macroNumberSchema = z
+const macroNumberSchema = z.coerce
   .number()
   .int()
   .min(1)
   .max(9999)
   .describe('Numero de macro (1-9999)');
 
-const timeoutSchema = z.number().int().min(50).optional();
+const timeoutSchema = z.coerce.number().int().min(50).optional();
 
 const macroCommandOutputSchema = z.object({
-  index: z.number().int().min(1),
+  index: z.coerce.number().int().min(1),
   text: z.string()
 });
 

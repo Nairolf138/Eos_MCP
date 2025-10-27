@@ -4,10 +4,10 @@ import type { ToolDefinition } from '../types';
 
 const inputSchema = {
   targetAddress: z.string().min(1).optional(),
-  targetPort: z.number().int().min(1).max(65535).optional(),
+  targetPort: z.coerce.number().int().min(1).max(65535).optional(),
   preferredProtocols: z.array(z.string().min(1)).min(1).optional(),
-  handshakeTimeoutMs: z.number().int().positive().optional(),
-  protocolTimeoutMs: z.number().int().positive().optional(),
+  handshakeTimeoutMs: z.coerce.number().int().positive().optional(),
+  protocolTimeoutMs: z.coerce.number().int().positive().optional(),
   clientId: z.string().min(1).optional(),
   transportPreference: z.enum(['reliability', 'speed', 'auto']).optional()
 };

@@ -4,9 +4,9 @@ import type { ToolDefinition } from '../types';
 
 const inputSchema = {
   full: z.boolean().optional(),
-  timeoutMs: z.number().int().positive().optional(),
+  timeoutMs: z.coerce.number().int().positive().optional(),
   targetAddress: z.string().min(1).optional(),
-  targetPort: z.number().int().min(1).max(65535).optional(),
+  targetPort: z.coerce.number().int().min(1).max(65535).optional(),
   transportPreference: z.enum(['reliability', 'speed', 'auto']).optional()
 };
 

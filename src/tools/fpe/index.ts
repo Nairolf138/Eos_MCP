@@ -5,19 +5,19 @@ import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
-  targetPort: z.number().int().min(1).max(65535).optional()
+  targetPort: z.coerce.number().int().min(1).max(65535).optional()
 } satisfies ZodRawShape;
 
-const timeoutSchema = z.number().int().min(50).optional();
+const timeoutSchema = z.coerce.number().int().min(50).optional();
 
-const setNumberSchema = z
+const setNumberSchema = z.coerce
   .number()
   .int()
   .min(1)
   .max(9999)
   .describe('Numero de set FPE (1-9999).');
 
-const pointNumberSchema = z
+const pointNumberSchema = z.coerce
   .number()
   .int()
   .min(1)

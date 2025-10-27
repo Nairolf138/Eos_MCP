@@ -22,16 +22,16 @@ export function __resetFaderBankCacheForTests(): void {
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
-  targetPort: z.number().int().min(1).max(65535).optional()
+  targetPort: z.coerce.number().int().min(1).max(65535).optional()
 } satisfies ZodRawShape;
 
-const bankIndexSchema = z
+const bankIndexSchema = z.coerce
   .number()
   .int()
   .min(0)
   .describe('Index du bank de faders (0 = Main, 1 = Mains, etc.).');
 
-const faderIndexSchema = z
+const faderIndexSchema = z.coerce
   .number()
   .int()
   .min(1)
@@ -41,13 +41,13 @@ const levelValueSchema = z.union([z.number(), z.string().min(1)]);
 
 const bankCreateInputSchema = {
   bank_index: bankIndexSchema,
-  fader_count: z
+  fader_count: z.coerce
     .number()
     .int()
     .min(1)
     .max(100)
     .describe('Nombre de faders a creer dans le bank.'),
-  page_number: z
+  page_number: z.coerce
     .number()
     .int()
     .min(0)
@@ -71,7 +71,7 @@ const loadInputSchema = {
 
 const pageInputSchema = {
   bank_index: bankIndexSchema,
-  delta: z.number().int(),
+  delta: z.coerce.number().int(),
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 

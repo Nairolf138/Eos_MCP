@@ -5,8 +5,8 @@ import type { ToolDefinition, ToolExecutionResult } from '../types';
 import { extractTargetOptions, targetOptionsSchema } from './common';
 
 const bankPageInputSchema = {
-  bank_index: z.number().int().min(0),
-  delta: z.number().int(),
+  bank_index: z.coerce.number().int().min(0),
+  delta: z.coerce.number().int(),
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 

@@ -21,7 +21,7 @@ export function clearCurrentUserId(): void {
 }
 
 const setCurrentUserInputSchema = {
-  user: z.number().int().min(0, "L'identifiant utilisateur doit etre positif")
+  user: z.coerce.number().int().min(0, "L'identifiant utilisateur doit etre positif")
 };
 
 /**

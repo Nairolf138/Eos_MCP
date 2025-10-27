@@ -10,9 +10,9 @@ import type { ToolDefinition } from '../types';
 
 const inputSchema = {
   remoteAddress: z.string().min(1, 'remoteAddress doit etre une adresse valide.'),
-  remotePort: z.number().int().min(1).max(65535),
-  localPort: z.number().int().min(1).max(65535),
-  tcpPort: z.number().int().min(1).max(65535).optional()
+  remotePort: z.coerce.number().int().min(1).max(65535),
+  localPort: z.coerce.number().int().min(1).max(65535),
+  tcpPort: z.coerce.number().int().min(1).max(65535).optional()
 };
 
 /**

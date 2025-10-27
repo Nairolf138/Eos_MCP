@@ -134,22 +134,22 @@ function normaliseTargetType(value: string): string | null {
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
-  targetPort: z.number().int().min(1).max(65535).optional()
+  targetPort: z.coerce.number().int().min(1).max(65535).optional()
 } satisfies ZodRawShape;
 
-const bankIndexSchema = z
+const bankIndexSchema = z.coerce
   .number()
   .int()
   .min(0)
   .describe("Index du bank de direct selects (0 pour le premier bank).");
 
-const buttonIndexSchema = z
+const buttonIndexSchema = z.coerce
   .number()
   .int()
   .min(1)
   .describe('Position du bouton dans le bank (1-n).');
 
-const stateValueSchema = z
+const stateValueSchema = z.coerce
   .number()
   .finite()
   .min(0)
@@ -174,14 +174,14 @@ const targetTypeSchema = z
 const bankCreateInputSchema = {
   bank_index: bankIndexSchema,
   target_type: targetTypeSchema,
-  button_count: z
+  button_count: z.coerce
     .number()
     .int()
     .min(1)
     .max(100)
     .describe('Nombre de boutons a creer dans le bank (1-100).'),
   flexi_mode: z.boolean().describe('Active ou non le mode Flexi pour le bank.'),
-  page_number: z
+  page_number: z.coerce
     .number()
     .int()
     .min(0)
@@ -199,7 +199,7 @@ const pressInputSchema = {
 
 const pageInputSchema = {
   bank_index: bankIndexSchema,
-  delta: z.number().int(),
+  delta: z.coerce.number().int(),
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 

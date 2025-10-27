@@ -12,10 +12,10 @@ import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
-  targetPort: z.number().int().min(1).max(65535).optional()
+  targetPort: z.coerce.number().int().min(1).max(65535).optional()
 } satisfies ZodRawShape;
 
-const presetNumberSchema = z
+const presetNumberSchema = z.coerce
   .number()
   .int()
   .min(1)
@@ -30,7 +30,7 @@ const presetFireInputSchema = {
 const presetGetInfoInputSchema = {
   preset_number: presetNumberSchema,
   fields: z.array(z.string().min(1)).optional(),
-  timeoutMs: z.number().int().min(50).optional(),
+  timeoutMs: z.coerce.number().int().min(50).optional(),
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
