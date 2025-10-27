@@ -693,6 +693,8 @@ class HttpGateway {
       closed: false
     };
 
+    const allowedOrigins = this.options.security?.allowedOrigins;
+
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
       enableJsonResponse: true,
@@ -707,7 +709,7 @@ class HttpGateway {
         }
         await this.closeServer(record);
       },
-      allowedOrigins: this.options.security?.allowedOrigins
+      allowedOrigins: allowedOrigins ? Array.from(allowedOrigins) : undefined
     });
 
     record.transport = transport;
