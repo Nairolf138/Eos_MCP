@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { getOscClient } from '../../services/osc/client';
 import { optionalPortSchema, optionalTimeoutMsSchema } from '../../utils/validators';
-import type { ToolDefinition } from '../types';
+import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 const inputSchema = {
   message: z.string().min(1).optional(),
@@ -27,7 +27,7 @@ export const eosPingTool: ToolDefinition<typeof inputSchema> = {
     description: 'Envoie un ping OSC a la console EOS et retourne le statut.',
     inputSchema
   },
-  handler: async (args) => {
+  handler: async (args, _extra) => {
     const schema = z.object(inputSchema).strict();
     const options = schema.parse(args ?? {});
     const client = getOscClient();
@@ -56,7 +56,7 @@ export const eosPingTool: ToolDefinition<typeof inputSchema> = {
         }
       ],
       structuredContent: result
-    };
+    } as unknown as ToolExecutionResult;
   }
 };
 
