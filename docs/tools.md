@@ -134,7 +134,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/bp/fire i 1
+oscsend 127.0.0.1 8001 /eos/bp/fire s:'{"palette_number":1}'
 ```
 
 <a id="eos-channel-get-info"></a>
@@ -179,7 +179,7 @@ oscsend 127.0.0.1 8001 /eos/get/channels s:'{"channels":1}'
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
 | `channels` | number \| array<number> | Oui | Un numero de canal ou une liste de canaux |
-| `exclusive` | boolean | Non | Ajoute un `+` final pour conserver la selection existante |
+| `exclusive` | boolean | Non | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
@@ -197,7 +197,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cmd s:"Chan 1 Enter"
+oscsend 127.0.0.1 8001 /eos/cmd s:'{"channels":1}'
 ```
 
 <a id="eos-channel-set-level"></a>
@@ -211,7 +211,7 @@ oscsend 127.0.0.1 8001 /eos/cmd s:"Chan 1 Enter"
 | --- | --- | --- | --- |
 | `channels` | number \| array<number> | Oui | Un numero de canal ou une liste de canaux |
 | `level` | number \| string | Oui | — |
-| `snap` | boolean | Non | Utilise `At` (snap immediat) si vrai, `Sneak` sinon |
+| `snap` | boolean | Non | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
@@ -229,7 +229,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cmd s:"Chan 1 Sneak 1 Enter"
+oscsend 127.0.0.1 8001 /eos/cmd s:'{"channels":1,"level":1}'
 ```
 
 <a id="eos-channel-set-parameter"></a>
@@ -291,7 +291,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cp/fire i 1
+oscsend 127.0.0.1 8001 /eos/cp/fire s:'{"palette_number":1}'
 ```
 
 <a id="eos-command"></a>
@@ -391,8 +391,6 @@ _Pas de mapping OSC documenté._
 ## Connexion OSC EOS (`eos_connect`)
 
 **Description :** Initie un handshake OSC avec la console EOS, choisit un protocole et retourne la version detectee.
-
-> ℹ️ Lorsque les firmwares Onyx legacy ne repondent pas sur `/eos/handshake/reply`, le client considere les premiers messages `/eos/out/...` comme un handshake implicite. Dans ce mode de secours, aucune version ni liste de protocoles n'est exposee et la selection de protocole est donc ignoree.
 
 **Arguments :**
 
@@ -791,14 +789,14 @@ oscsend 127.0.0.1 8001 /eos/curve/select s:'{"curve_number":1}'
 _CLI_
 
 ```bash
-npx @modelcontextprotocol/cli call --tool eos_direct_select_bank_create --args '{"bank_index":1,"target_type":"Group","button_count":1,"flexi_mode":true}'
+npx @modelcontextprotocol/cli call --tool eos_direct_select_bank_create --args '{"bank_index":1,"target_type":"exemple","button_count":1,"flexi_mode":true}'
 ```
 
 _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/ds/1/config/Group/1/1/0
+oscsend 127.0.0.1 8001 /eos/ds/{index}/config/{target}/{buttons}/{flexi}/{page} s:'{"bank_index":1,"target_type":"exemple","button_count":1,"flexi_mode":true}'
 ```
 
 <a id="eos-direct-select-page"></a>
@@ -829,7 +827,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/ds/1/page/1
+oscsend 127.0.0.1 8001 /eos/ds/{index}/page/1 s:'{"bank_index":1,"delta":1}'
 ```
 
 <a id="eos-direct-select-press"></a>
@@ -982,8 +980,7 @@ _Pas de mapping OSC documenté._
 <a id="eos-fader-bank-create"></a>
 ## Creation de bank de faders (`eos_fader_bank_create`)
 
-**Description :** Cree un bank de faders OSC avec pagination optionnelle. La commande OSC utilise
-`/eos/fader/{bank_index}/config/{fader_count}/{page_number}`.
+**Description :** Cree un bank de faders OSC avec pagination optionnelle.
 
 **Arguments :**
 
@@ -1008,8 +1005,8 @@ npx @modelcontextprotocol/cli call --tool eos_fader_bank_create --args '{"bank_i
 _OSC_
 
 ```bash
-# Exemple d'envoi OSC via oscsend (page implicite = 0)
-oscsend 127.0.0.1 8001 /eos/fader/1/config/1/0
+# Exemple d'envoi OSC via oscsend
+oscsend 127.0.0.1 8001 /eos/fader/{index}/config/{faders}/{page} s:'{"bank_index":1,"fader_count":1}'
 ```
 
 <a id="eos-fader-load"></a>
@@ -1046,8 +1043,7 @@ oscsend 127.0.0.1 8001 /eos/fader/{bank}/{page}/{fader}/load s:'{"bank_index":1,
 <a id="eos-fader-page"></a>
 ## Navigation de bank de faders (`eos_fader_page`)
 
-**Description :** Change de page dans le bank en ajoutant le delta specifie. La commande OSC utilise
-`/eos/fader/{bank_index}/page/{delta}`.
+**Description :** Change de page dans le bank en ajoutant le delta specifie.
 
 **Arguments :**
 
@@ -1072,7 +1068,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/fader/1/page/1
+oscsend 127.0.0.1 8001 /eos/fader/{index}/page/1 s:'{"bank_index":1,"delta":1}'
 ```
 
 <a id="eos-fader-set-level"></a>
@@ -1165,7 +1161,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/fp/fire i 1
+oscsend 127.0.0.1 8001 /eos/fp/fire s:'{"palette_number":1}'
 ```
 
 <a id="eos-fpe-get-point-info"></a>
@@ -1637,7 +1633,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/group i 1
+oscsend 127.0.0.1 8001 /eos/group s:'{"group_number":1}'
 ```
 
 <a id="eos-group-set-level"></a>
@@ -1669,7 +1665,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/group/1/level f 1
+oscsend 127.0.0.1 8001 /eos/group/{group}/level s:'{"group_number":1,"level":1}'
 ```
 
 <a id="eos-intensity-palette-fire"></a>
@@ -1699,7 +1695,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/ip/fire i 1
+oscsend 127.0.0.1 8001 /eos/ip/fire s:'{"palette_number":1}'
 ```
 
 <a id="eos-key-press"></a>
@@ -1760,7 +1756,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/macro/fire i 1
+oscsend 127.0.0.1 8001 /eos/macro/fire s:'{"macro_number":1}'
 ```
 
 <a id="eos-macro-get-info"></a>
@@ -1821,7 +1817,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/macro/select i 1
+oscsend 127.0.0.1 8001 /eos/macro/select s:'{"macro_number":1}'
 ```
 
 <a id="eos-magic-sheet-get-info"></a>
@@ -2196,7 +2192,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/preset/fire i 1
+oscsend 127.0.0.1 8001 /eos/preset/fire s:'{"preset_number":1}'
 ```
 
 <a id="eos-preset-get-info"></a>
@@ -2258,7 +2254,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/preset i 1
+oscsend 127.0.0.1 8001 /eos/preset s:'{"preset_number":1}'
 ```
 
 <a id="eos-reset"></a>
@@ -2422,7 +2418,7 @@ oscsend 127.0.0.1 8001 /eos/set/cue/send_string s:'{"format_string":"exemple"}'
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
-| `addresses` | number \| array<number> | Oui | Liste d'adresses absolues ou sequences DMX |
+| `addresses` | number \| array<number> | Oui | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 | `value` | number \| string | Oui | — |
@@ -2441,7 +2437,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cmd s:"Address 1 At 1 Enter"
+oscsend 127.0.0.1 8001 /eos/cmd s:'{"addresses":1,"value":1}'
 ```
 
 <a id="eos-set-pantilt-xy"></a>
@@ -2609,7 +2605,7 @@ oscsend 127.0.0.1 8001 /eos/key/softkey# s:'{"softkey_number":1}'
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
-| `state` | boolean \| number \| string | Oui | — |
+| `state` | number \| boolean \| string | Oui | — |
 | `submaster_number` | number | Oui | Numero de submaster (1-9999) |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
@@ -2621,14 +2617,14 @@ oscsend 127.0.0.1 8001 /eos/key/softkey# s:'{"softkey_number":1}'
 _CLI_
 
 ```bash
-npx @modelcontextprotocol/cli call --tool eos_submaster_bump --args '{"submaster_number":1,"state":true}'
+npx @modelcontextprotocol/cli call --tool eos_submaster_bump --args '{"submaster_number":1,"state":1}'
 ```
 
 _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/sub/{id}/bump s:'{"submaster_number":1,"state":true}'
+oscsend 127.0.0.1 8001 /eos/sub/1/bump f 1
 ```
 
 <a id="eos-submaster-get-info"></a>
@@ -2690,7 +2686,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/sub/{id} s:'{"submaster_number":1,"level":1}'
+oscsend 127.0.0.1 8001 /eos/sub/1 f 1
 ```
 
 <a id="eos-subscribe"></a>

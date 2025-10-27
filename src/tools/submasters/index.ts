@@ -50,7 +50,7 @@ const setLevelInputSchema = {
 
 const bumpInputSchema = {
   submaster_number: submasterNumberSchema,
-  state: z.union([z.boolean(), z.number(), z.string().min(1)]),
+  state: z.union([z.number(), z.boolean(), z.string().min(1)]),
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
@@ -83,12 +83,16 @@ function extractTargetOptions(options: { targetAddress?: string; targetPort?: nu
   return target;
 }
 
-function annotate(osc: string): Record<string, unknown> {
-  return {
-    mapping: {
-      osc
-    }
+function annotate(osc: string, args?: string[]): Record<string, unknown> {
+  const mapping: Record<string, unknown> = {
+    osc
   };
+
+  if (Array.isArray(args) && args.length > 0) {
+    mapping.args = args;
+  }
+
+  return { mapping };
 }
 
 function createResult(text: string, structuredContent: Record<string, unknown>): ToolExecutionResult {
@@ -381,7 +385,7 @@ export const eosSubmasterSetLevelTool: ToolDefinition<typeof setLevelInputSchema
     title: 'Reglage de submaster',
     description: "Ajuste le niveau d'un submaster sur une echelle de 0.0 a 1.0.",
     inputSchema: setLevelInputSchema,
-    annotations: annotate(`${oscMappings.submasters.base}/{id}`)
+    annotations: annotate(`${oscMappings.submasters.base}/{submaster_number}`, ['f {level}'])
   },
   handler: async (args, _extra) => {
     const schema = z.object(setLevelInputSchema).strict();
@@ -419,7 +423,7 @@ export const eosSubmasterBumpTool: ToolDefinition<typeof bumpInputSchema> = {
     title: 'Commande de bump',
     description: "Active ou desactive le bump d'un submaster.",
     inputSchema: bumpInputSchema,
-    annotations: annotate(`${oscMappings.submasters.base}/{id}/bump`)
+    annotations: annotate(`${oscMappings.submasters.base}/{submaster_number}/bump`, ['f {state}'])
   },
   handler: async (args, _extra) => {
     const schema = z.object(bumpInputSchema).strict();
