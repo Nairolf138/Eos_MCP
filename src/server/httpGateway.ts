@@ -100,6 +100,8 @@ interface SessionRecord {
   closed: boolean;
 }
 
+type JsonRpcId = string | number | null;
+
 class HttpGateway {
   private server?: Server;
 
@@ -620,12 +622,13 @@ class HttpGateway {
 
   private async handleMcpPost(req: Request, res: Response): Promise<void> {
     const body = req.body;
+    const requestId = this.getJsonRpcRequestId(body);
     const sessionId = this.normalizeHeaderValue(req.headers['mcp-session-id']);
 
     if (sessionId) {
       const session = this.sessions.get(sessionId);
       if (!session) {
-        this.sendJsonRpcError(res, JsonRpcErrorCode.ConnectionClosed, 'Session inconnue', 404);
+        this.sendJsonRpcError(res, JsonRpcErrorCode.ConnectionClosed, 'Session inconnue', 404, requestId);
         return;
       }
 
@@ -638,7 +641,9 @@ class HttpGateway {
       this.sendJsonRpcError(
         res,
         JsonRpcErrorCode.InvalidRequest,
-        'Requete initialise invalide : envoyez un appel "initialize" sans Mcp-Session-Id'
+        'Requete initialise invalide : envoyez un appel "initialize" sans Mcp-Session-Id',
+        undefined,
+        requestId
       );
       return;
     }
@@ -764,16 +769,30 @@ class HttpGateway {
     res: Response,
     code: number,
     message: string,
-    status: number = 400
+    status?: number,
+    id?: JsonRpcId
   ): void {
-    res.status(status).json({
+    res.status(status ?? 400).json({
       jsonrpc: '2.0',
       error: {
         code,
         message
       },
-      id: null
+      id: id ?? null
     });
+  }
+
+  private getJsonRpcRequestId(payload: unknown): JsonRpcId | undefined {
+    if (!payload || typeof payload !== 'object') {
+      return undefined;
+    }
+
+    const candidate = (payload as { id?: unknown }).id;
+    if (candidate === null || typeof candidate === 'string' || typeof candidate === 'number') {
+      return candidate;
+    }
+
+    return undefined;
   }
 
   private createErrorHandler() {
