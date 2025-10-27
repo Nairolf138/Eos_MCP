@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { getOscClient } from '../../services/osc/client';
 import type { OscDiagnostics, OscLoggingState } from '../../services/osc/index';
-import type { ToolDefinition } from '../types';
+import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 const loggingInputSchema = {
   incoming: z.boolean().optional(),
@@ -89,7 +89,7 @@ export const eosEnableLoggingTool: ToolDefinition<typeof loggingInputSchema> = {
     description: 'Active ou desactive la journalisation des messages OSC entrants et sortants.',
     inputSchema: loggingInputSchema
   },
-  handler: async (args) => {
+  handler: async (args, _extra) => {
     const schema = z.object(loggingInputSchema).strict();
     const options = schema.parse(args ?? {});
     const client = getOscClient();
@@ -104,7 +104,7 @@ export const eosEnableLoggingTool: ToolDefinition<typeof loggingInputSchema> = {
         }
       ],
       structuredContent: { logging: state }
-    };
+    } as unknown as ToolExecutionResult;
   }
 };
 
@@ -124,7 +124,7 @@ export const eosGetDiagnosticsTool: ToolDefinition<typeof emptyInputSchema> = {
     description: 'Recupere les informations de diagnostic du service OSC.',
     inputSchema: emptyInputSchema
   },
-  handler: async (args) => {
+  handler: async (args, _extra) => {
     const schema = z.object(emptyInputSchema).strict();
     schema.parse(args ?? {});
     const client = getOscClient();
@@ -139,7 +139,7 @@ export const eosGetDiagnosticsTool: ToolDefinition<typeof emptyInputSchema> = {
         }
       ],
       structuredContent: diagnostics
-    };
+    } as unknown as ToolExecutionResult;
   }
 };
 

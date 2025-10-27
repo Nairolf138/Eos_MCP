@@ -71,7 +71,7 @@ function formatSendResult(command: string, user: number | null, oscAddress: stri
         text: command
       }
     }
-  } as ToolExecutionResult;
+  } as unknown as ToolExecutionResult;
 }
 
 function formatCommandLineState(result: CommandLineState): ToolExecutionResult {
@@ -85,7 +85,7 @@ function formatCommandLineState(result: CommandLineState): ToolExecutionResult {
       }
     ],
     structuredContent: result
-  } as ToolExecutionResult;
+  } as unknown as ToolExecutionResult;
 }
 
 function resolveUserId(requested?: number | null): number | undefined {

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { getOscClient } from '../../services/osc/client';
-import type { ToolDefinition } from '../types';
+import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 const inputSchema = {
   targetAddress: z.string().min(1).optional(),
@@ -28,7 +28,7 @@ export const eosConnectTool: ToolDefinition<typeof inputSchema> = {
     description: 'Initie un handshake OSC avec la console EOS, choisit un protocole et retourne la version detectee.',
     inputSchema
   },
-  handler: async (args) => {
+  handler: async (args, _extra) => {
     const schema = z.object(inputSchema).strict();
     const options = schema.parse(args ?? {});
     const client = getOscClient();
@@ -54,7 +54,7 @@ export const eosConnectTool: ToolDefinition<typeof inputSchema> = {
         }
       ],
       structuredContent: result
-    };
+    } as unknown as ToolExecutionResult;
   }
 };
 

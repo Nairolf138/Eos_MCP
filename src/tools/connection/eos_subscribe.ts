@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { getOscClient } from '../../services/osc/client';
-import type { ToolDefinition } from '../types';
+import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 const inputSchema = {
   path: z.string().min(1),
@@ -28,7 +28,7 @@ export const eosSubscribeTool: ToolDefinition<typeof inputSchema> = {
     description: 'Active ou desactive une souscription OSC sur la console EOS.',
     inputSchema
   },
-  handler: async (args) => {
+  handler: async (args, _extra) => {
     const schema = z.object(inputSchema).strict();
     const options = schema.parse(args ?? {});
     const client = getOscClient();
@@ -66,7 +66,7 @@ export const eosSubscribeTool: ToolDefinition<typeof inputSchema> = {
         }
       ],
       structuredContent: result
-    };
+    } as unknown as ToolExecutionResult;
   }
 };
 
