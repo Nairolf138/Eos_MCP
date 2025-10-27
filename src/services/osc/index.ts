@@ -3,17 +3,17 @@ import type { Logger } from 'pino';
 import { getConfig, type OscConfig as ResolvedOscConfig } from '../../config/index';
 import { createLogger } from '../../server/logger';
 
-export interface OscMessageArgument {
+export interface OscMessageArgument extends Record<string, unknown> {
   type: string;
   value: unknown;
 }
 
-export interface OscMessage {
+export interface OscMessage extends Record<string, unknown> {
   address: string;
   args?: OscMessageArgument[];
 }
 
-export interface OscMessageSummary {
+export interface OscMessageSummary extends Record<string, unknown> {
   address: string;
   args: OscMessageArgument[];
 }
@@ -22,20 +22,20 @@ export type OscMessageListener = (message: OscMessage) => void;
 
 export type OscLogger = Pick<Logger, 'info' | 'debug' | 'error'>;
 
-export interface OscLoggingState {
+export interface OscLoggingState extends Record<string, unknown> {
   incoming: boolean;
   outgoing: boolean;
 }
 
 export type OscLoggingOptions = Partial<OscLoggingState>;
 
-export interface OscAddressDiagnostics {
+export interface OscAddressDiagnostics extends Record<string, unknown> {
   address: string;
   count: number;
   lastTimestamp: number | null;
 }
 
-export interface OscDirectionDiagnostics {
+export interface OscDirectionDiagnostics extends Record<string, unknown> {
   count: number;
   bytes: number;
   lastTimestamp: number | null;
@@ -43,7 +43,7 @@ export interface OscDirectionDiagnostics {
   addresses: OscAddressDiagnostics[];
 }
 
-export interface OscDiagnostics {
+export interface OscDiagnostics extends Record<string, unknown> {
   config: {
     localAddress: string;
     localPort: number;
