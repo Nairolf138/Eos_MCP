@@ -1,5 +1,5 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { LATEST_PROTOCOL_VERSION } from '@modelcontextprotocol/sdk/types.js';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
+import { LATEST_PROTOCOL_VERSION } from '@modelcontextprotocol/sdk/types';
 import { z } from 'zod';
 import { createHttpGateway, type HttpGateway } from '../httpGateway';
 import { ToolRegistry } from '../toolRegistry';

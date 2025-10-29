@@ -1,4 +1,4 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 import { createHttpGateway, type HttpGateway } from '../httpGateway';
 import { ToolRegistry } from '../toolRegistry';
 import type { ToolDefinition } from '../../tools/types';

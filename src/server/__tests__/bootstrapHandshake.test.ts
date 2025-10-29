@@ -15,11 +15,11 @@ const MockMcpServer = jest.fn().mockImplementation(() => ({
   sendToolListChanged: mockSendToolListChanged
 }));
 
-jest.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
+jest.mock('@modelcontextprotocol/sdk/server/mcp', () => ({
   McpServer: MockMcpServer
 }));
 
-jest.mock('@modelcontextprotocol/sdk/server/stdio.js', () => ({
+jest.mock('@modelcontextprotocol/sdk/server/stdio', () => ({
   StdioServerTransport: jest.fn().mockImplementation(() => ({}))
 }));
 

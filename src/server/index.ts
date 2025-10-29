@@ -3,8 +3,8 @@ import { initialiseEnv } from '../config/env';
 initialiseEnv();
 
 import type { AddressInfo } from 'node:net';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio';
 import { getConfig, type AppConfig } from '../config/index';
 import {
   createOscGatewayFromEnv,
