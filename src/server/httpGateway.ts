@@ -16,9 +16,9 @@ import express, {
   type ErrorRequestHandler,
   Router
 } from 'express';
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp';
-import { ErrorCode as JsonRpcErrorCode, isInitializeRequest } from '@modelcontextprotocol/sdk/types';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { ErrorCode as JsonRpcErrorCode, isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { createLogger } from './logger';
 import type {
   OscConnectionStateProvider,
