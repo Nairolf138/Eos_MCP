@@ -39,6 +39,7 @@ describe('configuration', () => {
       },
       httpGateway: {
         publicUrl: undefined,
+        trustProxy: false,
         security: {
           apiKeys: [],
           mcpTokens: ['change-me'],
@@ -69,7 +70,8 @@ describe('configuration', () => {
       MCP_HTTP_ALLOWED_ORIGINS: 'http://localhost',
       MCP_HTTP_PUBLIC_URL: 'https://public.example/mcp/',
       MCP_HTTP_RATE_LIMIT_WINDOW: '120000',
-      MCP_HTTP_RATE_LIMIT_MAX: '10'
+      MCP_HTTP_RATE_LIMIT_MAX: '10',
+      MCP_HTTP_TRUST_PROXY: 'true'
     };
 
     const config = loadConfig(env);
@@ -96,6 +98,7 @@ describe('configuration', () => {
       rateLimit: { windowMs: 120000, max: 10 }
     });
     expect(config.httpGateway.publicUrl).toBe('https://public.example/mcp');
+    expect(config.httpGateway.trustProxy).toBe(true);
   });
 
   it('rejette les ports invalides avec un message explicite', () => {

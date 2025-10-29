@@ -387,6 +387,85 @@ describe('HttpGateway security options', () => {
     expect(response.status).toBe(401);
   });
 
+  test('uses X-Forwarded-For when trust proxy is enabled', async () => {
+    const forwardedIp = '203.0.113.42';
+    const strictSecurity = {
+      ...securityOptions,
+      ipAllowlist: [forwardedIp],
+      rateLimit: { windowMs: 60_000, max: 1 }
+    } as const;
+
+    const forwardedGateway = createHttpGateway(registry, {
+      port: 0,
+      trustProxy: true,
+      security: { ...strictSecurity },
+      serverFactory: () => createSessionServer()
+    });
+
+    await forwardedGateway.start();
+
+    try {
+      const forwardedAddress = forwardedGateway.getAddress();
+      if (!forwardedAddress) {
+        throw new Error('Adresse de la passerelle introuvable');
+      }
+
+      const forwardedBaseUrl = `http://127.0.0.1:${forwardedAddress.port}`;
+      const requestBody = JSON.stringify({
+        jsonrpc: '2.0',
+        id: 'trust-proxy-init',
+        method: 'initialize',
+        params: {
+          protocolVersion: LATEST_PROTOCOL_VERSION,
+          capabilities: {},
+          clientInfo: { name: 'jest-client', version: '0.0.1' }
+        }
+      });
+
+      const commonHeaders = {
+        'content-type': 'application/json',
+        accept: 'application/json, text/event-stream',
+        origin: 'http://localhost',
+        'x-api-key': strictSecurity.apiKeys[0],
+        'x-mcp-token': strictSecurity.mcpTokens[0]
+      } as const;
+
+      const forbiddenResponse = await fetch(`${forwardedBaseUrl}/mcp`, {
+        method: 'POST',
+        headers: commonHeaders,
+        body: requestBody
+      });
+      expect(forbiddenResponse.status).toBe(403);
+
+      const allowedResponse = await fetch(`${forwardedBaseUrl}/mcp`, {
+        method: 'POST',
+        headers: {
+          ...commonHeaders,
+          'x-forwarded-for': `${forwardedIp}, 10.0.0.5`
+        },
+        body: requestBody
+      });
+      expect(allowedResponse.status).toBe(200);
+
+      const rateLimitedResponse = await fetch(`${forwardedBaseUrl}/mcp`, {
+        method: 'POST',
+        headers: {
+          ...commonHeaders,
+          'x-forwarded-for': forwardedIp
+        },
+        body: requestBody
+      });
+      expect(rateLimitedResponse.status).toBe(429);
+
+      const internalGateway = forwardedGateway as unknown as {
+        rateLimitState: Map<string, { windowStart: number; count: number }>;
+      };
+      expect(internalGateway.rateLimitState.has(forwardedIp)).toBe(true);
+    } finally {
+      await forwardedGateway.stop();
+    }
+  });
+
   test('cleans up expired rate limit entries before reuse', () => {
     const internalGateway = gateway as unknown as {
       consumeRateLimit: (ip: string) => boolean;

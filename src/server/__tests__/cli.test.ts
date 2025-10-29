@@ -130,6 +130,7 @@ describe('override de configuration', () => {
         destinations: [{ type: 'file', path: '/var/log/eos/mcp.log' }]
       },
       httpGateway: {
+        trustProxy: false,
         security: {
           apiKeys: [],
           mcpTokens: [],

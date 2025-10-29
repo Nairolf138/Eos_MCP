@@ -510,6 +510,7 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
     gateway = createHttpGateway(registry, {
       port: tcpPort,
       publicUrl: effectiveConfig.httpGateway.publicUrl,
+      trustProxy: effectiveConfig.httpGateway.trustProxy,
       serverFactory: () => createConfiguredServer().server,
       oscConnectionProvider: oscConnectionState,
       security: securityOptions,
