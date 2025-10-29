@@ -38,6 +38,7 @@ interface HttpGatewayOptions {
   port: number;
   host?: string;
   publicUrl?: string;
+  trustProxy?: boolean;
   serverFactory: () => McpServer;
   security?: HttpGatewaySecurityOptions;
   oscConnectionProvider?: OscConnectionStateProvider;
@@ -356,6 +357,10 @@ class HttpGateway {
     await this.loadManifestTemplate();
 
     const app = express();
+
+    if (this.options.trustProxy) {
+      app.set('trust proxy', true);
+    }
 
     this.applySecurityMiddlewares(app);
 
@@ -983,7 +988,22 @@ class HttpGateway {
   }
 
   private getClientIp(req: Request | IncomingMessage): string | undefined {
+    if (this.options.trustProxy) {
+      const forwardedForHeader = 'headers' in req ? req.headers['x-forwarded-for'] : undefined;
+      const forwardedFor = Array.isArray(forwardedForHeader)
+        ? forwardedForHeader[0]
+        : forwardedForHeader?.split(',')[0];
+      const forwardedIp = this.normalizeIp(forwardedFor?.trim());
+      if (forwardedIp) {
+        return forwardedIp;
+      }
+    }
+
     const rawIp = 'ip' in req ? req.ip : req.socket.remoteAddress;
+    return this.normalizeIp(rawIp);
+  }
+
+  private normalizeIp(rawIp: string | undefined): string | undefined {
     if (!rawIp) {
       return undefined;
     }

@@ -24,6 +24,7 @@ function createConfig(options?: {
       destinations: []
     },
     httpGateway: {
+      trustProxy: false,
       security: {
         apiKeys: [],
         mcpTokens: Array.from(tokens),

@@ -41,6 +41,7 @@ jest.mock('../../config/index.js', () => ({
       destinations: [{ type: 'stdout' }]
     },
     httpGateway: {
+      trustProxy: false,
       security: {
         apiKeys: [],
         mcpTokens: ['token-123456789-token-123456789'],

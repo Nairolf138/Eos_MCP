@@ -88,6 +88,7 @@ export interface HttpGatewaySecurityConfig {
 
 export interface HttpGatewayConfig {
   readonly publicUrl?: string;
+  readonly trustProxy: boolean;
   readonly security: HttpGatewaySecurityConfig;
 }
 
@@ -480,7 +481,8 @@ const configSchema = z
     httpRateLimitMax: createPositiveIntegerSchema(
       'MCP_HTTP_RATE_LIMIT_MAX',
       DEFAULT_HTTP_RATE_LIMIT_MAX_REQUESTS
-    )
+    ),
+    httpTrustProxy: createOptionalBooleanSchema('MCP_HTTP_TRUST_PROXY')
   })
   .transform((values, ctx): AppConfig => {
     const prettyEnabled = values.logPretty ?? values.nodeEnv !== 'production';
@@ -554,6 +556,7 @@ const configSchema = z
       },
       httpGateway: {
         publicUrl: values.httpPublicUrl,
+        trustProxy: values.httpTrustProxy ?? false,
         security: {
           apiKeys: values.httpApiKeys,
           mcpTokens: values.httpMcpTokens,
@@ -595,7 +598,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     httpAllowedOrigins: env.MCP_HTTP_ALLOWED_ORIGINS,
     httpPublicUrl: env.MCP_HTTP_PUBLIC_URL,
     httpRateLimitWindowMs: env.MCP_HTTP_RATE_LIMIT_WINDOW,
-    httpRateLimitMax: env.MCP_HTTP_RATE_LIMIT_MAX
+    httpRateLimitMax: env.MCP_HTTP_RATE_LIMIT_MAX,
+    httpTrustProxy: env.MCP_HTTP_TRUST_PROXY
   });
 
   if (!result.success) {

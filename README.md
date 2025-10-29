@@ -113,6 +113,7 @@ npx ts-node src/server/index.ts --verbose --json-logs --stats-interval 30s
 Variables d’environnement pertinentes :
 
 - `MCP_TCP_PORT` pour activer la passerelle HTTP/WS optionnelle (par exemple `3032`).
+- `MCP_HTTP_TRUST_PROXY` à `true` pour faire confiance aux en-têtes `X-Forwarded-*` exposés par un reverse proxy ou un tunnel.
 - `OSC_UDP_IN_PORT` pour le port d'écoute local.
 - `OSC_UDP_OUT_PORT` et `OSC_REMOTE_ADDRESS` pour la cible UDP sortante.
 
@@ -255,6 +256,7 @@ npm run start:dev
 - Si votre proxy réécrit le chemin (ex. `https://example.com/mcp`), incluez-le dans `MCP_HTTP_PUBLIC_URL` afin que les clients MCP résolvent correctement les endpoints (`/manifest.json`, `/health`, `/tools`, `/ws`).
 - Conservez les en-têtes `X-Forwarded-*` lorsque vous terminez TLS en amont : le serveur peut ainsi détecter automatiquement le schéma `https` et générer un manifest cohérent, même sans variable dédiée.
 - Pour les tunnels dynamiques (adresse changeante), automatisez la mise à jour de `MCP_HTTP_PUBLIC_URL` ou vérifiez que l’outil propage bien les en-têtes originaux. Si la variable n'est pas définie, le placeholder `http://{HOST}:{PORT}` est résolu à chaque requête.
+- Lorsque l’application est publiée derrière un reverse proxy ou un tunnel TLS, positionnez `MCP_HTTP_TRUST_PROXY=true` afin que la passerelle HTTP respecte les en-têtes `X-Forwarded-For`/`X-Forwarded-Proto` pour l’allowlist IP, le rate limiting et la résolution d’URL.
 
 Une URL publique correctement configurée garantit que les assistants IA et orchestrateurs MCP peuvent établir des connexions WebSocket et HTTP sans dépendre d’un placeholder statique.
 
@@ -428,6 +430,7 @@ Cette configuration laisse la passerelle HTTP/WS activée mais verrouillée : au
 | `MCP_HTTP_API_KEYS` | Vide (désactivé) | `lan-key` |
 | `MCP_HTTP_RATE_LIMIT_WINDOW` | `60000` ms | `60000` ms |
 | `MCP_HTTP_RATE_LIMIT_MAX` | `60` requêtes | `120` requêtes |
+| `MCP_HTTP_TRUST_PROXY` | `false` | `true` |
 
 Pensez à remplacer les jetons et clés par des valeurs robustes avant d'exposer la passerelle sur votre réseau.
 
