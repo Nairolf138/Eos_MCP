@@ -386,4 +386,28 @@ describe('HttpGateway security options', () => {
 
     expect(response.status).toBe(401);
   });
+
+  test('cleans up expired rate limit entries before reuse', () => {
+    const internalGateway = gateway as unknown as {
+      consumeRateLimit: (ip: string) => boolean;
+      rateLimitState: Map<string, { windowStart: number; count: number }>;
+    };
+
+    const nowSpy = jest.spyOn(Date, 'now');
+
+    const initialTime = 1_000;
+    nowSpy.mockReturnValue(initialTime);
+    expect(internalGateway.consumeRateLimit('192.0.2.1')).toBe(true);
+    expect(internalGateway.rateLimitState.has('192.0.2.1')).toBe(true);
+
+    const advancedTime =
+      initialTime + securityOptions.rateLimit.windowMs * 100;
+    nowSpy.mockReturnValue(advancedTime);
+    expect(internalGateway.consumeRateLimit('198.51.100.1')).toBe(true);
+
+    expect(internalGateway.rateLimitState.has('192.0.2.1')).toBe(false);
+    expect(internalGateway.rateLimitState.has('198.51.100.1')).toBe(true);
+
+    nowSpy.mockRestore();
+  });
 });

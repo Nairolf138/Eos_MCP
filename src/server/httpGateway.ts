@@ -112,6 +112,8 @@ class HttpGateway {
 
   private manifestTemplate?: ManifestDocument;
 
+  private static readonly RATE_LIMIT_CLEANUP_FACTOR = 10;
+
   private readonly rateLimitState = new Map<string, { windowStart: number; count: number }>();
 
   private readonly sessions = new Map<string, SessionRecord>();
@@ -948,6 +950,8 @@ class HttpGateway {
         return;
       }
 
+      // Chaque consommation du rate limit nettoie egalement les entrees perimees afin d'eviter
+      // qu'une tache planifiee dediee soit necessaire pour purger la carte en memoire.
       if (!this.consumeRateLimit(ip)) {
         res.status(429).json({ error: 'Limite de requetes atteinte' });
         return;
@@ -955,6 +959,16 @@ class HttpGateway {
 
       next();
     };
+  }
+
+  private cleanupRateLimitState(now: number, rateLimit: RateLimitOptions): void {
+    const expirationWindow = rateLimit.windowMs * HttpGateway.RATE_LIMIT_CLEANUP_FACTOR;
+
+    for (const [ip, state] of this.rateLimitState) {
+      if (now - state.windowStart >= expirationWindow) {
+        this.rateLimitState.delete(ip);
+      }
+    }
   }
 
   private extractOrigin(req: Request | IncomingMessage): string | undefined {
@@ -1107,6 +1121,7 @@ class HttpGateway {
     }
 
     const now = Date.now();
+    this.cleanupRateLimitState(now, rateLimit);
     const state = this.rateLimitState.get(ip);
 
     if (!state || now - state.windowStart >= rateLimit.windowMs) {
