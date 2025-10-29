@@ -706,12 +706,12 @@ class HttpGateway {
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
       enableJsonResponse: true,
-      onsessioninitialized: async (sessionId) => {
+      onsessioninitialized: async (sessionId: string) => {
         record.id = sessionId;
         record.lastActivityAt = Date.now();
         this.sessions.set(sessionId, record);
       },
-      onsessionclosed: async (sessionId) => {
+      onsessionclosed: async (sessionId: string) => {
         if (sessionId) {
           this.sessions.delete(sessionId);
         }
