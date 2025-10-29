@@ -1,4 +1,4 @@
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 import { ToolRegistry } from '../toolRegistry';
 import type { ToolDefinition, ToolExecutionResult, ToolMiddleware } from '../../tools/types';
 import {
