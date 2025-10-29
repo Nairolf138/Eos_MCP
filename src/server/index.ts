@@ -306,7 +306,7 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
   let config: AppConfig;
   try {
     config = getConfig();
-  } catch (error) {
+  } catch (error: unknown) {
     const reason = error instanceof Error ? error.message : String(error);
     const message = `Impossible de charger la configuration: ${reason}`;
     logger.fatal(message);
@@ -336,7 +336,7 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
     }
 
     await assertUdpPortAvailable(effectiveConfig.osc.udpInPort);
-  } catch (error) {
+  } catch (error: unknown) {
     const appError = isAppError(error)
       ? error
       : toAppError(error, { code: ErrorCode.MCP_STARTUP_FAILURE });
@@ -447,7 +447,7 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
         },
         'Connexion OSC initiale etablie.'
       );
-    } catch (error) {
+    } catch (error: unknown) {
       const appError = toAppError(error, {
         code: ErrorCode.MCP_STARTUP_FAILURE,
         message: 'Impossible de finaliser le handshake OSC de demarrage.'
@@ -498,7 +498,7 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
         stdioStatus.clients = 1;
         stdioStatus.startedAt = Date.now();
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         stdioStatus.status = 'stopped';
         stdioStatus.clients = 0;
         throw error;
@@ -550,7 +550,7 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
             startedAt: diagnostics.startedAt
           }
         }, 'Statistiques OSC');
-      } catch (error) {
+      } catch (error: unknown) {
         const err = error instanceof Error ? error : new Error(String(error));
         logger.error({ error: err }, 'Impossible de recuperer les diagnostics OSC');
       }
@@ -596,7 +596,7 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
     logger.info({ signal }, 'Signal %s recu, fermeture du serveur MCP', signal);
     try {
       await server.close();
-    } catch (error) {
+    } catch (error: unknown) {
       const appError = toAppError(error, {
         code: ErrorCode.MCP_STARTUP_FAILURE,
         message: `Erreur lors de la fermeture du serveur MCP apres ${signal}`
@@ -607,7 +607,7 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
     if (gateway) {
       try {
         await gateway.stop();
-      } catch (error) {
+      } catch (error: unknown) {
         const appError = toAppError(error, {
           code: ErrorCode.MCP_STARTUP_FAILURE,
           message: `Erreur lors de la fermeture de la passerelle HTTP apres ${signal}`
@@ -618,7 +618,7 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
 
     try {
       currentOscGateway.close?.();
-    } catch (error) {
+    } catch (error: unknown) {
       const appError = toAppError(error, {
         code: ErrorCode.MCP_STARTUP_FAILURE,
         message: `Erreur lors de la fermeture du service OSC apres ${signal}`
@@ -706,7 +706,7 @@ async function runFromCommandLine(argv: NodeJS.Process['argv']): Promise<void> {
 
       console.log('Configuration valide.');
       process.exit(0);
-    } catch (error) {
+    } catch (error: unknown) {
       const reason = error instanceof Error ? error.message : String(error);
       console.error('Configuration invalide :');
       console.error(reason);
