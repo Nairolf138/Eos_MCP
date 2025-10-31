@@ -93,7 +93,7 @@ Ces commandes peuvent également être lancées sur la version compilée avec `n
 Lorsque vous démarrez réellement le serveur (sans combiner d'option utilitaire ci-dessus), plusieurs modificateurs sont disponibles :
 
 - `--verbose` active la journalisation détaillée des messages OSC (entrants/sortants).
-- `--json-logs` force l'envoi des logs au format JSON vers STDOUT, en ignorant la configuration de destinations déclarée dans l'environnement.
+- `--json-logs` force le format JSON pour toutes les destinations configurées et remplace toute sortie `stdout` par `stderr` afin de préserver le canal STDOUT pour le protocole MCP.
 - `--stats-interval <durée>` publie périodiquement les compteurs RX/TX issus d'`OscService.getDiagnostics()` dans les logs (valeurs acceptant `10s`, `5s`, `5000ms`, etc.).
 
 Exemple :
@@ -101,6 +101,10 @@ Exemple :
 ```bash
 npx ts-node src/server/index.ts --verbose --json-logs --stats-interval 30s
 ```
+
+### Journalisation et séparation STDOUT/STDERR
+
+Le protocole MCP utilise exclusivement STDOUT pour échanger avec les clients. Pour éviter toute interférence, l'intégralité des logs applicatifs est désormais routée vers STDERR (ou vers les fichiers/transports configurés). Même si la destination héritée `stdout` reste acceptée dans les variables d'environnement pour des raisons de compatibilité, elle est automatiquement redirigée vers STDERR par le serveur. Consultez vos journaux via STDERR ou en configurant `LOG_DESTINATIONS=file`/`transport` selon vos besoins.
 
 ## Configuration réseau et de la console Eos
 

@@ -17,19 +17,26 @@ function createDestinationStream(
   destination: LoggingDestination,
   format: AppConfig['logging']['format']
 ): DestinationStream {
+  const createStdioDestination = (): DestinationStream => {
+    if (format === 'pretty') {
+      return pino.transport({
+        target: 'pino-pretty',
+        options: {
+          colorize: true,
+          translateTime: 'SYS:standard',
+          destination: process.stderr.fd
+        }
+      });
+    }
+
+    return pino.destination({ dest: process.stderr.fd, sync: false });
+  };
+
   switch (destination.type) {
     case 'stdout':
-      if (format === 'pretty') {
-        return pino.transport({
-          target: 'pino-pretty',
-          options: {
-            colorize: true,
-            translateTime: 'SYS:standard'
-          }
-        });
-      }
-
-      return pino.destination({ dest: process.stdout.fd, sync: false });
+      return createStdioDestination();
+    case 'stderr':
+      return createStdioDestination();
     case 'file':
       return pino.transport({
         target: 'pino/file',
