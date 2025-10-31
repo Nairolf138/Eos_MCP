@@ -29,7 +29,7 @@ describe('configuration', () => {
         format: 'pretty',
         destinations: [
           {
-            type: 'stdout'
+            type: 'stderr'
           },
           {
             type: 'file',
@@ -87,7 +87,7 @@ describe('configuration', () => {
     expect(config.logging.level).toBe('debug');
     expect(config.logging.format).toBe('pretty');
     expect(config.logging.destinations).toEqual([
-      { type: 'stdout' },
+      { type: 'stderr' },
       { type: 'file', path: resolve(process.cwd(), 'var/log/eos-mcp.log') }
     ]);
     expect(config.httpGateway.security).toEqual({
@@ -129,7 +129,7 @@ describe('configuration', () => {
         target: 'pino-syslog',
         options: { host: 'logs.internal', port: 1514 }
       },
-      { type: 'stdout' }
+      { type: 'stderr' }
     ]);
   });
 

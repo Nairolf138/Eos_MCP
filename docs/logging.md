@@ -10,17 +10,17 @@ Le niveau s'applique à l'ensemble des destinations configurées.
 
 ## Destinations disponibles
 
-- `LOG_DESTINATIONS` : liste de destinations séparées par des virgules parmi `stdout`, `file`, `transport`. Valeur par défaut : `file`.
+- `LOG_DESTINATIONS` : liste de destinations séparées par des virgules parmi `stdout`, `stderr`, `file`, `transport`. Valeur par défaut : `file`.
 
-En environnement de développement (`NODE_ENV` différent de `production`), la destination `stdout` est automatiquement ajoutée lorsque `LOG_DESTINATIONS` n'est pas définie explicitement. Les logs sont ainsi visibles dans la console sans configuration additionnelle. Pour désactiver cette sortie, définissez `LOG_DESTINATIONS=file`. Vous pouvez aussi combiner plusieurs destinations en les listant, par exemple `LOG_DESTINATIONS=stdout,file` ou `LOG_DESTINATIONS=file,transport`.
+En environnement de développement (`NODE_ENV` différent de `production`), la destination `stdout` est automatiquement ajoutée lorsque `LOG_DESTINATIONS` n'est pas définie explicitement. Pour préserver le canal STDOUT réservé au protocole MCP, cette valeur est immédiatement convertie en destination `stderr` par la phase de chargement de la configuration. Les logs restent visibles dans la console sans configuration additionnelle. Pour désactiver cette sortie, définissez `LOG_DESTINATIONS=file`. Vous pouvez aussi combiner plusieurs destinations en les listant, par exemple `LOG_DESTINATIONS=stdout,file` (redirigé vers STDERR + fichier) ou `LOG_DESTINATIONS=file,transport`.
 
 Lorsque `file` est présent :
 
 - `MCP_LOG_FILE` : chemin (relatif ou absolu) du fichier journal. Le répertoire est créé automatiquement et la rotation est assurée par le transport `pino/file`.
 
-Lorsque `stdout` est présent :
+Lorsque `stdout` ou `stderr` est présent :
 
-- `LOG_PRETTY` : active (`true`) ou désactive (`false`) le rendu « pretty » via `pino-pretty`. Par défaut, le format pretty est utilisé si `NODE_ENV` n'est pas `production`, sinon le format JSON est conservé.
+- `LOG_PRETTY` : active (`true`) ou désactive (`false`) le rendu « pretty » via `pino-pretty`. Par défaut, le format pretty est utilisé si `NODE_ENV` n'est pas `production`, sinon le format JSON est conservé. Quel que soit le nom déclaré (`stdout` ou `stderr`), la sortie console effective passe par STDERR.
 
 Lorsque `transport` est présent :
 
@@ -51,7 +51,7 @@ npm test -- src/config/__tests__/config.test.ts
 
 En complément des variables d'environnement, certains indicateurs peuvent être activés directement lors du démarrage du serveur :
 
-- `--json-logs` force l'utilisation du format JSON sur STDOUT et ignore les destinations configurées (pratique pour rediriger la sortie vers un collecteur).
+- `--json-logs` force l'utilisation du format JSON pour toutes les destinations et remplace toute sortie console par STDERR afin de préserver STDOUT pour le protocole MCP.
 - `--verbose` active la journalisation détaillée des messages OSC (entrants et sortants) via `OscService.setLoggingOptions()`.
 - `--stats-interval <durée>` publie périodiquement les compteurs RX/TX renvoyés par `OscService.getDiagnostics()` dans les logs (valeurs acceptant `10s`, `5s`, `5000ms`, etc.).
 

@@ -144,7 +144,41 @@ describe('override de configuration', () => {
     const overridden = applyBootstrapOverrides(baseConfig, { forceJsonLogs: true });
 
     expect(overridden.logging.format).toBe('json');
-    expect(overridden.logging.destinations).toEqual([{ type: 'stdout' }]);
+    expect(overridden.logging.destinations).toEqual([
+      { type: 'file', path: '/var/log/eos/mcp.log' }
+    ]);
     expect(baseConfig.logging.destinations).toEqual([{ type: 'file', path: '/var/log/eos/mcp.log' }]);
+  });
+
+  it('convertit la destination stdout en stderr lorsque les logs JSON sont forcés', () => {
+    const baseConfig: AppConfig = {
+      mcp: { tcpPort: undefined },
+      osc: {
+        remoteAddress: '127.0.0.1',
+        tcpPort: 3032,
+        udpOutPort: 8001,
+        udpInPort: 8000,
+        localAddress: '0.0.0.0'
+      },
+      logging: {
+        level: 'info',
+        format: 'pretty',
+        destinations: [{ type: 'stdout' }]
+      },
+      httpGateway: {
+        trustProxy: false,
+        security: {
+          apiKeys: [],
+          mcpTokens: [],
+          ipAllowlist: [],
+          allowedOrigins: [],
+          rateLimit: { windowMs: 60000, max: 60 }
+        }
+      }
+    };
+
+    const overridden = applyBootstrapOverrides(baseConfig, { forceJsonLogs: true });
+
+    expect(overridden.logging.destinations).toEqual([{ type: 'stderr' }]);
   });
 });

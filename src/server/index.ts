@@ -5,7 +5,7 @@ initialiseEnv();
 import type { AddressInfo } from 'node:net';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { getConfig, type AppConfig } from '../config/index';
+import { getConfig, type AppConfig, type LoggingDestination } from '../config/index';
 import {
   createOscGatewayFromEnv,
   OscConnectionGateway,
@@ -292,12 +292,23 @@ function applyBootstrapOverrides(
     return config;
   }
 
+  const destinations: LoggingDestination[] =
+    config.logging.destinations.length > 0
+      ? config.logging.destinations.map((destination): LoggingDestination => {
+          if (destination.type === 'stdout') {
+            return { type: 'stderr' };
+          }
+
+          return destination;
+        })
+      : [{ type: 'stderr' }];
+
   return {
     ...config,
     logging: {
       ...config.logging,
       format: 'json',
-      destinations: [{ type: 'stdout' }]
+      destinations
     }
   } satisfies AppConfig;
 }

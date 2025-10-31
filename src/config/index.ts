@@ -14,7 +14,7 @@ const DEFAULT_HTTP_RATE_LIMIT_MAX_REQUESTS = 60;
 const DEFAULT_HTTP_MCP_TOKEN = 'change-me';
 
 const LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'] as const;
-const LOG_DESTINATION_VALUES = ['stdout', 'file', 'transport'] as const;
+const LOG_DESTINATION_VALUES = ['stdout', 'stderr', 'file', 'transport'] as const;
 
 export type LogLevel = (typeof LOG_LEVELS)[number];
 export type LogFormat = 'json' | 'pretty';
@@ -22,6 +22,10 @@ export type LoggingDestinationType = (typeof LOG_DESTINATION_VALUES)[number];
 
 export interface StdoutLoggingDestination {
   readonly type: 'stdout';
+}
+
+export interface StderrLoggingDestination {
+  readonly type: 'stderr';
 }
 
 export interface FileLoggingDestination {
@@ -37,6 +41,7 @@ export interface TransportLoggingDestination {
 
 export type LoggingDestination =
   | StdoutLoggingDestination
+  | StderrLoggingDestination
   | FileLoggingDestination
   | TransportLoggingDestination;
 
@@ -256,7 +261,7 @@ function createLogDestinationsSchema(
     if (tokens.length === 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: `La variable d'environnement ${variableName} doit contenir au moins une destination (stdout, file, transport).`
+        message: `La variable d'environnement ${variableName} doit contenir au moins une destination (stdout, stderr, file, transport).`
       });
       return z.NEVER;
     }
@@ -493,23 +498,26 @@ const configSchema = z
     if (
       values.nodeEnv !== 'production' &&
       !values.logDestinationsDefined &&
-      !destinationTypes.includes('stdout')
+      !destinationTypes.some((type) => type === 'stdout' || type === 'stderr')
     ) {
       destinationTypes.unshift('stdout');
     }
 
     for (const destinationType of destinationTypes) {
-      if (seen.has(destinationType)) {
+      const normalisedType: LoggingDestinationType =
+        destinationType === 'stdout' ? 'stderr' : destinationType;
+
+      if (seen.has(normalisedType)) {
         continue;
       }
-      seen.add(destinationType);
+      seen.add(normalisedType);
 
-      if (destinationType === 'stdout') {
-        destinations.push({ type: 'stdout' });
+      if (normalisedType === 'stderr') {
+        destinations.push({ type: 'stderr' });
         continue;
       }
 
-      if (destinationType === 'file') {
+      if (normalisedType === 'file') {
         destinations.push({ type: 'file', path: values.logFilePath });
         continue;
       }

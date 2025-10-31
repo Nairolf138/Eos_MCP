@@ -38,7 +38,7 @@ jest.mock('../../config/index.js', () => ({
     logging: {
       level: 'info',
       format: 'json',
-      destinations: [{ type: 'stdout' }]
+      destinations: [{ type: 'stderr' }]
     },
     httpGateway: {
       trustProxy: false,
