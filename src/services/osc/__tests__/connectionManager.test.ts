@@ -121,6 +121,58 @@ describe('OscConnectionManager', () => {
     manager.stop();
   });
 
+  it('envoie les paquets UDP vers une destination personnalisee lorsqu\'elle est fournie', async () => {
+    const createTcpSocket = jest.fn(() => {
+      const socket = new MockTcpSocket();
+      queueMicrotask(() => socket.emit('connect'));
+      return socket as unknown as TcpSocket;
+    });
+
+    let createdUdpSocket: MockUdpSocket | null = null;
+    const createUdpSocket = jest.fn(() => {
+      const socket = new MockUdpSocket();
+      createdUdpSocket = socket;
+      return socket as unknown as UdpSocket;
+    });
+
+    const manager = new OscConnectionManager({
+      host: '127.0.0.1',
+      tcpPort: 9000,
+      udpPort: 9001,
+      heartbeatIntervalMs: 10_000,
+      connectionTimeoutMs: 1_000,
+      createTcpSocket,
+      createUdpSocket,
+      logger: {}
+    });
+
+    await Promise.resolve();
+
+    const udpSocket = createdUdpSocket;
+    if (!udpSocket) {
+      throw new Error('UDP socket not created');
+    }
+
+    manager.setToolPreference('udp-tool', 'speed');
+
+    udpSocket.send.mockClear();
+
+    const payload = Buffer.from('udp override');
+    manager.send('udp-tool', payload, undefined, {
+      targetAddress: '198.51.100.10',
+      targetPort: 9123
+    });
+
+    expect(udpSocket.send).toHaveBeenCalledTimes(1);
+    const [buffer, port, host] = udpSocket.send.mock.calls[0];
+
+    expect(Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer)).toEqual(payload);
+    expect(port).toBe(9123);
+    expect(host).toBe('198.51.100.10');
+
+    manager.stop();
+  });
+
   it('applies exponential backoff when scheduling reconnections', () => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date('2024-01-01T00:00:00.000Z'));

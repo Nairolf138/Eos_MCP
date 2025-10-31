@@ -10,6 +10,8 @@ interface SendCall {
   toolId: string;
   transport: TransportType;
   payload: Buffer;
+  targetAddress?: string;
+  targetPort?: number;
 }
 
 const instances: Array<{
@@ -43,9 +45,20 @@ jest.mock('../connectionManager.js', () => ({
       instances.push(this);
     }
 
-    public send(toolId: string, payload: Buffer): TransportType {
+    public send(
+      toolId: string,
+      payload: Buffer,
+      _encoding?: BufferEncoding,
+      overrides?: { targetAddress?: string; targetPort?: number }
+    ): TransportType {
       const transport = this.transportSequence.shift() ?? 'udp';
-      this.sendCalls.push({ toolId, transport, payload: Buffer.from(payload) });
+      this.sendCalls.push({
+        toolId,
+        transport,
+        payload: Buffer.from(payload),
+        targetAddress: overrides?.targetAddress,
+        targetPort: overrides?.targetPort
+      });
       return transport as TransportType;
     }
 
@@ -135,6 +148,34 @@ describe('OscConnectionGateway', () => {
       expect.objectContaining({ type: 'tcp', state: 'disconnected' }),
       expect.objectContaining({ type: 'udp', state: 'connected' })
     ]);
+
+    gateway.close();
+  });
+
+  it('transmet les cibles personnalisees au gestionnaire pour un envoi', async () => {
+    const gateway = createOscConnectionGateway({
+      host: '127.0.0.1',
+      tcpPort: 3032,
+      udpPort: 8001,
+      localPort: 8000
+    });
+
+    const manager = instances.at(-1);
+    if (!manager) {
+      throw new Error('Gestionnaire de connexion non initialise');
+    }
+
+    manager.transportSequence = ['udp'];
+
+    await gateway.send(
+      { address: '/custom/target' },
+      { targetAddress: '192.0.2.15', targetPort: 5010 }
+    );
+
+    expect(manager.sendCalls).toHaveLength(1);
+    const [call] = manager.sendCalls;
+    expect(call?.targetAddress).toBe('192.0.2.15');
+    expect(call?.targetPort).toBe(5010);
 
     gateway.close();
   });
