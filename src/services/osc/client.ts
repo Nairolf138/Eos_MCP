@@ -775,41 +775,126 @@ export class OscClient {
       );
 
       const legacyAwaiter = this.createLegacyHandshakeAwaiter();
+      const start = Date.now();
+      const resendInterval = Math.min(1000, Math.max(500, Math.floor(timeout / 3)));
+
+      let resendTimer: NodeJS.Timeout | null = null;
+      let closed = false;
+      let sendErrorReject: ((error: unknown) => void) | null = null;
+
+      const stopResends = (): void => {
+        if (resendTimer) {
+          clearTimeout(resendTimer);
+          resendTimer = null;
+        }
+      };
+
+      const finalizeSuccess = (): void => {
+        if (closed) {
+          return;
+        }
+        closed = true;
+        stopResends();
+        sendErrorReject = null;
+      };
+
+      const finalizeError = (): void => {
+        if (closed) {
+          return;
+        }
+        closed = true;
+        stopResends();
+        awaiter.cancel();
+        legacyAwaiter.cancel();
+        sendErrorReject = null;
+      };
+
+      const handleSendError = (error: unknown): void => {
+        const reject = sendErrorReject;
+        finalizeError();
+        reject?.(error);
+      };
+
+      const scheduleNextSend = (): void => {
+        if (closed) {
+          return;
+        }
+
+        const elapsed = Date.now() - start;
+        const remaining = timeout - elapsed;
+        if (remaining <= 0) {
+          return;
+        }
+
+        const delay = Math.min(resendInterval, remaining);
+        resendTimer = setTimeout(() => {
+          resendTimer = null;
+          if (closed) {
+            return;
+          }
+
+          void sendHandshake()
+            .then(() => {
+              scheduleNextSend();
+            })
+            .catch(() => {
+              // L'erreur est geree dans handleSendError via sendHandshake.
+            });
+        }, delay);
+      };
+
+      const sendHandshake = async (): Promise<void> => {
+        try {
+          await this.send(
+            {
+              address: HANDSHAKE_REQUEST,
+              args
+            },
+            attemptOptions,
+            {
+              operation: 'le handshake OSC',
+              timeoutMs: timeout,
+              details: { address: HANDSHAKE_REQUEST }
+            }
+          );
+        } catch (error) {
+          handleSendError(error);
+          throw error;
+        }
+      };
+
+      const sendErrorPromise = new Promise<never>((_, reject) => {
+        sendErrorReject = reject;
+      });
 
       try {
-        await this.send(
-          {
-            address: HANDSHAKE_REQUEST,
-            args
-          },
-          attemptOptions,
-          {
-            operation: 'le handshake OSC',
-            timeoutMs: timeout,
-            details: { address: HANDSHAKE_REQUEST }
-          }
-        );
+        await sendHandshake();
         awaiter.startTimer();
+        scheduleNextSend();
+
         const canonicalPromise = awaiter.promise
           .then((response) => {
+            finalizeSuccess();
             legacyAwaiter.cancel();
             return this.parseHandshakeResponse(response);
           })
           .catch((error) => {
-            legacyAwaiter.cancel();
+            finalizeError();
             throw error;
           });
 
         const legacyPromise = legacyAwaiter.promise.then((legacy) => {
+          finalizeSuccess();
           awaiter.cancel();
           return legacy;
         });
 
-        return await Promise.race([canonicalPromise, legacyPromise]);
+        return await Promise.race([canonicalPromise, legacyPromise, sendErrorPromise]);
       } catch (error) {
-        awaiter.cancel();
-        legacyAwaiter.cancel();
+        finalizeError();
         throw error;
+      } finally {
+        stopResends();
       }
     };
 

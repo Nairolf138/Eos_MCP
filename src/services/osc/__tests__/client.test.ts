@@ -317,6 +317,87 @@ describe('OscClient', () => {
     });
   });
 
+  it('reemet le handshake periodiquement jusqu\'a reception de la reponse canonique', async () => {
+    jest.useFakeTimers();
+    const service = new FakeOscService();
+    const client = new OscClient(service);
+
+    const connectPromise = client.connect({ handshakeTimeoutMs: 1500 });
+
+    await Promise.resolve();
+
+    const handshakeCount = (): number =>
+      service.sentMessages.filter((message) => message.address === '/eos/handshake').length;
+
+    expect(handshakeCount()).toBe(1);
+
+    await jest.advanceTimersByTimeAsync(500);
+    await Promise.resolve();
+    expect(handshakeCount()).toBe(2);
+
+    await jest.advanceTimersByTimeAsync(500);
+    await Promise.resolve();
+    expect(handshakeCount()).toBe(3);
+
+    service.emit({
+      address: '/eos/handshake/reply',
+      args: [
+        { type: 's', value: 'ETCOSC!' },
+        { type: 's', value: JSON.stringify({ version: '3.3.0', protocols: [] }) }
+      ]
+    });
+
+    await Promise.resolve();
+
+    await jest.advanceTimersByTimeAsync(1000);
+    await Promise.resolve();
+
+    expect(handshakeCount()).toBe(3);
+
+    const result = await connectPromise;
+    expect(result.status).toBe('ok');
+    expect(result.protocolStatus).toBe('skipped');
+  });
+
+  it('interrompt les retransmissions du handshake apres un message legacy', async () => {
+    jest.useFakeTimers();
+    const service = new FakeOscService();
+    const client = new OscClient(service);
+
+    const legacyMessage: OscMessage = {
+      address: '/eos/out/event/state',
+      args: [{ type: 's', value: 'init' }]
+    };
+
+    const connectPromise = client.connect({ handshakeTimeoutMs: 1500 });
+
+    await Promise.resolve();
+
+    const handshakeCount = (): number =>
+      service.sentMessages.filter((message) => message.address === '/eos/handshake').length;
+
+    expect(handshakeCount()).toBe(1);
+
+    await jest.advanceTimersByTimeAsync(500);
+    await Promise.resolve();
+    expect(handshakeCount()).toBe(2);
+
+    service.emit(legacyMessage);
+
+    await Promise.resolve();
+
+    await jest.advanceTimersByTimeAsync(1000);
+    await Promise.resolve();
+
+    expect(handshakeCount()).toBe(2);
+
+    const result = await connectPromise;
+
+    expect(result.status).toBe('ok');
+    expect(result.handshakePayload).toEqual(legacyMessage);
+    expect(result.protocolStatus).toBe('skipped');
+  });
+
   it('signale une erreur lorsque la sentinelle de handshake est absente', async () => {
     const service = new FakeOscService();
     const client = new OscClient(service);
@@ -421,9 +502,9 @@ describe('OscClient', () => {
 
     expect(service.sendOptions[0]?.transportPreference).toBeUndefined();
 
-    await waitFor(() => service.sendOptions.length >= 2);
-
-    expect(service.sendOptions[1]?.transportPreference).toBe('speed');
+    await waitFor(() =>
+      service.sendOptions.some((options) => options?.transportPreference === 'speed')
+    );
 
     service.emit({
       address: '/eos/handshake/reply',
@@ -439,9 +520,9 @@ describe('OscClient', () => {
       ]
     });
 
-    await waitFor(() => service.sentMessages.length >= 3);
-
-    expect(service.sentMessages[2]?.address).toBe('/eos/protocol/select');
+    await waitFor(() =>
+      service.sentMessages.some((message) => message.address === '/eos/protocol/select')
+    );
 
     service.emit({
       address: '/eos/protocol/select/reply',
@@ -453,7 +534,9 @@ describe('OscClient', () => {
     expect(result.status).toBe('ok');
     expect(result.version).toBe('3.2.0');
     expect(result.selectedProtocol).toBe('udp');
-    expect(service.sendOptions[1]?.transportPreference).toBe('speed');
+    expect(
+      service.sendOptions.some((options) => options?.transportPreference === 'speed')
+    ).toBe(true);
     expect(service.sentMessages[0]?.args).toEqual([
       { type: 's', value: 'ETCOSC?' },
       { type: 's', value: 'mcp' }
