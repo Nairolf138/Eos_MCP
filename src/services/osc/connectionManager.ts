@@ -216,7 +216,8 @@ export class OscConnectionManager extends EventEmitter {
   public send(
     toolId: string,
     payload: Buffer | string | Uint8Array,
-    encoding?: BufferEncoding
+    encoding?: BufferEncoding,
+    overrides?: { targetAddress?: string; targetPort?: number }
   ): TransportType {
     const state = this.pickTransport(toolId);
     if (!state) {
@@ -226,7 +227,7 @@ export class OscConnectionManager extends EventEmitter {
     }
 
     const buffer = this.normalisePayload(payload, encoding);
-    this.sendThroughState(state, buffer);
+    this.sendThroughState(state, buffer, overrides);
     return state.type;
   }
 
@@ -635,7 +636,11 @@ export class OscConnectionManager extends EventEmitter {
       .map((transport) => transport.type);
   }
 
-  private sendThroughState(state: TransportInternals, buffer: Buffer): void {
+  private sendThroughState(
+    state: TransportInternals,
+    buffer: Buffer,
+    overrides?: { targetAddress?: string; targetPort?: number }
+  ): void {
     if (!state.socket || state.state !== 'connected') {
       throw new Error(
         `Le transport ${state.type} n'est pas pret. Impossible d'envoyer le message.`
@@ -656,8 +661,8 @@ export class OscConnectionManager extends EventEmitter {
       });
     } else {
       const socket = state.socket as UdpSocket;
-      const targetPort = state.targetPort ?? this.options.udpPort;
-      const targetHost = state.targetHost ?? this.options.host;
+      const targetPort = overrides?.targetPort ?? state.targetPort ?? this.options.udpPort;
+      const targetHost = overrides?.targetAddress ?? state.targetHost ?? this.options.host;
       socket.send(buffer, targetPort, targetHost, (error) => {
         if (error) {
           this.logger.error?.('[OSC][udp] Echec lors de l\'envoi', error);

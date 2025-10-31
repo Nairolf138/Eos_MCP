@@ -116,13 +116,17 @@ export class OscConnectionGateway implements OscGateway {
   public async send(message: OscMessage, options: OscGatewaySendOptions = {}): Promise<void> {
     const toolId = normaliseToolId(options.toolId, message);
     const encoded = this.encodeMessage(message);
+    const overrides =
+      options.targetAddress !== undefined || options.targetPort !== undefined
+        ? { targetAddress: options.targetAddress, targetPort: options.targetPort }
+        : undefined;
 
     if (options.transportPreference) {
       this.setToolPreference(toolId, options.transportPreference);
     }
 
     const attemptSend = (): void => {
-      const transport = this.manager.send(toolId, encoded);
+      const transport = this.manager.send(toolId, encoded, undefined, overrides);
       this.updateStats('outgoing', message, encoded.byteLength);
       if (this.loggingState.outgoing) {
         this.logger.debug(
