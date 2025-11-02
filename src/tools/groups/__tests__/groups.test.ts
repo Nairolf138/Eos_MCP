@@ -101,6 +101,7 @@ describe('group tools', () => {
     expect(structuredContent).toMatchObject({
       action: 'get_info',
       status: 'ok',
+      exists: true,
       group: {
         group_number: 3,
         label: 'Chorus',
@@ -167,6 +168,38 @@ describe('group tools', () => {
           members: []
         }
       ]
+    });
+  });
+
+  it('signale un groupe introuvable lorsque la console ne renvoie pas de bloc', async () => {
+    const promise = runTool(eosGroupGetInfoTool, { group_number: 9 });
+
+    queueMicrotask(() => {
+      service.emit({
+        address: oscMappings.groups.info,
+        args: [
+          {
+            type: 's',
+            value: JSON.stringify({
+              status: 'ok'
+            })
+          }
+        ]
+      });
+    });
+
+    const result = await promise;
+    const structuredContent = getStructuredContent(result);
+    expect(structuredContent).toBeDefined();
+    if (!structuredContent) {
+      throw new Error('Expected structured content');
+    }
+
+    expect(structuredContent).toMatchObject({
+      action: 'get_info',
+      status: 'ok',
+      exists: false,
+      group: null
     });
   });
 
