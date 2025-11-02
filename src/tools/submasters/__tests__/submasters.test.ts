@@ -6,7 +6,7 @@ import {
   eosSubmasterBumpTool,
   eosSubmasterGetInfoTool
 } from '../index';
-import { getStructuredContent, runTool } from '../../__tests__/helpers/runTool';
+import { getStructuredContent, isTextContent, runTool } from '../../__tests__/helpers/runTool';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -109,7 +109,10 @@ describe('submaster tools', () => {
     expect(structuredContent).toMatchObject({
       action: 'submaster_get_info',
       status: 'ok',
+      found: true,
+      request: { submaster: 12, submaster_number: 12 },
       submaster: {
+        exists: true,
         submasterNumber: 12,
         label: 'Front Wash',
         mode: 'intensity',
@@ -164,11 +167,60 @@ describe('submaster tools', () => {
     }
 
     expect(structuredContent).toMatchObject({
+      found: true,
       submaster: {
+        exists: true,
         submasterNumber: 4,
         label: 'Side Light',
         htp: false,
         exclusive: true
+      }
+    });
+  });
+
+  it('signale lorsque le submaster est introuvable', async () => {
+    const promise = runTool(eosSubmasterGetInfoTool, { submaster_number: 99 });
+
+    queueMicrotask(() => {
+      service.emit({
+        address: oscMappings.submasters.info,
+        args: [
+          {
+            type: 's',
+            value: JSON.stringify({
+              status: 'ok',
+              submaster: null
+            })
+          }
+        ]
+      });
+    });
+
+    const result = await promise;
+    const structuredContent = getStructuredContent(result);
+    expect(structuredContent).toBeDefined();
+    if (!structuredContent) {
+      throw new Error('Expected structured content');
+    }
+
+    const textEntry = result.content.find(isTextContent);
+    expect(textEntry).toBeDefined();
+    expect(textEntry?.text).toContain('Aucun submaster 99 n\'a ete trouve.');
+
+    expect(structuredContent).toMatchObject({
+      action: 'submaster_get_info',
+      status: 'ok',
+      found: false,
+      request: { submaster: 99, submaster_number: 99 },
+      submaster: {
+        exists: false,
+        submasterNumber: 99,
+        label: null,
+        htp: null,
+        exclusive: null,
+        background: null,
+        restore: null,
+        timings: null
       }
     });
   });
