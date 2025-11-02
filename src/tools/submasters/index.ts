@@ -18,16 +18,17 @@ export interface SubmasterTimings {
 }
 
 export interface SubmasterInfo {
+  exists: boolean;
   submasterNumber: number;
   label: string | null;
   mode: string | null;
   faderMode: string | null;
-  htp: boolean;
-  exclusive: boolean;
-  background: boolean;
-  restore: boolean;
+  htp: boolean | null;
+  exclusive: boolean | null;
+  background: boolean | null;
+  restore: boolean | null;
   priority: number | null;
-  timings: SubmasterTimings;
+  timings: SubmasterTimings | null;
 }
 
 const targetOptionsSchema = {
@@ -290,16 +291,17 @@ function normaliseTimings(raw: unknown): SubmasterTimings {
 function normaliseSubmasterInfo(raw: unknown, fallbackNumber: number): SubmasterInfo {
   if (!isRecord(raw)) {
     return {
+      exists: false,
       submasterNumber: fallbackNumber,
       label: null,
       mode: null,
       faderMode: null,
-      htp: false,
-      exclusive: false,
-      background: false,
-      restore: false,
+      htp: null,
+      exclusive: null,
+      background: null,
+      restore: null,
       priority: null,
-      timings: { ...defaultTimings }
+      timings: null
     };
   }
 
@@ -320,43 +322,42 @@ function normaliseSubmasterInfo(raw: unknown, fallbackNumber: number): Submaster
     asFiniteNumber(source.priority ?? source.prio ?? source.priority_level ?? source.priorityValue ?? flagsSource.priority) ??
     null;
 
-  const timings = normaliseTimings(
-    source.timings ?? source.timing ?? source.fade ?? source.time ?? source.times ?? container.timings ?? container.timing
-  );
+  const timingsSource =
+    source.timings ?? source.timing ?? source.fade ?? source.time ?? source.times ?? container.timings ?? container.timing;
+  const timings = timingsSource == null ? null : normaliseTimings(timingsSource);
 
-  const htp = normaliseBoolean(
+  const htpCandidate =
     source.htp ??
-      flagsSource.htp ??
-      flagsSource.high_takes_precedence ??
-      flagsSource.hightakesprecedence ??
-      flagsSource.mode === 'htp'
-  );
-
-  const exclusive = normaliseBoolean(
+    flagsSource.htp ??
+    flagsSource.high_takes_precedence ??
+    flagsSource.hightakesprecedence ??
+    (typeof flagsSource.mode === 'string' ? flagsSource.mode === 'htp' : undefined);
+  const exclusiveCandidate =
     source.exclusive ??
-      flagsSource.exclusive ??
-      flagsSource.exclusive_mode ??
-      flagsSource.exclusiveFlag ??
-      flagsSource.mode === 'exclusive'
-  );
-
-  const background = normaliseBoolean(
+    flagsSource.exclusive ??
+    flagsSource.exclusive_mode ??
+    flagsSource.exclusiveFlag ??
+    (typeof flagsSource.mode === 'string' ? flagsSource.mode === 'exclusive' : undefined);
+  const backgroundCandidate =
     source.background ??
-      flagsSource.background ??
-      flagsSource.background_enable ??
-      flagsSource.backgrounded ??
-      flagsSource.background_mode
-  );
-
-  const restore = normaliseBoolean(
+    flagsSource.background ??
+    flagsSource.background_enable ??
+    flagsSource.backgrounded ??
+    flagsSource.background_mode;
+  const restoreCandidate =
     source.restore ??
-      flagsSource.restore ??
-      flagsSource.restore_enable ??
-      flagsSource.restorable ??
-      flagsSource.auto_restore
-  );
+    flagsSource.restore ??
+    flagsSource.restore_enable ??
+    flagsSource.restorable ??
+    flagsSource.auto_restore;
+
+  const htp = htpCandidate === undefined ? null : normaliseBoolean(htpCandidate);
+  const exclusive = exclusiveCandidate === undefined ? null : normaliseBoolean(exclusiveCandidate);
+  const background = backgroundCandidate === undefined ? null : normaliseBoolean(backgroundCandidate);
+  const restore = restoreCandidate === undefined ? null : normaliseBoolean(restoreCandidate);
 
   return {
+    exists: true,
     submasterNumber,
     label,
     mode,
@@ -464,22 +465,26 @@ export const eosSubmasterGetInfoTool: ToolDefinition<typeof getInfoInputSchema> 
     inputSchema: getInfoInputSchema,
     outputSchema: {
       submaster: z.object({
+        exists: z.boolean(),
         submasterNumber: z.number(),
         label: z.string().nullable(),
         mode: z.string().nullable(),
         faderMode: z.string().nullable(),
-        htp: z.boolean(),
-        exclusive: z.boolean(),
-        background: z.boolean(),
-        restore: z.boolean(),
+        htp: z.boolean().nullable(),
+        exclusive: z.boolean().nullable(),
+        background: z.boolean().nullable(),
+        restore: z.boolean().nullable(),
         priority: z.number().nullable(),
-        timings: z.object({
-          up: z.number().nullable(),
-          down: z.number().nullable(),
-          assert: z.number().nullable(),
-          release: z.number().nullable()
-        })
-      })
+        timings: z
+          .object({
+            up: z.number().nullable(),
+            down: z.number().nullable(),
+            assert: z.number().nullable(),
+            release: z.number().nullable()
+          })
+          .nullable()
+      }),
+      found: z.boolean()
     },
     annotations: annotate(oscMappings.submasters.info)
   },
@@ -487,7 +492,7 @@ export const eosSubmasterGetInfoTool: ToolDefinition<typeof getInfoInputSchema> 
     const schema = z.object(getInfoInputSchema).strict();
     const options = schema.parse(args ?? {});
     const client = getOscClient();
-    const payload = { submaster: options.submaster_number };
+    const payload = { submaster: options.submaster_number, submaster_number: options.submaster_number };
     const cacheKey = createCacheKey({
       address: oscMappings.submasters.info,
       payload,
@@ -512,21 +517,31 @@ export const eosSubmasterGetInfoTool: ToolDefinition<typeof getInfoInputSchema> 
           targetPort: options.targetPort
         });
 
-        const info = normaliseSubmasterInfo(
-          (response.data as Record<string, unknown> | null)?.submaster ?? response.data,
-          options.submaster_number
-        );
+        const responseData = (response.data as Record<string, unknown> | null) ?? null;
+        const rawInfo =
+          responseData && 'submaster' in responseData
+            ? (responseData.submaster as unknown)
+            : responseData;
+        const info = normaliseSubmasterInfo(rawInfo, options.submaster_number);
 
-        const text =
-          response.status === 'ok'
-            ? `Informations recues pour le submaster ${info.submasterNumber}.`
-            : `Lecture des informations du submaster ${info.submasterNumber} terminee avec le statut ${response.status}.`;
+        let text: string;
+        if (!info.exists) {
+          text =
+            response.status === 'ok'
+              ? `Aucun submaster ${options.submaster_number} n'a ete trouve.`
+              : `Submaster ${options.submaster_number} introuvable (statut ${response.status}).`;
+        } else if (response.status === 'ok') {
+          text = `Informations recues pour le submaster ${info.submasterNumber}.`;
+        } else {
+          text = `Lecture des informations du submaster ${info.submasterNumber} terminee avec le statut ${response.status}.`;
+        }
 
         return createResult(text, {
           action: 'submaster_get_info',
           status: response.status,
           request: payload,
           submaster: info,
+          found: info.exists,
           data: response.data,
           error: response.error ?? null,
           osc: {
