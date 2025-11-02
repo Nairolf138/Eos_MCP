@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { readFile } from 'node:fs/promises';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { markManualDocumentationRead } from './manualReadTracker';
 
 const MANUAL_FILENAME = 'eos_serie.pdf';
 const MANUAL_RESOURCE_ID = 'eos-manual';
@@ -79,9 +80,10 @@ function registerPdfResource(
     description?: string;
     base64Data: string;
     metadata?: Record<string, unknown>;
+    onRead?: (context: { sessionId?: string }) => void;
   }
 ): void {
-  const { id, uri, title, description, base64Data, metadata } = options;
+  const { id, uri, title, description, base64Data, metadata, onRead } = options;
 
   server.registerResource(
     id,
@@ -91,17 +93,21 @@ function registerPdfResource(
       description,
       mimeType: MANUAL_MIME_TYPE
     },
-    async () => ({
-      contents: [
-        {
-          uri,
-          mimeType: MANUAL_MIME_TYPE,
-          data: base64Data,
-          encoding: 'base64',
-          metadata
-        }
-      ]
-    })
+    async (_uri, extra) => {
+      onRead?.({ sessionId: extra?.sessionId });
+
+      return {
+        contents: [
+          {
+            uri,
+            mimeType: MANUAL_MIME_TYPE,
+            data: base64Data,
+            encoding: 'base64',
+            metadata
+          }
+        ]
+      };
+    }
   );
 }
 
@@ -138,7 +144,10 @@ export async function registerManualResource(server: McpServer): Promise<void> {
     id: MANUAL_RESOURCE_ID,
     uri: MANUAL_URI,
     title: MANUAL_TITLE,
-    base64Data
+    base64Data,
+    onRead: ({ sessionId }) => {
+      markManualDocumentationRead(sessionId);
+    }
   });
 
   await registerManualSections(server, buffer);
