@@ -20,7 +20,43 @@ interface ManualSection {
   extractContent?: ManualSectionExtractor;
 }
 
-const manualSections: readonly ManualSection[] = [];
+const manualSections: readonly ManualSection[] = [
+  {
+    id: 'selection-circuits',
+    uri: `${MANUAL_URI}#selection-circuits`,
+    title: 'Sélection de circuits et réglage des niveaux',
+    description: 'Sélection de circuits, réglage d’intensité et gestion des paramètres manuels.',
+    pageRange: { start: 172, end: 178 }
+  },
+  {
+    id: 'palettes-live',
+    uri: `${MANUAL_URI}#palettes-live`,
+    title: 'Palettes : enregistrement et rappel',
+    description: 'Types de palettes, options et enregistrement en Live ou en Blind.',
+    pageRange: { start: 228, end: 235 }
+  },
+  {
+    id: 'presets-live',
+    uri: `${MANUAL_URI}#presets-live`,
+    title: 'Presets : enregistrement et rappel',
+    description: 'Options de preset, enregistrement en Live et édition.',
+    pageRange: { start: 242, end: 247 }
+  },
+  {
+    id: 'cue-timing',
+    uri: `${MANUAL_URI}#cue-timing`,
+    title: 'Temps et attributs de cue',
+    description: 'Gestion des temps, follows et attributs de cue.',
+    pageRange: { start: 261, end: 269 }
+  },
+  {
+    id: 'cue-playback',
+    uri: `${MANUAL_URI}#cue-playback`,
+    title: 'Restitution des cues',
+    description: 'Commandes de playback, contrôle manuel et navigation dans les cuelists.',
+    pageRange: { start: 315, end: 328 }
+  }
+];
 
 let cachedManual: { buffer: Buffer; filePath: string } | undefined;
 
