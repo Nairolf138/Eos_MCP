@@ -8,10 +8,13 @@ import type { AppConfig, LoggingDestination } from '../config/index';
 
 type LoggerFactory = () => Logger;
 
-let baseLogger: Logger = pino({
-  base: undefined,
-  timestamp: stdTimeFunctions.isoTime
-});
+let baseLogger: Logger = pino(
+  {
+    base: undefined,
+    timestamp: stdTimeFunctions.isoTime
+  },
+  pino.destination({ dest: process.stderr.fd, sync: false })
+);
 
 function createDestinationStream(
   destination: LoggingDestination,
