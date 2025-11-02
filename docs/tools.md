@@ -2210,7 +2210,7 @@ oscsend 127.0.0.1 8001 /eos/preset/fire s:'{"preset_number":1}'
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS. Le champ `structuredContent.preset.exists` indique si les détails du preset ont été fournis (`false` lorsque le preset est introuvable).
 
 **Exemples :**
 

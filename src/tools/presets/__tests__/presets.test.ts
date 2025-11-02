@@ -6,7 +6,7 @@ import {
   eosPresetSelectTool,
   eosPresetGetInfoTool
 } from '../index';
-import { getStructuredContent, runTool } from '../../__tests__/helpers/runTool';
+import { getStructuredContent, isTextContent, runTool } from '../../__tests__/helpers/runTool';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -35,6 +35,7 @@ function assertHasPresetDetails(
   action: string;
   status: string;
   preset: {
+    exists: true;
     flags: Record<string, boolean>;
     effects: unknown[];
     channels: unknown[];
@@ -46,10 +47,15 @@ function assertHasPresetDetails(
   }
 
   const presetData = preset as {
+    exists?: unknown;
     flags?: unknown;
     effects?: unknown;
     channels?: unknown;
   };
+
+  if (presetData.exists !== true) {
+    throw new Error('Preset expected to exist');
+  }
 
   if (
     typeof presetData.flags !== 'object' ||
@@ -166,6 +172,7 @@ describe('preset tools', () => {
       action: 'preset_get_info',
       status: 'ok',
       preset: {
+        exists: true,
         preset_number: 42,
         label: 'Ambient Wash',
         absolute: true,
@@ -235,5 +242,44 @@ describe('preset tools', () => {
         }
       }
     ]);
+  });
+
+  it('indique quand le preset est introuvable', async () => {
+    const presetNumber = 77;
+    const promise = runTool(eosPresetGetInfoTool, { preset_number: presetNumber });
+
+    queueMicrotask(() => {
+      service.emit({
+        address: oscMappings.presets.info,
+        args: [
+          {
+            type: 's',
+            value: JSON.stringify({
+              status: 'error',
+              message: 'Not Found'
+            })
+          }
+        ]
+      });
+    });
+
+    const result = await promise;
+    const textEntry = result.content.find(isTextContent);
+    expect(textEntry?.text).toBe(`Preset ${presetNumber} introuvable`);
+
+    const structuredContent = getStructuredContent(result);
+    expect(structuredContent).toBeDefined();
+    if (!structuredContent) {
+      throw new Error('Expected structured content');
+    }
+
+    expect(structuredContent).toMatchObject({
+      action: 'preset_get_info',
+      status: 'error',
+      preset: {
+        exists: false,
+        preset_number: presetNumber
+      }
+    });
   });
 });
