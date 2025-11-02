@@ -93,7 +93,8 @@ interface PresetEffectInfo {
   flags: PresetEffectFlags;
 }
 
-interface PresetInfo {
+interface PresentPresetInfo {
+  exists: true;
   preset_number: number;
   label: string | null;
   absolute: boolean;
@@ -102,6 +103,13 @@ interface PresetInfo {
   effects: PresetEffectInfo[];
   flags: PresetFlags;
 }
+
+interface MissingPresetInfo {
+  exists: false;
+  preset_number: number;
+}
+
+type PresetInfo = PresentPresetInfo | MissingPresetInfo;
 
 function extractTargetOptions(options: { targetAddress?: string; targetPort?: number }): {
   targetAddress?: string;
@@ -398,9 +406,38 @@ function mapPresetEffects(raw: unknown): PresetEffectInfo[] {
   return Array.from(byNumber.values()).sort((a, b) => a.effect_number - b.effect_number);
 }
 
+function hasPresetLikeData(candidate: Record<string, unknown>): boolean {
+  const keys = [
+    'preset_number',
+    'number',
+    'id',
+    'channels',
+    'effects',
+    'flags',
+    'label',
+    'name',
+    'absolute',
+    'locked'
+  ];
+
+  return keys.some((key) => key in candidate);
+}
+
 function mapPresetInfo(raw: unknown, fallbackNumber: number): PresetInfo {
-  const root = isRecord(raw) ? raw : {};
-  const container = isRecord(root.preset) ? (root.preset as Record<string, unknown>) : root;
+  if (!isRecord(raw)) {
+    return { exists: false, preset_number: fallbackNumber };
+  }
+
+  const root = raw;
+  const container = isRecord(root.preset)
+    ? (root.preset as Record<string, unknown>)
+    : hasPresetLikeData(root)
+      ? root
+      : null;
+
+  if (!container) {
+    return { exists: false, preset_number: fallbackNumber };
+  }
 
   const presetNumber =
     asFiniteInteger(container.preset ?? container.number ?? container.id ?? root.preset_number ?? root.number) ?? fallbackNumber;
@@ -430,6 +467,7 @@ function mapPresetInfo(raw: unknown, fallbackNumber: number): PresetInfo {
   }
 
   return {
+    exists: true,
     preset_number: presetNumber,
     label,
     absolute: flags.absolute,
@@ -441,6 +479,10 @@ function mapPresetInfo(raw: unknown, fallbackNumber: number): PresetInfo {
 }
 
 function formatPresetDescription(info: PresetInfo): string {
+  if (!info.exists) {
+    return `Preset ${info.preset_number} introuvable`;
+  }
+
   const label = info.label ? `"${info.label}"` : 'sans label';
   const mode = info.absolute ? 'absolu' : 'relatif';
   const lockState = info.locked ? 'verrouille' : 'modifiable';
