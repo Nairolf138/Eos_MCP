@@ -5,6 +5,8 @@ const mockConnect = jest.fn();
 const mockClose = jest.fn().mockResolvedValue(undefined);
 const mockRegisterTool = jest.fn();
 const mockSendToolListChanged = jest.fn();
+const mockRegisterResource = jest.fn().mockReturnValue({ dispose: jest.fn() });
+const mockSendResourceListChanged = jest.fn();
 const mockAssertTcpPortAvailable = jest.fn();
 const mockAssertUdpPortAvailable = jest.fn();
 
@@ -12,7 +14,9 @@ const MockMcpServer = jest.fn().mockImplementation(() => ({
   connect: jest.fn().mockResolvedValue(undefined),
   close: mockClose,
   registerTool: mockRegisterTool,
-  sendToolListChanged: mockSendToolListChanged
+  sendToolListChanged: mockSendToolListChanged,
+  registerResource: mockRegisterResource,
+  sendResourceListChanged: mockSendResourceListChanged
 }));
 
 jest.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
