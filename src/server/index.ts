@@ -21,6 +21,7 @@ import { ErrorCode, describeError, isAppError, toAppError } from './errors';
 import { createLogger, initialiseLogger } from './logger';
 import { toolDefinitions } from '../tools/index';
 import { registerToolSchemas } from '../schemas/index';
+import { registerManualResource } from '../resources/registerManual';
 import type { ToolDefinition } from '../tools/types';
 import { createHttpGateway, type HttpGateway } from './httpGateway';
 import { ToolRegistry } from './toolRegistry';
@@ -481,14 +482,15 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
     return toolRegistry;
   };
 
-  const createConfiguredServer = (): { server: McpServer; registry: ToolRegistry } => {
+  const createConfiguredServer = async (): Promise<{ server: McpServer; registry: ToolRegistry }> => {
     const instance = new McpServer(serverInfo);
     registerToolSchemas(instance);
+    await registerManualResource(instance);
     const instanceRegistry = registerToolsOnServer(instance);
     return { server: instance, registry: instanceRegistry };
   };
 
-  const { server, registry } = createConfiguredServer();
+  const { server, registry } = await createConfiguredServer();
 
   if (tcpPort) {
     logger.info({ tcpPort }, `Passerelle HTTP/WS MCP activee sur ${tcpPort}`);
@@ -522,7 +524,7 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
       port: tcpPort,
       publicUrl: effectiveConfig.httpGateway.publicUrl,
       trustProxy: effectiveConfig.httpGateway.trustProxy,
-      serverFactory: () => createConfiguredServer().server,
+      serverFactory: async () => (await createConfiguredServer()).server,
       oscConnectionProvider: oscConnectionState,
       security: securityOptions,
       oscGateway: {
