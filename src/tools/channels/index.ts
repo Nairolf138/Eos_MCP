@@ -5,7 +5,7 @@ import {
   createResourceTag,
   getResourceCache
 } from '../../services/cache/index';
-import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
+import { getOscClient, type OscJsonResponse, type StepStatus } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
 import { oscMappings } from '../../services/osc/mappings';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
@@ -180,6 +180,148 @@ function createResult(text: string, structuredContent: Record<string, unknown>):
     content: [{ type: 'text', text }],
     structuredContent
   } as ToolExecutionResult;
+}
+
+interface ChannelInfoEntry {
+  channel: number;
+  exists: boolean;
+  info: Record<string, unknown> | null;
+}
+
+function normaliseChannelNumberFromUnknown(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const integer = Math.trunc(value);
+    return integer >= 1 ? integer : null;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    const parsed = Number.parseInt(trimmed, 10);
+    return Number.isFinite(parsed) && parsed >= 1 ? parsed : null;
+  }
+
+  return null;
+}
+
+function normaliseChannelInfoEntry(raw: unknown): { channel: number; info: Record<string, unknown> | null } | null {
+  if (raw == null) {
+    return null;
+  }
+
+  if (typeof raw === 'number' && Number.isFinite(raw)) {
+    const channel = Math.trunc(raw);
+    return channel >= 1 ? { channel, info: null } : null;
+  }
+
+  if (typeof raw === 'string') {
+    const channel = normaliseChannelNumberFromUnknown(raw);
+    return channel != null ? { channel, info: null } : null;
+  }
+
+  if (typeof raw === 'object') {
+    const entry = raw as Record<string, unknown>;
+    const candidates = ['id', 'channel', 'number', 'channel_number'];
+    for (const key of candidates) {
+      const channel = normaliseChannelNumberFromUnknown(entry[key]);
+      if (channel != null) {
+        return { channel, info: entry };
+      }
+    }
+  }
+
+  return null;
+}
+
+function extractChannelEntries(raw: unknown): unknown[] {
+  if (Array.isArray(raw)) {
+    return raw;
+  }
+
+  if (raw && typeof raw === 'object') {
+    const container = raw as Record<string, unknown>;
+    const candidateKeys = ['channels', 'data', 'values'];
+
+    for (const key of candidateKeys) {
+      const value = container[key];
+      if (Array.isArray(value)) {
+        return value;
+      }
+
+      if (value && typeof value === 'object') {
+        const nested = extractChannelEntries(value);
+        if (nested.length > 0) {
+          return nested;
+        }
+      }
+    }
+
+    if (['id', 'channel', 'number', 'channel_number'].some((key) => key in container)) {
+      return [container];
+    }
+  }
+
+  return [];
+}
+
+function mapChannelInfo(
+  requestedChannels: number[],
+  raw: unknown
+): { channels: ChannelInfoEntry[]; found: number; missing: number } {
+  const entries = extractChannelEntries(raw);
+  const indexed = new Map<number, Record<string, unknown> | null>();
+
+  for (const entry of entries) {
+    const normalised = normaliseChannelInfoEntry(entry);
+    if (!normalised) {
+      continue;
+    }
+
+    if (!indexed.has(normalised.channel)) {
+      indexed.set(normalised.channel, normalised.info);
+    }
+  }
+
+  const channels: ChannelInfoEntry[] = requestedChannels.map((channel) => {
+    const info = indexed.get(channel) ?? null;
+    const exists = indexed.has(channel);
+    return {
+      channel,
+      exists,
+      info
+    };
+  });
+
+  const found = channels.reduce((total, entry) => (entry.exists ? total + 1 : total), 0);
+  const missing = channels.length - found;
+
+  return { channels, found, missing };
+}
+
+function pluraliseChannel(count: number): string {
+  return count > 1 ? 'canaux' : 'canal';
+}
+
+function formatChannelSummary(status: StepStatus, found: number, missing: number, requested: number): string {
+  if (found === 0) {
+    if (status === 'ok') {
+      return `Aucun des ${requested} ${pluraliseChannel(requested)} demandes n'a ete trouve.`;
+    }
+    return `Aucun canal trouve (statut ${status}).`;
+  }
+
+  const base = status === 'ok'
+    ? `Informations recues pour ${found} ${pluraliseChannel(found)}.`
+    : `Lecture des informations de ${found} ${pluraliseChannel(found)} terminee avec le statut ${status}.`;
+
+  if (missing > 0) {
+    return `${base} ${missing} ${pluraliseChannel(missing)} introuvable${missing > 1 ? 's' : ''}.`;
+  }
+
+  return base;
 }
 
 function annotate(osc: string): Record<string, unknown> {
@@ -447,14 +589,23 @@ export const eosChannelGetInfoTool: ToolDefinition<typeof getInfoSchema> = {
           targetPort: options.targetPort
         });
 
-        const baseText = response.status === 'ok'
-          ? `Informations recues pour ${channels.length} canal(aux).`
-          : `Lecture des informations de canaux terminee avec le statut ${response.status}.`;
+        const mappedChannels = mapChannelInfo(channels, response.data);
+        const baseText = formatChannelSummary(
+          response.status,
+          mappedChannels.found,
+          mappedChannels.missing,
+          channels.length
+        );
 
         return createResult(baseText, {
           action: 'get_info',
           status: response.status,
-          channels,
+          channels: mappedChannels.channels,
+          summary: {
+            requested: channels.length,
+            found: mappedChannels.found,
+            missing: mappedChannels.missing
+          },
           request: payload,
           data: response.data,
           error: response.error ?? null,
