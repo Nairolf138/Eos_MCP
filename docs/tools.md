@@ -1573,7 +1573,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/group/info s:'{"group_number":1}'
+oscsend 127.0.0.1 8001 /eos/get/group s:'{"group_number":1}'
 ```
 
 <a id="eos-group-list-all"></a>
@@ -1603,7 +1603,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/group/list s:'{"timeoutMs":1}'
+oscsend 127.0.0.1 8001 /eos/get/group/list s:'{"timeoutMs":1}'
 ```
 
 <a id="eos-group-select"></a>

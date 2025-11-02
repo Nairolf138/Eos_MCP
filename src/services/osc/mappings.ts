@@ -14,8 +14,8 @@ export const oscMappings = {
   groups: {
     select: '/eos/group',
     level: '/eos/group/{group}/level',
-    info: '/eos/group/info',
-    list: '/eos/group/list'
+    info: '/eos/get/group',
+    list: '/eos/get/group/list'
   },
   palettes: {
     info: '/eos/get/palette',
