@@ -139,31 +139,36 @@ function normaliseMembers(raw: unknown): NormalisedGroupMember[] {
 
 function normaliseGroup(raw: unknown, fallbackNumber: number | null): NormalisedGroup | null {
   if (typeof raw !== 'object' || raw == null) {
-    if (fallbackNumber == null) {
-      return null;
-    }
-    return {
-      group_number: fallbackNumber,
-      label: null,
-      members: []
-    };
+    return null;
   }
 
   const data = raw as Record<string, unknown>;
-  const groupNumber =
+  const explicitGroupNumber =
     asFiniteInteger(data.group_number) ??
     asFiniteInteger(data.number) ??
     asFiniteInteger(data.id) ??
-    fallbackNumber;
+    null;
+
+  const groupNumber = explicitGroupNumber ?? fallbackNumber;
 
   if (groupNumber == null) {
     return null;
   }
 
   const labelValue = data.label ?? data.name ?? null;
-  const members = normaliseMembers(
-    data.members ?? data.channels ?? data.contents ?? data.group ?? []
-  );
+  const membersSource =
+    data.members ?? data.channels ?? data.contents ?? data.group;
+  const members = normaliseMembers(membersSource);
+
+  const hasStructuredContent =
+    explicitGroupNumber != null ||
+    typeof labelValue === 'string' ||
+    Array.isArray(membersSource) ||
+    members.length > 0;
+
+  if (!hasStructuredContent) {
+    return null;
+  }
 
   return {
     group_number: groupNumber,
@@ -347,7 +352,8 @@ export const eosGroupGetInfoTool: ToolDefinition<typeof getInfoInputSchema> = {
     const options = schema.parse(args ?? {});
     const client = getOscClient();
     const payload = {
-      group: options.group_number
+      group: options.group_number,
+      group_number: options.group_number
     };
     const cacheKey = createCacheKey({
       address: oscMappings.groups.info,
@@ -373,24 +379,24 @@ export const eosGroupGetInfoTool: ToolDefinition<typeof getInfoInputSchema> = {
           targetPort: options.targetPort
         });
 
-        const groupData =
-          normaliseGroup(
-            (response.data as Record<string, unknown> | null)?.group ?? response.data,
-            options.group_number
-          ) ?? {
-            group_number: options.group_number,
-            label: null,
-            members: []
-          };
+        const groupData = normaliseGroup(
+          (response.data as Record<string, unknown> | null)?.group ?? response.data,
+          options.group_number
+        );
 
-        const baseText =
-          response.status === 'ok'
-            ? `Informations recues pour le groupe ${groupData.group_number}.`
-            : `Lecture des informations du groupe ${groupData.group_number} terminee avec le statut ${response.status}.`;
+        const exists = groupData != null;
+        const groupNumber = groupData?.group_number ?? options.group_number;
+
+        const baseText = exists
+          ? response.status === 'ok'
+            ? `Informations recues pour le groupe ${groupNumber}.`
+            : `Lecture des informations du groupe ${groupNumber} terminee avec le statut ${response.status}.`
+          : `Groupe ${groupNumber} introuvable.`;
 
         return createResult(baseText, {
           action: 'get_info',
           status: response.status,
+          exists,
           request: payload,
           group: groupData,
           data: response.data,
