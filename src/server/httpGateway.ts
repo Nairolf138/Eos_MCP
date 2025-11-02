@@ -39,7 +39,7 @@ interface HttpGatewayOptions {
   host?: string;
   publicUrl?: string;
   trustProxy?: boolean;
-  serverFactory: () => McpServer;
+  serverFactory: () => Promise<McpServer>;
   security?: HttpGatewaySecurityOptions;
   oscConnectionProvider?: OscConnectionStateProvider;
   oscGateway?: { getDiagnostics: () => OscDiagnostics };
@@ -690,7 +690,7 @@ class HttpGateway {
   }
 
   private async createSession(): Promise<SessionRecord> {
-    const server = this.options.serverFactory();
+    const server = await this.options.serverFactory();
 
     const record: SessionRecord = {
       id: '',
