@@ -6,7 +6,7 @@ import {
   eosSetDmxTool,
   eosChannelGetInfoTool
 } from '../index';
-import { getStructuredContent, runTool } from '../../__tests__/helpers/runTool';
+import { getStructuredContent, isTextContent, runTool } from '../../__tests__/helpers/runTool';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -82,42 +82,123 @@ describe('channel tools', () => {
     expect(message?.args?.[0]?.value).toBe('Address 10 Thru 11 At 10 Enter');
   });
 
-  it('parse la reponse JSON pour la commande get_info', async () => {
-    const promise = runTool(eosChannelGetInfoTool, { channels: [1], fields: ['label'] });
+  describe('eos_channel_get_info', () => {
+    it('structure la reponse quand tous les canaux sont presentes', async () => {
+      const promise = runTool(eosChannelGetInfoTool, { channels: [1, 2], fields: ['label'] });
 
-    queueMicrotask(() => {
-      service.emit({
-        address: oscMappings.channels.info,
-        args: [
-          {
-            type: 's',
-            value: JSON.stringify({
-              status: 'ok',
-              channels: [
-                { id: 1, label: 'Front' }
-              ]
-            })
-          }
-        ]
+      queueMicrotask(() => {
+        service.emit({
+          address: oscMappings.channels.info,
+          args: [
+            {
+              type: 's',
+              value: JSON.stringify({
+                status: 'ok',
+                channels: [
+                  { id: 1, label: 'Front' },
+                  { id: 2, label: 'Back' }
+                ]
+              })
+            }
+          ]
+        });
       });
+
+      const result = await promise;
+      const structuredContent = getStructuredContent(result);
+      expect(structuredContent).toBeDefined();
+      if (!structuredContent) {
+        throw new Error('Expected structured content');
+      }
+
+      expect(structuredContent).toMatchObject({
+        status: 'ok',
+        request: { channels: [1, 2], fields: ['label'] },
+        channels: [
+          { channel: 1, exists: true, info: { id: 1, label: 'Front' } },
+          { channel: 2, exists: true, info: { id: 2, label: 'Back' } }
+        ],
+        summary: { requested: 2, found: 2, missing: 0 }
+      });
+
+      const textEntry = result.content.find(isTextContent);
+      expect(textEntry?.text).toBe('Informations recues pour 2 canaux.');
     });
 
-    const result = await promise;
-    const structuredContent = getStructuredContent(result);
-    expect(structuredContent).toBeDefined();
-    if (!structuredContent) {
-      throw new Error('Expected structured content');
-    }
+    it('indique les canaux manquants lorsque la reponse est partielle', async () => {
+      const promise = runTool(eosChannelGetInfoTool, { channels: [1, 2] });
 
-    expect(structuredContent).toMatchObject({
-      status: 'ok',
-      request: { channels: [1], fields: ['label'] },
-      data: {
-        status: 'ok',
-        channels: [
-          { id: 1, label: 'Front' }
-        ]
+      queueMicrotask(() => {
+        service.emit({
+          address: oscMappings.channels.info,
+          args: [
+            {
+              type: 's',
+              value: JSON.stringify({
+                status: 'ok',
+                channels: [
+                  { id: 1, label: 'Front' }
+                ]
+              })
+            }
+          ]
+        });
+      });
+
+      const result = await promise;
+      const structuredContent = getStructuredContent(result);
+      expect(structuredContent).toBeDefined();
+      if (!structuredContent) {
+        throw new Error('Expected structured content');
       }
+
+      expect(structuredContent).toMatchObject({
+        channels: [
+          { channel: 1, exists: true, info: { id: 1, label: 'Front' } },
+          { channel: 2, exists: false, info: null }
+        ],
+        summary: { requested: 2, found: 1, missing: 1 }
+      });
+
+      const textEntry = result.content.find(isTextContent);
+      expect(textEntry?.text).toBe('Informations recues pour 1 canal. 1 canal introuvable.');
+    });
+
+    it("signale l'absence de donnees quand aucun canal n'est renvoye", async () => {
+      const promise = runTool(eosChannelGetInfoTool, { channels: [5, 6] });
+
+      queueMicrotask(() => {
+        service.emit({
+          address: oscMappings.channels.info,
+          args: [
+            {
+              type: 's',
+              value: JSON.stringify({
+                status: 'ok',
+                channels: []
+              })
+            }
+          ]
+        });
+      });
+
+      const result = await promise;
+      const structuredContent = getStructuredContent(result);
+      expect(structuredContent).toBeDefined();
+      if (!structuredContent) {
+        throw new Error('Expected structured content');
+      }
+
+      expect(structuredContent).toMatchObject({
+        channels: [
+          { channel: 5, exists: false, info: null },
+          { channel: 6, exists: false, info: null }
+        ],
+        summary: { requested: 2, found: 0, missing: 2 }
+      });
+
+      const textEntry = result.content.find(isTextContent);
+      expect(textEntry?.text).toBe("Aucun des 2 canaux demandes n'a ete trouve.");
     });
   });
 });
