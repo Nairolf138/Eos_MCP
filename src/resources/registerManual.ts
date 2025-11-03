@@ -1,6 +1,8 @@
 import path from 'node:path';
 import { readFile } from 'node:fs/promises';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
+import type { ServerNotification, ServerRequest } from '@modelcontextprotocol/sdk/types.js';
 import { markManualDocumentationRead } from './manualReadTracker';
 
 const MANUAL_FILENAME = 'eos_serie.pdf';
@@ -129,7 +131,10 @@ function registerPdfResource(
       description,
       mimeType: MANUAL_MIME_TYPE
     },
-    async (_uri, extra) => {
+    async (
+      _uri: URL,
+      extra: RequestHandlerExtra<ServerRequest, ServerNotification>
+    ) => {
       onRead?.({ sessionId: extra?.sessionId });
 
       return {
