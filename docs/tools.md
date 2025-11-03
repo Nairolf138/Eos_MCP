@@ -152,13 +152,7 @@ oscsend 127.0.0.1 8001 /eos/bp/fire s:'{"palette_number":1}'
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec :
-
-- Un résumé texte indiquant le nombre de canaux trouvés et manquants.
-- Un `structuredContent` détaillant :
-  - `channels` (liste ordonnée des canaux demandés avec les clés `channel`, `exists` et `info`).
-  - `summary` (`{ requested, found, missing }`).
-  - Les champs `request`, `status`, `data`, `error` et `osc` pour analyse et suivi.
+**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
 
 **Exemples :**
 
@@ -2216,7 +2210,7 @@ oscsend 127.0.0.1 8001 /eos/preset/fire s:'{"preset_number":1}'
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS. Le champ `structuredContent.preset.exists` indique si les détails du preset ont été fournis (`false` lorsque le preset est introuvable).
+**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
 
 **Exemples :**
 
