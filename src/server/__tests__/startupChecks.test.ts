@@ -1,5 +1,5 @@
 import net, { type AddressInfo } from 'node:net';
-import dgram from 'node:dgram';
+import dgram, { type SocketType } from 'node:dgram';
 import { assertTcpPortAvailable, assertUdpPortAvailable } from '../startupChecks';
 import { ErrorCode } from '../errors';
 
@@ -26,13 +26,13 @@ async function getFreeTcpPort(): Promise<number> {
   return port;
 }
 
-async function getFreeUdpPort(): Promise<number> {
-  const socket = dgram.createSocket('udp4');
+async function getFreeUdpPort(address: string, type: SocketType): Promise<number> {
+  const socket = dgram.createSocket(type);
   const port = await new Promise<number>((resolve, reject) => {
     socket.once('error', reject);
-    socket.bind({ port: 0, address: '0.0.0.0' }, () => {
-      const address = socket.address();
-      resolve(address.port);
+    socket.bind({ port: 0, address }, () => {
+      const info = socket.address();
+      resolve(info.port);
     });
   });
 
@@ -41,6 +41,19 @@ async function getFreeUdpPort(): Promise<number> {
   });
 
   return port;
+}
+
+async function bindUdpSocket(
+  address: string,
+  type: SocketType,
+  port?: number
+): Promise<dgram.Socket> {
+  const socket = dgram.createSocket(type);
+  await new Promise<void>((resolve, reject) => {
+    socket.once('error', reject);
+    socket.bind({ address, port: port ?? 0 }, () => resolve());
+  });
+  return socket;
 }
 
 describe('startupChecks', () => {
@@ -92,52 +105,100 @@ describe('startupChecks', () => {
   });
 
   describe('assertUdpPortAvailable', () => {
-    it('resolves when the UDP port is free and releases it afterwards', async () => {
-      const port = await getFreeUdpPort();
+    it('resolves when the IPv4 UDP port is free and releases it afterwards', async () => {
+      const port = await getFreeUdpPort('127.0.0.1', 'udp4');
 
-      await expect(assertUdpPortAvailable(port, '0.0.0.0')).resolves.toBeUndefined();
+      await expect(assertUdpPortAvailable(port, '127.0.0.1')).resolves.toBeUndefined();
 
+      const probe = await bindUdpSocket('127.0.0.1', 'udp4', port);
       await new Promise<void>((resolve, reject) => {
-        const probe = dgram.createSocket('udp4');
-        const onError = (error: Error) => {
-          probe.off('error', onError);
-          probe.off('listening', onListening);
-          reject(error);
-        };
-        const onListening = () => {
-          probe.off('error', onError);
-          probe.off('listening', onListening);
-          probe.close((error) => {
-            if (error) {
-              reject(error);
-            } else {
-              resolve();
-            }
-          });
-        };
-        probe.once('error', onError);
-        probe.once('listening', onListening);
-        probe.bind({ port, address: '0.0.0.0' });
+        probe.close((error) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve();
+          }
+        });
       });
     });
 
-    it('rejects with an AppError when the UDP port is in use', async () => {
-      const blocker = dgram.createSocket('udp4');
+    it('rejects with an AppError when the IPv4 UDP port is in use', async () => {
+      const blocker = await bindUdpSocket('127.0.0.1', 'udp4');
+
+      try {
+        const port = blocker.address().port;
+
+        await expect(assertUdpPortAvailable(port, '127.0.0.1')).rejects.toMatchObject({
+          code: ErrorCode.MCP_STARTUP_FAILURE,
+          name: 'AppError'
+        });
+      } finally {
+        await new Promise<void>((resolve) => {
+          blocker.close(() => resolve());
+        });
+      }
+    });
+
+    it('resolves when the IPv6 UDP port is free and releases it afterwards', async () => {
+      const port = await getFreeUdpPort('::1', 'udp6');
+
+      await expect(assertUdpPortAvailable(port, '::1')).resolves.toBeUndefined();
+
+      const probe = await bindUdpSocket('::1', 'udp6', port);
       await new Promise<void>((resolve, reject) => {
-        blocker.once('error', reject);
-        blocker.bind({ port: 0, address: '0.0.0.0' }, () => resolve());
+        probe.close((error) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve();
+          }
+        });
       });
+    });
 
-      const port = blocker.address().port;
+    it('rejects with an AppError when the IPv6 UDP port is in use', async () => {
+      const blocker = await bindUdpSocket('::1', 'udp6');
 
-      await expect(assertUdpPortAvailable(port, '0.0.0.0')).rejects.toMatchObject({
-        code: ErrorCode.MCP_STARTUP_FAILURE,
-        name: 'AppError'
-      });
+      try {
+        const port = blocker.address().port;
 
-      await new Promise<void>((resolve) => {
-        blocker.close(() => resolve());
-      });
+        await expect(assertUdpPortAvailable(port, '::1')).rejects.toMatchObject({
+          code: ErrorCode.MCP_STARTUP_FAILURE,
+          name: 'AppError'
+        });
+      } finally {
+        await new Promise<void>((resolve) => {
+          blocker.close(() => resolve());
+        });
+      }
+    });
+
+    it('considers interface-specific bindings for IPv4 addresses', async () => {
+      const blocker = await bindUdpSocket('127.0.0.2', 'udp4');
+
+      try {
+        const port = blocker.address().port;
+
+        await expect(assertUdpPortAvailable(port, '127.0.0.1')).resolves.toBeUndefined();
+      } finally {
+        await new Promise<void>((resolve) => {
+          blocker.close(() => resolve());
+        });
+      }
+    });
+
+    it('allows IPv6 checks when an IPv4 socket already uses the port', async () => {
+      const blocker = await bindUdpSocket('0.0.0.0', 'udp4');
+
+      try {
+        const port = blocker.address().port;
+
+        await expect(assertUdpPortAvailable(port, '::1')).resolves.toBeUndefined();
+      } finally {
+        await new Promise<void>((resolve) => {
+          blocker.close(() => resolve());
+        });
+      }
     });
   });
 });

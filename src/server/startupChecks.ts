@@ -39,9 +39,24 @@ export async function assertTcpPortAvailable(port: number, host = '0.0.0.0'): Pr
   });
 }
 
+function resolveSocketType(host: string): dgram.SocketType {
+  const trimmed = host.trim();
+  const withoutBrackets =
+    trimmed.startsWith('[') && trimmed.endsWith(']') ? trimmed.slice(1, -1) : trimmed;
+  const [addressPortion] = withoutBrackets.split('%');
+
+  if (net.isIPv6(addressPortion)) {
+    return 'udp6';
+  }
+
+  return 'udp4';
+}
+
 export async function assertUdpPortAvailable(port: number, host = '0.0.0.0'): Promise<void> {
   await new Promise<void>((resolve, reject) => {
-    const socket = dgram.createSocket('udp4');
+    const address = host ?? '0.0.0.0';
+    const socketType = resolveSocketType(address);
+    const socket = dgram.createSocket(socketType);
 
     const cleanup = () => {
       socket.removeAllListeners('error');
@@ -62,6 +77,6 @@ export async function assertUdpPortAvailable(port: number, host = '0.0.0.0'): Pr
       });
     });
 
-    socket.bind({ port, address: host, exclusive: true });
+    socket.bind({ port, address, exclusive: true });
   });
 }

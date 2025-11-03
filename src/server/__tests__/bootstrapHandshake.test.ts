@@ -175,7 +175,7 @@ describe('bootstrap OSC handshake', () => {
     expect(mockAssertTcpPortAvailable).toHaveBeenCalledTimes(1);
     expect(mockAssertTcpPortAvailable).toHaveBeenCalledWith(3033);
     expect(mockAssertUdpPortAvailable).toHaveBeenCalledTimes(1);
-    expect(mockAssertUdpPortAvailable).toHaveBeenCalledWith(8000);
+    expect(mockAssertUdpPortAvailable).toHaveBeenCalledWith(8000, '0.0.0.0');
     expect(mockAssertUdpPortAvailable).not.toHaveBeenCalledWith(8001);
     expect(mockAssertTcpPortAvailable).not.toHaveBeenCalledWith(3032);
 
