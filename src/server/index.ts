@@ -351,7 +351,10 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
       await assertTcpPortAvailable(mcpTcpPort);
     }
 
-    await assertUdpPortAvailable(effectiveConfig.osc.udpInPort);
+    await assertUdpPortAvailable(
+      effectiveConfig.osc.udpInPort,
+      effectiveConfig.osc.localAddress
+    );
   } catch (error: unknown) {
     const appError = isAppError(error)
       ? error
