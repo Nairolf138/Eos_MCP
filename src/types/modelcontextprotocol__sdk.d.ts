@@ -31,9 +31,17 @@ declare module '@modelcontextprotocol/sdk/server/streamableHttp.js' {
 declare module '@modelcontextprotocol/sdk/types' {
   export * from '@modelcontextprotocol/sdk/dist/esm/types.js';
   export { ErrorCode, isInitializeRequest } from '@modelcontextprotocol/sdk/dist/esm/types.js';
+  export type {
+    ServerNotification,
+    ServerRequest
+  } from '@modelcontextprotocol/sdk/dist/esm/types.js';
 }
 
 declare module '@modelcontextprotocol/sdk/types.js' {
   export * from '@modelcontextprotocol/sdk/dist/esm/types.js';
   export { ErrorCode, isInitializeRequest } from '@modelcontextprotocol/sdk/dist/esm/types.js';
+  export type {
+    ServerNotification,
+    ServerRequest
+  } from '@modelcontextprotocol/sdk/dist/esm/types.js';
 }
