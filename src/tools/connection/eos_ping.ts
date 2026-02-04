@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { getOscClient } from '../../services/osc/client';
+import { oscMappings } from '../../services/osc/mappings';
 import { optionalPortSchema, optionalTimeoutMsSchema } from '../../utils/validators';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 
@@ -28,7 +29,7 @@ export const eosPingTool: ToolDefinition<typeof inputSchema> = {
     inputSchema,
     annotations: {
       mapping: {
-        osc: '/eos/ping'
+        osc: oscMappings.connection.ping
       }
     }
   },

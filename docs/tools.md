@@ -385,10 +385,7 @@ npx @modelcontextprotocol/cli call --tool eos_configure --args '{"remoteAddress"
 
 _OSC_
 
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/ds/1/button/0/1 f 1
-```
+_Pas de mapping OSC documenté._
 
 <a id="eos-connect"></a>
 ## Connexion OSC EOS (`eos_connect`)
@@ -419,10 +416,7 @@ npx @modelcontextprotocol/cli call --tool eos_connect --args '{"targetAddress":"
 
 _OSC_
 
-```bash
-# Exemple d'envoi OSC via oscsend (target_type = cue)
-oscsend 127.0.0.1 8001 /eos/get/cue/count
-```
+_Pas de mapping OSC documenté._
 
 <a id="eos-cue-fire"></a>
 ## Declenchement de cue (`eos_cue_fire`)
@@ -865,7 +859,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/ds/1/button/0/1 f 1
+oscsend 127.0.0.1 8001 /eos/ds/{index}/button/{page}/{button} f 1
 ```
 
 <a id="eos-effect-get-info"></a>
@@ -984,10 +978,7 @@ npx @modelcontextprotocol/cli call --tool eos_enable_logging --args '{"incoming"
 
 _OSC_
 
-```bash
-# Exemple d'envoi OSC via oscsend (target_type = cue)
-oscsend 127.0.0.1 8001 /eos/get/cue/list
-```
+_Pas de mapping OSC documenté._
 
 <a id="eos-fader-bank-create"></a>
 ## Creation de bank de faders (`eos_fader_bank_create`)
@@ -1386,10 +1377,7 @@ npx @modelcontextprotocol/cli call --tool eos_get_count --args '{"target_type":"
 
 _OSC_
 
-```bash
-# Exemple d'envoi OSC via oscsend (target_type = cue)
-oscsend 127.0.0.1 8001 /eos/get/cue/count
-```
+_Pas de mapping OSC documenté._
 
 <a id="eos-get-diagnostics"></a>
 ## Diagnostics OSC (`eos_get_diagnostics`)
@@ -1438,10 +1426,7 @@ npx @modelcontextprotocol/cli call --tool eos_get_list_all --args '{"target_type
 
 _OSC_
 
-```bash
-# Exemple d'envoi OSC via oscsend (target_type = cue)
-oscsend 127.0.0.1 8001 /eos/get/cue/list
-```
+_Pas de mapping OSC documenté._
 
 <a id="eos-get-live-blind-state"></a>
 ## Etat Live/Blind (`eos_get_live_blind_state`)
@@ -1744,7 +1729,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/key/<key> s:'{"key_name":"exemple"}'
+oscsend 127.0.0.1 8001 /eos/key/{key} s:'{"key_name":"exemple"}'
 ```
 
 <a id="eos-macro-fire"></a>
@@ -2122,7 +2107,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/ping s "exemple"
+oscsend 127.0.0.1 8001 /eos/ping s:'{"message":"exemple"}'
 ```
 
 <a id="eos-pixmap-get-info"></a>
@@ -2614,7 +2599,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/key/softkey# s:'{"softkey_number":1}'
+oscsend 127.0.0.1 8001 /eos/key/softkey{number} s:'{"softkey_number":1}'
 ```
 
 <a id="eos-submaster-bump"></a>
