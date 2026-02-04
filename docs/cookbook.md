@@ -218,6 +218,115 @@ oscsend 127.0.0.1 8001 /eos/cmd s:"Chan 101 Thru 102 Sneak 65 Enter"
 - Combinez cette recette avec `eos_group_set_level` si vous pilotez des groupes plutôt que des canaux individuels.
 - Pour animer un fade, déclenchez plusieurs appels `eos_channel_set_level` espacés dans le temps (par exemple via un workflow n8n) en ajustant la valeur progressivement.
 
+## Piloter la ligne de commande EOS
+
+### Objectif
+Envoyer rapidement une commande texte (ex. `Record`, `Update`) ou reconstituer un gabarit avec substitutions.
+
+### Check-list
+- [ ] Vérifier que l'utilisateur cible est correct (User 1/2/3…).
+- [ ] Ajouter `#` si la commande doit être validée immédiatement.
+- [ ] Nettoyer la ligne si besoin via `eos_new_command`.
+
+> 📘 **Référence Eos** : [Ligne de commande (p. 150–156)](manual://eos#command-line)
+
+### Outils MCP mobilisés
+- [`eos_command`](tools.md#eos-command) : envoie un texte sur la ligne de commande.
+- [`eos_new_command`](tools.md#eos-new-command) : efface puis envoie un texte sur la ligne de commande.
+- [`eos_command_with_substitution`](tools.md#eos-command-with-substitution) : applique un gabarit `Chan %1 At %2`.
+
+### Requête MCP (JSON)
+```json
+{
+  "type": "call_tool",
+  "tool": "eos_command_with_substitution",
+  "arguments": {
+    "template": "Chan %1 At %2#",
+    "values": [101, 75]
+  }
+}
+```
+
+### Commande OSC commentée
+```bash
+# Envoi d'une commande directe
+oscsend 127.0.0.1 8001 /eos/cmd s:"Record Cue 12#"
+```
+
+### Astuces d'intégration
+- Utilisez `terminateWithEnter: true` pour automatiser la validation sans ajouter `#` dans la chaîne.
+- Enregistrez l'utilisateur courant via `session_set_current_user` pour éviter de répéter `user`.
+
+## Simuler une touche ou une softkey
+
+### Objectif
+Déclencher un appui virtuel sur une touche matérielle ou une softkey avec retour d'état.
+
+### Check-list
+- [ ] Identifier la touche exacte (`go`, `stop`, `record`, etc.).
+- [ ] En cas de softkey, récupérer d'abord les libellés affichés.
+
+> 📘 **Référence Eos** : [Clavier & softkeys (p. 130–138)](manual://eos#keyboard-softkeys)
+
+### Outils MCP mobilisés
+- [`eos_get_softkey_labels`](tools.md#eos-get-softkey-labels) : lit les libellés softkey.
+- [`eos_key_press`](tools.md#eos-key-press) : simule l'appui d'une touche.
+- [`eos_softkey_press`](tools.md#eos-softkey-press) : simule l'appui d'une softkey.
+
+### Requête MCP (JSON)
+```json
+{
+  "type": "call_tool",
+  "tool": "eos_key_press",
+  "arguments": {
+    "key_name": "go",
+    "state": 1
+  }
+}
+```
+
+### Commande OSC commentée
+```bash
+# Appui sur la softkey 5
+oscsend 127.0.0.1 8001 /eos/key/softkey5 f:1
+```
+
+### Astuces d'intégration
+- Envoyez `state: 0` pour simuler un relâchement si votre surface nécessite un comportement "momentary".
+- Exploitez les libellés softkey pour afficher un menu contextuel dans votre UI.
+
+## Diagnostiquer la liaison OSC
+
+### Objectif
+Valider que la console répond et mesurer la latence avant un scénario critique.
+
+### Check-list
+- [ ] S'assurer que l'adresse IP/port cible est correct.
+- [ ] Inspecter le délai aller-retour et l'echo retourné.
+
+### Outil MCP mobilisé
+- [`eos_ping`](tools.md#eos-ping) : envoie un ping OSC et retourne un statut.
+
+### Requête MCP (JSON)
+```json
+{
+  "type": "call_tool",
+  "tool": "eos_ping",
+  "arguments": {
+    "message": "healthcheck"
+  }
+}
+```
+
+### Commande OSC commentée
+```bash
+oscsend 127.0.0.1 8001 /eos/ping s:"healthcheck"
+```
+
+### Astuces d'intégration
+- Utilisez `transportPreference` pour forcer UDP/TCP selon le réseau (ex. `"speed"` pour UDP).
+- Ajoutez un ping avant tout enchaînement automatisé sensible (top lumière, blackout).
+
 ## Ressources complémentaires
 - Les commandes CLI générées automatiquement sont disponibles dans [`docs/tools.md`](tools.md) pour chaque outil.
 - Ajoutez des validations côté LLM (ex. : confirmation vocale) avant d'exécuter une commande critique.

@@ -1,4 +1,18 @@
 export const oscMappings = {
+  commands: {
+    command: '/eos/cmd',
+    newCommand: '/eos/newcmd',
+    getCommandLine: '/eos/get/cmd_line'
+  },
+  connection: {
+    ping: '/eos/ping'
+  },
+  keys: {
+    base: '/eos/key',
+    press: '/eos/key/{key}',
+    softkey: '/eos/key/softkey{number}',
+    softkeyLabels: '/eos/get/softkey_labels'
+  },
   channels: {
     command: '/eos/cmd',
     base: '/eos/chan',

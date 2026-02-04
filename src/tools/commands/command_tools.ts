@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { getOscClient, type CommandLineState } from '../../services/osc/client';
+import { oscMappings } from '../../services/osc/mappings';
 import { getCurrentUserId } from '../session/index';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 
@@ -123,7 +124,7 @@ export const eosCommandTool: ToolDefinition<typeof commandInputSchema> = {
     title: 'Commande EOS',
     description: 'Envoie du texte sur la ligne de commande existante de la console.',
     inputSchema: commandInputSchema,
-    annotations: mappingAnnotations('/eos/cmd', 'command_line')
+    annotations: mappingAnnotations(oscMappings.commands.command, 'command_line')
   },
   handler: async (args, _extra) => {
     const schema = z.object(commandInputSchema).strict();
@@ -139,7 +140,7 @@ export const eosCommandTool: ToolDefinition<typeof commandInputSchema> = {
       targetPort: options.targetPort
     });
 
-    return formatSendResult(command, user ?? null, '/eos/cmd');
+    return formatSendResult(command, user ?? null, oscMappings.commands.command);
   }
 };
 
@@ -167,7 +168,7 @@ export const eosNewCommandTool: ToolDefinition<typeof newCommandInputSchema> = {
     title: 'Nouvelle commande EOS',
     description: 'Efface optionnellement la ligne de commande puis envoie le texte fourni.',
     inputSchema: newCommandInputSchema,
-    annotations: mappingAnnotations('/eos/newcmd', 'command_line_new')
+    annotations: mappingAnnotations(oscMappings.commands.newCommand, 'command_line_new')
   },
   handler: async (args, _extra) => {
     const schema = z.object(newCommandInputSchema).strict();
@@ -185,7 +186,7 @@ export const eosNewCommandTool: ToolDefinition<typeof newCommandInputSchema> = {
         targetAddress: options.targetAddress,
         targetPort: options.targetPort
       });
-      return formatSendResult(command, user ?? null, '/eos/newcmd');
+      return formatSendResult(command, user ?? null, oscMappings.commands.newCommand);
     }
 
     await client.sendCommand(command, {
@@ -194,7 +195,7 @@ export const eosNewCommandTool: ToolDefinition<typeof newCommandInputSchema> = {
       targetPort: options.targetPort
     });
 
-    return formatSendResult(command, user ?? null, '/eos/cmd');
+    return formatSendResult(command, user ?? null, oscMappings.commands.command);
   }
 };
 
@@ -221,7 +222,7 @@ export const eosCommandWithSubstitutionTool: ToolDefinition<typeof substitutionC
     title: 'Commande avec substitution',
     description: 'Applique des substitutions %1, %2, ... puis envoie la commande.',
     inputSchema: substitutionCommandInputSchema,
-    annotations: mappingAnnotations('/eos/cmd', 'command_line_template')
+    annotations: mappingAnnotations(oscMappings.commands.command, 'command_line_template')
   },
   handler: async (args, _extra) => {
     const schema = z.object(substitutionCommandInputSchema).strict();
@@ -238,7 +239,7 @@ export const eosCommandWithSubstitutionTool: ToolDefinition<typeof substitutionC
       targetPort: options.targetPort
     });
 
-    return formatSendResult(command, user ?? null, '/eos/cmd');
+    return formatSendResult(command, user ?? null, oscMappings.commands.command);
   }
 };
 
@@ -263,7 +264,7 @@ export const eosGetCommandLineTool: ToolDefinition<typeof commandLineInputSchema
     title: 'Lecture de la ligne de commande EOS',
     description: 'Recupere le contenu courant de la ligne de commande via OSC Get.',
     inputSchema: commandLineInputSchema,
-    annotations: mappingAnnotations('/eos/get/cmd_line', 'command_line_query')
+    annotations: mappingAnnotations(oscMappings.commands.getCommandLine, 'command_line_query')
   },
   handler: async (args, _extra) => {
     const schema = z.object(commandLineInputSchema).strict();

@@ -1,6 +1,7 @@
 import { z, type ZodRawShape } from 'zod';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
+import { oscMappings } from '../../services/osc/mappings';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
@@ -198,7 +199,7 @@ export const eosKeyPressTool: ToolDefinition<typeof keyPressInputSchema> = {
     inputSchema: keyPressInputSchema,
     annotations: {
       mapping: {
-        osc: '/eos/key/<key>'
+        osc: oscMappings.keys.press
       }
     }
   },
@@ -208,7 +209,7 @@ export const eosKeyPressTool: ToolDefinition<typeof keyPressInputSchema> = {
     const keyName = options.key_name as KeyName;
     const state = normaliseButtonState(options.state);
     const identifier = resolveKeyIdentifier(keyName);
-    const address = `/eos/key/${identifier}`;
+    const address = `${oscMappings.keys.base}/${identifier}`;
     const client = getOscClient();
 
     await client.sendMessage(address, createOscArgs(state), {
@@ -246,7 +247,7 @@ export const eosSoftkeyPressTool: ToolDefinition<typeof softkeyPressInputSchema>
     inputSchema: softkeyPressInputSchema,
     annotations: {
       mapping: {
-        osc: '/eos/key/softkey#'
+        osc: oscMappings.keys.softkey
       }
     }
   },
@@ -255,7 +256,7 @@ export const eosSoftkeyPressTool: ToolDefinition<typeof softkeyPressInputSchema>
     const options = schema.parse(args ?? {});
     const state = normaliseButtonState(options.state);
     const softkeyNumber = options.softkey_number;
-    const address = `/eos/key/softkey${softkeyNumber}`;
+    const address = `${oscMappings.keys.base}/softkey${softkeyNumber}`;
     const client = getOscClient();
 
     await client.sendMessage(address, createOscArgs(state), {
@@ -292,7 +293,7 @@ export const eosGetSoftkeyLabelsTool: ToolDefinition<typeof softkeyLabelsInputSc
     inputSchema: softkeyLabelsInputSchema,
     annotations: {
       mapping: {
-        osc: '/eos/get/softkey_labels'
+        osc: oscMappings.keys.softkeyLabels
       }
     }
   },
@@ -301,7 +302,7 @@ export const eosGetSoftkeyLabelsTool: ToolDefinition<typeof softkeyLabelsInputSc
     const options = schema.parse(args ?? {});
     const client = getOscClient();
 
-    const response = await client.requestJson('/eos/get/softkey_labels', {
+    const response = await client.requestJson(oscMappings.keys.softkeyLabels, {
       timeoutMs: options.timeoutMs,
       targetAddress: options.targetAddress,
       targetPort: options.targetPort
