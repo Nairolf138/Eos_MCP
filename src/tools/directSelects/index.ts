@@ -60,6 +60,14 @@ const TARGET_TYPE_ERROR_MESSAGE = [
 
 const bankStateCache = new Map<number, DirectSelectBankState>();
 
+function annotate(osc: string, args?: string[]): Record<string, unknown> {
+  const mapping: Record<string, unknown> = { osc };
+  if (Array.isArray(args) && args.length > 0) {
+    mapping.args = args;
+  }
+  return { mapping };
+}
+
 export function __resetDirectSelectBankCacheForTests(): void {
   bankStateCache.clear();
 }
@@ -299,7 +307,8 @@ export const eosDirectSelectPressTool: ToolDefinition<typeof pressInputSchema> =
   config: {
     title: 'Appui de direct select',
     description: 'Simule un appui ou relachement sur un bouton de direct select.',
-    inputSchema: pressInputSchema
+    inputSchema: pressInputSchema,
+    annotations: annotate(oscMappings.directSelects.base, ['f {state}'])
   },
   handler: async (args) => {
     const options: PressOptions = pressSchema.parse(args ?? {});

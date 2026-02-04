@@ -25,7 +25,12 @@ export const eosPingTool: ToolDefinition<typeof inputSchema> = {
   config: {
     title: 'Ping OSC EOS',
     description: 'Envoie un ping OSC a la console EOS et retourne le statut.',
-    inputSchema
+    inputSchema,
+    annotations: {
+      mapping: {
+        osc: '/eos/ping'
+      }
+    }
   },
   handler: async (args, _extra) => {
     const schema = z.object(inputSchema).strict();
