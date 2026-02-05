@@ -100,6 +100,44 @@ describe('ToolRegistry schema-less tools', () => {
     expect(handler).toHaveBeenCalledWith(undefined, extra);
   });
 
+
+
+  it('executes a tool without prior manual or schema consultation', async () => {
+    const server = createMockServer();
+    const registry = new ToolRegistry(server);
+
+    const handler = jest.fn(async (_args, _extra): Promise<ToolExecutionResult> => ({
+      content: [{ type: 'text', text: 'ok' }]
+    }));
+
+    const tool: ToolDefinition = {
+      name: 'execution_without_consultation',
+      config: {
+        description: 'Tool that should run immediately'
+      },
+      handler
+    };
+
+    registry.register(tool);
+
+    const [, , registeredHandler] = server.registerTool.mock.calls[0];
+
+    let caughtError: unknown;
+    const extra = { requestId: 'no-preread' };
+
+    try {
+      await (registeredHandler as RegisteredTestHandler)(extra);
+    } catch (error) {
+      caughtError = error;
+    }
+
+    expect(handler).toHaveBeenCalledWith(undefined, extra);
+    expect(caughtError).toBeUndefined();
+
+    const errorMessage =
+      caughtError instanceof Error ? caughtError.message : String(caughtError ?? '');
+    expect(errorMessage).not.toContain("Consultation requise avant d'utiliser l'outil");
+  });
   it('executes session_get_current_user successfully', async () => {
     const server = createMockServer();
     const registry = new ToolRegistry(server);

@@ -19,4 +19,13 @@ describe('tool JSON schemas', () => {
     }
   });
 
+  it('does not embed any consultation prerequisite in schema resources', () => {
+    for (const schema of toolJsonSchemas) {
+      const serializedSchema = JSON.stringify(schema.schema);
+      expect(serializedSchema).not.toContain(
+        "Consultation requise avant d'utiliser l'outil"
+      );
+    }
+  });
+
 });
