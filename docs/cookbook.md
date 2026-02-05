@@ -9,7 +9,7 @@ Ce guide rassemble des scénarios prêts à l'emploi pour piloter la console ETC
 Imposer une étape de découverte pour que l'agent connaisse l'état de la session avant d'exécuter une action (cue, patch, palettes, etc.).
 
 ### Règle agent
-- Appeler **toujours** [`eos_capabilities_get`](tools.md#eos-capabilities-get) en premier.
+- Appeler **toujours** `eos_capabilities_get` en premier.
 - Lire `structuredContent.context` pour vérifier la connexion OSC, l'utilisateur courant, le mode Live/Blind et les restrictions safety.
 - Ne poursuivre vers un outil métier (`eos_cue_*`, `eos_patch_*`, `eos_palette_*`, etc.) que si ces informations sont cohérentes avec l'intention utilisateur.
 
@@ -29,6 +29,158 @@ Imposer une étape de découverte pour que l'agent connaisse l'état de la sessi
 - `context.mode.live_blind` : état courant Live/Blind.
 - `context.safety` : restrictions de sécurité actives.
 - `server.version` + `server.compatibility` : version serveur et compatibilité runtime/protocole.
+
+## Playbooks opérationnels (explicites)
+
+Ces playbooks normalisent les exécutions sensibles avec des garde-fous exploitables par un orchestrateur (LLM, bot, runbook CI, etc.). Les noms d'outils et ancres ci-dessous sont alignés avec [`docs/tools.md`](tools.md).
+
+### Playbook A — Création / mise à jour de cue
+
+#### Préconditions vérifiables
+- La découverte initiale retourne `context.osc_connection.connected=true` via `eos_capabilities_get`.
+- La console est en mode attendu (Live ou Blind) et l'utilisateur est identifié (`context.current_user`).
+- La cue cible est identifiée dans la bonne liste (vérifier avec [`eos_cue_get_info`](tools.md#eos-cue-get-info) ou [`eos_cue_list_all`](tools.md#eos-cue-list-all)).
+
+#### Appels MCP séquencés (JSON)
+1. Vérification session
+```json
+{"type":"call_tool","tool":"eos_capabilities_get","arguments":{}}
+```
+2. Audit de la cue cible (si elle existe déjà)
+```json
+{"type":"call_tool","tool":"eos_cue_get_info","arguments":{"cuelist_number":1,"cue_number":"12"}}
+```
+3. Création de cue
+```json
+{"type":"call_tool","tool":"eos_cue_record","arguments":{"cuelist_number":1,"cue_number":"12","user":1}}
+```
+4. Mise à jour de cue (alternative à l'étape 3)
+```json
+{"type":"call_tool","tool":"eos_cue_update","arguments":{"cuelist_number":1,"cue_number":"12","user":1}}
+```
+5. Contrôle post-action
+```json
+{"type":"call_tool","tool":"eos_cue_get_info","arguments":{"cuelist_number":1,"cue_number":"12"}}
+```
+
+#### Conditions d’arrêt / rollback
+- **Stop immédiat** si `osc_connection` est dégradée, si l'utilisateur session ne correspond pas à l'attendu, ou si la cuelist ciblée n'est pas la bonne.
+- **Rollback recommandé** : réappliquer l'état précédent (cue de référence) via [`eos_cue_fire`](tools.md#eos-cue-fire) puis corriger la cue en Blind avant nouvelle tentative.
+
+#### Erreurs attendues + remédiation
+- `cue not found` sur update → créer d'abord avec [`eos_cue_record`](tools.md#eos-cue-record).
+- blocage sécurité (action sensible) → rejouer avec confirmation opérateur et paramètres safety adaptés sur les outils qui l'exposent.
+- conflit de numérotation cue → lister la cuelist avec [`eos_cue_list_all`](tools.md#eos-cue-list-all), choisir un numéro libre puis rejouer.
+
+### Playbook B — Création / usage palettes couleur, focus (position) et beam
+
+> Sur Eos, la "palette de position" est opérée via les **Focus Palettes** (`palette_type: "fp"`) et le rappel par [`eos_focus_palette_fire`](tools.md#eos-focus-palette-fire).
+
+#### Préconditions vérifiables
+- Les canaux concernés sont sélectionnés et contrôlés (via [`eos_channel_select`](tools.md#eos-channel-select) + [`eos_channel_get_info`](tools.md#eos-channel-get-info)).
+- Le type de palette est explicitement défini : `cp` (couleur), `fp` (focus/position), `bp` (beam).
+- La plage de numéros palette est validée et non conflictuelle (audit via [`eos_palette_get_info`](tools.md#eos-palette-get-info)).
+
+#### Appels MCP séquencés (JSON)
+1. Vérification session
+```json
+{"type":"call_tool","tool":"eos_capabilities_get","arguments":{}}
+```
+2. Préparer la sélection canaux
+```json
+{"type":"call_tool","tool":"eos_channel_select","arguments":{"channels":[201,202],"exclusive":true}}
+```
+3. Créer/mettre à jour palette couleur 21
+```json
+{"type":"call_tool","tool":"eos_palette_record","arguments":{"palette_type":"cp","palette_number":21,"user":1}}
+```
+4. Créer/mettre à jour palette focus(position) 31
+```json
+{"type":"call_tool","tool":"eos_palette_record","arguments":{"palette_type":"fp","palette_number":31,"user":1}}
+```
+5. Créer/mettre à jour palette beam 41
+```json
+{"type":"call_tool","tool":"eos_palette_record","arguments":{"palette_type":"bp","palette_number":41,"user":1}}
+```
+6. Usage immédiat (rappel)
+```json
+{"type":"call_tool","tool":"eos_color_palette_fire","arguments":{"palette_number":21,"require_confirmation":true}}
+```
+```json
+{"type":"call_tool","tool":"eos_focus_palette_fire","arguments":{"palette_number":31,"require_confirmation":true}}
+```
+```json
+{"type":"call_tool","tool":"eos_beam_palette_fire","arguments":{"palette_number":41,"require_confirmation":true}}
+```
+
+#### Conditions d’arrêt / rollback
+- **Stop** si la sélection canaux est vide ou incohérente avant `eos_palette_record`.
+- **Rollback** : rappeler une palette de secours connue (look neutre) avec les outils `*_palette_fire` correspondants.
+
+#### Erreurs attendues + remédiation
+- `palette_type` invalide → limiter aux valeurs documentées `ip|fp|cp|bp` de [`eos_palette_record`](tools.md#eos-palette-record).
+- palette inexistante au rappel → créer d'abord via [`eos_palette_record`](tools.md#eos-palette-record), puis rejouer `*_palette_fire`.
+- rendu inattendu sur certains projecteurs → vérifier les attributs actifs via [`eos_channel_get_info`](tools.md#eos-channel-get-info) et corriger la sélection.
+
+### Playbook C — Patch rapide d’un projecteur
+
+#### Préconditions vérifiables
+- Canal cible libre ou identifié pour remplacement contrôlé.
+- Adresse DMX de destination et `device_type` validés avec l'équipe plateau.
+- État réseau/console sain via `eos_capabilities_get`.
+
+#### Appels MCP séquencés (JSON)
+1. Contrôle patch actuel
+```json
+{"type":"call_tool","tool":"eos_patch_get_channel_info","arguments":{"channel_number":305}}
+```
+2. Patch express du canal
+```json
+{"type":"call_tool","tool":"eos_patch_set_channel","arguments":{"channel_number":305,"dmx_address":"2/145","device_type":"Lustr3","part":1,"label":"Face Jardin"}}
+```
+3. Vérification post-patch
+```json
+{"type":"call_tool","tool":"eos_patch_get_channel_info","arguments":{"channel_number":305}}
+```
+
+#### Conditions d’arrêt / rollback
+- **Stop** si `channel_number` est occupé par un usage critique non documenté.
+- **Rollback** : rejouer [`eos_patch_set_channel`](tools.md#eos-patch-set-channel) avec les anciennes valeurs (`dmx_address`, `device_type`, `part`, `label`) capturées à l'étape 1.
+
+#### Erreurs attendues + remédiation
+- collision DMX / adresse invalide → corriger le format `univers/adresse` puis rejouer.
+- `device_type` non reconnu → utiliser une librairie/type existant sur la console puis mettre à jour ultérieurement.
+- part incorrecte → lire la config réelle avec [`eos_patch_get_channel_info`](tools.md#eos-patch-get-channel-info), ajuster `part` et recommencer.
+
+### Playbook D — Conduite GO en répétition
+
+#### Préconditions vérifiables
+- Cuelist répétition confirmée et opérateur présent en validation finale.
+- Cues en attente connues (via [`eos_cue_list_all`](tools.md#eos-cue-list-all) et/ou [`eos_cue_get_info`](tools.md#eos-cue-get-info)).
+- Politique safety explicite (`strict` conseillé + `require_confirmation=true` sur actions feu).
+
+#### Appels MCP séquencés (JSON)
+1. Audit session
+```json
+{"type":"call_tool","tool":"eos_capabilities_get","arguments":{}}
+```
+2. GO sécurisé
+```json
+{"type":"call_tool","tool":"eos_cue_go","arguments":{"cuelist_number":1,"require_confirmation":true,"safety_level":"strict"}}
+```
+3. Arrêt / rattrapage si incident
+```json
+{"type":"call_tool","tool":"eos_cue_stop_back","arguments":{"cuelist_number":1,"back":true,"require_confirmation":true,"safety_level":"strict"}}
+```
+
+#### Conditions d’arrêt / rollback
+- **Stop immédiat** si top erroné, désynchronisation son/vidéo ou ambiguïté de consigne régie.
+- **Rollback** : [`eos_cue_stop_back`](tools.md#eos-cue-stop-back) avec `back=true`, puis relance contrôlée avec [`eos_cue_go`](tools.md#eos-cue-go).
+
+#### Erreurs attendues + remédiation
+- refus safety (`require_confirmation` absent) → rejouer avec confirmation explicite.
+- cuelist invalide/non chargée → vérifier le numéro, auditer via [`eos_cue_list_all`](tools.md#eos-cue-list-all), puis corriger l'appel.
+- GO exécuté sur mauvaise cible → arrêter immédiatement (`stop_back`), annoncer rollback en régie, puis rejouer sur la bonne cuelist.
 
 ## Préparer les circuits avant `Record`
 
