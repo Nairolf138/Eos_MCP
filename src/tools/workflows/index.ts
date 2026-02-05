@@ -1,4 +1,5 @@
 import { z, type ZodRawShape } from 'zod';
+import { validateCueArgumentsPair, optionalTimeoutMsSchema } from '../../utils/validators';
 import { getOscClient } from '../../services/osc/client';
 import { sendDeterministicCommand } from '../commands/command_tools';
 import { createCueIdentifierFromOptions, cueNumberSchema, cuelistNumberSchema, formatCueDescription } from '../cues/common';
@@ -217,7 +218,7 @@ const rehearsalGoSafeInputSchema = {
   rollback_cue_number: cueNumberSchema.optional(),
   rollback_cuelist_number: cuelistNumberSchema.optional(),
   rollback_on_failure: z.boolean().optional(),
-  precheck_timeout_ms: z.coerce.number().int().min(50).max(10000).optional(),
+  precheck_timeout_ms: optionalTimeoutMsSchema.refine((value) => value == null || value <= 10000, { message: 'precheck_timeout_ms doit etre <= 10000.' }),
   allow_non_empty_command_line: z.boolean().optional(),
   ...targetOptionsSchema
 } satisfies ZodRawShape;
@@ -230,7 +231,20 @@ export const eosWorkflowRehearsalGoSafeTool: ToolDefinition<typeof rehearsalGoSa
     inputSchema: rehearsalGoSafeInputSchema
   },
   handler: async (args) => {
-    const options = z.object(rehearsalGoSafeInputSchema).strict().parse(args ?? {});
+    const options = z
+      .object(rehearsalGoSafeInputSchema)
+      .strict()
+      .superRefine((value, ctx) => {
+        validateCueArgumentsPair(value, ctx);
+        if (value.rollback_cuelist_number != null && value.rollback_cue_number == null) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['rollback_cue_number'],
+            message: 'rollback_cue_number est obligatoire si rollback_cuelist_number est fourni.'
+          });
+        }
+      })
+      .parse(args ?? {});
     const steps: WorkflowStepLog[] = [];
     const partialErrors: Array<{ step: string; error: string }> = [];
     const client = getOscClient();

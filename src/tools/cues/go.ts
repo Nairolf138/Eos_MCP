@@ -1,4 +1,5 @@
 import { z, type ZodRawShape } from 'zod';
+import { validateCueArgumentsPair } from '../../utils/validators';
 import { getOscClient } from '../../services/osc/client';
 import { oscMappings } from '../../services/osc/mappings';
 import { createDryRunResult, resolveSafetyOptions } from '../common/safety';
@@ -46,7 +47,7 @@ export const eosCueGoTool: ToolDefinition<typeof goInputSchema> = {
     }
   },
   handler: async (args) => {
-    const schema = z.object(goInputSchema).strict();
+    const schema = z.object(goInputSchema).strict().superRefine((value, ctx) => validateCueArgumentsPair(value, ctx));
     const options = schema.parse(args ?? {});
     const client = getOscClient();
     const identifier = createCueIdentifierFromOptions(options);

@@ -62,6 +62,15 @@ describe('channel tools', () => {
     expect(message?.args?.[0]?.value).toBe('Chan 1 Thru 2 Sneak 50 Enter');
   });
 
+
+  it('accepte les plages de canaux en format texte FR/EN', async () => {
+    await runTool(eosChannelSetLevelTool, { channels: 'Chan 1-3 et 5', level: 25 });
+
+    expect(service.sentMessages).toHaveLength(1);
+    const message = service.sentMessages[0];
+    expect(message?.args?.[0]?.value).toBe('Chan 1 Thru 3 + 5 Sneak 25 Enter');
+  });
+
   it('transforme full en 255 pour le DMX', async () => {
     await runTool(eosSetDmxTool, { addresses: [101], value: 'full' });
 
@@ -80,6 +89,15 @@ describe('channel tools', () => {
 
     const message = service.sentMessages[0];
     expect(message?.args?.[0]?.value).toBe('Address 10 Thru 11 At 10 Enter');
+  });
+
+
+  it('accepte les plages d adresses DMX en format texte', async () => {
+    await runTool(eosSetDmxTool, { addresses: 'Address 101-103', value: 10 });
+
+    expect(service.sentMessages).toHaveLength(1);
+    const message = service.sentMessages[0];
+    expect(message?.args?.[0]?.value).toBe('Address 101 Thru 103 At 10 Enter');
   });
 
   describe('eos_channel_get_info', () => {

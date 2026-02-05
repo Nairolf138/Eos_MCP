@@ -61,6 +61,11 @@ describe('cue tools', () => {
     });
   });
 
+
+  it('refuse cue_part sans cue_number sur cue_go', async () => {
+    await expect(runTool(eosCueGoTool, { cuelist_number: 5, cue_part: 1 })).rejects.toThrow('cue_part requiert cue_number');
+  });
+
   it('enchaine un go puis un stop back sur la meme liste', async () => {
     await runTool(eosCueGoTool, { cuelist_number: 5 });
     await runTool(eosCueStopBackTool, { cuelist_number: 5, back: true });

@@ -135,6 +135,17 @@ describe('workflow tools', () => {
     expect(structured?.commandsSent).toEqual([]);
   });
 
+
+  it('refuse rollback_cuelist_number sans rollback_cue_number', async () => {
+    await expect(
+      runTool(eosWorkflowRehearsalGoSafeTool, {
+        cuelist_number: 1,
+        rollback_on_failure: true,
+        rollback_cuelist_number: 2
+      })
+    ).rejects.toThrow('rollback_cue_number est obligatoire si rollback_cuelist_number est fourni');
+  });
+
   it('applique rollback optionnel lors dun echec du go', async () => {
     service.failAtSendIndex = 2;
 
