@@ -15,7 +15,8 @@ export type ResourceType =
   | 'submasters'
   | 'cues'
   | 'cuelists'
-  | 'queries';
+  | 'queries'
+  | 'session';
 
 interface CacheEntry<T> {
   value: T;
@@ -356,4 +357,3 @@ const sharedCache = new ResourceCache();
 export function getResourceCache(): ResourceCache {
   return sharedCache;
 }
-

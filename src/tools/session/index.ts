@@ -1,7 +1,31 @@
 import { z } from 'zod';
+import { getResourceCache } from '../../services/cache';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 let currentUserId: number | null = null;
+
+const SESSION_CONTEXT_CACHE_KEY = 'current_context';
+const DEFAULT_CONTEXT_TTL_MS = 10 * 60 * 1000;
+
+const sessionContextSchema = z
+  .object({
+    show: z.string().min(1).nullable().optional(),
+    active_cuelist: z.union([z.string().min(1), z.number().int().min(0)]).nullable().optional(),
+    selected_channels: z.array(z.coerce.number().int().min(1)).optional(),
+    selected_groups: z.array(z.coerce.number().int().min(1)).optional(),
+    recent_palettes: z
+      .array(
+        z.object({
+          type: z.string().min(1).optional(),
+          id: z.coerce.number().int().min(0),
+          label: z.string().min(1).optional()
+        })
+      )
+      .optional()
+  })
+  .strict();
+
+export type SessionContext = z.infer<typeof sessionContextSchema>;
 
 export function setCurrentUserId(userId: number | null): void {
   if (typeof userId === 'number' && Number.isFinite(userId) && userId >= 0) {
@@ -20,8 +44,63 @@ export function clearCurrentUserId(): void {
   currentUserId = null;
 }
 
+async function setSessionContext(context: SessionContext, ttlMs = DEFAULT_CONTEXT_TTL_MS): Promise<void> {
+  const cache = getResourceCache();
+  cache.invalidateEntry('session', SESSION_CONTEXT_CACHE_KEY);
+  await cache.fetch<SessionContext>({
+    resourceType: 'session',
+    key: SESSION_CONTEXT_CACHE_KEY,
+    ttlMs,
+    fetcher: async () => context
+  });
+}
+
+async function getSessionContext(): Promise<SessionContext | null> {
+  const cache = getResourceCache();
+  return cache.fetch<SessionContext | null>({
+    resourceType: 'session',
+    key: SESSION_CONTEXT_CACHE_KEY,
+    fetcher: async () => null
+  });
+}
+
+export function clearSessionContext(): void {
+  getResourceCache().invalidateEntry('session', SESSION_CONTEXT_CACHE_KEY);
+}
+
+function buildSuggestedNextActions(hasContext: boolean): Array<Record<string, string>> {
+  if (hasContext) {
+    return [
+      {
+        tool: 'session_get_context',
+        reason: 'Verifier le contexte courant avant les prochains appels EOS sensibles.'
+      },
+      {
+        tool: 'session_clear_context',
+        reason: 'Reinitialiser le contexte si la selection est obsolete.'
+      }
+    ];
+  }
+
+  return [
+    {
+      tool: 'session_set_context',
+      reason: 'Declarer le show, la cuelist active et les selections pour guider les appels suivants.'
+    },
+    {
+      tool: 'session_set_current_user',
+      reason: 'Definir un utilisateur courant avant les operations dependantes du contexte utilisateur.'
+    }
+  ];
+}
+
 const setCurrentUserInputSchema = {
   user: z.coerce.number().int().min(0, "L'identifiant utilisateur doit etre positif")
+};
+
+const setContextInputSchema = {
+  context: sessionContextSchema,
+  ttl_ms: z.coerce.number().int().min(1).max(24 * 60 * 60 * 1000).optional()
 };
 
 /**
@@ -54,7 +133,8 @@ export const sessionSetCurrentUserTool: ToolDefinition<typeof setCurrentUserInpu
         }
       ],
       structuredContent: {
-        user: options.user
+        user: options.user,
+        suggested_next_actions: buildSuggestedNextActions(Boolean(await getSessionContext()))
       }
     } as ToolExecutionResult;
   }
@@ -86,7 +166,86 @@ export const sessionGetCurrentUserTool: ToolDefinition = {
         }
       ],
       structuredContent: {
-        user: user ?? null
+        user: user ?? null,
+        suggested_next_actions: buildSuggestedNextActions(Boolean(await getSessionContext()))
+      }
+    } as ToolExecutionResult;
+  }
+};
+
+export const sessionSetContextTool: ToolDefinition<typeof setContextInputSchema> = {
+  name: 'session_set_context',
+  config: {
+    title: 'Definir contexte courant',
+    description:
+      'Stocke le contexte courant (show, cuelist active, selections canaux/groupes, palettes recentes) avec un TTL configurable.',
+    inputSchema: setContextInputSchema
+  },
+  handler: async (args) => {
+    const schema = z.object(setContextInputSchema).strict();
+    const options = schema.parse(args ?? {});
+
+    await setSessionContext(options.context, options.ttl_ms ?? DEFAULT_CONTEXT_TTL_MS);
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: 'Contexte courant enregistre'
+        }
+      ],
+      structuredContent: {
+        context: options.context,
+        ttl_ms: options.ttl_ms ?? DEFAULT_CONTEXT_TTL_MS,
+        suggested_next_actions: buildSuggestedNextActions(true)
+      }
+    } as ToolExecutionResult;
+  }
+};
+
+export const sessionGetContextTool: ToolDefinition = {
+  name: 'session_get_context',
+  config: {
+    title: 'Contexte courant',
+    description: 'Renvoie le contexte courant memorise localement.'
+  },
+  handler: async () => {
+    const context = await getSessionContext();
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: context ? 'Contexte courant disponible' : 'Aucun contexte courant defini'
+        }
+      ],
+      structuredContent: {
+        context,
+        suggested_next_actions: buildSuggestedNextActions(Boolean(context))
+      }
+    } as ToolExecutionResult;
+  }
+};
+
+export const sessionClearContextTool: ToolDefinition = {
+  name: 'session_clear_context',
+  config: {
+    title: 'Effacer contexte courant',
+    description: 'Supprime le contexte courant memorise localement.'
+  },
+  handler: async () => {
+    clearSessionContext();
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: 'Contexte courant efface'
+        }
+      ],
+      structuredContent: {
+        context: null,
+        suggested_next_actions: buildSuggestedNextActions(false)
       }
     } as ToolExecutionResult;
   }
@@ -94,7 +253,10 @@ export const sessionGetCurrentUserTool: ToolDefinition = {
 
 export const sessionTools = [
   sessionSetCurrentUserTool,
-  sessionGetCurrentUserTool
+  sessionGetCurrentUserTool,
+  sessionSetContextTool,
+  sessionGetContextTool,
+  sessionClearContextTool
 ] as ToolDefinition[];
 
 export default sessionTools;

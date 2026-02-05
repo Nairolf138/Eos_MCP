@@ -1,5 +1,6 @@
 import {
   clearCurrentUserId,
+  clearSessionContext,
   getCurrentUserId,
   sessionGetCurrentUserTool,
   sessionSetCurrentUserTool
@@ -9,6 +10,7 @@ import { getStructuredContent, runTool } from '../../__tests__/helpers/runTool';
 describe('session tools', () => {
   beforeEach(() => {
     clearCurrentUserId();
+    clearSessionContext();
   });
 
   it('stocke le numero utilisateur via le tool de configuration', async () => {
@@ -20,7 +22,8 @@ describe('session tools', () => {
     if (!structuredContent) {
       throw new Error('Expected structured content');
     }
-    expect(structuredContent).toEqual({ user: 7 });
+    expect(structuredContent).toMatchObject({ user: 7 });
+    expect(structuredContent.suggested_next_actions).toBeDefined();
   });
 
   it('renvoie null lorsqu aucun utilisateur nest defini', async () => {
@@ -31,7 +34,8 @@ describe('session tools', () => {
     if (!structuredContent) {
       throw new Error('Expected structured content');
     }
-    expect(structuredContent).toEqual({ user: null });
+    expect(structuredContent).toMatchObject({ user: null });
+    expect(structuredContent.suggested_next_actions).toBeDefined();
   });
 
   it('renvoie l utilisateur courant memorise', async () => {
@@ -44,6 +48,7 @@ describe('session tools', () => {
     if (!structuredContent) {
       throw new Error('Expected structured content');
     }
-    expect(structuredContent).toEqual({ user: 3 });
+    expect(structuredContent).toMatchObject({ user: 3 });
+    expect(structuredContent.suggested_next_actions).toBeDefined();
   });
 });
