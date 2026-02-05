@@ -297,7 +297,7 @@ oscsend 127.0.0.1 8001 /eos/cp/fire s:'{"palette_number":1}'
 <a id="eos-command"></a>
 ## Commande EOS (`eos_command`)
 
-**Description :** Envoie du texte sur la ligne de commande existante de la console.
+**Description :** Envoie du texte sur la ligne de commande existante de la console. Pour programmer des cues, preferer eos_new_command avec clearLine=true et terminateWithEnter=true.
 
 **Arguments :**
 
@@ -1386,12 +1386,6 @@ _Pas de mapping OSC documenté._
 
 **Arguments :** Aucun argument.
 
-**Comportement transport/heartbeat :**
-- Le manager OSC envoie un heartbeat regulier (`/eos/ping`).
-- Par defaut, l'accuse de reception heartbeat est valide uniquement si le paquet entrant contient l'adresse OSC `/eos/ping/reply` (message simple ou bundle).
-- Les paquets non OSC ou les autres adresses n'actualisent pas l'ack heartbeat, ce qui permet de detecter plus vite une liaison stale/cassee.
-- Ce comportement peut etre surcharge via `heartbeatResponseMatcher` lors de la creation de la gateway/connection manager.
-
 **Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
 
 **Exemples :**
@@ -1924,7 +1918,7 @@ oscsend 127.0.0.1 8001 /eos/magic_sheet/send_string s:'{"osc_command":"exemple"}
 <a id="eos-new-command"></a>
 ## Nouvelle commande EOS (`eos_new_command`)
 
-**Description :** Efface optionnellement la ligne de commande puis envoie le texte fourni.
+**Description :** Efface optionnellement la ligne de commande puis envoie le texte fourni. Outil recommande pour appliquer les bonnes pratiques de programmation de cues du manuel EOS.
 
 **Arguments :**
 

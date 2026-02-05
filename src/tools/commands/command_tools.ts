@@ -20,6 +20,15 @@ const mappingAnnotations = (osc: string, cli: string): Record<string, unknown> =
   }
 });
 
+const cueProgrammingGuardrails = {
+  workflow: [
+    'Programmer les cues en sequence explicite: selection, parametrage, record, label.',
+    'Preferer eos_new_command avec clearLine=true pour eviter les restes de saisie.',
+    'Activer terminateWithEnter=true pour valider sans concatenation ambigue de #.'
+  ],
+  manual: ['manual://eos#command-line', 'manual://eos#cue-timing', 'manual://eos#cue-playback']
+};
+
 function ensureTerminator(command: string, terminate?: boolean): string {
   if (!terminate) {
     return command;
@@ -112,7 +121,7 @@ const commandInputSchema = {
 /**
  * @tool eos_command
  * @summary Commande EOS
- * @description Envoie du texte sur la ligne de commande existante de la console.
+ * @description Envoie du texte sur la ligne de commande existante de la console. Pour programmer des cues, preferer eos_new_command avec clearLine=true et terminateWithEnter=true.
  * @arguments Voir docs/tools.md#eos-command pour le schema complet.
  * @returns ToolExecutionResult avec contenu texte et objet.
  * @example CLI Consultez docs/tools.md#eos-command pour un exemple CLI.
@@ -122,9 +131,13 @@ export const eosCommandTool: ToolDefinition<typeof commandInputSchema> = {
   name: 'eos_command',
   config: {
     title: 'Commande EOS',
-    description: 'Envoie du texte sur la ligne de commande existante de la console.',
+    description:
+      'Envoie du texte sur la ligne de commande existante de la console. Pour programmer des cues, preferer eos_new_command avec clearLine=true et terminateWithEnter=true.',
     inputSchema: commandInputSchema,
-    annotations: mappingAnnotations(oscMappings.commands.command, 'command_line')
+    annotations: {
+      ...mappingAnnotations(oscMappings.commands.command, 'command_line'),
+      recommendedUsage: cueProgrammingGuardrails
+    }
   },
   handler: async (args, _extra) => {
     const schema = z.object(commandInputSchema).strict();
@@ -156,7 +169,7 @@ const newCommandInputSchema = {
 /**
  * @tool eos_new_command
  * @summary Nouvelle commande EOS
- * @description Efface optionnellement la ligne de commande puis envoie le texte fourni.
+ * @description Efface optionnellement la ligne de commande puis envoie le texte fourni. Outil recommande pour appliquer les bonnes pratiques de programmation de cues du manuel EOS.
  * @arguments Voir docs/tools.md#eos-new-command pour le schema complet.
  * @returns ToolExecutionResult avec contenu texte et objet.
  * @example CLI Consultez docs/tools.md#eos-new-command pour un exemple CLI.
@@ -166,9 +179,13 @@ export const eosNewCommandTool: ToolDefinition<typeof newCommandInputSchema> = {
   name: 'eos_new_command',
   config: {
     title: 'Nouvelle commande EOS',
-    description: 'Efface optionnellement la ligne de commande puis envoie le texte fourni.',
+    description:
+      'Efface optionnellement la ligne de commande puis envoie le texte fourni. Outil recommande pour appliquer les bonnes pratiques de programmation de cues du manuel EOS.',
     inputSchema: newCommandInputSchema,
-    annotations: mappingAnnotations(oscMappings.commands.newCommand, 'command_line_new')
+    annotations: {
+      ...mappingAnnotations(oscMappings.commands.newCommand, 'command_line_new'),
+      recommendedUsage: cueProgrammingGuardrails
+    }
   },
   handler: async (args, _extra) => {
     const schema = z.object(newCommandInputSchema).strict();
