@@ -1386,6 +1386,12 @@ _Pas de mapping OSC documenté._
 
 **Arguments :** Aucun argument.
 
+**Comportement transport/heartbeat :**
+- Le manager OSC envoie un heartbeat regulier (`/eos/ping`).
+- Par defaut, l'accuse de reception heartbeat est valide uniquement si le paquet entrant contient l'adresse OSC `/eos/ping/reply` (message simple ou bundle).
+- Les paquets non OSC ou les autres adresses n'actualisent pas l'ack heartbeat, ce qui permet de detecter plus vite une liaison stale/cassee.
+- Ce comportement peut etre surcharge via `heartbeatResponseMatcher` lors de la creation de la gateway/connection manager.
+
 **Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
 
 **Exemples :**

@@ -431,6 +431,46 @@ describe('OscConnectionGateway', () => {
     );
   });
 
+  it('configure un heartbeatResponseMatcher par defaut qui valide /eos/ping/reply', () => {
+    createOscConnectionGateway({
+      host: '127.0.0.1',
+      tcpPort: 3032,
+      udpPort: 8001,
+      localPort: 8000
+    });
+
+    const manager = instances.at(-1);
+    if (!manager) {
+      throw new Error('Gestionnaire de connexion non initialise');
+    }
+
+    const matcher = manager.options.heartbeatResponseMatcher;
+    expect(typeof matcher).toBe('function');
+
+    const pingReply = Buffer.from(
+      osc.writePacket({ address: '/eos/ping/reply', args: [] }, { metadata: true }) as Uint8Array
+    );
+    expect((matcher as (data: Buffer) => boolean)(pingReply)).toBe(true);
+
+    const handshakeReply = Buffer.from(
+      osc.writePacket({ address: '/eos/handshake/reply', args: [] }, { metadata: true }) as Uint8Array
+    );
+    expect((matcher as (data: Buffer) => boolean)(handshakeReply)).toBe(false);
+
+    const pingBundle = Buffer.from(
+      osc.writePacket(
+        {
+          timeTag: osc.timeTag(0),
+          packets: [{ address: '/eos/ping/reply', args: [] }]
+        },
+        { metadata: true }
+      ) as Uint8Array
+    );
+    expect((matcher as (data: Buffer) => boolean)(pingBundle)).toBe(true);
+
+    expect((matcher as (data: Buffer) => boolean)(Buffer.from('invalid packet'))).toBe(false);
+  });
+
   it('reinitialise les statistiques et le temps de fonctionnement lors de la reconfiguration', async () => {
     jest.useFakeTimers();
     try {

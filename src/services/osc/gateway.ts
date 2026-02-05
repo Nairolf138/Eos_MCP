@@ -39,6 +39,7 @@ export interface OscConnectionGatewayOptions extends OscConnectionManagerOptions
 type StatusListener = (status: TransportStatus) => void;
 
 const DEFAULT_METADATA = true;
+const DEFAULT_HEARTBEAT_REPLY_ADDRESS = '/eos/ping/reply';
 
 type OscGatewayFactoryOptions = Partial<
   Pick<
@@ -50,6 +51,8 @@ type OscGatewayFactoryOptions = Partial<
     | 'reconnectTimeoutMs'
     | 'connectionTimeoutMs'
     | 'connectionStateProvider'
+    | 'heartbeatPayload'
+    | 'heartbeatResponseMatcher'
   >
 >;
 
@@ -65,6 +68,34 @@ function cloneArgs(args: OscMessageArgument[] | undefined): OscMessageArgument[]
     return [];
   }
   return args.map((arg) => ({ ...arg }));
+}
+
+function hasAddressInOscPacket(packet: unknown, expectedAddress: string): boolean {
+  if (!packet || typeof packet !== 'object') {
+    return false;
+  }
+
+  const candidate = packet as { address?: unknown; packets?: unknown[] };
+  if (candidate.address === expectedAddress) {
+    return true;
+  }
+
+  if (!Array.isArray(candidate.packets)) {
+    return false;
+  }
+
+  return candidate.packets.some((nestedPacket) => hasAddressInOscPacket(nestedPacket, expectedAddress));
+}
+
+function createHeartbeatResponseMatcher(metadata: boolean): (data: Buffer) => boolean {
+  return (data: Buffer): boolean => {
+    try {
+      const packet = osc.readPacket(data, { metadata });
+      return hasAddressInOscPacket(packet, DEFAULT_HEARTBEAT_REPLY_ADDRESS);
+    } catch {
+      return false;
+    }
+  };
 }
 
 export class OscConnectionGateway implements OscGateway {
@@ -265,8 +296,18 @@ export class OscConnectionGateway implements OscGateway {
   }
 
   private createManager(options: OscConnectionGatewayOptions): OscConnectionManager {
-    const { metadata: _metadata, connectionStateProvider: _provider, ...rest } = options;
-    return new OscConnectionManager(rest);
+    const {
+      metadata: _metadata,
+      connectionStateProvider: _provider,
+      heartbeatResponseMatcher,
+      ...rest
+    } = options;
+
+    return new OscConnectionManager({
+      ...rest,
+      heartbeatResponseMatcher:
+        heartbeatResponseMatcher ?? createHeartbeatResponseMatcher(this.metadata)
+    });
   }
 
   private attachManagerEvents(manager: OscConnectionManager): void {
