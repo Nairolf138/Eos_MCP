@@ -227,6 +227,11 @@ async function printToolList(): Promise<void> {
 }
 
 async function loadToolDefinitions(): Promise<ToolDefinition[]> {
+  const shouldRequireDocRead = isTruthyFlag(process.env.MCP_REQUIRE_DOC_READ);
+  if (!shouldRequireDocRead) {
+    return toolDefinitions;
+  }
+
   return toolDefinitions.map((definition) => ({
     ...definition,
     middlewares: [requireDocumentationRead, ...(definition.middlewares ?? [])]
