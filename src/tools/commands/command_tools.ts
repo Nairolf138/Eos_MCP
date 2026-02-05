@@ -2,13 +2,15 @@ import { z } from 'zod';
 import { getOscClient, type CommandLineState } from '../../services/osc/client';
 import { oscMappings } from '../../services/osc/mappings';
 import { getCurrentUserId } from '../session/index';
+import { assertSensitiveActionAllowed, createDryRunResult, isSensitiveCommandText, safetyOptionsSchema } from '../common/safety';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 type SubstitutionValue = string | number | boolean;
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
-  targetPort: z.coerce.number().int().min(1).max(65535).optional()
+  targetPort: z.coerce.number().int().min(1).max(65535).optional(),
+  ...safetyOptionsSchema
 };
 
 const substitutionsSchema = z.array(z.union([z.string(), z.number(), z.boolean()])).optional();
@@ -118,6 +120,7 @@ export interface DeterministicCommandOptions {
   user?: number;
   targetAddress?: string;
   targetPort?: number;
+  dry_run?: boolean;
 }
 
 export async function sendDeterministicCommand(options: DeterministicCommandOptions): Promise<ToolExecutionResult> {
@@ -125,6 +128,17 @@ export async function sendDeterministicCommand(options: DeterministicCommandOpti
   const command = ensureTerminator(options.command, options.terminateWithEnter);
   const shouldClear = options.clearLine !== false;
   const user = resolveUserId(options.user);
+
+  if (options.dry_run) {
+    return createDryRunResult({
+      text: `Commande simulee: ${command}`,
+      action: shouldClear ? 'new_command' : 'command',
+      request: { command, clearLine: shouldClear, user: user ?? null },
+      oscAddress: shouldClear ? oscMappings.commands.newCommand : oscMappings.commands.command,
+      oscArgs: buildOscDescriptor(command, user ?? null).args,
+      cli: { text: command }
+    });
+  }
 
   if (shouldClear) {
     await client.sendNewCommand(command, {
@@ -180,6 +194,21 @@ export const eosCommandTool: ToolDefinition<typeof commandInputSchema> = {
 
     const user = resolveUserId(options.user);
 
+    if (options.dry_run) {
+      return createDryRunResult({
+        text: `Commande simulee: ${command}`,
+        action: 'command',
+        request: { command, user: user ?? null },
+        oscAddress: oscMappings.commands.command,
+        oscArgs: buildOscDescriptor(command, user ?? null).args,
+        cli: { text: command }
+      });
+    }
+
+    if (isSensitiveCommandText(command)) {
+      assertSensitiveActionAllowed(options, 'eos_command');
+    }
+
     await client.sendCommand(command, {
       user,
       targetAddress: options.targetAddress,
@@ -224,13 +253,17 @@ export const eosNewCommandTool: ToolDefinition<typeof newCommandInputSchema> = {
     const schema = z.object(newCommandInputSchema).strict();
     const options = schema.parse(args ?? {});
     const substituted = applySubstitutions(options.command, options.substitutions ?? []);
+    if (!options.dry_run && isSensitiveCommandText(substituted)) {
+      assertSensitiveActionAllowed(options, 'eos_new_command');
+    }
     return sendDeterministicCommand({
       command: substituted,
       terminateWithEnter: options.terminateWithEnter,
       clearLine: options.clearLine,
       user: options.user,
       targetAddress: options.targetAddress,
-      targetPort: options.targetPort
+      targetPort: options.targetPort,
+      dry_run: options.dry_run
     });
   }
 };
@@ -268,6 +301,21 @@ export const eosCommandWithSubstitutionTool: ToolDefinition<typeof substitutionC
     const command = ensureTerminator(substituted, options.terminateWithEnter);
 
     const user = resolveUserId(options.user);
+
+    if (options.dry_run) {
+      return createDryRunResult({
+        text: `Commande simulee: ${command}`,
+        action: 'command',
+        request: { command, user: user ?? null },
+        oscAddress: oscMappings.commands.command,
+        oscArgs: buildOscDescriptor(command, user ?? null).args,
+        cli: { text: command }
+      });
+    }
+
+    if (isSensitiveCommandText(command)) {
+      assertSensitiveActionAllowed(options, 'eos_command_with_substitution');
+    }
 
     await client.sendCommand(command, {
       user,
@@ -307,6 +355,16 @@ export const eosGetCommandLineTool: ToolDefinition<typeof commandLineInputSchema
     const options = schema.parse(args ?? {});
     const client = getOscClient();
     const user = resolveUserId(options.user);
+    if (options.dry_run) {
+      return createDryRunResult({
+        text: `Lecture ligne de commande simulee pour utilisateur ${user ?? 'global'}`,
+        action: 'get_command_line',
+        request: { user: user ?? null },
+        oscAddress: oscMappings.commands.getCommandLine,
+        oscArgs: { user: user ?? null }
+      });
+    }
+
     const result = await client.getCommandLine({
       user,
       timeoutMs: options.timeoutMs,

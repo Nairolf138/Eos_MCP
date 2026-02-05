@@ -7,11 +7,13 @@ import {
 } from '../../services/cache/index';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import { oscMappings } from '../../services/osc/mappings';
+import { createDryRunResult, resolveSafetyOptions, safetyOptionsSchema } from '../common/safety';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
-  targetPort: z.coerce.number().int().min(1).max(65535).optional()
+  targetPort: z.coerce.number().int().min(1).max(65535).optional(),
+  ...safetyOptionsSchema
 } satisfies ZodRawShape;
 
 const timeoutSchema = z.coerce.number().int().min(50).optional();
@@ -679,6 +681,18 @@ export const eosPatchGetChannelInfoTool: ToolDefinition<typeof channelInfoInputS
       channel: options.channel_number,
       part: options.part_number ?? 0
     };
+    const safety = resolveSafetyOptions(options);
+
+    if (safety.dryRun) {
+      return createDryRunResult({
+        text: `Lecture patch simulee pour canal ${options.channel_number}`,
+        action: 'patch_get_channel_info',
+        request: payload,
+        oscAddress: oscMappings.patch.channelInfo,
+        oscArgs: payload
+      });
+    }
+
     const cacheKey = createCacheKey({
       address: oscMappings.patch.channelInfo,
       payload,
@@ -755,6 +769,18 @@ export const eosPatchGetAugment3dPositionTool: ToolDefinition<typeof augment3dIn
       channel: options.channel_number,
       part: options.part_number
     };
+    const safety = resolveSafetyOptions(options);
+
+    if (safety.dryRun) {
+      return createDryRunResult({
+        text: `Lecture Augment3d position simulee pour canal ${options.channel_number}/${options.part_number}`,
+        action: 'patch_get_augment3d_position',
+        request: payload,
+        oscAddress: oscMappings.patch.augment3dPosition,
+        oscArgs: payload
+      });
+    }
+
     const cacheKey = createCacheKey({
       address: oscMappings.patch.augment3dPosition,
       payload,
@@ -828,6 +854,18 @@ export const eosPatchGetAugment3dBeamTool: ToolDefinition<typeof augment3dInputS
       channel: options.channel_number,
       part: options.part_number
     };
+    const safety = resolveSafetyOptions(options);
+
+    if (safety.dryRun) {
+      return createDryRunResult({
+        text: `Lecture Augment3d beam simulee pour canal ${options.channel_number}/${options.part_number}`,
+        action: 'patch_get_augment3d_beam',
+        request: payload,
+        oscAddress: oscMappings.patch.augment3dBeam,
+        oscArgs: payload
+      });
+    }
+
     const cacheKey = createCacheKey({
       address: oscMappings.patch.augment3dBeam,
       payload,

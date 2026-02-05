@@ -57,8 +57,24 @@ describe('palette tools', () => {
     setOscClient(null);
   });
 
+
+  it('retourne une simulation en dry_run pour un declenchement palette', async () => {
+    const result = await runTool(eosColorPaletteFireTool, { palette_number: 42, dry_run: true });
+    expect(service.sentMessages).toHaveLength(0);
+    expect(getStructuredContent(result)).toMatchObject({
+      action: 'palette_fire',
+      dry_run: true,
+      osc: { address: oscMappings.palettes.color.fire }
+    });
+  });
+
+  it('bloque un declenchement palette sans confirmation explicite', async () => {
+    await expect(runTool(eosColorPaletteFireTool, { palette_number: 42 })).rejects.toThrow('Action sensible bloquee');
+    expect(service.sentMessages).toHaveLength(0);
+  });
+
   it('envoie un argument numerique lors du declenchement dune palette', async () => {
-    await runTool(eosColorPaletteFireTool, { palette_number: 42 });
+    await runTool(eosColorPaletteFireTool, { palette_number: 42, require_confirmation: true });
 
     expect(service.sentMessages).toHaveLength(1);
     const [message] = service.sentMessages;
@@ -134,9 +150,9 @@ describe('palette tools', () => {
   });
 
   it('declenche chaque type de palette avec le bon mapping', async () => {
-    await runTool(eosIntensityPaletteFireTool, { palette_number: 1 });
-    await runTool(eosFocusPaletteFireTool, { palette_number: 2 });
-    await runTool(eosBeamPaletteFireTool, { palette_number: 3 });
+    await runTool(eosIntensityPaletteFireTool, { palette_number: 1, require_confirmation: true });
+    await runTool(eosFocusPaletteFireTool, { palette_number: 2, require_confirmation: true });
+    await runTool(eosBeamPaletteFireTool, { palette_number: 3, require_confirmation: true });
 
     expect(service.sentMessages).toHaveLength(3);
     const addresses = service.sentMessages.map((message) => message.address);

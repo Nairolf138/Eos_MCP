@@ -45,6 +45,31 @@ describe('command tools', () => {
     clearCurrentUserId();
   });
 
+
+  it('retourne la commande calculee sans envoi en dry_run', async () => {
+    const result = await runTool(eosCommandTool, { command: 'Chan 9 At 50', dry_run: true, user: 3 });
+
+    expect(service.sentMessages).toHaveLength(0);
+    const structured = getStructuredContent(result);
+    expect(structured).toMatchObject({
+      action: 'command',
+      dry_run: true,
+      osc: { address: '/eos/cmd' },
+      cli: { text: 'Chan 9 At 50' }
+    });
+  });
+
+  it('bloque les commandes sensibles sans confirmation explicite', async () => {
+    await expect(runTool(eosCommandTool, { command: 'Record Cue 1' })).rejects.toThrow('Action sensible bloquee');
+    expect(service.sentMessages).toHaveLength(0);
+  });
+
+  it('autorise les commandes sensibles avec confirmation explicite', async () => {
+    await runTool(eosCommandTool, { command: 'Record Cue 1', require_confirmation: true });
+    expect(service.sentMessages).toHaveLength(1);
+    expect(service.sentMessages[0]?.address).toBe('/eos/cmd');
+  });
+
   it('envoie une commande en respectant le terminateur', async () => {
     const result = await runTool(eosCommandTool, { command: 'Chan 1', terminateWithEnter: true, user: 2 });
 

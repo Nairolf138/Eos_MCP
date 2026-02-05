@@ -1,6 +1,7 @@
 import { z, type ZodRawShape } from 'zod';
 import { getOscClient } from '../../services/osc/client';
 import { oscMappings } from '../../services/osc/mappings';
+import { createDryRunResult, resolveSafetyOptions } from '../common/safety';
 import type { ToolDefinition } from '../types';
 import {
   createCueCommandResult,
@@ -52,6 +53,23 @@ export const eosCueStopBackTool: ToolDefinition<typeof stopBackInputSchema> = {
 
     const action = options.back ? 'cue_back' : 'cue_stop';
     const command = `Cue ${listNumber} ${options.back ? 'Back#' : 'Stop#'}`;
+    const safety = resolveSafetyOptions(options);
+
+    if (safety.dryRun) {
+      return createDryRunResult({
+        text: `${options.back ? 'Back' : 'Stop'} simule sur ${formatCueDescription(identifier)}`,
+        action,
+        request: { command },
+        oscAddress: oscMappings.cues.stopBackCommand,
+        oscArgs: [
+          {
+            type: 's',
+            value: command
+          }
+        ],
+        cli: { text: command }
+      });
+    }
 
     await client.sendCommand(command, extractTargetOptions(options));
 

@@ -8,11 +8,18 @@ import {
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
 import { oscMappings } from '../../services/osc/mappings';
+import {
+  assertSensitiveActionAllowed,
+  createDryRunResult,
+  resolveSafetyOptions,
+  safetyOptionsSchema
+} from '../common/safety';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
-  targetPort: z.coerce.number().int().min(1).max(65535).optional()
+  targetPort: z.coerce.number().int().min(1).max(65535).optional(),
+  ...safetyOptionsSchema
 } satisfies ZodRawShape;
 
 const paletteNumberSchema = z.coerce
@@ -349,6 +356,23 @@ function createPaletteFireTool({ type, name, title, description, mapping }: Pale
         }
       ];
 
+      const safety = resolveSafetyOptions(options);
+      if (safety.dryRun) {
+        return createDryRunResult({
+          text: `Palette ${paletteTypeLabels[type]} ${options.palette_number} simulee`,
+          action: 'palette_fire',
+          request: { palette_number: options.palette_number, palette_type: type },
+          oscAddress: mapping,
+          oscArgs,
+          extra: {
+            palette_type: type,
+            palette_number: options.palette_number
+          }
+        });
+      }
+
+      assertSensitiveActionAllowed(options, `${name}`);
+
       await client.sendMessage(mapping, oscArgs, extractTargetOptions(options));
 
       return createResult(`Palette ${paletteTypeLabels[type]} ${options.palette_number} declenchee`, {
@@ -473,8 +497,19 @@ export const eosPaletteGetInfoTool: ToolDefinition<typeof paletteGetInfoInputSch
       palette: options.palette_number,
       type: options.palette_type
     };
+    const safety = resolveSafetyOptions(options);
     if (options.fields?.length) {
       payload.fields = options.fields;
+    }
+
+    if (safety.dryRun) {
+      return createDryRunResult({
+        text: `Lecture palette simulee (${options.palette_type} ${options.palette_number})`,
+        action: 'palette_get_info',
+        request: payload,
+        oscAddress: mapping,
+        oscArgs: payload
+      });
     }
 
     const cacheKey = createCacheKey({

@@ -47,6 +47,17 @@ describe('patch tools', () => {
     setOscClient(null);
   });
 
+
+  it('retourne la requete patch calculee en dry_run', async () => {
+    const result = await runTool(eosPatchGetChannelInfoTool, { channel_number: 101, dry_run: true });
+    expect(service.sentMessages).toHaveLength(0);
+    expect(extractStructuredContent(result)).toMatchObject({
+      action: 'patch_get_channel_info',
+      dry_run: true,
+      osc: { address: oscMappings.patch.channelInfo }
+    });
+  });
+
   it("envoie l'ordre de lecture des informations de patch", async () => {
     const promise = runTool(eosPatchGetChannelInfoTool, { channel_number: 101, part_number: 0 });
 

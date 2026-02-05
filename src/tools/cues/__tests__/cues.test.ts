@@ -6,7 +6,8 @@ import {
   eosCueStopBackTool,
   eosCuelistBankCreateTool,
   eosCuelistBankPageTool,
-  eosGetActiveCueTool
+  eosGetActiveCueTool,
+  eosCueFireTool
 } from '../index';
 import { getStructuredContent, runTool } from '../../__tests__/helpers/runTool';
 
@@ -42,6 +43,22 @@ describe('cue tools', () => {
 
   afterEach(() => {
     setOscClient(null);
+  });
+
+
+  it('bloque cue_fire sans confirmation explicite', async () => {
+    await expect(runTool(eosCueFireTool, { cuelist_number: 1, cue_number: 10 })).rejects.toThrow('Action sensible bloquee');
+    expect(service.sentMessages).toHaveLength(0);
+  });
+
+  it('retourne la commande cue_fire calculee en dry_run', async () => {
+    const result = await runTool(eosCueFireTool, { cuelist_number: 1, cue_number: 10, dry_run: true });
+    expect(service.sentMessages).toHaveLength(0);
+    expect(getStructuredContent(result)).toMatchObject({
+      action: 'cue_fire',
+      dry_run: true,
+      osc: { address: oscMappings.cues.fire }
+    });
   });
 
   it('enchaine un go puis un stop back sur la meme liste', async () => {

@@ -1,6 +1,7 @@
 import { z, type ZodRawShape } from 'zod';
 import { getOscClient } from '../../services/osc/client';
 import { oscMappings } from '../../services/osc/mappings';
+import { assertSensitiveActionAllowed, createDryRunResult, resolveSafetyOptions } from '../common/safety';
 import type { ToolDefinition } from '../types';
 import {
   buildCueCommandPayload,
@@ -56,8 +57,22 @@ export const eosCueFireTool: ToolDefinition<typeof fireInputSchema> = {
     };
 
     const payload = buildCueCommandPayload(identifier, { defaultPart: 0 });
+    const oscArgs = buildJsonArgs(payload);
+    const safety = resolveSafetyOptions(options);
 
-    await client.sendMessage(oscMappings.cues.fire, buildJsonArgs(payload), extractTargetOptions(options));
+    if (safety.dryRun) {
+      return createDryRunResult({
+        text: `Declenchement simule de ${formatCueDescription(identifier)}`,
+        action: 'cue_fire',
+        request: payload,
+        oscAddress: oscMappings.cues.fire,
+        oscArgs
+      });
+    }
+
+    assertSensitiveActionAllowed(options, 'eos_cue_fire');
+
+    await client.sendMessage(oscMappings.cues.fire, oscArgs, extractTargetOptions(options));
 
     return createCueCommandResult(
       'cue_fire',

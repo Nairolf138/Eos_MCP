@@ -463,6 +463,16 @@ function buildDocumentation(tools: ToolDefinition[]): { markdown: string; metada
   lines.push('');
   lines.push("Chaque outil expose son nom MCP, une description, la liste des arguments attendus ainsi qu'un exemple d'appel en CLI et par OSC.");
   lines.push('');
+  lines.push('## Options communes de securite (outils critiques)');
+  lines.push('');
+  lines.push('Les outils critiques des familles **cues**, **patch**, **palettes** et **commandes texte** exposent les options suivantes :');
+  lines.push('');
+  lines.push('- `dry_run` (`boolean`) : calcule la commande OSC/Eos et la retourne dans `structuredContent.osc` sans envoi vers la console.');
+  lines.push('- `require_confirmation` (`boolean`) : confirmation explicite requise pour les actions sensibles.');
+  lines.push("- `safety_level` (`strict` | `standard` | `off`) : niveau de garde-fou applique (par defaut `strict`).");
+  lines.push('');
+  lines.push('En mode `strict`/`standard`, les actions sensibles (`record`, `update`, `delete`, `live fire`, et declenchements `fire`) sont bloquees sans `require_confirmation=true`.');
+  lines.push('');
 
   const highlightedTools = sortedTools.filter((tool) =>
     isHighlighted(tool.config.annotations as Record<string, unknown> | undefined)
