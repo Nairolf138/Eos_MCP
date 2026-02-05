@@ -111,6 +111,39 @@ function resolveUserId(requested?: number | null): number | undefined {
   return undefined;
 }
 
+export interface DeterministicCommandOptions {
+  command: string;
+  terminateWithEnter?: boolean;
+  clearLine?: boolean;
+  user?: number;
+  targetAddress?: string;
+  targetPort?: number;
+}
+
+export async function sendDeterministicCommand(options: DeterministicCommandOptions): Promise<ToolExecutionResult> {
+  const client = getOscClient();
+  const command = ensureTerminator(options.command, options.terminateWithEnter);
+  const shouldClear = options.clearLine !== false;
+  const user = resolveUserId(options.user);
+
+  if (shouldClear) {
+    await client.sendNewCommand(command, {
+      user,
+      targetAddress: options.targetAddress,
+      targetPort: options.targetPort
+    });
+    return formatSendResult(command, user ?? null, oscMappings.commands.newCommand);
+  }
+
+  await client.sendCommand(command, {
+    user,
+    targetAddress: options.targetAddress,
+    targetPort: options.targetPort
+  });
+
+  return formatSendResult(command, user ?? null, oscMappings.commands.command);
+}
+
 const commandInputSchema = {
   command: z.string().min(1, 'La commande ne peut pas etre vide'),
   terminateWithEnter: z.boolean().optional(),
@@ -190,29 +223,15 @@ export const eosNewCommandTool: ToolDefinition<typeof newCommandInputSchema> = {
   handler: async (args, _extra) => {
     const schema = z.object(newCommandInputSchema).strict();
     const options = schema.parse(args ?? {});
-    const client = getOscClient();
     const substituted = applySubstitutions(options.command, options.substitutions ?? []);
-    const command = ensureTerminator(substituted, options.terminateWithEnter);
-    const shouldClear = options.clearLine !== false;
-
-    const user = resolveUserId(options.user);
-
-    if (shouldClear) {
-      await client.sendNewCommand(command, {
-        user,
-        targetAddress: options.targetAddress,
-        targetPort: options.targetPort
-      });
-      return formatSendResult(command, user ?? null, oscMappings.commands.newCommand);
-    }
-
-    await client.sendCommand(command, {
-      user,
+    return sendDeterministicCommand({
+      command: substituted,
+      terminateWithEnter: options.terminateWithEnter,
+      clearLine: options.clearLine,
+      user: options.user,
       targetAddress: options.targetAddress,
       targetPort: options.targetPort
     });
-
-    return formatSendResult(command, user ?? null, oscMappings.commands.command);
   }
 };
 

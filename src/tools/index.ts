@@ -28,6 +28,7 @@ import queryTools from './queries/index';
 import fpeTools from './fpe/index';
 import dmxTools from './dmx/index';
 import sessionTools from './session/index';
+import programmingTools from './programming/index';
 import type { ToolDefinition } from './types';
 
 const definitions = [
@@ -60,7 +61,8 @@ const definitions = [
   ...queryTools,
   ...fpeTools,
   ...dmxTools,
-  ...sessionTools
+  ...sessionTools,
+  ...programmingTools
 ];
 
 export const toolDefinitions = definitions as ToolDefinition[];
