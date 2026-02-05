@@ -37,7 +37,11 @@ jest.mock('../../config/index.js', () => ({
       tcpPort: 3032,
       udpOutPort: 8001,
       udpInPort: 8000,
-      localAddress: '0.0.0.0'
+      localAddress: '0.0.0.0',
+      tcpNoDelay: true,
+      tcpKeepAliveMs: 5000,
+      udpRecvBufferSize: 262144,
+      udpSendBufferSize: 524288
     },
     logging: {
       level: 'info',

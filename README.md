@@ -120,6 +120,9 @@ Variables d’environnement pertinentes :
 - `MCP_HTTP_TRUST_PROXY` à `true` pour faire confiance aux en-têtes `X-Forwarded-*` exposés par un reverse proxy ou un tunnel.
 - `OSC_UDP_IN_PORT` pour le port d'écoute local.
 - `OSC_UDP_OUT_PORT` et `OSC_REMOTE_ADDRESS` pour la cible UDP sortante.
+- `OSC_TCP_NO_DELAY` pour activer `TCP_NODELAY` sur le socket TCP (par défaut `true`).
+- `OSC_TCP_KEEP_ALIVE_MS` pour l'intervalle de keep-alive TCP en millisecondes (par défaut `5000`).
+- `OSC_UDP_RECV_BUFFER_SIZE` et `OSC_UDP_SEND_BUFFER_SIZE` pour ajuster les buffers UDP (par défaut `262144`/`524288` octets selon les limites OS).
 
 ### Étapes côté console Eos
 

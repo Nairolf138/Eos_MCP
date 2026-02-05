@@ -22,7 +22,11 @@ describe('configuration', () => {
         tcpPort: 3032,
         udpOutPort: 8001,
         udpInPort: 8000,
-        localAddress: '0.0.0.0'
+        localAddress: '0.0.0.0',
+        tcpNoDelay: true,
+        tcpKeepAliveMs: 5000,
+        udpRecvBufferSize: 262144,
+        udpSendBufferSize: 524288
       },
       logging: {
         level: 'info',
@@ -61,6 +65,10 @@ describe('configuration', () => {
       OSC_UDP_OUT_PORT: '4001',
       OSC_UDP_IN_PORT: '4002',
       OSC_LOCAL_ADDRESS: '192.168.1.2',
+      OSC_TCP_NO_DELAY: 'false',
+      OSC_TCP_KEEP_ALIVE_MS: '9000',
+      OSC_UDP_RECV_BUFFER_SIZE: '262144',
+      OSC_UDP_SEND_BUFFER_SIZE: '524288',
       LOG_LEVEL: 'DEBUG',
       MCP_LOG_FILE: 'var/log/eos-mcp.log',
       LOG_DESTINATIONS: 'stdout,file',
@@ -82,7 +90,11 @@ describe('configuration', () => {
       tcpPort: 4000,
       udpOutPort: 4001,
       udpInPort: 4002,
-      localAddress: '192.168.1.2'
+      localAddress: '192.168.1.2',
+      tcpNoDelay: false,
+      tcpKeepAliveMs: 9000,
+      udpRecvBufferSize: 262144,
+      udpSendBufferSize: 524288
     });
     expect(config.logging.level).toBe('debug');
     expect(config.logging.format).toBe('pretty');

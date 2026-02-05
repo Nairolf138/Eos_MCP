@@ -8,6 +8,10 @@ const DEFAULT_OSC_LOCAL_ADDRESS = '0.0.0.0';
 const DEFAULT_OSC_TCP_PORT = 3032;
 const DEFAULT_OSC_UDP_OUT_PORT = 8001;
 const DEFAULT_OSC_UDP_IN_PORT = 8000;
+const DEFAULT_OSC_TCP_NO_DELAY = true;
+const DEFAULT_OSC_TCP_KEEP_ALIVE_MS = 5_000;
+const DEFAULT_OSC_UDP_RECV_BUFFER_SIZE = 262_144;
+const DEFAULT_OSC_UDP_SEND_BUFFER_SIZE = 524_288;
 const DEFAULT_LOG_LEVEL = 'info';
 const DEFAULT_HTTP_RATE_LIMIT_WINDOW_MS = 60_000;
 const DEFAULT_HTTP_RATE_LIMIT_MAX_REQUESTS = 60;
@@ -69,6 +73,14 @@ export interface OscConfig {
   readonly udpInPort: number;
   /** Adresse locale à laquelle écouter pour les messages OSC entrants. */
   readonly localAddress: string;
+  /** Active l'algorithme TCP_NODELAY pour réduire la latence. */
+  readonly tcpNoDelay: boolean;
+  /** Intervalle du keep-alive TCP (en millisecondes). */
+  readonly tcpKeepAliveMs: number;
+  /** Taille du buffer de réception UDP (en octets). */
+  readonly udpRecvBufferSize: number;
+  /** Taille du buffer d'émission UDP (en octets). */
+  readonly udpSendBufferSize: number;
 }
 
 /**
@@ -364,6 +376,33 @@ function createOptionalBooleanSchema(
   });
 }
 
+function createBooleanSchema(
+  variableName: string,
+  defaultValue: boolean
+): z.ZodEffects<z.ZodUnknown, boolean, unknown> {
+  return z.unknown().transform((value, ctx) => {
+    if (value === undefined || value === null) {
+      return defaultValue;
+    }
+
+    const raw = typeof value === 'string' ? value.trim().toLowerCase() : String(value).trim().toLowerCase();
+
+    if (raw === 'true' || raw === '1' || raw === 'yes') {
+      return true;
+    }
+
+    if (raw === 'false' || raw === '0' || raw === 'no') {
+      return false;
+    }
+
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `La variable d'environnement ${variableName} doit être un booléen (true/false).`
+    });
+    return z.NEVER;
+  });
+}
+
 function createStringArraySchema(
   _variableName: string,
   options: { defaultValue?: readonly string[] }
@@ -466,6 +505,19 @@ const configSchema = z
     oscUdpInPort: createPortSchema('OSC_UDP_IN_PORT', { defaultValue: DEFAULT_OSC_UDP_IN_PORT }),
     oscRemoteAddress: createAddressSchema('OSC_REMOTE_ADDRESS', DEFAULT_OSC_REMOTE_ADDRESS),
     oscLocalAddress: createAddressSchema('OSC_LOCAL_ADDRESS', DEFAULT_OSC_LOCAL_ADDRESS),
+    oscTcpNoDelay: createBooleanSchema('OSC_TCP_NO_DELAY', DEFAULT_OSC_TCP_NO_DELAY),
+    oscTcpKeepAliveMs: createPositiveIntegerSchema(
+      'OSC_TCP_KEEP_ALIVE_MS',
+      DEFAULT_OSC_TCP_KEEP_ALIVE_MS
+    ),
+    oscUdpRecvBufferSize: createPositiveIntegerSchema(
+      'OSC_UDP_RECV_BUFFER_SIZE',
+      DEFAULT_OSC_UDP_RECV_BUFFER_SIZE
+    ),
+    oscUdpSendBufferSize: createPositiveIntegerSchema(
+      'OSC_UDP_SEND_BUFFER_SIZE',
+      DEFAULT_OSC_UDP_SEND_BUFFER_SIZE
+    ),
     logLevel: createLogLevelSchema('LOG_LEVEL', DEFAULT_LOG_LEVEL),
     logFilePath: createLogFileSchema('MCP_LOG_FILE', DEFAULT_LOG_FILE),
     logDestinations: createLogDestinationsSchema('LOG_DESTINATIONS', DEFAULT_LOG_DESTINATIONS),
@@ -555,7 +607,11 @@ const configSchema = z
         tcpPort: values.oscTcpPort,
         udpOutPort: values.oscUdpOutPort,
         udpInPort: values.oscUdpInPort,
-        localAddress: values.oscLocalAddress
+        localAddress: values.oscLocalAddress,
+        tcpNoDelay: values.oscTcpNoDelay,
+        tcpKeepAliveMs: values.oscTcpKeepAliveMs,
+        udpRecvBufferSize: values.oscUdpRecvBufferSize,
+        udpSendBufferSize: values.oscUdpSendBufferSize
       },
       logging: {
         level: values.logLevel,
@@ -594,6 +650,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     oscUdpInPort: env.OSC_UDP_IN_PORT,
     oscRemoteAddress: env.OSC_REMOTE_ADDRESS,
     oscLocalAddress: env.OSC_LOCAL_ADDRESS,
+    oscTcpNoDelay: env.OSC_TCP_NO_DELAY,
+    oscTcpKeepAliveMs: env.OSC_TCP_KEEP_ALIVE_MS,
+    oscUdpRecvBufferSize: env.OSC_UDP_RECV_BUFFER_SIZE,
+    oscUdpSendBufferSize: env.OSC_UDP_SEND_BUFFER_SIZE,
     logLevel: env.LOG_LEVEL,
     logFilePath: env.MCP_LOG_FILE,
     logDestinations: env.LOG_DESTINATIONS,
