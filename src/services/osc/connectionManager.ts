@@ -22,6 +22,10 @@ export interface OscConnectionManagerOptions {
   udpPort: number;
   localAddress?: string;
   localPort?: number;
+  tcpNoDelay?: boolean;
+  tcpKeepAliveMs?: number;
+  udpRecvBufferSize?: number;
+  udpSendBufferSize?: number;
   heartbeatIntervalMs?: number;
   reconnectDelayMs?: number;
   reconnectBackoff?: OscReconnectBackoffOptions;
@@ -79,6 +83,14 @@ function createNoopLogger(): Required<OscConnectionLogger> {
 export class OscConnectionManager extends EventEmitter {
   private readonly logger: Required<OscConnectionLogger>;
 
+  private readonly tcpNoDelay: boolean;
+
+  private readonly tcpKeepAliveMs: number;
+
+  private readonly udpRecvBufferSize: number;
+
+  private readonly udpSendBufferSize: number;
+
   private readonly heartbeatIntervalMs: number;
 
   private readonly reconnectBackoff: Required<OscReconnectBackoffOptions>;
@@ -114,6 +126,10 @@ export class OscConnectionManager extends EventEmitter {
       ...options.logger
     };
 
+    this.tcpNoDelay = options.tcpNoDelay ?? true;
+    this.tcpKeepAliveMs = options.tcpKeepAliveMs ?? 5_000;
+    this.udpRecvBufferSize = options.udpRecvBufferSize ?? 262_144;
+    this.udpSendBufferSize = options.udpSendBufferSize ?? 524_288;
     this.heartbeatIntervalMs = options.heartbeatIntervalMs ?? 5_000;
     const backoff = options.reconnectBackoff ?? {};
     const initialDelay = backoff.initialDelayMs ?? options.reconnectDelayMs ?? 1_000;
@@ -337,8 +353,11 @@ export class OscConnectionManager extends EventEmitter {
     socket.on('error', onError);
     socket.on('close', onClose);
     socket.on('timeout', onTimeout);
+    if (typeof socket.setNoDelay === 'function') {
+      socket.setNoDelay(this.tcpNoDelay);
+    }
     if (typeof socket.setKeepAlive === 'function') {
-      socket.setKeepAlive(true);
+      socket.setKeepAlive(true, this.tcpKeepAliveMs);
     }
     if (typeof socket.setTimeout === 'function') {
       socket.setTimeout(this.connectionTimeoutMs);
@@ -348,6 +367,13 @@ export class OscConnectionManager extends EventEmitter {
   private initialiseUdpTransport(state: TransportInternals): void {
     const socket = this.createUdpSocket();
     state.socket = socket;
+
+    if (typeof socket.setRecvBufferSize === 'function') {
+      socket.setRecvBufferSize(this.udpRecvBufferSize);
+    }
+    if (typeof socket.setSendBufferSize === 'function') {
+      socket.setSendBufferSize(this.udpSendBufferSize);
+    }
 
     const onMessage = (message: Buffer): void => {
       this.markHeartbeatAck(state, message);

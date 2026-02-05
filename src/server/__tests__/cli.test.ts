@@ -122,7 +122,11 @@ describe('override de configuration', () => {
         tcpPort: 3032,
         udpOutPort: 8001,
         udpInPort: 8000,
-        localAddress: '0.0.0.0'
+        localAddress: '0.0.0.0',
+        tcpNoDelay: true,
+        tcpKeepAliveMs: 5000,
+        udpRecvBufferSize: 262144,
+        udpSendBufferSize: 524288
       },
       logging: {
         level: 'info',
@@ -158,7 +162,11 @@ describe('override de configuration', () => {
         tcpPort: 3032,
         udpOutPort: 8001,
         udpInPort: 8000,
-        localAddress: '0.0.0.0'
+        localAddress: '0.0.0.0',
+        tcpNoDelay: true,
+        tcpKeepAliveMs: 5000,
+        udpRecvBufferSize: 262144,
+        udpSendBufferSize: 524288
       },
       logging: {
         level: 'info',

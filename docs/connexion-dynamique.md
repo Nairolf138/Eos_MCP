@@ -13,6 +13,10 @@ Ce mini tutoriel explique comment piloter dynamiquement le point d'accès du ser
 | `OSC_UDP_OUT_PORT` | Port UDP distant pour l'envoi des messages OSC. | `8001` |
 | `OSC_UDP_IN_PORT` | Port UDP local pour la réception des messages OSC. | `8000` |
 | `OSC_LOCAL_ADDRESS` | Adresse locale écoutée pour les messages OSC. | `0.0.0.0` |
+| `OSC_TCP_NO_DELAY` | Active `TCP_NODELAY` pour réduire la latence des échanges TCP. | `true` |
+| `OSC_TCP_KEEP_ALIVE_MS` | Intervalle du keep-alive TCP en millisecondes. | `5000` |
+| `OSC_UDP_RECV_BUFFER_SIZE` | Taille du buffer de réception UDP (octets). | `262144` |
+| `OSC_UDP_SEND_BUFFER_SIZE` | Taille du buffer d'émission UDP (octets). | `524288` |
 | `MCP_HTTP_API_KEYS` | Clés API supplémentaires exigées côté HTTP (`X-API-Key`). | Vide (aucune clé) |
 | `MCP_HTTP_MCP_TOKENS` | Jetons MCP (`X-MCP-Token` / `Authorization: Bearer`) requis pour authentifier les clients. | `change-me` |
 | `MCP_HTTP_IP_ALLOWLIST` | Liste d'IP autorisées à consommer la passerelle HTTP/WS (`*` pour tout autoriser). | Vide ⇒ deny all |
