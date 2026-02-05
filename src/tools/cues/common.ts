@@ -1,11 +1,13 @@
 import { z, type ZodRawShape } from 'zod';
 import type { OscMessageArgument } from '../../services/osc/index';
 import type { ToolExecutionResult } from '../types';
+import { safetyOptionsSchema } from '../common/safety';
 import type { CueIdentifier } from './types';
 
 export const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
-  targetPort: z.coerce.number().int().min(1).max(65535).optional()
+  targetPort: z.coerce.number().int().min(1).max(65535).optional(),
+  ...safetyOptionsSchema
 } satisfies ZodRawShape;
 
 export const cuelistNumberSchema = z.coerce.number().int().min(1).max(99999);

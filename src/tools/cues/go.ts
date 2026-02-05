@@ -1,6 +1,7 @@
 import { z, type ZodRawShape } from 'zod';
 import { getOscClient } from '../../services/osc/client';
 import { oscMappings } from '../../services/osc/mappings';
+import { createDryRunResult, resolveSafetyOptions } from '../common/safety';
 import type { ToolDefinition } from '../types';
 import {
   buildCueCommandPayload,
@@ -50,8 +51,20 @@ export const eosCueGoTool: ToolDefinition<typeof goInputSchema> = {
     const client = getOscClient();
     const identifier = createCueIdentifierFromOptions(options);
     const payload = buildCueCommandPayload(identifier);
+    const oscArgs = buildJsonArgs(payload);
+    const safety = resolveSafetyOptions(options);
 
-    await client.sendMessage(oscMappings.cues.go, buildJsonArgs(payload), extractTargetOptions(options));
+    if (safety.dryRun) {
+      return createDryRunResult({
+        text: `GO simule sur ${formatCueDescription(identifier)}`,
+        action: 'cue_go',
+        request: payload,
+        oscAddress: oscMappings.cues.go,
+        oscArgs
+      });
+    }
+
+    await client.sendMessage(oscMappings.cues.go, oscArgs, extractTargetOptions(options));
 
     return createCueCommandResult(
       'cue_go',
