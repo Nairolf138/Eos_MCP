@@ -3,7 +3,6 @@ import { readFile } from 'node:fs/promises';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
 import type { ServerNotification, ServerRequest } from '@modelcontextprotocol/sdk/types.js';
-import { markManualDocumentationRead } from './manualReadTracker';
 
 const MANUAL_FILENAME = 'eos_serie.pdf';
 const MANUAL_RESOURCE_ID = 'eos-manual';
@@ -173,9 +172,6 @@ async function registerManualSections(
       description: section.description,
       base64Data,
       metadata,
-      onRead: ({ sessionId }) => {
-        markManualDocumentationRead(sessionId);
-      }
     });
   }
 }
@@ -189,9 +185,6 @@ export async function registerManualResource(server: McpServer): Promise<void> {
     uri: MANUAL_URI,
     title: MANUAL_TITLE,
     base64Data,
-    onRead: ({ sessionId }) => {
-      markManualDocumentationRead(sessionId);
-    }
   });
 
   await registerManualSections(server, buffer);

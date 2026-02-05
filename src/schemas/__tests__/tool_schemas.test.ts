@@ -19,27 +19,4 @@ describe('tool JSON schemas', () => {
     }
   });
 
-  it('marks the session as documented when a schema resource is read', async () => {
-    const registerResource = jest.fn();
-    const server = {
-      registerResource
-    } as unknown as import('@modelcontextprotocol/sdk/server/mcp.js').McpServer;
-
-    const { registerToolSchemas } = await import('../index');
-    const { clearManualDocumentationRead, hasSessionReadManual } =
-      await import('../../resources/manualReadTracker');
-
-    const sessionId = 'schema-resource-session';
-    clearManualDocumentationRead(sessionId);
-    registerToolSchemas(server);
-
-    expect(registerResource).toHaveBeenCalled();
-    const callback = registerResource.mock.calls[0][3] as (
-      uri: URL,
-      extra: { sessionId?: string }
-    ) => Promise<unknown>;
-
-    await callback(new URL('schema://tools/ping'), { sessionId });
-    expect(hasSessionReadManual(sessionId)).toBe(true);
-  });
 });
