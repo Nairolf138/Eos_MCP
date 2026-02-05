@@ -1,6 +1,6 @@
 # Cookbook d'automatisation Eos MCP
 
-Ce guide rassemble des scénarios prêts à l'emploi pour piloter la console ETC Eos via la passerelle MCP. Chaque fiche combine un rappel métier, un exemple JSON, la commande OSC correspondante et un encart « Référence Eos » pointant vers la bonne section du manuel (`docs/eos_serie.pdf`). Consultez également [docs/tools.md](tools.md) pour les schémas complets de chaque outil MCP.
+Ce guide rassemble des scénarios prêts à l'emploi pour piloter la console ETC Eos via la passerelle MCP. Chaque fiche combine un rappel métier, un exemple JSON, la commande OSC correspondante et un encart « Référence Eos » vers des lectures complémentaires du manuel (`docs/eos_serie.pdf`). Consultez également [docs/tools.md](tools.md) pour les schémas complets de chaque outil MCP.
 
 ## Préparer les circuits avant `Record`
 
@@ -48,7 +48,7 @@ oscsend 127.0.0.1 8001 /eos/get/channel s:'{"channels":[101,102,201]}'
 ## Capturer et rappeler une palette couleur
 
 ### Objectif
-Automatiser la préparation ou le rappel d'une palette couleur tout en respectant les prérequis du manuel avant un `Record Palette`.
+Automatiser la préparation ou le rappel d'une palette couleur avant un `Record Palette`.
 
 ### Check-list
 - [ ] Sélectionner les circuits et attributs concernés (p. 172–174).
