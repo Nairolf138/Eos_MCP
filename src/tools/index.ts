@@ -29,6 +29,7 @@ import fpeTools from './fpe/index';
 import dmxTools from './dmx/index';
 import sessionTools from './session/index';
 import programmingTools from './programming/index';
+import workflowTools from './workflows/index';
 import type { ToolDefinition } from './types';
 
 const definitions = [
@@ -62,7 +63,8 @@ const definitions = [
   ...fpeTools,
   ...dmxTools,
   ...sessionTools,
-  ...programmingTools
+  ...programmingTools,
+  ...workflowTools
 ];
 
 export const toolDefinitions = definitions as ToolDefinition[];
