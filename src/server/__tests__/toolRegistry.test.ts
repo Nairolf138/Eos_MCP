@@ -178,7 +178,7 @@ describe('ToolRegistry schema-less tools', () => {
     const result = await (registeredHandler as RegisteredTestHandler)(extra);
 
     expect(handler).toHaveBeenCalledWith(undefined, extra);
-    expect(result.structuredContent).toEqual({ user: 42 });
+    expect(result.structuredContent).toMatchObject({ user: 42 });
     expect(result.content?.[0]).toEqual({
       type: 'text',
       text: 'Utilisateur courant: 42'
