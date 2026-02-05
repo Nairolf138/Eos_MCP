@@ -7,6 +7,7 @@ import commandTools from './commands/command_tools';
 import channelTools from './channels/index';
 import groupTools from './groups/index';
 import pingTool from './ping';
+import eosCapabilitiesGetTool from './capabilities';
 import diagnosticsTools from './diagnostics/index';
 import cueTools from './cues/index';
 import paletteTools from './palettes/index';
@@ -33,6 +34,7 @@ import workflowTools from './workflows/index';
 import type { ToolDefinition } from './types';
 
 const definitions = [
+  eosCapabilitiesGetTool,
   pingTool,
   eosConnectTool,
   eosConfigureTool,

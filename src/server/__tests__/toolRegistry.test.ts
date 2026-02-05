@@ -138,6 +138,28 @@ describe('ToolRegistry schema-less tools', () => {
       caughtError instanceof Error ? caughtError.message : String(caughtError ?? '');
     expect(errorMessage).not.toContain("Consultation requise avant d'utiliser l'outil");
   });
+
+
+  it('enregistre eos_capabilities_get en premiere position via registerMany', async () => {
+    const server = createMockServer();
+    const registry = new ToolRegistry(server);
+
+    const createTool = (name: string): ToolDefinition => ({
+      name,
+      config: { description: name },
+      handler: async () => ({ content: [{ type: 'text', text: name }] })
+    });
+
+    registry.registerMany([
+      createTool('eos_cue_go'),
+      createTool('eos_capabilities_get'),
+      createTool('session_get_current_user')
+    ]);
+
+    expect(server.registerTool).toHaveBeenCalledTimes(3);
+    expect(server.registerTool.mock.calls[0]?.[0]).toBe('eos_capabilities_get');
+  });
+
   it('executes session_get_current_user successfully', async () => {
     const server = createMockServer();
     const registry = new ToolRegistry(server);
