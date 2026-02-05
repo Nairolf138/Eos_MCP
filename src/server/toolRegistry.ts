@@ -5,6 +5,7 @@ import type {
   ToolMiddleware,
   ToolContext
 } from '../tools/types';
+import { setCapabilitiesToolNamesProvider } from '../tools/capabilities/context';
 
 class ToolNotFoundError extends Error {
   constructor(toolName: string, available: string[]) {
@@ -69,7 +70,19 @@ class ToolRegistry {
   }
 
   public registerMany(tools: ToolDefinition[]): void {
-    tools.forEach((tool) => this.register(tool));
+    const orderedTools = [...tools].sort((left, right) => {
+      if (left.name === 'eos_capabilities_get') {
+        return -1;
+      }
+      if (right.name === 'eos_capabilities_get') {
+        return 1;
+      }
+      return 0;
+    });
+
+    setCapabilitiesToolNamesProvider(() => orderedTools.map((tool) => tool.name));
+
+    orderedTools.forEach((tool) => this.register(tool));
     this.server.sendToolListChanged();
   }
 

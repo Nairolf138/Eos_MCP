@@ -2,6 +2,34 @@
 
 Ce guide rassemble des scénarios prêts à l'emploi pour piloter la console ETC Eos via la passerelle MCP. Chaque fiche combine un rappel métier, un exemple JSON, la commande OSC correspondante et un encart « Référence Eos » vers des lectures complémentaires du manuel (`docs/eos_serie.pdf`). Consultez également [docs/tools.md](tools.md) pour les schémas complets de chaque outil MCP.
 
+
+## Vérifier les capacités avant toute action métier
+
+### Objectif
+Imposer une étape de découverte pour que l'agent connaisse l'état de la session avant d'exécuter une action (cue, patch, palettes, etc.).
+
+### Règle agent
+- Appeler **toujours** [`eos_capabilities_get`](tools.md#eos-capabilities-get) en premier.
+- Lire `structuredContent.context` pour vérifier la connexion OSC, l'utilisateur courant, le mode Live/Blind et les restrictions safety.
+- Ne poursuivre vers un outil métier (`eos_cue_*`, `eos_patch_*`, `eos_palette_*`, etc.) que si ces informations sont cohérentes avec l'intention utilisateur.
+
+### Requête MCP (JSON)
+```json
+{
+  "type": "call_tool",
+  "tool": "eos_capabilities_get",
+  "arguments": {}
+}
+```
+
+### Contrat minimum attendu
+- `capabilities.families` : familles disponibles et outils associés.
+- `context.osc_connection` : santé de la connexion OSC.
+- `context.current_user` : utilisateur mémorisé par la session.
+- `context.mode.live_blind` : état courant Live/Blind.
+- `context.safety` : restrictions de sécurité actives.
+- `server.version` + `server.compatibility` : version serveur et compatibilité runtime/protocole.
+
 ## Préparer les circuits avant `Record`
 
 ### Objectif
