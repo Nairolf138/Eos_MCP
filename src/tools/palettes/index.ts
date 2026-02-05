@@ -1,4 +1,5 @@
 import { z, type ZodRawShape } from 'zod';
+import { optionalPortSchema, optionalTimeoutMsSchema, paletteNumberSchema as sharedPaletteNumberSchema } from '../../utils/validators';
 import {
   createCacheKey,
   createOscPrefixTag,
@@ -18,16 +19,11 @@ import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
-  targetPort: z.coerce.number().int().min(1).max(65535).optional(),
+  targetPort: optionalPortSchema,
   ...safetyOptionsSchema
 } satisfies ZodRawShape;
 
-const paletteNumberSchema = z.coerce
-  .number()
-  .int()
-  .min(1)
-  .max(99999)
-  .describe('Numero de palette (1-99999)');
+const paletteNumberSchema = sharedPaletteNumberSchema.describe('Numero de palette (1-99999)');
 
 const paletteTypeSchema = z
   .enum(['ip', 'fp', 'cp', 'bp'])
@@ -68,7 +64,7 @@ const paletteGetInfoInputSchema = {
   palette_type: paletteTypeSchema,
   palette_number: paletteNumberSchema,
   fields: z.array(z.string().min(1)).optional(),
-  timeoutMs: z.coerce.number().int().min(50).optional(),
+  timeoutMs: optionalTimeoutMsSchema,
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 

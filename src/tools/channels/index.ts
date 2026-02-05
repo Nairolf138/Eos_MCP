@@ -1,4 +1,5 @@
 import { z, type ZodRawShape } from 'zod';
+import { channelRangeSchema, optionalPortSchema, optionalTimeoutMsSchema } from '../../utils/validators';
 import {
   createCacheKey,
   createOscPrefixTag,
@@ -12,13 +13,10 @@ import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
-  targetPort: z.coerce.number().int().min(1).max(65535).optional()
+  targetPort: optionalPortSchema
 } satisfies ZodRawShape;
 
-const channelNumberSchema = z.coerce.number().int().min(1).max(99999);
-const channelListSchema = z
-  .union([channelNumberSchema, z.array(channelNumberSchema).min(1)])
-  .describe('Un numero de canal ou une liste de canaux');
+const channelListSchema = channelRangeSchema.describe('Un numero de canal ou une liste de canaux');
 
 const levelValueSchema = z.union([z.number(), z.string().min(1)]);
 const dmxValueSchema = z.union([z.number(), z.string().min(1)]);
@@ -34,8 +32,8 @@ const DMX_KEYWORDS: Record<string, number> = {
   out: 0
 };
 
-function normaliseChannels(value: number | number[]): number[] {
-  const list = Array.isArray(value) ? value : [value];
+function normaliseChannels(value: number[]): number[] {
+  const list = value;
   const unique = Array.from(new Set(list.map((item) => Math.trunc(item))));
   return unique.sort((a, b) => a - b);
 }
@@ -346,7 +344,20 @@ const setLevelSchema = {
 } satisfies ZodRawShape;
 
 const setDmxSchema = {
-  addresses: z.union([z.coerce.number().int().min(1).max(65535), z.array(z.coerce.number().int().min(1).max(65535)).min(1)]),
+  addresses: z.union([z.coerce.number().int().min(1).max(65535), z.array(z.coerce.number().int().min(1).max(65535)).min(1), z.string().trim().min(1)]).transform((value, ctx): number[] => {
+    if (typeof value === 'number') {
+      return [value];
+    }
+    if (Array.isArray(value)) {
+      return value;
+    }
+    const parsed = channelRangeSchema.safeParse(value);
+    if (!parsed.success) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Format adresses DMX invalide.' });
+      return z.NEVER;
+    }
+    return parsed.data;
+  }),
   value: dmxValueSchema,
   ...targetOptionsSchema
 } satisfies ZodRawShape;
@@ -361,7 +372,7 @@ const setParameterSchema = {
 const getInfoSchema = {
   channels: channelListSchema,
   fields: z.array(z.string().min(1)).optional(),
-  timeoutMs: z.coerce.number().int().min(50).optional(),
+  timeoutMs: optionalTimeoutMsSchema,
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 

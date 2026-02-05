@@ -1,4 +1,5 @@
 import { z, type ZodRawShape } from 'zod';
+import { optionalPortSchema, optionalTimeoutMsSchema, presetNumberSchema as sharedPresetNumberSchema } from '../../utils/validators';
 import {
   createCacheKey,
   createOscPrefixTag,
@@ -12,15 +13,10 @@ import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
-  targetPort: z.coerce.number().int().min(1).max(65535).optional()
+  targetPort: optionalPortSchema
 } satisfies ZodRawShape;
 
-const presetNumberSchema = z.coerce
-  .number()
-  .int()
-  .min(1)
-  .max(99999)
-  .describe('Numero de preset (1-99999)');
+const presetNumberSchema = sharedPresetNumberSchema.describe('Numero de preset (1-99999)');
 
 const presetFireInputSchema = {
   preset_number: presetNumberSchema,
@@ -30,7 +26,7 @@ const presetFireInputSchema = {
 const presetGetInfoInputSchema = {
   preset_number: presetNumberSchema,
   fields: z.array(z.string().min(1)).optional(),
-  timeoutMs: z.coerce.number().int().min(50).optional(),
+  timeoutMs: optionalTimeoutMsSchema,
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
