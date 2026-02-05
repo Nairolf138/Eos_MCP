@@ -27,7 +27,6 @@ import type {
 } from '../services/osc/index';
 import { getToolJsonSchema, toolJsonSchemas } from '../schemas/index';
 import type { ToolRegistry } from './toolRegistry';
-import { clearManualDocumentationRead } from '../resources/manualReadTracker';
 
 interface StdioStatusSnapshot {
   status: 'starting' | 'listening' | 'stopped';
@@ -716,7 +715,6 @@ class HttpGateway {
         if (sessionId) {
           this.sessions.delete(sessionId);
         }
-        clearManualDocumentationRead(sessionId);
         await this.closeServer(record);
       },
       allowedOrigins: allowedOrigins ? Array.from(allowedOrigins) : undefined
@@ -741,7 +739,6 @@ class HttpGateway {
     }
 
     this.sessions.delete(sessionId);
-    clearManualDocumentationRead(sessionId);
     try {
       await record.transport.close();
     } catch (error) {
@@ -761,7 +758,6 @@ class HttpGateway {
     } catch (error) {
       logger.warn({ error }, 'Erreur lors de la fermeture du transport HTTP MCP');
     }
-    clearManualDocumentationRead(record.id);
     await this.closeServer(record);
   }
 

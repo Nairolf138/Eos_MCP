@@ -5,7 +5,6 @@ import { z, type ZodRawShape } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import toolDefinitions from '../tools/index';
 import type { ToolDefinition } from '../tools/types';
-import { markManualDocumentationRead } from '../resources/manualReadTracker';
 
 export interface ToolJsonSchemaDefinition {
   name: string;
@@ -66,10 +65,8 @@ export function registerToolSchemas(server: McpServer): void {
       },
       async (
         _uri: URL,
-        extra: RequestHandlerExtra<ServerRequest, ServerNotification>
+        _extra: RequestHandlerExtra<ServerRequest, ServerNotification>
       ) => {
-        markManualDocumentationRead(extra?.sessionId);
-
         return {
           contents: [
             {

@@ -20,7 +20,6 @@ import {
 import { ErrorCode, describeError, isAppError, toAppError } from './errors';
 import { createLogger, initialiseLogger } from './logger';
 import { toolDefinitions } from '../tools/index';
-import requireDocumentationRead from '../tools/middlewares/requireDocumentationRead';
 import { registerToolSchemas } from '../schemas/index';
 import { registerManualResource } from '../resources/registerManual';
 import type { ToolDefinition } from '../tools/types';
@@ -227,15 +226,7 @@ async function printToolList(): Promise<void> {
 }
 
 async function loadToolDefinitions(): Promise<ToolDefinition[]> {
-  const shouldRequireDocRead = isTruthyFlag(process.env.MCP_REQUIRE_DOC_READ);
-  if (!shouldRequireDocRead) {
-    return toolDefinitions;
-  }
-
-  return toolDefinitions.map((definition) => ({
-    ...definition,
-    middlewares: [requireDocumentationRead, ...(definition.middlewares ?? [])]
-  }));
+  return toolDefinitions;
 }
 
 interface BootstrapContext {
