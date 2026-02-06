@@ -1,11 +1,38 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { ToolRegistry } from '../toolRegistry';
+import { z } from 'zod';
 import type { ToolDefinition, ToolExecutionResult, ToolMiddleware } from '../../tools/types';
 import {
   sessionGetCurrentUserTool,
   setCurrentUserId,
   clearCurrentUserId
 } from '../../tools/session/index';
+
+jest.mock('../logger.js', () => ({
+  __esModule: true,
+  ...(() => {
+    const logger = {
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      debug: jest.fn(),
+      child: jest.fn()
+    };
+    logger.child.mockReturnValue(logger);
+    return {
+      createLogger: jest.fn(() => logger),
+      __mockLogger: logger
+    };
+  })()
+}));
+
+import { ToolRegistry } from '../toolRegistry';
+
+const { __mockLogger: mockLogger } = jest.requireMock('../logger.js') as {
+  __mockLogger: {
+    info: jest.Mock;
+    warn: jest.Mock;
+  };
+};
 
 const createMockServer = (): McpServer & {
   registerTool: jest.Mock;
@@ -24,6 +51,11 @@ const createMockServer = (): McpServer & {
 };
 
 describe('ToolRegistry schema-less tools', () => {
+  beforeEach(() => {
+    mockLogger.info.mockClear();
+    mockLogger.warn.mockClear();
+  });
+
   it('invokes handlers with undefined args while preserving extra', async () => {
     const server = createMockServer();
     const registry = new ToolRegistry(server);
@@ -184,6 +216,91 @@ describe('ToolRegistry schema-less tools', () => {
       text: 'Utilisateur courant: 42'
     });
     clearCurrentUserId();
+  });
+
+  it('journalise les champs minimaux d\'audit en succes', async () => {
+    const server = createMockServer();
+    const registry = new ToolRegistry(server);
+
+    const tool: ToolDefinition = {
+      name: 'audit_tool',
+      config: {
+        inputSchema: {
+          command: z.string(),
+          require_confirmation: z.boolean().optional(),
+          safety_level: z.enum(['strict', 'standard', 'off']).optional(),
+          user: z.number().optional(),
+          targetAddress: z.string().optional(),
+          targetPort: z.number().optional(),
+          apiKey: z.string().optional()
+        }
+      },
+      handler: async () => ({
+        content: [{ type: 'text', text: 'ok' }],
+        structuredContent: { token: 'secret-value' }
+      })
+    };
+
+    registry.register(tool);
+    const [, , registeredHandler] = server.registerTool.mock.calls[0];
+
+    await (registeredHandler as RegisteredTestHandler)(
+      {
+        command: 'Record Cue 1',
+        require_confirmation: true,
+        safety_level: 'off',
+        user: 7,
+        targetAddress: '10.0.0.2',
+        targetPort: 3032,
+        apiKey: '123'
+      },
+      { sessionId: 'session-42', requestId: 'req-42' }
+    );
+
+    expect(mockLogger.info).toHaveBeenCalledTimes(1);
+    const [payload] = mockLogger.info.mock.calls[0] as [Record<string, unknown>];
+
+    expect(payload.event).toBe('tool_execution_audit');
+    expect(payload.toolName).toBe('audit_tool');
+    expect(payload.correlationId).toBe('req-42');
+    expect(payload.sessionId).toBe('session-42');
+    expect(payload.userId).toBe(7);
+    expect(payload.durationMs).toEqual(expect.any(Number));
+    expect(payload.sensitiveAction).toBe(true);
+    expect(payload.safetyMode).toBe('off');
+    expect(payload.targetConsole).toEqual({ address: '10.0.0.2', port: 3032 });
+    expect(payload.args).toMatchObject({ apiKey: '[REDACTED]' });
+    expect(payload.result).toMatchObject({ structuredContent: { token: '[REDACTED]' } });
+  });
+
+  it('journalise les champs minimaux d\'audit en erreur', async () => {
+    const server = createMockServer();
+    const registry = new ToolRegistry(server);
+
+    registry.register({
+      name: 'audit_failure_tool',
+      config: { inputSchema: { command: z.string() } },
+      handler: async () => {
+        throw new Error('boom');
+      }
+    });
+
+    const [, , registeredHandler] = server.registerTool.mock.calls[0];
+
+    await expect(
+      (registeredHandler as RegisteredTestHandler)(
+        { command: 'Delete Cue 1' },
+        { sessionId: 'session-err', requestId: 'req-err' }
+      )
+    ).rejects.toThrow('boom');
+
+    expect(mockLogger.warn).toHaveBeenCalledTimes(1);
+    const [payload] = mockLogger.warn.mock.calls[0] as [Record<string, unknown>];
+    expect(payload.event).toBe('tool_execution_audit');
+    expect(payload.status).toBe('error');
+    expect(payload.correlationId).toBe('req-err');
+    expect(payload.result).toMatchObject({ message: 'boom', name: 'Error' });
+    expect(payload.durationMs).toEqual(expect.any(Number));
   });
 });
 

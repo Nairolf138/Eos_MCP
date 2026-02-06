@@ -8,9 +8,18 @@ import type { AppConfig, LoggingDestination } from '../config/index';
 
 type LoggerFactory = () => Logger;
 
+const DEFAULT_REDACT_PATHS = [
+  '*.password',
+  '*.token',
+  '*.apiKey',
+  '*.authorization',
+  '*.cookie'
+] as const;
+
 let baseLogger: Logger = pino(
   {
     base: undefined,
+    redact: { paths: [...DEFAULT_REDACT_PATHS], censor: '[REDACTED]' },
     timestamp: stdTimeFunctions.isoTime
   },
   pino.destination({ dest: process.stderr.fd, sync: false })
@@ -74,6 +83,7 @@ function createBaseLogger(config: AppConfig): Logger {
     {
       level: config.logging.level,
       base: undefined,
+      redact: { paths: [...DEFAULT_REDACT_PATHS], censor: '[REDACTED]' },
       timestamp: stdTimeFunctions.isoTime
     },
     destination

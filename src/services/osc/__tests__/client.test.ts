@@ -5,6 +5,7 @@ import { OscClient, parseLegacyHandshakeMessage, type ConnectResult } from '../c
 import type { OscGateway, OscGatewaySendOptions } from '../client';
 import { createOscConnectionGateway } from '../gateway';
 import type { OscMessage } from '../index';
+import { runWithRequestContext } from '../../../server/requestContext';
 
 type TransportType = 'tcp' | 'udp';
 
@@ -905,5 +906,16 @@ describe('OscClient', () => {
     expect(received.map((message) => message.address)).toContain('/eos/handshake/reply');
 
     gateway.close?.();
+  });
+
+  it('propage le correlationId du contexte vers les envois OSC', async () => {
+    const service = new FakeOscService();
+    const client = new OscClient(service);
+
+    await runWithRequestContext({ correlationId: 'corr-123' }, async () => {
+      await client.sendCommand('Chan 1 At 50', { user: 3 });
+    });
+
+    expect(service.sendOptions[0]).toMatchObject({ correlationId: 'corr-123' });
   });
 });

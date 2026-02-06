@@ -161,7 +161,7 @@ export class OscConnectionGateway implements OscGateway {
       this.updateStats('outgoing', message, encoded.byteLength);
       if (this.loggingState.outgoing) {
         this.logger.debug(
-          { args: message.args ?? [] },
+          { args: message.args ?? [], correlationId: options.correlationId },
           `[OSC][${transport}] -> ${message.address}`
         );
       }
@@ -178,7 +178,8 @@ export class OscConnectionGateway implements OscGateway {
           this.logSendError(
             waitError,
             message,
-            "Delai depasse en attendant un transport OSC pret"
+            "Delai depasse en attendant un transport OSC pret",
+            options.correlationId
           );
           throw waitError instanceof Error ? waitError : new Error(String(waitError));
         }
@@ -187,14 +188,14 @@ export class OscConnectionGateway implements OscGateway {
           attemptSend();
           return;
         } catch (retryError) {
-          this.logSendError(retryError, message);
+          this.logSendError(retryError, message, "Erreur lors de l'envoi OSC", options.correlationId);
           throw retryError instanceof Error
             ? retryError
             : new Error(String(retryError));
         }
       }
 
-      this.logSendError(error, message);
+      this.logSendError(error, message, "Erreur lors de l'envoi OSC", options.correlationId);
       throw error instanceof Error ? error : new Error(String(error));
     }
   }
@@ -581,11 +582,16 @@ export class OscConnectionGateway implements OscGateway {
     );
   }
 
-  private logSendError(error: unknown, message: OscMessage, logMessage = "Erreur lors de l'envoi OSC"): void {
+  private logSendError(
+    error: unknown,
+    message: OscMessage,
+    logMessage = "Erreur lors de l'envoi OSC",
+    correlationId?: string
+  ): void {
     const errorData =
       error instanceof Error
-        ? { err: error, address: message.address }
-        : { error, address: message.address };
+        ? { err: error, address: message.address, correlationId }
+        : { error, address: message.address, correlationId };
     this.logger.error(errorData, logMessage);
   }
 }

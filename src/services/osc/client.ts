@@ -20,6 +20,7 @@ import {
 } from '../../server/errors';
 import { getResourceCache } from '../cache/index';
 import { RequestQueue, type RequestQueueRunOptions } from './requestQueue';
+import { getRequestContext } from '../../server/requestContext';
 
 const HANDSHAKE_REQUEST = '/eos/handshake';
 const HANDSHAKE_REPLY = '/eos/handshake/reply';
@@ -47,6 +48,7 @@ export interface OscGatewaySendOptions {
   targetAddress?: string;
   targetPort?: number;
   toolId?: string;
+  correlationId?: string;
   transportPreference?: ToolTransportPreference;
 }
 
@@ -703,6 +705,7 @@ export class OscClient {
       targetAddress: options.targetAddress,
       targetPort: options.targetPort,
       toolId: options.toolId ?? message.address,
+      correlationId: getRequestContext()?.correlationId,
       transportPreference: options.transportPreference
     };
 
