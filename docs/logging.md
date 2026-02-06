@@ -47,6 +47,42 @@ Pour vérifier la configuration effective, vous pouvez exécuter les tests unita
 npm test -- src/config/__tests__/config.test.ts
 ```
 
+## Audit des executions d'outils MCP
+
+Le pipeline d'execution des outils publie maintenant un evenement d'audit unique (`event: "tool_execution_audit"`) a chaque appel, en succes comme en erreur. Les champs minimaux suivants sont toujours presents pour faciliter l'exploitation SOC/ops :
+
+- `toolName` : nom de l'outil MCP execute.
+- `args` : arguments **nettoyes** (cles sensibles masquees, valeurs longues tronquees).
+- `userId` et `sessionId` : identifiants utilisateur/session quand disponibles.
+- `targetConsole` : console cible (`address`, `port`) quand fournie.
+- `result` : resultat nettoye (ou erreur normalisee).
+- `durationMs` : duree totale d'execution de l'outil.
+- `sensitiveAction` : indicateur d'action sensible detectee.
+- `safetyMode` : mode de securite applique (`strict`, `standard`, `off`).
+- `correlationId` : identifiant de correlation de bout en bout.
+
+### Correlation MCP -> OSC
+
+Le `correlationId` est etabli a l'entree du traitement outil (requete MCP) puis propage vers les sous-commandes OSC. En activant les logs `--verbose`, les traces OSC sortantes incluent le meme identifiant, ce qui permet de relier :
+
+1. l'appel MCP (`tool_execution_audit`),
+2. les envois OSC associes (`[OSC][tcp|udp] -> ...`).
+
+### Lire rapidement les logs d'audit
+
+Exemples avec des logs JSON :
+
+```bash
+# Toutes les executions d'outils
+jq 'select(.event == "tool_execution_audit")' /var/log/eos/mcp.log
+
+# Une transaction de bout en bout
+jq 'select(.correlationId == "<id>")' /var/log/eos/mcp.log
+
+# Actions sensibles uniquement
+jq 'select(.event == "tool_execution_audit" and .sensitiveAction == true)' /var/log/eos/mcp.log
+```
+
 ## Raccourcis en ligne de commande
 
 En complément des variables d'environnement, certains indicateurs peuvent être activés directement lors du démarrage du serveur :
