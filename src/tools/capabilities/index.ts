@@ -84,6 +84,15 @@ function parseLiveBlindLabel(payload: unknown): 'live' | 'blind' | 'unknown' {
   return 'unknown';
 }
 
+/**
+ * @tool eos_capabilities_get
+ * @summary Capacites serveur EOS MCP
+ * @description Retourne les fonctionnalites disponibles par famille, le contexte de session/connexion et la version serveur.
+ * @arguments Voir docs/tools.md#eos-capabilities-get pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-capabilities-get pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-capabilities-get pour un exemple OSC.
+ */
 export const eosCapabilitiesGetTool: ToolDefinition<typeof emptySchema> = {
   name: 'eos_capabilities_get',
   config: {

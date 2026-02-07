@@ -51,6 +51,15 @@ const cueRecordInputSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
+/**
+ * @tool eos_cue_record
+ * @summary Record cue
+ * @description Enregistre une cue de maniere deterministe via eos_new_command.
+ * @arguments Voir docs/tools.md#eos-cue-record pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-cue-record pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-cue-record pour un exemple OSC.
+ */
 export const eosCueRecordTool: ToolDefinition<typeof cueRecordInputSchema> = {
   name: 'eos_cue_record',
   config: {
@@ -84,6 +93,15 @@ const cueUpdateInputSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
+/**
+ * @tool eos_cue_update
+ * @summary Update cue
+ * @description Met a jour une cue de maniere deterministe via eos_new_command.
+ * @arguments Voir docs/tools.md#eos-cue-update pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-cue-update pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-cue-update pour un exemple OSC.
+ */
 export const eosCueUpdateTool: ToolDefinition<typeof cueUpdateInputSchema> = {
   name: 'eos_cue_update',
   config: {
@@ -118,6 +136,15 @@ const cueLabelSetInputSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
+/**
+ * @tool eos_cue_label_set
+ * @summary Label cue
+ * @description Applique un label a une cue via une commande EOS deterministe.
+ * @arguments Voir docs/tools.md#eos-cue-label-set pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-cue-label-set pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-cue-label-set pour un exemple OSC.
+ */
 export const eosCueLabelSetTool: ToolDefinition<typeof cueLabelSetInputSchema> = {
   name: 'eos_cue_label_set',
   config: {
@@ -151,6 +178,15 @@ const paletteRecordInputSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
+/**
+ * @tool eos_palette_record
+ * @summary Record palette
+ * @description Enregistre une palette (ip/fp/cp/bp) avec commande deterministe.
+ * @arguments Voir docs/tools.md#eos-palette-record pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-palette-record pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-palette-record pour un exemple OSC.
+ */
 export const eosPaletteRecordTool: ToolDefinition<typeof paletteRecordInputSchema> = {
   name: 'eos_palette_record',
   config: {
@@ -185,6 +221,15 @@ const paletteLabelSetInputSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
+/**
+ * @tool eos_palette_label_set
+ * @summary Label palette
+ * @description Applique un label sur une palette avec commande deterministe.
+ * @arguments Voir docs/tools.md#eos-palette-label-set pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-palette-label-set pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-palette-label-set pour un exemple OSC.
+ */
 export const eosPaletteLabelSetTool: ToolDefinition<typeof paletteLabelSetInputSchema> = {
   name: 'eos_palette_label_set',
   config: {
@@ -221,6 +266,15 @@ const patchSetChannelInputSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
+/**
+ * @tool eos_patch_set_channel
+ * @summary Set patch channel
+ * @description Configure adresse DMX, type appareil, part et label via commande deterministe.
+ * @arguments Voir docs/tools.md#eos-patch-set-channel pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-patch-set-channel pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-patch-set-channel pour un exemple OSC.
+ */
 export const eosPatchSetChannelTool: ToolDefinition<typeof patchSetChannelInputSchema> = {
   name: 'eos_patch_set_channel',
   config: {

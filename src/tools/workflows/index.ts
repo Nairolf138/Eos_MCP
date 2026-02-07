@@ -89,6 +89,15 @@ const createLookInputSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
+/**
+ * @tool eos_workflow_create_look
+ * @summary Workflow creation de look
+ * @description Selectionne des canaux, applique des palettes CP/FP/BP puis enregistre une cue.
+ * @arguments Voir docs/tools.md#eos-workflow-create-look pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-workflow-create-look pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-workflow-create-look pour un exemple OSC.
+ */
 export const eosWorkflowCreateLookTool: ToolDefinition<typeof createLookInputSchema> = {
   name: 'eos_workflow_create_look',
   config: {
@@ -159,6 +168,15 @@ const patchFixtureInputSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
+/**
+ * @tool eos_workflow_patch_fixture
+ * @summary Workflow patch fixture
+ * @description Patch un canal, applique un label et une position 3D de base.
+ * @arguments Voir docs/tools.md#eos-workflow-patch-fixture pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-workflow-patch-fixture pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-workflow-patch-fixture pour un exemple OSC.
+ */
 export const eosWorkflowPatchFixtureTool: ToolDefinition<typeof patchFixtureInputSchema> = {
   name: 'eos_workflow_patch_fixture',
   config: {
@@ -223,6 +241,15 @@ const rehearsalGoSafeInputSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
+/**
+ * @tool eos_workflow_rehearsal_go_safe
+ * @summary Workflow rehearsal go safe
+ * @description Verifie la ligne de commande, envoie GO puis rollback optionnel en cas d echec.
+ * @arguments Voir docs/tools.md#eos-workflow-rehearsal-go-safe pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-workflow-rehearsal-go-safe pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-workflow-rehearsal-go-safe pour un exemple OSC.
+ */
 export const eosWorkflowRehearsalGoSafeTool: ToolDefinition<typeof rehearsalGoSafeInputSchema> = {
   name: 'eos_workflow_rehearsal_go_safe',
   config: {
