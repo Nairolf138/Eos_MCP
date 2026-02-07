@@ -14,6 +14,13 @@ export interface ToolJsonSchemaDefinition {
   schema: Record<string, unknown>;
 }
 
+type ZodToJsonSchema = (
+  schema: ZodTypeAny,
+  options: { name?: string; $refStrategy?: 'none' | 'root' }
+) => Record<string, unknown>;
+
+const toJsonSchema = zodToJsonSchema as ZodToJsonSchema;
+
 function toZodObject(shape: ZodRawShape | undefined): z.ZodObject<ZodRawShape> {
   if (!shape) {
     return z.object({}).strict();
@@ -24,7 +31,7 @@ function toZodObject(shape: ZodRawShape | undefined): z.ZodObject<ZodRawShape> {
 
 function buildSchema(definition: ToolDefinition): ToolJsonSchemaDefinition {
   const zodSchema = toZodObject(definition.config.inputSchema);
-  const jsonSchema = zodToJsonSchema(zodSchema as ZodTypeAny, {
+  const jsonSchema = toJsonSchema(zodSchema, {
     name: definition.name,
     $refStrategy: 'none'
   });

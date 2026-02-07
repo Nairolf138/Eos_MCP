@@ -57,6 +57,7 @@ node --version
 ## Scripts npm utiles
 
 - `npm run build` : compile TypeScript vers `dist/`.
+- `npm run tsc` : lance uniquement la compilation TypeScript (utile sous Windows pour isoler les erreurs TS sans copier les artefacts).
 - `npm run lint` : vérifie le style de code avec ESLint.
 - `npm run lint:manifest` : valide la structure du manifest MCP via Ajv.
 - `npm test` : exécute la suite de tests (Jest).
@@ -65,6 +66,8 @@ node --version
 - `npm run docs:generate` : régénère la documentation complète des outils MCP et les commentaires JSDoc.
 - `npm run docs:check` : vérifie que `docs/tools.md` est synchronisé avec le code source.
 - `npm run package` : produit un binaire autonome dans `dist/bin/eos-mcp` (Linux x64 par défaut) via [`pkg`](https://github.com/vercel/pkg).
+
+Sur Windows, utilisez `npm run tsc` pour exécuter exactement la même compilation TypeScript que `npm run build`, sans étape de copie d'artefacts.
 
 La description détaillée de chaque outil est disponible dans [`docs/tools.md`](docs/tools.md). Le fichier est généré automatiquement à partir des schémas Zod déclarés dans `src/tools/**`.
 

@@ -5,6 +5,7 @@
   "main": "dist/server/index.js",
   "scripts": {
     "build": "tsc && node -e \"const fs=require('node:fs');fs.mkdirSync('dist',{recursive:true});fs.copyFileSync('manifest.json','dist/manifest.json');\"",
+    "tsc": "tsc",
     "lint": "eslint \"src/**/*.ts\"",
     "test": "jest --passWithNoTests",
     "start": "node dist/server/index.js",
