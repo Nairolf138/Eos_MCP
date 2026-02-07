@@ -2,7 +2,14 @@ import { z } from 'zod';
 import { getOscClient, type CommandLineState } from '../../services/osc/client';
 import { oscMappings } from '../../services/osc/mappings';
 import { getCurrentUserId } from '../session/index';
-import { assertSensitiveActionAllowed, createDryRunResult, isSensitiveCommandText, safetyOptionsSchema } from '../common/safety';
+import {
+  assertSensitiveActionAllowed,
+  createDryRunResult,
+  isSensitiveCommandText,
+  resolveSafetyOptions,
+  safetyOptionsSchema,
+  type SafetyOptions
+} from '../common/safety';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 type SubstitutionValue = string | number | boolean;
@@ -31,6 +38,55 @@ const cueProgrammingGuardrails = {
   ],
   manual: ['manual://eos#command-line', 'manual://eos#cue-timing', 'manual://eos#cue-playback']
 };
+
+const eosBasicSyntaxPattern = /^[\w\s./:+\-*()'",=<>[\]]+$/i;
+
+const eosCommandFamilyPatterns = {
+  patch: [
+    /^patch\b/i,
+    /^address\b/i,
+    /^patch\s+(copy|delete|insert|increment|offset)\b/i
+  ],
+  cues: [
+    /^(record\s+)?cue\b/i,
+    /^update\s+cue\b/i,
+    /^delete\s+cue\b/i,
+    /^go(\s+to)?\s+cue\b/i,
+    /^load\s+cue\b/i,
+    /^stop\b/i,
+    /^resume\b/i
+  ],
+  palettes: [
+    /^(record\s+)?(intensity|color|beam|focus)\s+palette\b/i,
+    /^update\s+(intensity|color|beam|focus)\s+palette\b/i,
+    /^delete\s+(intensity|color|beam|focus)\s+palette\b/i
+  ]
+} as const;
+
+function normalizeCommandForValidation(command: string): string {
+  return command.replace(/#\s*$/, '').trim();
+}
+
+function isCommandInAllowedFamilies(command: string): boolean {
+  return Object.values(eosCommandFamilyPatterns).some((patterns) =>
+    patterns.some((pattern) => pattern.test(command))
+  );
+}
+
+function assertCommandSyntaxAllowed(command: string, safetyLevel: 'strict' | 'standard' | 'off'): void {
+  if (safetyLevel === 'off') {
+    return;
+  }
+
+  const normalized = normalizeCommandForValidation(command);
+  if (!normalized || !eosBasicSyntaxPattern.test(normalized)) {
+    throw new Error('syntaxe non conforme au manuel Eos');
+  }
+
+  if (safetyLevel === 'strict' && !isCommandInAllowedFamilies(normalized)) {
+    throw new Error('syntaxe non conforme au manuel Eos');
+  }
+}
 
 function ensureTerminator(command: string, terminate?: boolean): string {
   if (!terminate) {
@@ -114,7 +170,7 @@ function resolveUserId(requested?: number | null): number | undefined {
   return undefined;
 }
 
-export interface DeterministicCommandOptions {
+export interface DeterministicCommandOptions extends SafetyOptions {
   command: string;
   terminateWithEnter?: boolean;
   clearLine?: boolean;
@@ -129,6 +185,8 @@ export async function sendDeterministicCommand(options: DeterministicCommandOpti
   const command = ensureTerminator(options.command, options.terminateWithEnter);
   const shouldClear = options.clearLine !== false;
   const user = resolveUserId(options.user);
+  const safety = resolveSafetyOptions(options);
+  assertCommandSyntaxAllowed(command, safety.safetyLevel);
 
   if (options.dry_run) {
     return createDryRunResult({
@@ -192,6 +250,8 @@ export const eosCommandTool: ToolDefinition<typeof commandInputSchema> = {
     const options = schema.parse(args ?? {});
     const client = getOscClient();
     const command = ensureTerminator(options.command, options.terminateWithEnter);
+    const safety = resolveSafetyOptions(options);
+    assertCommandSyntaxAllowed(command, safety.safetyLevel);
 
     const user = resolveUserId(options.user);
 
@@ -254,6 +314,8 @@ export const eosNewCommandTool: ToolDefinition<typeof newCommandInputSchema> = {
     const schema = z.object(newCommandInputSchema).strict();
     const options = schema.parse(args ?? {});
     const substituted = applySubstitutions(options.command, options.substitutions ?? []);
+    const safety = resolveSafetyOptions(options);
+    assertCommandSyntaxAllowed(substituted, safety.safetyLevel);
     if (!options.dry_run && isSensitiveCommandText(substituted)) {
       assertSensitiveActionAllowed(options, 'eos_new_command');
     }
@@ -264,7 +326,9 @@ export const eosNewCommandTool: ToolDefinition<typeof newCommandInputSchema> = {
       user: options.user,
       targetAddress: options.targetAddress,
       targetPort: options.targetPort,
-      dry_run: options.dry_run
+      dry_run: options.dry_run,
+      require_confirmation: options.require_confirmation,
+      safety_level: options.safety_level
     });
   }
 };
@@ -300,6 +364,8 @@ export const eosCommandWithSubstitutionTool: ToolDefinition<typeof substitutionC
     const client = getOscClient();
     const substituted = applySubstitutions(options.template, options.values ?? []);
     const command = ensureTerminator(substituted, options.terminateWithEnter);
+    const safety = resolveSafetyOptions(options);
+    assertCommandSyntaxAllowed(command, safety.safetyLevel);
 
     const user = resolveUserId(options.user);
 
