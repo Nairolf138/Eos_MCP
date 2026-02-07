@@ -150,6 +150,27 @@ _OSC_
 oscsend 127.0.0.1 8001 /eos/bp/fire s:'{"palette_number":1}'
 ```
 
+<a id="eos-capabilities-get"></a>
+## Capacites serveur EOS MCP (`eos_capabilities_get`)
+
+**Description :** Retourne les fonctionnalites disponibles par famille, le contexte de session/connexion et la version serveur.
+
+**Arguments :** Aucun argument.
+
+**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+
+**Exemples :**
+
+_CLI_
+
+```bash
+npx @modelcontextprotocol/cli call --tool eos_capabilities_get --args '{}'
+```
+
+_OSC_
+
+_Pas de mapping OSC documenté._
+
 <a id="eos-channel-get-info"></a>
 ## Informations de canaux (`eos_channel_get_info`)
 
@@ -159,7 +180,7 @@ oscsend 127.0.0.1 8001 /eos/bp/fire s:'{"palette_number":1}'
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
-| `channels` | number \| array<number> | Oui | Un numero de canal ou une liste de canaux |
+| `channels` | number \| array<number> \| string | Oui | Un numero de canal ou une liste de canaux |
 | `fields` | array<string> | Non | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
@@ -191,7 +212,7 @@ oscsend 127.0.0.1 8001 /eos/get/channels s:'{"channels":1}'
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
-| `channels` | number \| array<number> | Oui | Un numero de canal ou une liste de canaux |
+| `channels` | number \| array<number> \| string | Oui | Un numero de canal ou une liste de canaux |
 | `exclusive` | boolean | Non | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
@@ -222,7 +243,7 @@ oscsend 127.0.0.1 8001 /eos/cmd s:'{"channels":1}'
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
-| `channels` | number \| array<number> | Oui | Un numero de canal ou une liste de canaux |
+| `channels` | number \| array<number> \| string | Oui | Un numero de canal ou une liste de canaux |
 | `level` | number \| string | Oui | — |
 | `snap` | boolean | Non | — |
 | `targetAddress` | string | Non | — |
@@ -254,7 +275,7 @@ oscsend 127.0.0.1 8001 /eos/cmd s:'{"channels":1,"level":1}'
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
-| `channels` | number \| array<number> | Oui | Un numero de canal ou une liste de canaux |
+| `channels` | number \| array<number> \| string | Oui | Un numero de canal ou une liste de canaux |
 | `parameter` | string | Oui | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
@@ -313,7 +334,7 @@ oscsend 127.0.0.1 8001 /eos/cp/fire s:'{"palette_number":1}'
 <a id="eos-command"></a>
 ## Commande EOS (`eos_command`)
 
-**Description :** Envoie du texte sur la ligne de commande existante de la console. Pour programmer des cues, preferer eos_new_command avec clearLine=true et terminateWithEnter=true.
+**Description :** Envoie du texte sur la ligne de commande existante de la console. A n'utiliser que lorsqu'aucun outil dedie n'existe. Pour programmer des cues, preferer eos_new_command avec clearLine=true et terminateWithEnter=true.
 
 **Arguments :**
 
@@ -2079,7 +2100,7 @@ oscsend 127.0.0.1 8001 /eos/magic_sheet/send_string s:'{"osc_command":"exemple"}
 <a id="eos-new-command"></a>
 ## Nouvelle commande EOS (`eos_new_command`)
 
-**Description :** Efface optionnellement la ligne de commande puis envoie le texte fourni. Outil recommande pour appliquer les bonnes pratiques de programmation de cues du manuel EOS.
+**Description :** Efface optionnellement la ligne de commande puis envoie le texte fourni. A n'utiliser que lorsqu'aucun outil dedie n'existe. Outil recommande pour appliquer les bonnes pratiques de programmation de cues du manuel EOS.
 
 **Arguments :**
 
@@ -2700,7 +2721,7 @@ oscsend 127.0.0.1 8001 /eos/set/cue/send_string s:'{"format_string":"exemple"}'
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
-| `addresses` | number \| array<number> | Oui | — |
+| `addresses` | number \| array<number> \| string | Oui | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 | `value` | number \| string | Oui | — |
@@ -3094,6 +3115,109 @@ _OSC_
 oscsend 127.0.0.1 8001 /eos/param/wheel/tick s:'{"parameter_name":"exemple","ticks":1}'
 ```
 
+<a id="eos-workflow-create-look"></a>
+## Workflow creation de look (`eos_workflow_create_look`)
+
+**Description :** Selectionne des canaux, applique des palettes CP/FP/BP puis enregistre une cue.
+
+**Arguments :**
+
+| Nom | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `beam_palette` | number | Non | — |
+| `channels` | string | Oui | — |
+| `color_palette` | number | Non | — |
+| `cue_label` | string | Non | — |
+| `cue_number` | string \| number | Oui | — |
+| `cuelist_number` | number | Non | — |
+| `focus_palette` | number | Non | — |
+| `targetAddress` | string | Non | — |
+| `targetPort` | number | Non | — |
+| `user` | number | Non | — |
+
+**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+
+**Exemples :**
+
+_CLI_
+
+```bash
+npx @modelcontextprotocol/cli call --tool eos_workflow_create_look --args '{"channels":"exemple","cue_number":"exemple"}'
+```
+
+_OSC_
+
+_Pas de mapping OSC documenté._
+
+<a id="eos-workflow-patch-fixture"></a>
+## Workflow patch fixture (`eos_workflow_patch_fixture`)
+
+**Description :** Patch un canal, applique un label et une position 3D de base.
+
+**Arguments :**
+
+| Nom | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `channel_number` | number | Oui | — |
+| `device_type` | string | Oui | — |
+| `dmx_address` | string | Oui | — |
+| `label` | string | Oui | — |
+| `part` | number | Non | — |
+| `position_x` | number | Non | — |
+| `position_y` | number | Non | — |
+| `position_z` | number | Non | — |
+| `targetAddress` | string | Non | — |
+| `targetPort` | number | Non | — |
+| `user` | number | Non | — |
+
+**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+
+**Exemples :**
+
+_CLI_
+
+```bash
+npx @modelcontextprotocol/cli call --tool eos_workflow_patch_fixture --args '{"channel_number":1,"dmx_address":"exemple","device_type":"exemple","label":"exemple"}'
+```
+
+_OSC_
+
+_Pas de mapping OSC documenté._
+
+<a id="eos-workflow-rehearsal-go-safe"></a>
+## Workflow rehearsal go safe (`eos_workflow_rehearsal_go_safe`)
+
+**Description :** Verifie la ligne de commande, envoie GO puis rollback optionnel en cas d echec.
+
+**Arguments :**
+
+| Nom | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `allow_non_empty_command_line` | boolean | Non | — |
+| `cue_number` | string \| number | Non | — |
+| `cuelist_number` | number | Oui | — |
+| `precheck_timeout_ms` | number | Non | — |
+| `rollback_cue_number` | string \| number | Non | — |
+| `rollback_cuelist_number` | number | Non | — |
+| `rollback_on_failure` | boolean | Non | — |
+| `targetAddress` | string | Non | — |
+| `targetPort` | number | Non | — |
+| `user` | number | Non | — |
+
+**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+
+**Exemples :**
+
+_CLI_
+
+```bash
+npx @modelcontextprotocol/cli call --tool eos_workflow_rehearsal_go_safe --args '{"cuelist_number":1}'
+```
+
+_OSC_
+
+_Pas de mapping OSC documenté._
+
 <a id="ping"></a>
 ## Ping tool (`ping`)
 
@@ -3119,6 +3243,48 @@ _OSC_
 
 _Pas de mapping OSC documenté._
 
+<a id="session-clear-context"></a>
+## Effacer contexte courant (`session_clear_context`)
+
+**Description :** Supprime le contexte courant memorise localement.
+
+**Arguments :** Aucun argument.
+
+**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+
+**Exemples :**
+
+_CLI_
+
+```bash
+npx @modelcontextprotocol/cli call --tool session_clear_context --args '{}'
+```
+
+_OSC_
+
+_Pas de mapping OSC documenté._
+
+<a id="session-get-context"></a>
+## Contexte courant (`session_get_context`)
+
+**Description :** Renvoie le contexte courant memorise localement.
+
+**Arguments :** Aucun argument.
+
+**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+
+**Exemples :**
+
+_CLI_
+
+```bash
+npx @modelcontextprotocol/cli call --tool session_get_context --args '{}'
+```
+
+_OSC_
+
+_Pas de mapping OSC documenté._
+
 <a id="session-get-current-user"></a>
 ## Utilisateur courant (`session_get_current_user`)
 
@@ -3134,6 +3300,32 @@ _CLI_
 
 ```bash
 npx @modelcontextprotocol/cli call --tool session_get_current_user --args '{}'
+```
+
+_OSC_
+
+_Pas de mapping OSC documenté._
+
+<a id="session-set-context"></a>
+## Definir contexte courant (`session_set_context`)
+
+**Description :** Stocke le contexte courant (show, cuelist active, selections canaux/groupes, palettes recentes) avec un TTL configurable.
+
+**Arguments :**
+
+| Nom | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `context` | object | Oui | — |
+| `ttl_ms` | number | Non | — |
+
+**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+
+**Exemples :**
+
+_CLI_
+
+```bash
+npx @modelcontextprotocol/cli call --tool session_set_context --args '{"context":{"show":"exemple"}}'
 ```
 
 _OSC_

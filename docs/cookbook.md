@@ -406,7 +406,7 @@ Envoyer rapidement une commande texte (ex. `Record`, `Update`) ou reconstituer u
 ### Check-list
 - [ ] Vérifier que l'utilisateur cible est correct (User 1/2/3…).
 - [ ] Ajouter `#` si la commande doit être validée immédiatement.
-- [ ] Nettoyer la ligne si besoin via `eos_new_command`.
+- [ ] Nettoyer la ligne si besoin via `eos_new_command` (dernier recours si aucun outil dédié n'existe).
 
 > 📘 **Référence Eos** : [Ligne de commande (p. 150–156)](manual://eos#command-line)
 

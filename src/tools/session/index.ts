@@ -173,6 +173,15 @@ export const sessionGetCurrentUserTool: ToolDefinition = {
   }
 };
 
+/**
+ * @tool session_set_context
+ * @summary Definir contexte courant
+ * @description Stocke le contexte courant (show, cuelist active, selections canaux/groupes, palettes recentes) avec un TTL configurable.
+ * @arguments Voir docs/tools.md#session-set-context pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#session-set-context pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#session-set-context pour un exemple OSC.
+ */
 export const sessionSetContextTool: ToolDefinition<typeof setContextInputSchema> = {
   name: 'session_set_context',
   config: {
@@ -203,6 +212,15 @@ export const sessionSetContextTool: ToolDefinition<typeof setContextInputSchema>
   }
 };
 
+/**
+ * @tool session_get_context
+ * @summary Contexte courant
+ * @description Renvoie le contexte courant memorise localement.
+ * @arguments Voir docs/tools.md#session-get-context pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#session-get-context pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#session-get-context pour un exemple OSC.
+ */
 export const sessionGetContextTool: ToolDefinition = {
   name: 'session_get_context',
   config: {
@@ -227,6 +245,15 @@ export const sessionGetContextTool: ToolDefinition = {
   }
 };
 
+/**
+ * @tool session_clear_context
+ * @summary Effacer contexte courant
+ * @description Supprime le contexte courant memorise localement.
+ * @arguments Voir docs/tools.md#session-clear-context pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#session-clear-context pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#session-clear-context pour un exemple OSC.
+ */
 export const sessionClearContextTool: ToolDefinition = {
   name: 'session_clear_context',
   config: {

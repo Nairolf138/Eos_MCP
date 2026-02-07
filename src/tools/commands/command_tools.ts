@@ -26,7 +26,8 @@ const cueProgrammingGuardrails = {
   workflow: [
     'Programmer les cues en sequence explicite: selection, parametrage, record, label.',
     'Preferer eos_new_command avec clearLine=true pour eviter les restes de saisie.',
-    'Activer terminateWithEnter=true pour valider sans concatenation ambigue de #.'
+    'Activer terminateWithEnter=true pour valider sans concatenation ambigue de #.',
+    'Ne pas utiliser ces commandes pour patch/etats live/palettes si un outil dedie existe.'
   ],
   manual: ['manual://eos#command-line', 'manual://eos#cue-timing', 'manual://eos#cue-playback']
 };
@@ -168,7 +169,7 @@ const commandInputSchema = {
 /**
  * @tool eos_command
  * @summary Commande EOS
- * @description Envoie du texte sur la ligne de commande existante de la console. Pour programmer des cues, preferer eos_new_command avec clearLine=true et terminateWithEnter=true.
+ * @description Envoie du texte sur la ligne de commande existante de la console. A n'utiliser que lorsqu'aucun outil dedie n'existe. Pour programmer des cues, preferer eos_new_command avec clearLine=true et terminateWithEnter=true.
  * @arguments Voir docs/tools.md#eos-command pour le schema complet.
  * @returns ToolExecutionResult avec contenu texte et objet.
  * @example CLI Consultez docs/tools.md#eos-command pour un exemple CLI.
@@ -179,7 +180,7 @@ export const eosCommandTool: ToolDefinition<typeof commandInputSchema> = {
   config: {
     title: 'Commande EOS',
     description:
-      'Envoie du texte sur la ligne de commande existante de la console. Pour programmer des cues, preferer eos_new_command avec clearLine=true et terminateWithEnter=true.',
+      "Envoie du texte sur la ligne de commande existante de la console. A n'utiliser que lorsqu'aucun outil dedie n'existe. Pour programmer des cues, preferer eos_new_command avec clearLine=true et terminateWithEnter=true.",
     inputSchema: commandInputSchema,
     annotations: {
       ...mappingAnnotations(oscMappings.commands.command, 'command_line'),
@@ -231,7 +232,7 @@ const newCommandInputSchema = {
 /**
  * @tool eos_new_command
  * @summary Nouvelle commande EOS
- * @description Efface optionnellement la ligne de commande puis envoie le texte fourni. Outil recommande pour appliquer les bonnes pratiques de programmation de cues du manuel EOS.
+ * @description Efface optionnellement la ligne de commande puis envoie le texte fourni. A n'utiliser que lorsqu'aucun outil dedie n'existe. Outil recommande pour appliquer les bonnes pratiques de programmation de cues du manuel EOS.
  * @arguments Voir docs/tools.md#eos-new-command pour le schema complet.
  * @returns ToolExecutionResult avec contenu texte et objet.
  * @example CLI Consultez docs/tools.md#eos-new-command pour un exemple CLI.
@@ -242,7 +243,7 @@ export const eosNewCommandTool: ToolDefinition<typeof newCommandInputSchema> = {
   config: {
     title: 'Nouvelle commande EOS',
     description:
-      'Efface optionnellement la ligne de commande puis envoie le texte fourni. Outil recommande pour appliquer les bonnes pratiques de programmation de cues du manuel EOS.',
+      "Efface optionnellement la ligne de commande puis envoie le texte fourni. A n'utiliser que lorsqu'aucun outil dedie n'existe. Outil recommande pour appliquer les bonnes pratiques de programmation de cues du manuel EOS.",
     inputSchema: newCommandInputSchema,
     annotations: {
       ...mappingAnnotations(oscMappings.commands.newCommand, 'command_line_new'),
