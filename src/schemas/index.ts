@@ -1,7 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
 import type { ServerNotification, ServerRequest } from '@modelcontextprotocol/sdk/types.js';
-import { z, type ZodRawShape } from 'zod';
+import { z, type ZodRawShape, type ZodTypeAny } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import toolDefinitions from '../tools/index';
 import type { ToolDefinition } from '../tools/types';
@@ -24,7 +24,7 @@ function toZodObject(shape: ZodRawShape | undefined): z.ZodObject<ZodRawShape> {
 
 function buildSchema(definition: ToolDefinition): ToolJsonSchemaDefinition {
   const zodSchema = toZodObject(definition.config.inputSchema);
-  const jsonSchema = zodToJsonSchema(zodSchema, {
+  const jsonSchema = zodToJsonSchema(zodSchema as ZodTypeAny, {
     name: definition.name,
     $refStrategy: 'none'
   });
