@@ -196,6 +196,11 @@ export const oscMappings = {
     toggleStagingMode: '/eos/toggle/staging_mode',
     setCueSendString: '/eos/set/cue/send_string',
     setCueReceiveString: '/eos/set/cue/receive_string'
+  },
+  system: {
+    getVersion: '/eos/get/version',
+    getSetupDefaults: '/eos/get/setup_defaults',
+    setUserId: '/eos/set/user_id'
   }
 } as const;
 

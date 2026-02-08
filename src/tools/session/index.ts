@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import { getResourceCache } from '../../services/cache';
+import { getOscClient } from '../../services/osc/client';
+import { oscMappings } from '../../services/osc/mappings';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 let currentUserId: number | null = null;
@@ -103,6 +105,34 @@ const setContextInputSchema = {
   ttl_ms: z.coerce.number().int().min(1).max(24 * 60 * 60 * 1000).optional()
 };
 
+const targetOptionsSchema = {
+  targetAddress: z.string().min(1).optional(),
+  targetPort: z.coerce.number().int().min(1).max(65535).optional()
+};
+
+const setUserIdInputSchema = {
+  user_id: z.coerce.number().int().min(0, "L'identifiant utilisateur doit etre positif"),
+  ...targetOptionsSchema
+};
+
+const extractTargetOptions = (options: { targetAddress?: string; targetPort?: number }) => {
+  const target: { targetAddress?: string; targetPort?: number } = {};
+  if (options.targetAddress) {
+    target.targetAddress = options.targetAddress;
+  }
+  if (typeof options.targetPort === 'number') {
+    target.targetPort = options.targetPort;
+  }
+  return target;
+};
+
+const buildJsonArgs = (payload: Record<string, unknown>) => [
+  {
+    type: 's' as const,
+    value: JSON.stringify(payload)
+  }
+];
+
 /**
  * @tool session_set_current_user
  * @summary Definir utilisateur courant
@@ -168,6 +198,52 @@ export const sessionGetCurrentUserTool: ToolDefinition = {
       structuredContent: {
         user: user ?? null,
         suggested_next_actions: buildSuggestedNextActions(Boolean(await getSessionContext()))
+      }
+    } as ToolExecutionResult;
+  }
+};
+
+/**
+ * @tool eos_set_user_id
+ * @summary Definir identifiant utilisateur EOS
+ * @description Definit l'identifiant utilisateur actif sur la console EOS via OSC.
+ * @arguments Voir docs/tools.md#eos-set-user-id pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-set-user-id pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-set-user-id pour un exemple OSC.
+ */
+export const eosSetUserIdTool: ToolDefinition<typeof setUserIdInputSchema> = {
+  name: 'eos_set_user_id',
+  config: {
+    title: 'Definir identifiant utilisateur EOS',
+    description: "Definit l'identifiant utilisateur actif sur la console EOS via OSC.",
+    inputSchema: setUserIdInputSchema
+  },
+  handler: async (args) => {
+    const schema = z.object(setUserIdInputSchema).strict();
+    const options = schema.parse(args ?? {});
+    const client = getOscClient();
+    const payload = { user_id: options.user_id };
+    const argsList = buildJsonArgs(payload);
+
+    await client.sendMessage(oscMappings.system.setUserId, argsList, extractTargetOptions(options));
+    setCurrentUserId(options.user_id);
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Identifiant utilisateur EOS defini sur ${options.user_id}`
+        }
+      ],
+      structuredContent: {
+        action: 'set_user_id',
+        user_id: options.user_id,
+        session_user: options.user_id,
+        osc: {
+          address: oscMappings.system.setUserId,
+          args: payload
+        }
       }
     } as ToolExecutionResult;
   }
@@ -279,6 +355,7 @@ export const sessionClearContextTool: ToolDefinition = {
 };
 
 export const sessionTools = [
+  eosSetUserIdTool,
   sessionSetCurrentUserTool,
   sessionGetCurrentUserTool,
   sessionSetContextTool,

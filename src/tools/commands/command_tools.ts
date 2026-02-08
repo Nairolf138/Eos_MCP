@@ -400,6 +400,12 @@ const commandLineInputSchema = {
   ...targetOptionsSchema
 };
 
+const userCommandLineInputSchema = {
+  user: z.coerce.number().int().min(0),
+  timeoutMs: z.coerce.number().int().positive().optional(),
+  ...targetOptionsSchema
+};
+
 /**
  * @tool eos_get_command_line
  * @summary Lecture de la ligne de commande EOS
@@ -443,11 +449,56 @@ export const eosGetCommandLineTool: ToolDefinition<typeof commandLineInputSchema
   }
 };
 
+/**
+ * @tool eos_get_user_command_line
+ * @summary Lecture de la ligne de commande utilisateur
+ * @description Recupere la ligne de commande pour un utilisateur specifique.
+ * @arguments Voir docs/tools.md#eos-get-user-command-line pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-get-user-command-line pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-get-user-command-line pour un exemple OSC.
+ */
+export const eosGetUserCommandLineTool: ToolDefinition<typeof userCommandLineInputSchema> = {
+  name: 'eos_get_user_command_line',
+  config: {
+    title: 'Lecture de la ligne de commande utilisateur',
+    description: 'Recupere la ligne de commande pour un utilisateur specifique.',
+    inputSchema: userCommandLineInputSchema,
+    annotations: mappingAnnotations(oscMappings.commands.getCommandLine, 'user_command_line_query')
+  },
+  handler: async (args, _extra) => {
+    const schema = z.object(userCommandLineInputSchema).strict();
+    const options = schema.parse(args ?? {});
+    const client = getOscClient();
+    const user = Math.trunc(options.user);
+
+    if (options.dry_run) {
+      return createDryRunResult({
+        text: `Lecture ligne de commande simulee pour utilisateur ${user}`,
+        action: 'get_user_command_line',
+        request: { user },
+        oscAddress: oscMappings.commands.getCommandLine,
+        oscArgs: { user }
+      });
+    }
+
+    const result = await client.getCommandLine({
+      user,
+      timeoutMs: options.timeoutMs,
+      targetAddress: options.targetAddress,
+      targetPort: options.targetPort
+    });
+
+    return formatCommandLineState(result);
+  }
+};
+
 export const commandTools = [
   eosCommandTool,
   eosNewCommandTool,
   eosCommandWithSubstitutionTool,
-  eosGetCommandLineTool
+  eosGetCommandLineTool,
+  eosGetUserCommandLineTool
 ] as ToolDefinition[];
 
 export default commandTools;

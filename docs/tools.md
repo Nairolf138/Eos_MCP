@@ -234,6 +234,37 @@ _OSC_
 oscsend 127.0.0.1 8001 /eos/cmd s:'Chan 1 + Enter'
 ```
 
+<a id="eos-channel-set-dmx"></a>
+## Reglage DMX des canaux (`eos_channel_set_dmx`)
+
+**Description :** Ajuste la valeur DMX brute (0-255) pour des canaux specifiques.
+
+**Arguments :**
+
+| Nom | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `channels` | number \| array<number> \| string | Oui | Un numero de canal ou une liste de canaux |
+| `targetAddress` | string | Non | — |
+| `targetPort` | number | Non | — |
+| `value` | number \| string | Oui | — |
+
+**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+
+**Exemples :**
+
+_CLI_
+
+```bash
+npx @modelcontextprotocol/cli call --tool eos_channel_set_dmx --args '{"channels":1,"value":1}'
+```
+
+_OSC_
+
+```bash
+# Exemple d'envoi OSC via oscsend
+oscsend 127.0.0.1 8001 /eos/cmd s:'Chan 1 At 1 DMX Enter'
+```
+
 <a id="eos-channel-set-level"></a>
 ## Reglage de niveau (`eos_channel_set_level`)
 
@@ -1667,6 +1698,36 @@ _OSC_
 oscsend 127.0.0.1 8001 /eos/get/pending/cue s:'{"cuelist_number":1}'
 ```
 
+<a id="eos-get-setup-defaults"></a>
+## Defaults de setup (`eos_get_setup_defaults`)
+
+**Description :** Recupere les valeurs par defaut de setup exposees par la console EOS.
+
+**Arguments :**
+
+| Nom | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `targetAddress` | string | Non | — |
+| `targetPort` | number | Non | — |
+| `timeoutMs` | number | Non | — |
+
+**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+
+**Exemples :**
+
+_CLI_
+
+```bash
+npx @modelcontextprotocol/cli call --tool eos_get_setup_defaults --args '{"timeoutMs":1}'
+```
+
+_OSC_
+
+```bash
+# Exemple d'envoi OSC via oscsend
+oscsend 127.0.0.1 8001 /eos/get/setup_defaults s:'{"timeoutMs":1}'
+```
+
 <a id="eos-get-show-name"></a>
 ## Nom du show (`eos_get_show_name`)
 
@@ -1725,6 +1786,70 @@ _OSC_
 ```bash
 # Exemple d'envoi OSC via oscsend
 oscsend 127.0.0.1 8001 /eos/get/softkey_labels s:'{"timeoutMs":1}'
+```
+
+<a id="eos-get-user-command-line"></a>
+## Lecture de la ligne de commande utilisateur (`eos_get_user_command_line`)
+
+**Description :** Recupere la ligne de commande pour un utilisateur specifique.
+
+**Arguments :**
+
+| Nom | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `dry_run` | boolean | Non | — |
+| `require_confirmation` | boolean | Non | — |
+| `safety_level` | enum(strict, standard, off) | Non | — |
+| `targetAddress` | string | Non | — |
+| `targetPort` | number | Non | — |
+| `timeoutMs` | number | Non | — |
+| `user` | number | Oui | — |
+
+**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+
+**Exemples :**
+
+_CLI_
+
+```bash
+npx @modelcontextprotocol/cli call --tool eos_get_user_command_line --args '{"user":1}'
+```
+
+_OSC_
+
+```bash
+# Exemple d'envoi OSC via oscsend
+oscsend 127.0.0.1 8001 /eos/get/cmd_line s:'{"user":1}'
+```
+
+<a id="eos-get-version"></a>
+## Version de la console (`eos_get_version`)
+
+**Description :** Recupere la version logicielle signalee par la console EOS.
+
+**Arguments :**
+
+| Nom | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `targetAddress` | string | Non | — |
+| `targetPort` | number | Non | — |
+| `timeoutMs` | number | Non | — |
+
+**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+
+**Exemples :**
+
+_CLI_
+
+```bash
+npx @modelcontextprotocol/cli call --tool eos_get_version --args '{"timeoutMs":1}'
+```
+
+_OSC_
+
+```bash
+# Exemple d'envoi OSC via oscsend
+oscsend 127.0.0.1 8001 /eos/get/version s:'{"timeoutMs":1}'
 ```
 
 <a id="eos-group-get-info"></a>
@@ -2772,6 +2897,36 @@ _OSC_
 ```bash
 # Exemple d'envoi OSC via oscsend
 oscsend 127.0.0.1 8001 /eos/param/position/xy s:'{"x":1,"y":1}'
+```
+
+<a id="eos-set-user-id"></a>
+## Definir identifiant utilisateur EOS (`eos_set_user_id`)
+
+**Description :** Definit l'identifiant utilisateur actif sur la console EOS via OSC.
+
+**Arguments :**
+
+| Nom | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `targetAddress` | string | Non | — |
+| `targetPort` | number | Non | — |
+| `user_id` | number | Oui | — |
+
+**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+
+**Exemples :**
+
+_CLI_
+
+```bash
+npx @modelcontextprotocol/cli call --tool eos_set_user_id --args '{"user_id":1}'
+```
+
+_OSC_
+
+```bash
+# Exemple d'envoi OSC via oscsend
+oscsend 127.0.0.1 8001 /eos/set/user_id s:'{"user_id":1}'
 ```
 
 <a id="eos-set-xyz-position"></a>
