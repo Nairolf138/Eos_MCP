@@ -3270,6 +3270,36 @@ _OSC_
 oscsend 127.0.0.1 8001 /eos/param/wheel/tick s:'{"parameter_name":"exemple","ticks":1}'
 ```
 
+<a id="eos-fixture-search"></a>
+## Recherche fixture ETC (`eos_fixture_search`)
+
+**Description :** Recherche dans la bibliotheque de fixtures ETC par nom, marque, modele ou mode.
+
+**Arguments :**
+
+| Nom | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `limit` | number | Non | — |
+| `manufacturer` | string | Non | — |
+| `mode` | string | Non | — |
+| `model` | string | Non | — |
+| `name` | string | Non | — |
+| `query` | string | Non | — |
+
+**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les matches.
+
+**Exemples :**
+
+_CLI_
+
+```bash
+npx @modelcontextprotocol/cli call --tool eos_fixture_search --args '{"query":"ColorSource","mode":"RGBI"}'
+```
+
+_OSC_
+
+_Pas de mapping OSC documenté._
+
 <a id="eos-workflow-create-look"></a>
 ## Workflow creation de look (`eos_workflow_create_look`)
 
@@ -3314,8 +3344,13 @@ _Pas de mapping OSC documenté._
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
 | `channel_number` | number | Oui | — |
-| `device_type` | string | Oui | — |
+| `device_type` | string | Non | — |
 | `dmx_address` | string | Oui | — |
+| `fixture_manufacturer` | string | Non | — |
+| `fixture_mode` | string | Non | — |
+| `fixture_model` | string | Non | — |
+| `fixture_name` | string | Non | — |
+| `fixture_query` | string | Non | — |
 | `label` | string | Oui | — |
 | `part` | number | Non | — |
 | `position_x` | number | Non | — |

@@ -24,6 +24,7 @@ import pixelMapTools from './pixelMaps/index';
 import snapshotTools from './snapshots/index';
 import curveTools from './curves/index';
 import patchTools from './patch/index';
+import fixtureTools from './fixtures/index';
 import showControlTools from './showControl/index';
 import queryTools from './queries/index';
 import fpeTools from './fpe/index';
@@ -58,6 +59,7 @@ const definitions = [
   ...magicSheetTools,
   ...pixelMapTools,
   ...curveTools,
+  ...fixtureTools,
   ...patchTools,
   ...snapshotTools,
   ...showControlTools,
