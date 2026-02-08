@@ -218,7 +218,7 @@ Valider une sélection de canaux depuis un workflow automatisé avant toute comm
 oscsend 127.0.0.1 8001 /eos/cmd s:'Chan 101 Thru 102 + 201 Enter'
 
 # Lecture des informations de niveau sur les mêmes canaux
-oscsend 127.0.0.1 8001 /eos/get/channel s:'{"channels":[101,102,201]}'
+oscsend 127.0.0.1 8001 /eos/get/channels s:'{"channels":[101,102,201]}'
 ```
 
 ### Astuces d'intégration
