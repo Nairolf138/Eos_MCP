@@ -1,0 +1,111 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`OSC payload snapshots captures JSON parameter payloads 1`] = `
+{
+  "address": "/eos/chan/param",
+  "args": [
+    {
+      "type": "s",
+      "value": "{"channels":[1,2],"parameter":"pan","value":45}",
+    },
+  ],
+}
+`;
+
+exports[`OSC payload snapshots captures JSON parameter payloads 2`] = `
+{
+  "address": "/eos/dmx/address/dmx",
+  "args": [
+    {
+      "type": "s",
+      "value": "{"address":"1/101","value":255}",
+    },
+  ],
+}
+`;
+
+exports[`OSC payload snapshots captures command line payloads 1`] = `
+{
+  "address": "/eos/cmd",
+  "args": [
+    {
+      "type": "s",
+      "value": "Chan 1 At 50#",
+    },
+  ],
+}
+`;
+
+exports[`OSC payload snapshots captures command line payloads 2`] = `
+{
+  "address": "/eos/newcmd",
+  "args": [
+    {
+      "type": "s",
+      "value": "Cue 1 Record#",
+    },
+  ],
+}
+`;
+
+exports[`OSC payload snapshots captures control surface payloads 1`] = `
+{
+  "address": "/eos/key/go_0",
+  "args": [
+    {
+      "type": "f",
+      "value": 1,
+    },
+  ],
+}
+`;
+
+exports[`OSC payload snapshots captures control surface payloads 2`] = `
+{
+  "address": "/eos/group/5/level",
+  "args": [
+    {
+      "type": "f",
+      "value": 75,
+    },
+  ],
+}
+`;
+
+exports[`OSC payload snapshots captures cue/magic sheet payloads 1`] = `
+{
+  "address": "/eos/cue/fire",
+  "args": [
+    {
+      "type": "s",
+      "value": "{"cuelist":2,"list":2,"cuelist_number":2,"cue":"1","cue_number":"1","number":"1","part":0,"cue_part":0}",
+    },
+  ],
+}
+`;
+
+exports[`OSC payload snapshots captures cue/magic sheet payloads 2`] = `
+{
+  "address": "/eos/magic_sheet/open",
+  "args": [
+    {
+      "type": "s",
+      "value": "{"number":3}",
+    },
+  ],
+}
+`;
+
+exports[`OSC payload snapshots captures layout payloads 1`] = `
+{
+  "address": "/eos/fader/1/config/10/0",
+  "args": [],
+}
+`;
+
+exports[`OSC payload snapshots captures layout payloads 2`] = `
+{
+  "address": "/eos/ds/1/config/Chan/10/0/1",
+  "args": [],
+}
+`;
