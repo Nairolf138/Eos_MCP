@@ -92,19 +92,20 @@ const matchFixtureQuery = (fixture: FixtureDefinition, query?: string) => {
 
 const scoreFixtureMatch = (fixture: FixtureDefinition, filters: FixtureSearchFilters): number => {
   let score = 0;
-  if (filters.query) {
-    if (equalsNormalized(fixture.name, filters.query) || equalsNormalized(fixture.model, filters.query)) {
+  const query = filters.query;
+  if (query) {
+    if (equalsNormalized(fixture.name, query) || equalsNormalized(fixture.model, query)) {
       score += 5;
-    } else if (includesNormalized(fixture.name, filters.query) || includesNormalized(fixture.model, filters.query)) {
+    } else if (includesNormalized(fixture.name, query) || includesNormalized(fixture.model, query)) {
       score += 3;
     }
-    if (includesNormalized(fixture.manufacturer, filters.query)) {
+    if (includesNormalized(fixture.manufacturer, query)) {
       score += 2;
     }
-    if (fixture.aliases?.some((alias) => includesNormalized(alias, filters.query))) {
+    if (fixture.aliases?.some((alias) => includesNormalized(alias, query))) {
       score += 2;
     }
-    if (fixture.modes.some((mode) => includesNormalized(mode.name, filters.query))) {
+    if (fixture.modes.some((mode) => includesNormalized(mode.name, query))) {
       score += 1;
     }
   }
