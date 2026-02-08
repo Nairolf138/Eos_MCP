@@ -406,7 +406,7 @@ export const eosChannelSelectTool: ToolDefinition<typeof selectInputSchema> = {
     const channels = normaliseChannels(options.channels);
     const expression = buildChannelExpression(channels);
     const exclusive = options.exclusive ?? false;
-    const command = `Chan ${expression}${exclusive ? '' : ' +'}`;
+    const command = exclusive ? `Chan ${expression}` : `Chan + ${expression}`;
     const commandWithTerminator = `${command}#`;
     const argsList = createCommandArgs(commandWithTerminator);
 
