@@ -2,6 +2,7 @@ import type { OscMessage } from '../../../services/osc/index';
 import { OscClient, setOscClient, type OscGateway, type OscGatewaySendOptions } from '../../../services/osc/client';
 import { oscMappings } from '../../../services/osc/mappings';
 import {
+  eosChannelSelectTool,
   eosChannelSetLevelTool,
   eosSetDmxTool,
   eosChannelGetInfoTool
@@ -60,6 +61,26 @@ describe('channel tools', () => {
 
     const message = service.sentMessages[0];
     expect(message?.args?.[0]?.value).toBe('Chan 1 Thru 2 Sneak 50#');
+  });
+
+  it('prefere une selection exclusive sans suffixe', async () => {
+    await runTool(eosChannelSelectTool, { channels: [1, 2], exclusive: true });
+
+    expect(service.sentMessages).toHaveLength(1);
+    expect(service.sentMessages[0]).toMatchObject({ address: oscMappings.commands.newCommand });
+
+    const message = service.sentMessages[0];
+    expect(message?.args?.[0]?.value).toBe('Chan 1 Thru 2#');
+  });
+
+  it('utilise la forme Chan + pour ajouter a la selection', async () => {
+    await runTool(eosChannelSelectTool, { channels: [1, 2] });
+
+    expect(service.sentMessages).toHaveLength(1);
+    expect(service.sentMessages[0]).toMatchObject({ address: oscMappings.commands.newCommand });
+
+    const message = service.sentMessages[0];
+    expect(message?.args?.[0]?.value).toBe('Chan + 1 Thru 2#');
   });
 
 
