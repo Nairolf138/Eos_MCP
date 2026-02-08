@@ -343,6 +343,12 @@ const setLevelSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
+const setChannelDmxSchema = {
+  channels: channelListSchema,
+  value: dmxValueSchema,
+  ...targetOptionsSchema
+} satisfies ZodRawShape;
+
 const setDmxSchema = {
   addresses: z.union([z.coerce.number().int().min(1).max(65535), z.array(z.coerce.number().int().min(1).max(65535)).min(1), z.string().trim().min(1)]).transform((value, ctx): number[] => {
     if (typeof value === 'number') {
@@ -456,6 +462,48 @@ export const eosChannelSetLevelTool: ToolDefinition<typeof setLevelSchema> = {
       channels,
       level,
       snap: options.snap ?? false,
+      command,
+      osc: {
+        address: oscMappings.channels.command,
+        args: argsList
+      }
+    });
+  }
+};
+
+/**
+ * @tool eos_channel_set_dmx
+ * @summary Reglage DMX des canaux
+ * @description Ajuste la valeur DMX brute (0-255) pour des canaux specifiques.
+ * @arguments Voir docs/tools.md#eos-channel-set-dmx pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-channel-set-dmx pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-channel-set-dmx pour un exemple OSC.
+ */
+export const eosChannelSetDmxTool: ToolDefinition<typeof setChannelDmxSchema> = {
+  name: 'eos_channel_set_dmx',
+  config: {
+    title: 'Reglage DMX des canaux',
+    description: 'Ajuste la valeur DMX brute (0-255) pour des canaux specifiques.',
+    inputSchema: setChannelDmxSchema,
+    annotations: annotate(oscMappings.channels.command, 'Chan {channels} At {value} DMX Enter')
+  },
+  handler: async (args, _extra) => {
+    const schema = z.object(setChannelDmxSchema).strict();
+    const options = schema.parse(args ?? {});
+    const client = getOscClient();
+    const channels = normaliseChannels(options.channels);
+    const value = resolveDmxValue(options.value);
+    const expression = buildChannelExpression(channels);
+    const command = `Chan ${expression} At ${formatNumeric(value)} DMX Enter`;
+    const argsList = createCommandArgs(command);
+
+    await client.sendMessage(oscMappings.channels.command, argsList, extractTargetOptions(options));
+
+    return createResult(`Valeur DMX ${value} appliquee aux canaux ${channels.join(', ')}`, {
+      action: 'set_channel_dmx',
+      channels,
+      value,
       command,
       osc: {
         address: oscMappings.channels.command,
@@ -633,6 +681,7 @@ export const eosChannelGetInfoTool: ToolDefinition<typeof getInfoSchema> = {
 const channelTools = [
   eosChannelSelectTool,
   eosChannelSetLevelTool,
+  eosChannelSetDmxTool,
   eosSetDmxTool,
   eosChannelSetParameterTool,
   eosChannelGetInfoTool
