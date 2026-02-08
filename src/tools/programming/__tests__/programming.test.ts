@@ -46,7 +46,7 @@ describe('programming tools', () => {
     expect(service.sentMessages).toHaveLength(1);
     expect(service.sentMessages[0]).toMatchObject({
       address: '/eos/newcmd',
-      args: [{ type: 's', value: 'Cue 2/1.5 Record#' }]
+      args: [{ type: 's', value: 'Record Cue 2/1.5#' }]
     });
   });
 

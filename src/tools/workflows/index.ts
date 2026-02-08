@@ -2,7 +2,14 @@ import { z, type ZodRawShape } from 'zod';
 import { validateCueArgumentsPair, optionalTimeoutMsSchema } from '../../utils/validators';
 import { getOscClient } from '../../services/osc/client';
 import { sendDeterministicCommand } from '../commands/command_tools';
-import { createCueIdentifierFromOptions, cueNumberSchema, cuelistNumberSchema, formatCueDescription } from '../cues/common';
+import {
+  buildRecordCueCommand,
+  createCueIdentifierFromOptions,
+  cueNumberSchema,
+  cuelistNumberSchema,
+  formatCueDescription,
+  formatCueTarget
+} from '../cues/common';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 import { resolveFixture } from '../../fixtures';
 
@@ -120,17 +127,13 @@ export const eosWorkflowCreateLookTool: ToolDefinition<typeof createLookInputSch
       ...(options.beam_palette != null ? [{ step: 'apply_beam_palette', command: `BP ${options.beam_palette}` }] : []),
       {
         step: 'record_cue',
-        command: options.cuelist_number == null
-          ? `Cue ${String(options.cue_number).trim()} Record`
-          : `Cue ${options.cuelist_number}/${String(options.cue_number).trim()} Record`
+        command: buildRecordCueCommand(options.cue_number, options.cuelist_number)
       },
       ...(options.cue_label
         ? [
             {
               step: 'label_cue',
-              command: options.cuelist_number == null
-                ? `Cue ${String(options.cue_number).trim()} Label "${options.cue_label.replace(/"/g, '\\"')}"`
-                : `Cue ${options.cuelist_number}/${String(options.cue_number).trim()} Label "${options.cue_label.replace(/"/g, '\\"')}"`
+              command: `${formatCueTarget(options.cue_number, options.cuelist_number)} Label "${options.cue_label.replace(/"/g, '\\"')}"`
             }
           ]
         : [])

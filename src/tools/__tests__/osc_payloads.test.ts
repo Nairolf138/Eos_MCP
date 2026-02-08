@@ -59,7 +59,7 @@ describe('OSC payload snapshots', () => {
     snapshotLastMessage(service);
 
     await runTool(eosNewCommandTool, {
-      command: 'Cue 1 Record',
+      command: 'Record Cue 1',
       terminateWithEnter: true,
       require_confirmation: true
     });

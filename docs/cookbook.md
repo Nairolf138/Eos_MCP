@@ -430,7 +430,7 @@ Envoyer rapidement une commande texte (ex. `Record`, `Update`) ou reconstituer u
 ### Commande OSC commentée
 ```bash
 # Envoi d'une commande directe
-oscsend 127.0.0.1 8001 /eos/cmd s:"Record Cue 12#"
+oscsend 127.0.0.1 8001 /eos/cmd s:"Record Cue 2/12#"
 ```
 
 ### Astuces d'intégration
