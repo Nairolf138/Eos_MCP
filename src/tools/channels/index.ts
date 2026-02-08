@@ -9,6 +9,7 @@ import {
 import { getOscClient, type OscJsonResponse, type StepStatus } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
 import { oscMappings } from '../../services/osc/mappings';
+import { sendDeterministicCommand } from '../commands/command_tools';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
@@ -397,27 +398,32 @@ export const eosChannelSelectTool: ToolDefinition<typeof selectInputSchema> = {
     title: 'Selection de canaux',
     description: 'Selectionne un ou plusieurs canaux sur la console.',
     inputSchema: selectInputSchema,
-    annotations: annotate(oscMappings.channels.command, 'Chan {channels} + Enter')
+    annotations: annotate(oscMappings.commands.newCommand, 'Chan {channels}')
   },
   handler: async (args, _extra) => {
     const schema = z.object(selectInputSchema).strict();
     const options = schema.parse(args ?? {});
-    const client = getOscClient();
     const channels = normaliseChannels(options.channels);
     const expression = buildChannelExpression(channels);
     const exclusive = options.exclusive ?? false;
-    const command = `Chan ${expression}${exclusive ? '' : ' +'} Enter`;
-    const argsList = createCommandArgs(command);
+    const command = `Chan ${expression}${exclusive ? '' : ' +'}`;
+    const commandWithTerminator = `${command}#`;
+    const argsList = createCommandArgs(commandWithTerminator);
 
-    await client.sendMessage(oscMappings.channels.command, argsList, extractTargetOptions(options));
+    await sendDeterministicCommand({
+      command,
+      clearLine: true,
+      terminateWithEnter: true,
+      ...extractTargetOptions(options)
+    });
 
     return createResult(`Canaux selectionnes: ${channels.join(', ')}`, {
       action: 'select',
       channels,
       exclusive,
-      command,
+      command: commandWithTerminator,
       osc: {
-        address: oscMappings.channels.command,
+        address: oscMappings.commands.newCommand,
         args: argsList
       }
     });
@@ -440,31 +446,36 @@ export const eosChannelSetLevelTool: ToolDefinition<typeof setLevelSchema> = {
     description: 'Ajuste le niveau intensite de canaux specifiques (0-100).',
     inputSchema: setLevelSchema,
     annotations: {
-      ...annotate(oscMappings.channels.command, 'Chan {channels} Sneak {level} Enter'),
+      ...annotate(oscMappings.commands.newCommand, 'Chan {channels} Sneak {level}'),
       highlighted: true
     }
   },
   handler: async (args, _extra) => {
     const schema = z.object(setLevelSchema).strict();
     const options = schema.parse(args ?? {});
-    const client = getOscClient();
     const channels = normaliseChannels(options.channels);
     const level = resolveLevelValue(options.level);
     const expression = buildChannelExpression(channels);
     const mode = options.snap ? 'At' : 'Sneak';
-    const command = `Chan ${expression} ${mode} ${formatNumeric(level)} Enter`;
-    const argsList = createCommandArgs(command);
+    const command = `Chan ${expression} ${mode} ${formatNumeric(level)}`;
+    const commandWithTerminator = `${command}#`;
+    const argsList = createCommandArgs(commandWithTerminator);
 
-    await client.sendMessage(oscMappings.channels.command, argsList, extractTargetOptions(options));
+    await sendDeterministicCommand({
+      command,
+      clearLine: true,
+      terminateWithEnter: true,
+      ...extractTargetOptions(options)
+    });
 
     return createResult(`Niveau regle a ${level}% pour les canaux ${channels.join(', ')}`, {
       action: 'set_level',
       channels,
       level,
       snap: options.snap ?? false,
-      command,
+      command: commandWithTerminator,
       osc: {
-        address: oscMappings.channels.command,
+        address: oscMappings.commands.newCommand,
         args: argsList
       }
     });
@@ -486,27 +497,32 @@ export const eosChannelSetDmxTool: ToolDefinition<typeof setChannelDmxSchema> = 
     title: 'Reglage DMX des canaux',
     description: 'Ajuste la valeur DMX brute (0-255) pour des canaux specifiques.',
     inputSchema: setChannelDmxSchema,
-    annotations: annotate(oscMappings.channels.command, 'Chan {channels} At {value} DMX Enter')
+    annotations: annotate(oscMappings.commands.newCommand, 'Chan {channels} At {value} DMX')
   },
   handler: async (args, _extra) => {
     const schema = z.object(setChannelDmxSchema).strict();
     const options = schema.parse(args ?? {});
-    const client = getOscClient();
     const channels = normaliseChannels(options.channels);
     const value = resolveDmxValue(options.value);
     const expression = buildChannelExpression(channels);
-    const command = `Chan ${expression} At ${formatNumeric(value)} DMX Enter`;
-    const argsList = createCommandArgs(command);
+    const command = `Chan ${expression} At ${formatNumeric(value)} DMX`;
+    const commandWithTerminator = `${command}#`;
+    const argsList = createCommandArgs(commandWithTerminator);
 
-    await client.sendMessage(oscMappings.channels.command, argsList, extractTargetOptions(options));
+    await sendDeterministicCommand({
+      command,
+      clearLine: true,
+      terminateWithEnter: true,
+      ...extractTargetOptions(options)
+    });
 
     return createResult(`Valeur DMX ${value} appliquee aux canaux ${channels.join(', ')}`, {
       action: 'set_channel_dmx',
       channels,
       value,
-      command,
+      command: commandWithTerminator,
       osc: {
-        address: oscMappings.channels.command,
+        address: oscMappings.commands.newCommand,
         args: argsList
       }
     });
@@ -528,27 +544,32 @@ export const eosSetDmxTool: ToolDefinition<typeof setDmxSchema> = {
     title: 'Reglage DMX',
     description: 'Fixe une valeur DMX (0-255) sur une ou plusieurs adresses.',
     inputSchema: setDmxSchema,
-    annotations: annotate(oscMappings.dmx.command, 'Address {addresses} At {value} Enter')
+    annotations: annotate(oscMappings.commands.newCommand, 'Address {addresses} At {value}')
   },
   handler: async (args, _extra) => {
     const schema = z.object(setDmxSchema).strict();
     const options = schema.parse(args ?? {});
-    const client = getOscClient();
     const addresses = normaliseChannels(options.addresses);
     const value = resolveDmxValue(options.value);
     const expression = buildChannelExpression(addresses);
-    const command = `Address ${expression} At ${formatNumeric(value)} Enter`;
-    const argsList = createCommandArgs(command);
+    const command = `Address ${expression} At ${formatNumeric(value)}`;
+    const commandWithTerminator = `${command}#`;
+    const argsList = createCommandArgs(commandWithTerminator);
 
-    await client.sendMessage(oscMappings.dmx.command, argsList, extractTargetOptions(options));
+    await sendDeterministicCommand({
+      command,
+      clearLine: true,
+      terminateWithEnter: true,
+      ...extractTargetOptions(options)
+    });
 
     return createResult(`Valeur DMX ${value} envoyee sur les adresses ${addresses.join(', ')}`, {
       action: 'set_dmx',
       addresses,
       value,
-      command,
+      command: commandWithTerminator,
       osc: {
-        address: oscMappings.dmx.command,
+        address: oscMappings.commands.newCommand,
         args: argsList
       }
     });
