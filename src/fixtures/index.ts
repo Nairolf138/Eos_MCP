@@ -1,4 +1,4 @@
-import fixturesData from './etc-fixtures.json';
+import fixturesData from './fixtures.json';
 
 export interface FixtureMode {
   name: string;
@@ -169,7 +169,7 @@ export const resolveFixture = (input: FixtureResolutionInput): FixtureResolution
   });
 
   if (matches.length === 0) {
-    throw new Error('Aucune fixture ETC ne correspond aux criteres fournis.');
+    throw new Error('Aucune fixture ne correspond aux criteres fournis.');
   }
 
   const [best, ...rest] = matches;

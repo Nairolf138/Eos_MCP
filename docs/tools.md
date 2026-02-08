@@ -3271,9 +3271,9 @@ oscsend 127.0.0.1 8001 /eos/param/wheel/tick s:'{"parameter_name":"exemple","tic
 ```
 
 <a id="eos-fixture-search"></a>
-## Recherche fixture ETC (`eos_fixture_search`)
+## Recherche fixture (`eos_fixture_search`)
 
-**Description :** Recherche dans la bibliotheque de fixtures ETC par nom, marque, modele ou mode.
+**Description :** Recherche dans la bibliotheque de fixtures par nom, marque, modele ou mode.
 
 **Arguments :**
 

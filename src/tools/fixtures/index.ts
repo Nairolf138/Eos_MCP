@@ -13,8 +13,8 @@ const fixtureSearchInputSchema = {
 
 /**
  * @tool eos_fixture_search
- * @summary Recherche dans la bibliotheque de fixtures ETC
- * @description Recherche dans la bibliotheque de fixtures ETC par nom, marque, modele ou mode.
+ * @summary Recherche dans la bibliotheque de fixtures
+ * @description Recherche dans la bibliotheque de fixtures par nom, marque, modele ou mode.
  * @arguments Voir docs/tools.md#eos-fixture-search pour le schema complet.
  * @returns ToolExecutionResult avec contenu texte et objet.
  * @example CLI Consultez docs/tools.md#eos-fixture-search pour un exemple CLI.
@@ -23,8 +23,8 @@ const fixtureSearchInputSchema = {
 export const eosFixtureSearchTool: ToolDefinition<typeof fixtureSearchInputSchema> = {
   name: 'eos_fixture_search',
   config: {
-    title: 'Recherche fixture ETC',
-    description: 'Recherche dans la bibliotheque de fixtures ETC par nom, marque, modele ou mode.',
+    title: 'Recherche fixture',
+    description: 'Recherche dans la bibliotheque de fixtures par nom, marque, modele ou mode.',
     inputSchema: fixtureSearchInputSchema
   },
   handler: async (args) => {
