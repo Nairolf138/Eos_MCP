@@ -4,6 +4,7 @@ import { getOscClient } from '../../services/osc/client';
 import { sendDeterministicCommand } from '../commands/command_tools';
 import { createCueIdentifierFromOptions, cueNumberSchema, cuelistNumberSchema, formatCueDescription } from '../cues/common';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
+import { resolveFixture } from '../../fixtures';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
@@ -38,7 +39,8 @@ function buildWorkflowResult(
   status: 'ok' | 'partial_failure' | 'failed',
   summary: string,
   steps: WorkflowStepLog[],
-  partialErrors: Array<{ step: string; error: string }>
+  partialErrors: Array<{ step: string; error: string }>,
+  extraStructuredContent: Record<string, unknown> = {}
 ): ToolExecutionResult {
   return {
     content: [{ type: 'text', text: summary }],
@@ -47,7 +49,8 @@ function buildWorkflowResult(
       status,
       executedSteps: steps,
       commandsSent: steps.filter((step) => typeof step.command === 'string').map((step) => step.command),
-      partialErrors
+      partialErrors,
+      ...extraStructuredContent
     }
   };
 }
@@ -159,7 +162,12 @@ export const eosWorkflowCreateLookTool: ToolDefinition<typeof createLookInputSch
 const patchFixtureInputSchema = {
   channel_number: z.coerce.number().int().min(1).max(99999),
   dmx_address: z.string().trim().min(1).max(32),
-  device_type: z.string().trim().min(1).max(128),
+  device_type: z.string().trim().min(1).max(128).optional(),
+  fixture_query: z.string().trim().min(1).max(128).optional(),
+  fixture_manufacturer: z.string().trim().min(1).max(128).optional(),
+  fixture_model: z.string().trim().min(1).max(128).optional(),
+  fixture_name: z.string().trim().min(1).max(128).optional(),
+  fixture_mode: z.string().trim().min(1).max(128).optional(),
   label: z.string().trim().min(1).max(128),
   part: z.coerce.number().int().min(1).max(99).optional(),
   position_x: z.coerce.number().finite().optional(),
@@ -189,12 +197,39 @@ export const eosWorkflowPatchFixtureTool: ToolDefinition<typeof patchFixtureInpu
     const steps: WorkflowStepLog[] = [];
     const partialErrors: Array<{ step: string; error: string }> = [];
     const part = options.part ?? 1;
+    let resolvedDeviceType = options.device_type;
+    let fixtureResolution: ReturnType<typeof resolveFixture> | null = null;
+
+    if (!resolvedDeviceType) {
+      if (
+        !options.fixture_query &&
+        !options.fixture_manufacturer &&
+        !options.fixture_model &&
+        !options.fixture_name
+      ) {
+        throw new Error('device_type ou une recherche fixture_* est requis.');
+      }
+
+      fixtureResolution = resolveFixture({
+        fixtureQuery: options.fixture_query,
+        fixtureManufacturer: options.fixture_manufacturer,
+        fixtureModel: options.fixture_model,
+        fixtureName: options.fixture_name,
+        fixtureMode: options.fixture_mode
+      });
+      resolvedDeviceType = fixtureResolution.deviceType;
+      steps.push({
+        step: 'resolve_fixture',
+        status: 'ok',
+        detail: `${fixtureResolution.fixture.manufacturer} ${fixtureResolution.fixture.model} (${fixtureResolution.mode.name})`
+      });
+    }
 
     const commands = [
       {
         step: 'patch_fixture',
         command:
-          `Patch Chan ${options.channel_number} Part ${part} Address ${options.dmx_address} Type "${options.device_type.replace(/"/g, '\\"')}"`
+          `Patch Chan ${options.channel_number} Part ${part} Address ${options.dmx_address} Type "${resolvedDeviceType.replace(/"/g, '\\"')}"`
       },
       {
         step: 'label_fixture',
@@ -225,7 +260,19 @@ export const eosWorkflowPatchFixtureTool: ToolDefinition<typeof patchFixtureInpu
       'ok',
       'Workflow patch fixture execute avec succes.',
       steps,
-      partialErrors
+      partialErrors,
+      fixtureResolution
+        ? {
+            fixture_resolution: {
+              manufacturer: fixtureResolution.fixture.manufacturer,
+              model: fixtureResolution.fixture.model,
+              name: fixtureResolution.fixture.name,
+              mode: fixtureResolution.mode.name,
+              device_type: resolvedDeviceType,
+              score: fixtureResolution.score
+            }
+          }
+        : {}
     );
   }
 };

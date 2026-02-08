@@ -1,0 +1,71 @@
+[
+  {
+    "id": "etc-colorsource-spot",
+    "manufacturer": "ETC",
+    "model": "ColorSource Spot",
+    "name": "ColorSource Spot",
+    "aliases": ["ColorSource Spot V", "ColorSource Spot v1"],
+    "modes": [
+      { "name": "RGBI", "dmx_footprint": 4 },
+      { "name": "RGBA", "dmx_footprint": 5 },
+      { "name": "RGBI+Strobe", "dmx_footprint": 6 }
+    ]
+  },
+  {
+    "id": "etc-colorsource-par",
+    "manufacturer": "ETC",
+    "model": "ColorSource PAR",
+    "name": "ColorSource PAR",
+    "aliases": ["ColorSource Par v1", "ColorSource Par"],
+    "modes": [
+      { "name": "RGBI", "dmx_footprint": 4 },
+      { "name": "RGBA", "dmx_footprint": 5 }
+    ]
+  },
+  {
+    "id": "etc-source-four-led-series-3",
+    "manufacturer": "ETC",
+    "model": "Source Four LED Series 3",
+    "name": "Source Four LED Series 3",
+    "aliases": ["S4 LED Series 3", "Source4 LED Series 3"],
+    "modes": [
+      { "name": "Direct", "dmx_footprint": 15 },
+      { "name": "HSI", "dmx_footprint": 15 },
+      { "name": "RGB", "dmx_footprint": 15 }
+    ]
+  },
+  {
+    "id": "etc-source-four-led-series-2-lustr",
+    "manufacturer": "ETC",
+    "model": "Source Four LED Series 2 Lustr",
+    "name": "Source Four LED Series 2 Lustr",
+    "aliases": ["S4 LED Series 2 Lustr", "Source4 LED Series 2 Lustr"],
+    "modes": [
+      { "name": "Direct", "dmx_footprint": 15 },
+      { "name": "Studio", "dmx_footprint": 15 },
+      { "name": "HSI", "dmx_footprint": 15 }
+    ]
+  },
+  {
+    "id": "etc-source-four-led-series-2-daylight",
+    "manufacturer": "ETC",
+    "model": "Source Four LED Series 2 Daylight",
+    "name": "Source Four LED Series 2 Daylight",
+    "aliases": ["S4 LED Series 2 Daylight", "Source4 LED Series 2 Daylight"],
+    "modes": [
+      { "name": "Direct", "dmx_footprint": 5 },
+      { "name": "Studio", "dmx_footprint": 6 }
+    ]
+  },
+  {
+    "id": "etc-source-four-led-series-2-tungsten",
+    "manufacturer": "ETC",
+    "model": "Source Four LED Series 2 Tungsten",
+    "name": "Source Four LED Series 2 Tungsten",
+    "aliases": ["S4 LED Series 2 Tungsten", "Source4 LED Series 2 Tungsten"],
+    "modes": [
+      { "name": "Direct", "dmx_footprint": 5 },
+      { "name": "Studio", "dmx_footprint": 6 }
+    ]
+  }
+]
