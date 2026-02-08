@@ -69,7 +69,8 @@ export const eosCueRecordTool: ToolDefinition<typeof cueRecordInputSchema> = {
     annotations: {
       mapping: {
         osc: oscMappings.commands.newCommand,
-        cli: 'Cue <cuelist>/<cue> Record#'
+        cli: 'Cue <cuelist>/<cue> Record#',
+        commandExample: 'Cue {cue_number} Record#'
       }
     }
   },
@@ -111,7 +112,8 @@ export const eosCueUpdateTool: ToolDefinition<typeof cueUpdateInputSchema> = {
     annotations: {
       mapping: {
         osc: oscMappings.commands.newCommand,
-        cli: 'Update Cue <cuelist>/<cue>#'
+        cli: 'Update Cue <cuelist>/<cue>#',
+        commandExample: 'Update Cue {cue_number}#'
       }
     }
   },
@@ -154,7 +156,8 @@ export const eosCueLabelSetTool: ToolDefinition<typeof cueLabelSetInputSchema> =
     annotations: {
       mapping: {
         osc: oscMappings.commands.newCommand,
-        cli: 'Cue <cuelist>/<cue> Label "<label>"#'
+        cli: 'Cue <cuelist>/<cue> Label "<label>"#',
+        commandExample: 'Cue {cue_number} Label "{label}"#'
       }
     }
   },
@@ -196,7 +199,8 @@ export const eosPaletteRecordTool: ToolDefinition<typeof paletteRecordInputSchem
     annotations: {
       mapping: {
         osc: oscMappings.commands.newCommand,
-        cli: '<IP|FP|CP|BP> <numero> Record#'
+        cli: '<IP|FP|CP|BP> <numero> Record#',
+        commandExample: 'IP {palette_number} Record#'
       }
     }
   },
@@ -239,7 +243,8 @@ export const eosPaletteLabelSetTool: ToolDefinition<typeof paletteLabelSetInputS
     annotations: {
       mapping: {
         osc: oscMappings.commands.newCommand,
-        cli: '<IP|FP|CP|BP> <numero> Label "<label>"#'
+        cli: '<IP|FP|CP|BP> <numero> Label "<label>"#',
+        commandExample: 'IP {palette_number} Label "{label}"#'
       }
     }
   },
@@ -284,7 +289,8 @@ export const eosPatchSetChannelTool: ToolDefinition<typeof patchSetChannelInputS
     annotations: {
       mapping: {
         osc: oscMappings.commands.newCommand,
-        cli: 'Patch Chan <ch> Part <part> Address <dmx> Type "<type>" [Label "<label>"]#'
+        cli: 'Patch Chan <ch> Part <part> Address <dmx> Type "<type>" [Label "<label>"]#',
+        commandExample: 'Patch Chan {channel_number} Part 1 Address {dmx_address} Type "{device_type}"#'
       }
     }
   },

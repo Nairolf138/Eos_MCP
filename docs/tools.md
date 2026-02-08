@@ -231,7 +231,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cmd s:'{"channels":1}'
+oscsend 127.0.0.1 8001 /eos/cmd s:'Chan 1 + Enter'
 ```
 
 <a id="eos-channel-set-level"></a>
@@ -263,7 +263,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cmd s:'{"channels":1,"level":1}'
+oscsend 127.0.0.1 8001 /eos/cmd s:'Chan 1 Sneak 1 Enter'
 ```
 
 <a id="eos-channel-set-parameter"></a>
@@ -597,7 +597,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/newcmd s:'{"cue_number":1,"label":"exemple"}'
+oscsend 127.0.0.1 8001 /eos/newcmd s:'Cue 1 Label "exemple"#'
 ```
 
 <a id="eos-cue-list-all"></a>
@@ -662,7 +662,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/newcmd s:'{"cue_number":1}'
+oscsend 127.0.0.1 8001 /eos/newcmd s:'Cue 1 Record#'
 ```
 
 <a id="eos-cue-select"></a>
@@ -763,7 +763,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/newcmd s:'{"cue_number":1}'
+oscsend 127.0.0.1 8001 /eos/newcmd s:'Update Cue 1#'
 ```
 
 <a id="eos-cuelist-bank-create"></a>
@@ -2200,7 +2200,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/newcmd s:'{"palette_type":"ip","palette_number":1,"label":"exemple"}'
+oscsend 127.0.0.1 8001 /eos/newcmd s:'IP 1 Label "exemple"#'
 ```
 
 <a id="eos-palette-record"></a>
@@ -2232,7 +2232,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/newcmd s:'{"palette_type":"ip","palette_number":1}'
+oscsend 127.0.0.1 8001 /eos/newcmd s:'IP 1 Record#'
 ```
 
 <a id="eos-patch-get-augment3d-beam"></a>
@@ -2372,7 +2372,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/newcmd s:'{"channel_number":1,"dmx_address":"exemple","device_type":"exemple"}'
+oscsend 127.0.0.1 8001 /eos/newcmd s:'Patch Chan 1 Part 1 Address exemple Type "exemple"#'
 ```
 
 <a id="eos-ping"></a>
@@ -2740,7 +2740,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cmd s:'{"addresses":1,"value":1}'
+oscsend 127.0.0.1 8001 /eos/cmd s:'Address 1 At 1 Enter'
 ```
 
 <a id="eos-set-pantilt-xy"></a>
