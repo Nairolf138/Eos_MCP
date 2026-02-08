@@ -552,7 +552,7 @@ describe('OscClient', () => {
 
     queueMicrotask(() => {
       service.emit({
-        address: '/eos/ping/reply',
+        address: '/eos/out/ping',
         args: [
           {
             type: 's',
@@ -593,7 +593,7 @@ describe('OscClient', () => {
 
     queueMicrotask(() => {
       service.emit({
-        address: '/eos/ping/reply',
+        address: '/eos/out/ping',
         args: [
           {
             type: 's',

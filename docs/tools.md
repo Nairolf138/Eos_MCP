@@ -2503,7 +2503,7 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Patch Chan 1 Part 1 Address exemple Type "
 <a id="eos-ping"></a>
 ## Ping OSC EOS (`eos_ping`)
 
-**Description :** Envoie un ping OSC a la console EOS et retourne le statut.
+**Description :** Envoie un ping OSC a la console EOS et retourne le statut (reponse attendue sur `/eos/out/ping`).
 
 **Arguments :**
 

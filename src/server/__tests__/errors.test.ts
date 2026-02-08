@@ -19,12 +19,12 @@ describe('errors', () => {
   it('cree une erreur de connexion perdue en preservant le message d\'origine', () => {
     const error = createConnectionLostError('le ping OSC', {
       message: 'Connection lost to console',
-      address: '/eos/ping/reply'
+      address: '/eos/out/ping'
     });
     expect(error.code).toBe(ErrorCode.OSC_CONNECTION_LOST);
     expect(error.message).toContain('Connexion OSC perdue');
     expect(error.message).toContain('Connection lost to console');
-    expect(error.details?.address).toBe('/eos/ping/reply');
+    expect(error.details?.address).toBe('/eos/out/ping');
   });
 
   it('cree une erreur hors plage explicite', () => {

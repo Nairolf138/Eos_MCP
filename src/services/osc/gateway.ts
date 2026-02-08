@@ -39,7 +39,7 @@ export interface OscConnectionGatewayOptions extends OscConnectionManagerOptions
 type StatusListener = (status: TransportStatus) => void;
 
 const DEFAULT_METADATA = true;
-const DEFAULT_HEARTBEAT_REPLY_ADDRESS = '/eos/ping/reply';
+const DEFAULT_HEARTBEAT_REPLY_ADDRESS = '/eos/out/ping';
 
 type OscGatewayFactoryOptions = Partial<
   Pick<
@@ -306,6 +306,9 @@ export class OscConnectionGateway implements OscGateway {
 
     return new OscConnectionManager({
       ...rest,
+      heartbeatPayload: Buffer.from(
+        osc.writePacket({ address: '/eos/ping', args: [] }, { metadata: this.metadata }) as Uint8Array
+      ),
       heartbeatResponseMatcher:
         heartbeatResponseMatcher ?? createHeartbeatResponseMatcher(this.metadata)
     });

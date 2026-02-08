@@ -431,7 +431,7 @@ describe('OscConnectionGateway', () => {
     );
   });
 
-  it('configure un heartbeatResponseMatcher par defaut qui valide /eos/ping/reply', () => {
+  it('configure un heartbeatResponseMatcher par defaut qui valide /eos/out/ping', () => {
     createOscConnectionGateway({
       host: '127.0.0.1',
       tcpPort: 3032,
@@ -448,7 +448,7 @@ describe('OscConnectionGateway', () => {
     expect(typeof matcher).toBe('function');
 
     const pingReply = Buffer.from(
-      osc.writePacket({ address: '/eos/ping/reply', args: [] }, { metadata: true }) as Uint8Array
+      osc.writePacket({ address: '/eos/out/ping', args: [] }, { metadata: true }) as Uint8Array
     );
     expect((matcher as (data: Buffer) => boolean)(pingReply)).toBe(true);
 
@@ -461,7 +461,7 @@ describe('OscConnectionGateway', () => {
       osc.writePacket(
         {
           timeTag: osc.timeTag(0),
-          packets: [{ address: '/eos/ping/reply', args: [] }]
+          packets: [{ address: '/eos/out/ping', args: [] }]
         },
         { metadata: true }
       ) as Uint8Array
