@@ -322,12 +322,12 @@ function formatChannelSummary(status: StepStatus, found: number, missing: number
   return base;
 }
 
-function annotate(osc: string): Record<string, unknown> {
-  return {
-    mapping: {
-      osc
-    }
-  };
+function annotate(osc: string, commandExample?: string): Record<string, unknown> {
+  const mapping: Record<string, unknown> = { osc };
+  if (commandExample) {
+    mapping.commandExample = commandExample;
+  }
+  return { mapping };
 }
 
 const selectInputSchema = {
@@ -391,7 +391,7 @@ export const eosChannelSelectTool: ToolDefinition<typeof selectInputSchema> = {
     title: 'Selection de canaux',
     description: 'Selectionne un ou plusieurs canaux sur la console.',
     inputSchema: selectInputSchema,
-    annotations: annotate(oscMappings.channels.command)
+    annotations: annotate(oscMappings.channels.command, 'Chan {channels} + Enter')
   },
   handler: async (args, _extra) => {
     const schema = z.object(selectInputSchema).strict();
@@ -434,7 +434,7 @@ export const eosChannelSetLevelTool: ToolDefinition<typeof setLevelSchema> = {
     description: 'Ajuste le niveau intensite de canaux specifiques (0-100).',
     inputSchema: setLevelSchema,
     annotations: {
-      ...annotate(oscMappings.channels.command),
+      ...annotate(oscMappings.channels.command, 'Chan {channels} Sneak {level} Enter'),
       highlighted: true
     }
   },
@@ -480,7 +480,7 @@ export const eosSetDmxTool: ToolDefinition<typeof setDmxSchema> = {
     title: 'Reglage DMX',
     description: 'Fixe une valeur DMX (0-255) sur une ou plusieurs adresses.',
     inputSchema: setDmxSchema,
-    annotations: annotate(oscMappings.dmx.command)
+    annotations: annotate(oscMappings.dmx.command, 'Address {addresses} At {value} Enter')
   },
   handler: async (args, _extra) => {
     const schema = z.object(setDmxSchema).strict();

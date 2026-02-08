@@ -388,8 +388,9 @@ function formatOscExample(mappingValue: unknown, args?: Record<string, unknown>)
   }
 
   const resolvedPath = applyCommandTemplate(targetPath, args);
+  const isCommandAddress = resolvedPath === '/eos/cmd' || resolvedPath === '/eos/newcmd';
 
-  if (commandTemplate) {
+  if (commandTemplate && isCommandAddress) {
     const command = applyCommandTemplate(commandTemplate, args);
     const escapedCommand = command.replace(/'/g, "\\'");
     return [
@@ -762,4 +763,3 @@ main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });
-
