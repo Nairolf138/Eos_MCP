@@ -1,5 +1,6 @@
 import { z, type ZodRawShape } from 'zod';
 import { oscMappings } from '../../services/osc/mappings';
+import { buildRecordCueCommand, formatCueTarget } from '../cues/common';
 import { sendDeterministicCommand } from '../commands/command_tools';
 import type { ToolDefinition } from '../types';
 
@@ -25,14 +26,6 @@ const partNumberSchema = z.coerce.number().int().min(1).max(99);
 
 function escapeLabel(label: string): string {
   return label.replace(/"/g, '\\"').trim();
-}
-
-function formatCueTarget(cueNumber: string | number, cuelistNumber?: number): string {
-  const cueToken = String(cueNumber).trim();
-  if (cuelistNumber == null) {
-    return `Cue ${cueToken}`;
-  }
-  return `Cue ${cuelistNumber}/${cueToken}`;
 }
 
 function palettePrefix(type: z.infer<typeof paletteTypeSchema>): string {
@@ -69,14 +62,14 @@ export const eosCueRecordTool: ToolDefinition<typeof cueRecordInputSchema> = {
     annotations: {
       mapping: {
         osc: oscMappings.commands.newCommand,
-        cli: 'Cue <cuelist>/<cue> Record#',
-        commandExample: 'Cue {cue_number} Record#'
+        cli: 'Record Cue <cuelist>/<cue>#',
+        commandExample: 'Record Cue {cuelist_number}/{cue_number}#'
       }
     }
   },
   handler: async (args) => {
     const options = z.object(cueRecordInputSchema).strict().parse(args ?? {});
-    const command = `${formatCueTarget(options.cue_number, options.cuelist_number)} Record`;
+    const command = buildRecordCueCommand(options.cue_number, options.cuelist_number);
     return sendDeterministicCommand({
       command,
       clearLine: true,

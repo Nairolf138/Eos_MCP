@@ -85,7 +85,7 @@ describe('workflow tools', () => {
       'CP 11',
       'FP 12',
       'BP 13',
-      'Cue 2/101 Record',
+      'Record Cue 2/101',
       'Cue 2/101 Label "Look Intro"'
     ]);
   });

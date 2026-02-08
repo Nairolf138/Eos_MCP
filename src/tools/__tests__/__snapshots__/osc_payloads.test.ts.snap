@@ -42,7 +42,7 @@ exports[`OSC payload snapshots captures command line payloads 2`] = `
   "args": [
     {
       "type": "s",
-      "value": "Cue 1 Record#",
+      "value": "Record Cue 1#",
     },
   ],
 }

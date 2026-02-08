@@ -23,6 +23,18 @@ export interface CueCommandOptions {
   cue_part?: number | null;
 }
 
+export function formatCueTarget(cueNumber: string | number, cuelistNumber?: number | null): string {
+  const cueToken = String(cueNumber).trim();
+  if (cuelistNumber == null) {
+    return `Cue ${cueToken}`;
+  }
+  return `Cue ${cuelistNumber}/${cueToken}`;
+}
+
+export function buildRecordCueCommand(cueNumber: string | number, cuelistNumber?: number | null): string {
+  return `Record ${formatCueTarget(cueNumber, cuelistNumber)}`;
+}
+
 export function buildJsonArgs(payload: Record<string, unknown>): OscMessageArgument[] {
   return [
     {

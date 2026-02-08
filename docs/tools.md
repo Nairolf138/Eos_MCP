@@ -693,7 +693,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/newcmd s:'Cue 1 Record#'
+oscsend 127.0.0.1 8001 /eos/newcmd s:'Record Cue 2/1#'
 ```
 
 <a id="eos-cue-select"></a>
