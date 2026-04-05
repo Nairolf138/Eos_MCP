@@ -1,5 +1,7 @@
 # Eos MCP
 
+![Licence: AGPL v3](https://img.shields.io/badge/License-AGPLv3-blue.svg)
+
 **Eos MCP** est une passerelle prête pour la production qui transforme votre console lumière ETC Eos en un service pilotable par les assistants IA et vos outils d’automatisation. Grâce au protocole MCP (Model Context Protocol) et à une intégration réseau Open Sound Control (OSC) robuste, vous orchestrez vos cues, presets et routines depuis des interfaces conversationnelles ou des workflows low-code, en conservant un contrôle fin sur la sécurité et la supervision.
 
 ## Convention d'attribution
@@ -7,13 +9,13 @@
 Pour éviter toute ambiguïté, la convention d'identité retenue dans ce dépôt est **`Florian Ribes (NairolfConcept)`**.
 Cette forme doit être utilisée de manière identique dans les mentions légales, en-têtes de fichiers et documents du projet.
 
-## En-têtes de licence (Apache-2.0)
+## En-têtes de licence (AGPL-3.0-only)
 
 Le dépôt applique désormais un en-tête court dans chaque fichier source. La convention est obligatoire pour tous les **nouveaux fichiers** afin de garantir la cohérence future.
 
 - Titulaire de copyright : **`Florian Ribes (NairolfConcept)`**
 - Année : **`2026`**
-- Identifiant de licence : **`SPDX-License-Identifier: Apache-2.0`**
+- Identifiant de licence : **`SPDX-License-Identifier: AGPL-3.0-only`**
 
 Formats à utiliser selon le langage :
 
@@ -22,7 +24,7 @@ Formats à utiliser selon le langage :
   ```ts
   /*
    * Copyright 2026 Florian Ribes (NairolfConcept)
-   * SPDX-License-Identifier: Apache-2.0
+   * SPDX-License-Identifier: AGPL-3.0-only
    */
   ```
 
@@ -30,14 +32,14 @@ Formats à utiliser selon le langage :
 
   ```sh
   # Copyright 2026 Florian Ribes (NairolfConcept)
-  # SPDX-License-Identifier: Apache-2.0
+  # SPDX-License-Identifier: AGPL-3.0-only
   ```
 
 - **Batch Windows (`.cmd`, `.bat`)**
 
   ```bat
   @REM Copyright 2026 Florian Ribes (NairolfConcept)
-  @REM SPDX-License-Identifier: Apache-2.0
+  @REM SPDX-License-Identifier: AGPL-3.0-only
   ```
 
 ## Pourquoi choisir Eos MCP ?
@@ -570,13 +572,29 @@ oscsend 127.0.0.1 8001 /eos/ping s:'{"message":"Bonjour"}'
 
 Adaptez le chemin et la charge utile selon la documentation des outils.
 
+## Version community vs licence commerciale
+
+La version **community** est publiée sous **GNU AGPLv3** (`AGPL-3.0-only`).
+
+### Ce que la version community permet
+
+- utiliser Eos MCP en interne et en production ;
+- modifier le code et redistribuer des versions dérivées ;
+- opérer le logiciel en service réseau **à condition** de respecter les obligations AGPLv3 (notamment la mise à disposition du code source correspondant aux modifications couvertes).
+
+### Quand basculer vers une licence commerciale
+
+Une **licence commerciale** devient nécessaire dès qu’une organisation souhaite exploiter Eos MCP sans appliquer les obligations AGPLv3 (par exemple intégrer des développements propriétaires non publiés dans un service distribué ou proposé à des tiers).
+
+Le cadre de dual licensing (community AGPLv3 + commercial) est détaillé dans [`docs/licensing/strategy.md`](docs/licensing/strategy.md).
+
 ## Contribution
 
 Consultez [`CONTRIBUTING.md`](./CONTRIBUTING.md) pour le processus de contribution et la mini-checklist **Licence compliance** à valider avant toute PR.
 
 ## Licence
 
-Ce projet est distribué sous la licence **Apache-2.0**.
+Ce projet est distribué sous la licence **GNU AGPLv3** (`AGPL-3.0-only`).
 Consultez le texte complet dans [`./LICENSE`](./LICENSE).
 
 ### Maintainer

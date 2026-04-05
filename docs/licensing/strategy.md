@@ -4,7 +4,7 @@
 
 Ce document **tranche explicitement** le modèle de licensing dual d’EOS MCP :
 
-1. **Canal communautaire (open source)** : **GNU AGPLv3**.
+1. **Canal communautaire (open source)** : **GNU AGPLv3** (identifiant SPDX : `AGPL-3.0-only`).
 2. **Canal commercial (payant)** : **licence propriétaire EOS Commercial** (contrat écrit, non open source).
 
 Cette stratégie est adoptée pour protéger la création de valeur (y compris en SaaS), encourager les contributions, et permettre une monétisation B2B prévisible.
