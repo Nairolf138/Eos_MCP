@@ -1,3 +1,6 @@
+# Copyright 2026 Florian Ribes (NairolfConcept)
+# SPDX-License-Identifier: Apache-2.0
+
 [Unit]
 Description=Eos MCP service
 After=network.target

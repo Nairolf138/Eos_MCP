@@ -1,3 +1,7 @@
+/*
+ * Copyright 2026 Florian Ribes (NairolfConcept)
+ * SPDX-License-Identifier: Apache-2.0
+ */
 import eosCueFireTool from './fire';
 import eosCueGoTool from './go';
 import eosCueStopBackTool from './stop_back';

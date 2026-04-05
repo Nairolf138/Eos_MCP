@@ -1,3 +1,7 @@
+/*
+ * Copyright 2026 Florian Ribes (NairolfConcept)
+ * SPDX-License-Identifier: Apache-2.0
+ */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import type { Request } from 'express';

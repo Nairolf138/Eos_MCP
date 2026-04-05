@@ -1,3 +1,7 @@
+/*
+ * Copyright 2026 Florian Ribes (NairolfConcept)
+ * SPDX-License-Identifier: Apache-2.0
+ */
 declare module '@modelcontextprotocol/sdk/server/mcp' {
   export * from '@modelcontextprotocol/sdk/dist/esm/server/mcp.js';
   export { McpServer } from '@modelcontextprotocol/sdk/dist/esm/server/mcp.js';

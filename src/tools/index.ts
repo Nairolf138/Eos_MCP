@@ -1,3 +1,7 @@
+/*
+ * Copyright 2026 Florian Ribes (NairolfConcept)
+ * SPDX-License-Identifier: Apache-2.0
+ */
 import eosConnectTool from './connection/eos_connect';
 import eosConfigureTool from './connection/eos_configure';
 import eosPingTool from './connection/eos_ping';

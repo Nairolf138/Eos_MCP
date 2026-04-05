@@ -1,3 +1,7 @@
+/*
+ * Copyright 2026 Florian Ribes (NairolfConcept)
+ * SPDX-License-Identifier: Apache-2.0
+ */
 import { EventEmitter } from 'node:events';
 import type { TransportStatus, TransportType } from './connectionManager';
 

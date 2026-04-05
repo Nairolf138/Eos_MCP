@@ -7,6 +7,39 @@
 Pour éviter toute ambiguïté, la convention d'identité retenue dans ce dépôt est **`Florian Ribes (NairolfConcept)`**.
 Cette forme doit être utilisée de manière identique dans les mentions légales, en-têtes de fichiers et documents du projet.
 
+## En-têtes de licence (Apache-2.0)
+
+Le dépôt applique désormais un en-tête court dans chaque fichier source. La convention est obligatoire pour tous les **nouveaux fichiers** afin de garantir la cohérence future.
+
+- Titulaire de copyright : **`Florian Ribes (NairolfConcept)`**
+- Année : **`2026`**
+- Identifiant de licence : **`SPDX-License-Identifier: Apache-2.0`**
+
+Formats à utiliser selon le langage :
+
+- **TypeScript / JavaScript (`.ts`, `.js`, `.d.ts`)**
+
+  ```ts
+  /*
+   * Copyright 2026 Florian Ribes (NairolfConcept)
+   * SPDX-License-Identifier: Apache-2.0
+   */
+  ```
+
+- **Shell (`.sh`)**
+
+  ```sh
+  # Copyright 2026 Florian Ribes (NairolfConcept)
+  # SPDX-License-Identifier: Apache-2.0
+  ```
+
+- **Batch Windows (`.cmd`, `.bat`)**
+
+  ```bat
+  @REM Copyright 2026 Florian Ribes (NairolfConcept)
+  @REM SPDX-License-Identifier: Apache-2.0
+  ```
+
 ## Pourquoi choisir Eos MCP ?
 
 - **Automatisation fiable** : un serveur résilient capable de fonctionner en continu pour alimenter vos process scéniques et broadcast.
