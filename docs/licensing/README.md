@@ -64,3 +64,4 @@ Pour les détails juridiques et la politique complète, consultez aussi :
 - [`docs/licensing/strategy.md`](./strategy.md)
 - [`docs/licensing/eligibility-matrix.md`](./eligibility-matrix.md)
 - [`legal/commercial-license/Commercial-License-fr.md`](../../legal/commercial-license/Commercial-License-fr.md)
+- [`docs/licensing/releases/v1.0.0-licensing.md`](./releases/v1.0.0-licensing.md)
