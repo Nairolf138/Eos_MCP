@@ -21,6 +21,7 @@ Avant d'ouvrir une PR, vérifier :
 - [ ] Les templates GitHub (issues/PR) et la documentation (`docs/`) ne contiennent aucune information contradictoire sur la licence.
 - [ ] Les nouveaux fichiers source incluent un en-tête SPDX valide : `SPDX-License-Identifier: AGPL-3.0-only`.
 - [ ] `LICENSE`, `NOTICE` et `package.json` restent alignés sur **AGPL-3.0-only**.
+- [ ] Le checkpoint **License review** du template de PR est rempli (dépendances, partenaires commerciaux, impacts de conformité).
 
 ## Contributor License Agreement (CLA)
 
@@ -42,3 +43,21 @@ Deux mécanismes sont acceptés :
 
 - Bot CLA (recommandé) avec journal d'acceptation horodaté.
 - Signature manuelle conservée dans un registre interne traçable (signataire, date, version du CLA, périmètre couvert).
+
+## Onboarding contributeurs (checkpoint licence)
+
+Lors de l'onboarding de tout nouveau contributeur :
+
+1. Présenter le cadre de licence du projet (AGPL-3.0-only + stratégie commerciale).
+2. Faire valider le CLA (`CONTRIBUTOR_LICENSE_AGREEMENT.md`) avant première contribution.
+3. Expliquer le checkpoint **License review** exigé dans chaque PR.
+
+### Revue trimestrielle obligatoire
+
+Une revue licence est réalisée **chaque trimestre** avec suivi explicite de :
+
+- nouveaux contributeurs ;
+- nouvelles dépendances ;
+- nouveaux partenaires commerciaux.
+
+Le résultat de cette revue doit être consigné dans la documentation de release ou un compte-rendu interne traçable.
