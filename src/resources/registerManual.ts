@@ -167,7 +167,10 @@ async function registerManualSections(
       title: section.title,
       description: section.description,
       base64Data,
-      metadata
+      metadata,
+      onRead: ({ sessionId }) => {
+        markManualDocumentationRead(sessionId);
+      }
     });
   }
 }
