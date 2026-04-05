@@ -15,6 +15,20 @@ Le serveur MCP expose sa version directement depuis le `package.json` grâce à 
    ```bash
    git push --follow-tags
    ```
-6. Commiter les autres changements nécessaires (`package.json`, `package-lock.json`, documentation, etc.) et publier la nouvelle version si nécessaire.
+6. Exécuter le checkpoint **License review** avant publication :
+   - vérifier les nouvelles dépendances embarquées dans la release ;
+   - vérifier les nouveaux partenaires commerciaux impliqués par la distribution ;
+   - vérifier les impacts de conformité AGPL-3.0-only / canal commercial.
+7. Commiter les autres changements nécessaires (`package.json`, `package-lock.json`, documentation, etc.) et publier la nouvelle version si nécessaire.
+
+### Revue trimestrielle licence
+
+En plus du checkpoint release, une revue est effectuée **chaque trimestre** sur :
+
+- nouveaux contributeurs (CLA et traçabilité) ;
+- nouvelles dépendances (compatibilité des licences et obligations) ;
+- nouveaux partenaires commerciaux (cadre contractuel et droits d'usage).
+
+Documenter cette revue dans les notes de release ou dans un registre interne de conformité.
 
 Aucune autre mise à jour de code n'est requise : le serveur lira automatiquement la nouvelle version lors du démarrage.
