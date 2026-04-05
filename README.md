@@ -59,6 +59,7 @@ Formats à utiliser selon le langage :
 
 - [Cookbook d’automatisation](docs/cookbook.md) : scénarios prêts à l’emploi pour déclencher des cues, manipuler les presets et ajuster des niveaux d’intensité.
 - [`docs/tools.md`](docs/tools.md) : référence exhaustive générée automatiquement pour chaque outil MCP.
+- [Guide licensing (community vs commerciale)](docs/licensing/README.md) : vue simple des deux voies, FAQ et cas pratiques.
 
 ### Outils MCP essentiels
 
@@ -586,7 +587,7 @@ La version **community** est publiée sous **GNU AGPLv3** (`AGPL-3.0-only`).
 
 Une **licence commerciale** devient nécessaire dès qu’une organisation souhaite exploiter Eos MCP sans appliquer les obligations AGPLv3 (par exemple intégrer des développements propriétaires non publiés dans un service distribué ou proposé à des tiers).
 
-Le cadre de dual licensing (community AGPLv3 + commercial) est détaillé dans [`docs/licensing/strategy.md`](docs/licensing/strategy.md).
+Le guide rapide de choix de licence est disponible dans [`docs/licensing/README.md`](docs/licensing/README.md), avec FAQ et exemples concrets. La politique détaillée reste documentée dans [`docs/licensing/strategy.md`](docs/licensing/strategy.md).
 
 ## Contribution
 
