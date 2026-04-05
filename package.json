@@ -20,8 +20,10 @@
     "osc",
     "typescript"
   ],
-  "author": "",
-  "license": "ISC",
+  "author": {
+    "name": "Florian Ribes"
+  },
+  "license": "Apache-2.0",
   "type": "commonjs",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.20.1",
@@ -54,5 +56,13 @@
   "overrides": {
     "test-exclude": "7.0.1",
     "glob": "10.4.1"
-  }
+  },
+  "maintainers": [
+    {
+      "name": "Florian Ribes"
+    },
+    {
+      "name": "NairolfConcept"
+    }
+  ]
 }
