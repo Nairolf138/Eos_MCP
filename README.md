@@ -570,6 +570,10 @@ oscsend 127.0.0.1 8001 /eos/ping s:'{"message":"Bonjour"}'
 
 Adaptez le chemin et la charge utile selon la documentation des outils.
 
+## Contribution
+
+Consultez [`CONTRIBUTING.md`](./CONTRIBUTING.md) pour le processus de contribution et la mini-checklist **Licence compliance** à valider avant toute PR.
+
 ## Licence
 
 Ce projet est distribué sous la licence **Apache-2.0**.
