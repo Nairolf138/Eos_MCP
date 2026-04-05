@@ -1,3 +1,7 @@
+/*
+ * Copyright 2026 Florian Ribes (NairolfConcept)
+ * SPDX-License-Identifier: Apache-2.0
+ */
 import { createServer } from 'node:net';
 import type { AddressInfo } from 'node:net';
 import { UDPPort } from 'osc';

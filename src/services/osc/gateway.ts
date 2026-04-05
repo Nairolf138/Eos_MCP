@@ -1,3 +1,7 @@
+/*
+ * Copyright 2026 Florian Ribes (NairolfConcept)
+ * SPDX-License-Identifier: Apache-2.0
+ */
 import osc from 'osc';
 import { getConfig, type OscConfig as ResolvedOscConfig } from '../../config/index';
 import { createLogger } from '../../server/logger';

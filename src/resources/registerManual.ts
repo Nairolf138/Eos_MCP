@@ -1,3 +1,7 @@
+/*
+ * Copyright 2026 Florian Ribes (NairolfConcept)
+ * SPDX-License-Identifier: Apache-2.0
+ */
 import path from 'node:path';
 import { readFile } from 'node:fs/promises';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';

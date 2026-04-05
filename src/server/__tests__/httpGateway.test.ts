@@ -1,3 +1,7 @@
+/*
+ * Copyright 2026 Florian Ribes (NairolfConcept)
+ * SPDX-License-Identifier: Apache-2.0
+ */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { LATEST_PROTOCOL_VERSION } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';

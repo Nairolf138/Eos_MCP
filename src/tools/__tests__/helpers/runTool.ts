@@ -1,3 +1,7 @@
+/*
+ * Copyright 2026 Florian Ribes (NairolfConcept)
+ * SPDX-License-Identifier: Apache-2.0
+ */
 import type { ToolDefinition, ToolExecutionResult } from '../../types';
 
 type ToolContentEntry = ToolExecutionResult['content'][number];

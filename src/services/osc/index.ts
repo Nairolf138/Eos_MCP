@@ -1,3 +1,7 @@
+/*
+ * Copyright 2026 Florian Ribes (NairolfConcept)
+ * SPDX-License-Identifier: Apache-2.0
+ */
 import { UDPPort } from 'osc';
 import type { Logger } from 'pino';
 import { getConfig, type OscConfig as ResolvedOscConfig } from '../../config/index';

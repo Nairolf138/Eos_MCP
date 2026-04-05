@@ -1,3 +1,7 @@
+/*
+ * Copyright 2026 Florian Ribes (NairolfConcept)
+ * SPDX-License-Identifier: Apache-2.0
+ */
 import { eosConfigureTool } from '../eos_configure';
 
 const mockClose = jest.fn();

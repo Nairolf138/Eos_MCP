@@ -1,3 +1,7 @@
+/*
+ * Copyright 2026 Florian Ribes (NairolfConcept)
+ * SPDX-License-Identifier: Apache-2.0
+ */
 const { createDefaultPreset } = require('ts-jest');
 
 const tsJestTransformCfg = createDefaultPreset().transform;

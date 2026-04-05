@@ -1,3 +1,7 @@
+/*
+ * Copyright 2026 Florian Ribes (NairolfConcept)
+ * SPDX-License-Identifier: Apache-2.0
+ */
 import { z } from 'zod';
 import { createLogger } from '../server/logger';
 import type { ToolDefinition, ToolMiddleware } from './types';

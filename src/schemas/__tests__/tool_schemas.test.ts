@@ -1,3 +1,7 @@
+/*
+ * Copyright 2026 Florian Ribes (NairolfConcept)
+ * SPDX-License-Identifier: Apache-2.0
+ */
 import Ajv from 'ajv';
 import { toolDefinitions } from '../../tools/index';
 import { toolJsonSchemas } from '../index';

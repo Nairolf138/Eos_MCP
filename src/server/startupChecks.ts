@@ -1,3 +1,7 @@
+/*
+ * Copyright 2026 Florian Ribes (NairolfConcept)
+ * SPDX-License-Identifier: Apache-2.0
+ */
 import net from 'node:net';
 import dgram from 'node:dgram';
 import { AppError, ErrorCode } from './errors';

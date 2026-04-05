@@ -1,3 +1,7 @@
+/*
+ * Copyright 2026 Florian Ribes (NairolfConcept)
+ * SPDX-License-Identifier: Apache-2.0
+ */
 import { z, type ZodRawShape } from 'zod';
 import { cueObjectNumberSchema, cuelistNumberSchema as sharedCuelistNumberSchema, optionalPortSchema } from '../../utils/validators';
 import type { OscMessageArgument } from '../../services/osc/index';

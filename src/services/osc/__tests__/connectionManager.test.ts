@@ -1,3 +1,7 @@
+/*
+ * Copyright 2026 Florian Ribes (NairolfConcept)
+ * SPDX-License-Identifier: Apache-2.0
+ */
 import { EventEmitter } from 'events';
 import type { Socket as TcpSocket } from 'net';
 import type { Socket as UdpSocket } from 'node:dgram';

@@ -1,3 +1,7 @@
+/*
+ * Copyright 2026 Florian Ribes (NairolfConcept)
+ * SPDX-License-Identifier: Apache-2.0
+ */
 export enum ErrorCode {
   MCP_STARTUP_FAILURE = 'MCP_STARTUP_FAILURE',
   OSC_TIMEOUT = 'OSC_TIMEOUT',

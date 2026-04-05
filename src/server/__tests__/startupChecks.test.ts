@@ -1,3 +1,7 @@
+/*
+ * Copyright 2026 Florian Ribes (NairolfConcept)
+ * SPDX-License-Identifier: Apache-2.0
+ */
 import net, { type AddressInfo } from 'node:net';
 import dgram, { type SocketType } from 'node:dgram';
 import { assertTcpPortAvailable, assertUdpPortAvailable } from '../startupChecks';
