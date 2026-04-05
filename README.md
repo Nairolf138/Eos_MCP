@@ -2,6 +2,11 @@
 
 **Eos MCP** est une passerelle prête pour la production qui transforme votre console lumière ETC Eos en un service pilotable par les assistants IA et vos outils d’automatisation. Grâce au protocole MCP (Model Context Protocol) et à une intégration réseau Open Sound Control (OSC) robuste, vous orchestrez vos cues, presets et routines depuis des interfaces conversationnelles ou des workflows low-code, en conservant un contrôle fin sur la sécurité et la supervision.
 
+## Convention d'attribution
+
+Pour éviter toute ambiguïté, la convention d'identité retenue dans ce dépôt est **`Florian Ribes (NairolfConcept)`**.
+Cette forme doit être utilisée de manière identique dans les mentions légales, en-têtes de fichiers et documents du projet.
+
 ## Pourquoi choisir Eos MCP ?
 
 - **Automatisation fiable** : un serveur résilient capable de fonctionner en continu pour alimenter vos process scéniques et broadcast.
