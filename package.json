@@ -7,13 +7,15 @@
     "build": "tsc && node -e \"const fs=require('node:fs');fs.mkdirSync('dist',{recursive:true});fs.copyFileSync('manifest.json','dist/manifest.json');\"",
     "tsc": "tsc",
     "lint": "eslint \"src/**/*.ts\"",
-    "test": "jest --passWithNoTests",
+    "test": "npm run test:unit && npm run test:conformance",
     "start": "node dist/server/index.js",
     "start:dev": "ts-node src/server/index.ts",
     "docs:generate": "ts-node --transpile-only --compiler-options '{\"allowImportingTsExtensions\":true}' scripts/toolDocs.ts",
     "docs:check": "ts-node --transpile-only --compiler-options '{\"allowImportingTsExtensions\":true}' scripts/toolDocs.ts --check --skip-jsdoc",
     "package": "npm run build && node -e \"require('node:fs').mkdirSync('dist/bin',{recursive:true});\" && npx pkg dist/server/index.js --targets node20-linux-x64 --output dist/bin/eos-mcp",
-    "lint:manifest": "ts-node --transpile-only scripts/validateManifest.ts"
+    "lint:manifest": "ts-node --transpile-only scripts/validateManifest.ts",
+    "test:unit": "jest --passWithNoTests --testPathIgnorePatterns='\\.integration\\.test\\.ts$'",
+    "test:conformance": "jest --passWithNoTests src/services/osc/__tests__/eos-conformance.integration.test.ts"
   },
   "keywords": [
     "mcp",
