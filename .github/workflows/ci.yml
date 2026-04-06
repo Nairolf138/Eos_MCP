@@ -57,8 +57,12 @@ jobs:
         run: npm run lint 2>&1 | tee artifacts/lint.log
         shell: bash
 
-      - name: Run tests
-        run: npm test 2>&1 | tee artifacts/test.log
+      - name: Run unit tests (mock)
+        run: npm run test:unit 2>&1 | tee artifacts/test-unit.log
+        shell: bash
+
+      - name: Run conformance tests (real OSC)
+        run: npm run test:conformance 2>&1 | tee artifacts/test-conformance.log
         shell: bash
 
       - name: Build project

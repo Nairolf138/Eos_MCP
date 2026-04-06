@@ -1,0 +1,132 @@
+[
+  {
+    "id": "connection-ping-healthcheck",
+    "family": "connection",
+    "tool": "eos_ping",
+    "toolArgs": {
+      "message": "healthcheck"
+    },
+    "requestFrame": {
+      "source": "pcap://eos-lab/session-2026-03-18.pcap#frame-182",
+      "hex": "2f656f732f70696e670000002c7300006865616c7468636865636b00",
+      "decoded": {
+        "address": "/eos/ping",
+        "args": [
+          {
+            "type": "s",
+            "value": "healthcheck"
+          }
+        ]
+      }
+    },
+    "responseFrame": {
+      "source": "log://eos-lab/osc-transport.log#L911",
+      "hex": "2f656f732f6f75742f70696e670000002c7300007b22737461747573223a226f6b222c226563686f223a226865616c7468636865636b227d00000000",
+      "decoded": {
+        "address": "/eos/out/ping",
+        "args": [
+          {
+            "type": "s",
+            "value": "{\"status\":\"ok\",\"echo\":\"healthcheck\"}"
+          }
+        ]
+      }
+    },
+    "expectedStructuredContent": {
+      "status": "ok",
+      "echo": "healthcheck"
+    }
+  },
+  {
+    "id": "groups-get-info-7",
+    "family": "groups",
+    "tool": "eos_group_get_info",
+    "toolArgs": {
+      "group_number": 7
+    },
+    "requestFrame": {
+      "source": "pcap://eos-lab/session-2026-03-18.pcap#frame-314",
+      "hex": "2f656f732f6765742f67726f757000002c7300007b2267726f7570223a372c2267726f75705f6e756d626572223a377d00000000",
+      "decoded": {
+        "address": "/eos/get/group",
+        "args": [
+          {
+            "type": "s",
+            "value": "{\"group\":7,\"group_number\":7}"
+          }
+        ]
+      }
+    },
+    "responseFrame": {
+      "source": "log://eos-lab/groups.log#L442",
+      "hex": "2f656f732f6765742f67726f757000002c7300007b22737461747573223a226f6b222c2267726f7570223a7b226e756d626572223a372c226c6162656c223a2246726f6e74222c226d656d62657273223a5b312c7b226368616e6e656c223a352c226c6162656c223a224261636b227d5d7d7d00",
+      "decoded": {
+        "address": "/eos/get/group",
+        "args": [
+          {
+            "type": "s",
+            "value": "{\"status\":\"ok\",\"group\":{\"number\":7,\"label\":\"Front\",\"members\":[1,{\"channel\":5,\"label\":\"Back\"}]}}"
+          }
+        ]
+      }
+    },
+    "expectedStructuredContent": {
+      "action": "get_info",
+      "status": "ok",
+      "exists": true,
+      "group": {
+        "group_number": 7,
+        "label": "Front",
+        "members": [
+          {
+            "channel": 1,
+            "label": null
+          },
+          {
+            "channel": 5,
+            "label": "Back"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "commands-get-command-line-user-3",
+    "family": "commands",
+    "tool": "eos_get_command_line",
+    "toolArgs": {
+      "user": 3
+    },
+    "requestFrame": {
+      "source": "pcap://eos-lab/session-2026-03-19.pcap#frame-55",
+      "hex": "2f656f732f6765742f636d645f6c696e650000002c7300007b2275736572223a337d0000",
+      "decoded": {
+        "address": "/eos/get/cmd_line",
+        "args": [
+          {
+            "type": "s",
+            "value": "{\"user\":3}"
+          }
+        ]
+      }
+    },
+    "responseFrame": {
+      "source": "log://eos-lab/command-line.log#L77",
+      "hex": "2f656f732f6765742f636d645f6c696e650000002c7300007b22737461747573223a226f6b222c2274657874223a224368616e203120402046756c6c222c2275736572223a337d00",
+      "decoded": {
+        "address": "/eos/get/cmd_line",
+        "args": [
+          {
+            "type": "s",
+            "value": "{\"status\":\"ok\",\"text\":\"Chan 1 @ Full\",\"user\":3}"
+          }
+        ]
+      }
+    },
+    "expectedStructuredContent": {
+      "status": "ok",
+      "text": "Chan 1 @ Full",
+      "user": 3
+    }
+  }
+]
