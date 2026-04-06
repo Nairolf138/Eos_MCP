@@ -352,17 +352,14 @@ export const eosToggleStagingModeTool: ToolDefinition<typeof targetOptionsSchema
     const options = schema.parse(args ?? {});
     const client = getOscClient();
 
-    const response: OscJsonResponse = await client.requestJson(
-      oscMappings.showControl.toggleStagingMode,
-      extractTargetOptions(options)
-    );
+    const command = 'Staging Mode';
+    await client.sendNewCommand(command, extractTargetOptions(options));
 
     return createResult('Mode staging bascule.', {
       action: 'toggle_staging_mode',
-      status: response.status,
       osc: {
         address: oscMappings.showControl.toggleStagingMode,
-        response: response.payload
+        args: [command]
       }
     });
   }
@@ -394,21 +391,15 @@ export const eosSetCueSendStringTool: ToolDefinition<typeof setCueSendStringInpu
     const options = schema.parse(args ?? {});
     const client = getOscClient();
 
-    const payload = { format: options.format_string };
-
-    const response: OscJsonResponse = await client.requestJson(oscMappings.showControl.setCueSendString, {
-      payload,
-      ...extractTargetOptions(options)
-    });
+    const command = `Show_Control Cue_Send_String "${options.format_string}"`;
+    await client.sendNewCommand(command, extractTargetOptions(options));
 
     return createResult('Format d\'envoi des cues mis a jour.', {
       action: 'set_cue_send_string',
-      status: response.status,
       format: options.format_string,
       osc: {
         address: oscMappings.showControl.setCueSendString,
-        request: payload,
-        response: response.payload
+        args: [command]
       }
     });
   }
@@ -440,21 +431,15 @@ export const eosSetCueReceiveStringTool: ToolDefinition<typeof setCueReceiveStri
     const options = schema.parse(args ?? {});
     const client = getOscClient();
 
-    const payload = { format: options.format_string };
-
-    const response: OscJsonResponse = await client.requestJson(oscMappings.showControl.setCueReceiveString, {
-      payload,
-      ...extractTargetOptions(options)
-    });
+    const command = `Show_Control Cue_Receive_String "${options.format_string}"`;
+    await client.sendNewCommand(command, extractTargetOptions(options));
 
     return createResult('Format de reception des cues mis a jour.', {
       action: 'set_cue_receive_string',
-      status: response.status,
       format: options.format_string,
       osc: {
         address: oscMappings.showControl.setCueReceiveString,
-        request: payload,
-        response: response.payload
+        args: [command]
       }
     });
   }
@@ -469,4 +454,3 @@ export const showControlTools = [
 ];
 
 export default showControlTools;
-

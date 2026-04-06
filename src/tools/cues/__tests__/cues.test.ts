@@ -78,8 +78,12 @@ describe('cue tools', () => {
 
     const goMessage = service.sentMessages[0];
     expect(goMessage.address).toBe(oscMappings.cues.go);
-    const goPayload = JSON.parse(String(goMessage?.args?.[0]?.value ?? '{}'));
-    expect(goPayload).toMatchObject({ cuelist: 5 });
+    expect(goMessage.args).toEqual([
+      {
+        type: 's',
+        value: 'CueList 5 Go'
+      }
+    ]);
 
     const stopMessage = service.sentMessages[1];
     expect(stopMessage.address).toBe(oscMappings.cues.stopBackCommand);

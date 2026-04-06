@@ -68,9 +68,9 @@ Ce document recense les familles/commandes OSC EOS prises en charge par les outi
 | Famille | Commande OSC | Outil MCP | Statut/Notes |
 | --- | --- | --- | --- |
 | macros | `/eos/macro/fire` | `eos_macro_fire` | ✅ |
-| macros | `/eos/macro/select` | `eos_macro_select` | ✅ |
+| macros | `/eos/macro` | `eos_macro_select` | ✅ |
 | macros | `/eos/get/macro` | `eos_macro_get_info` | ✅ |
-| snapshots | `/eos/snapshot/recall` | `eos_snapshot_recall` | ✅ |
+| snapshots | `/eos/snap` | `eos_snapshot_recall` | ✅ |
 | snapshots | `/eos/get/snapshot` | `eos_snapshot_get_info` | ✅ |
 
 ## Courbes & effets
@@ -79,8 +79,8 @@ Ce document recense les familles/commandes OSC EOS prises en charge par les outi
 | --- | --- | --- | --- |
 | curves | `/eos/curve/select` | `eos_curve_select` | ✅ |
 | curves | `/eos/get/curve` | `eos_curve_get_info` | ✅ |
-| effects | `/eos/effect/select` | `eos_effect_select` | ✅ |
-| effects | `/eos/effect/stop` | `eos_effect_stop` | ✅ |
+| effects | `/eos/cmd` | `eos_effect_select` | ✅ |
+| effects | `/eos/cmd` | `eos_effect_stop` | ✅ |
 | effects | `/eos/get/effect` | `eos_effect_get_info` | ✅ |
 
 ## Parametres & FPE
@@ -113,10 +113,10 @@ Ce document recense les familles/commandes OSC EOS prises en charge par les outi
 
 | Famille | Commande OSC | Outil MCP | Statut/Notes |
 | --- | --- | --- | --- |
-| pixelMaps | `/eos/pixmap/select` | `eos_pixmap_select` | ✅ |
+| pixelMaps | `/eos/pixmap` | `eos_pixmap_select` | ✅ |
 | pixelMaps | `/eos/get/pixmap` | `eos_pixmap_get_info` | ✅ |
-| magicSheets | `/eos/magic_sheet/open` | `eos_magic_sheet_open` | ✅ |
-| magicSheets | `/eos/magic_sheet/send_string` | `eos_magic_sheet_send_string` | ✅ |
+| magicSheets | `/eos/ms` | `eos_magic_sheet_open` | ✅ |
+| magicSheets | `/eos/newcmd` | `eos_magic_sheet_send_string` | ✅ |
 | magicSheets | `/eos/get/magic_sheet` | `eos_magic_sheet_get_info` | ✅ |
 
 ## Queries (Get Count / List)
@@ -168,10 +168,10 @@ Ce document recense les familles/commandes OSC EOS prises en charge par les outi
 
 | Famille | Commande OSC | Outil MCP | Statut/Notes |
 | --- | --- | --- | --- |
-| cues | `/eos/cue/fire` | `eos_cue_fire` | ✅ |
-| cues | `/eos/cue/go` | `eos_cue_go` | ✅ |
+| cues | `/eos/cmd` | `eos_cue_fire` | ✅ |
+| cues | `/eos/cmd` | `eos_cue_go` | ✅ |
 | cues | `/eos/cmd` | `eos_cue_stop_back` | ✅ |
-| cues | `/eos/cue/select` | `eos_cue_select` | ✅ |
+| cues | `/eos/cmd` | `eos_cue_select` | ✅ |
 | cues | `/eos/get/cue` | `eos_cue_get_info` | ✅ |
 | cues | `/eos/get/cuelist` | `eos_cue_list_all` | ✅ |
 | cues | `/eos/get/cuelist/info` | `eos_cuelist_get_info` | ✅ |
@@ -181,6 +181,6 @@ Ce document recense les familles/commandes OSC EOS prises en charge par les outi
 | cues | `/eos/get/pending/cue` | `eos_get_pending_cue` | ✅ |
 | showControl | `/eos/get/show/name` | `eos_get_show_name` | ✅ |
 | showControl | `/eos/get/live/blind` | `eos_get_live_blind_state` | ✅ |
-| showControl | `/eos/toggle/staging_mode` | `eos_toggle_staging_mode` | ✅ |
-| showControl | `/eos/set/cue/send_string` | `eos_set_cue_send_string` | ✅ |
-| showControl | `/eos/set/cue/receive_string` | `eos_set_cue_receive_string` | ✅ |
+| showControl | `/eos/newcmd` | `eos_toggle_staging_mode` | ✅ |
+| showControl | `/eos/newcmd` | `eos_set_cue_send_string` | ✅ |
+| showControl | `/eos/newcmd` | `eos_set_cue_receive_string` | ✅ |

@@ -143,6 +143,33 @@ export function formatCueDescription(identifier: CueIdentifier): string {
   return parts.join(' ');
 }
 
+function formatCueRef(identifier: CueIdentifier): string {
+  const cueNumber = identifier.cueNumber ?? 0;
+  const cuePart = identifier.cuePart != null && identifier.cuePart > 0 ? ` Part ${identifier.cuePart}` : '';
+  if (identifier.cuelistNumber != null) {
+    return `Cue ${cueNumber}${cuePart} CueList ${identifier.cuelistNumber}`;
+  }
+  return `Cue ${cueNumber}${cuePart}`;
+}
+
+export function buildCueFireCommand(identifier: CueIdentifier): string {
+  return `${formatCueRef(identifier)} Fire`;
+}
+
+export function buildCueGoCommand(identifier: CueIdentifier): string {
+  if (identifier.cueNumber != null) {
+    return `${formatCueRef(identifier)} Go`;
+  }
+  if (identifier.cuelistNumber != null) {
+    return `CueList ${identifier.cuelistNumber} Go`;
+  }
+  return 'Go';
+}
+
+export function buildCueSelectCommand(identifier: CueIdentifier): string {
+  return formatCueRef(identifier);
+}
+
 export interface CueCommandResultOverrides {
   request?: unknown;
   oscAddress?: string;
