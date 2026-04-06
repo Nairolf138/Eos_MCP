@@ -306,6 +306,54 @@ describe('ToolRegistry schema-less tools', () => {
     expect(payload.result).toMatchObject({ message: 'boom', name: 'Error' });
     expect(payload.durationMs).toEqual(expect.any(Number));
   });
+
+  it('bloque un outil critique si le role requis est incompatible', async () => {
+    const server = createMockServer();
+    const registry = new ToolRegistry(server);
+
+    registry.register({
+      name: 'eos_magic_sheet_send_string',
+      config: { inputSchema: { text: z.string() } },
+      handler: async () => ({
+        content: [{ type: 'text', text: 'ok' }]
+      })
+    });
+
+    const [, , registeredHandler] = server.registerTool.mock.calls[0];
+
+    await expect(
+      (registeredHandler as RegisteredTestHandler)(
+        { text: 'hello' },
+        { connection: { role: 'Secondary' } }
+      )
+    ).rejects.toThrow('incompatible avec le contexte EOS courant');
+  });
+
+  it('autorise un outil critique lorsque le contexte est compatible', async () => {
+    const server = createMockServer();
+    const registry = new ToolRegistry(server);
+
+    const handler = jest.fn(async () => ({
+      content: [{ type: 'text', text: 'ok' }]
+    }));
+
+    registry.register({
+      name: 'eos_magic_sheet_send_string',
+      config: { inputSchema: { text: z.string() } },
+      handler
+    });
+
+    const [, , registeredHandler] = server.registerTool.mock.calls[0];
+
+    await expect(
+      (registeredHandler as RegisteredTestHandler)(
+        { text: 'hello', eos_version: '3.2.0' },
+        { connection: { role: 'Primary' } }
+      )
+    ).resolves.toBeDefined();
+
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
 });
 
 type RegisteredTestHandler = (first: unknown, second?: unknown) => Promise<ToolExecutionResult>;

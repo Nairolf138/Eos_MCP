@@ -2,12 +2,9 @@
  * Copyright 2026 Florian Ribes (NairolfConcept)
  * SPDX-License-Identifier: Apache-2.0
  */
-import type { OscMessage } from '../../../services/osc';
 import {
-  OscClient,
   setOscClient,
-  type OscGateway,
-  type OscGatewaySendOptions
+  type OscClient
 } from '../../../services/osc/client';
 import { OscConnectionStateProvider } from '../../../services/osc/connectionState';
 import { setCurrentUserId, clearCurrentUserId } from '../../session';
@@ -16,38 +13,31 @@ import { eosCapabilitiesGetTool } from '../index';
 import { setCapabilitiesToolNamesProvider } from '../context';
 import { oscMappings } from '../../../services/osc/mappings';
 
-class FakeGateway implements OscGateway {
-  public readonly sentMessages: OscMessage[] = [];
-
-  private readonly listeners = new Set<(message: OscMessage) => void>();
-
+class FakeConnectionAwareClient {
   public readonly connectionProvider = new OscConnectionStateProvider();
-
-  public async send(message: OscMessage, _options?: OscGatewaySendOptions): Promise<void> {
-    this.sentMessages.push(message);
-  }
-
-  public onMessage(listener: (message: OscMessage) => void): () => void {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
-  }
-
-  public emit(message: OscMessage): void {
-    this.listeners.forEach((listener) => listener(message));
-  }
 
   public getConnectionStateProvider(): OscConnectionStateProvider {
     return this.connectionProvider;
   }
+
+  public requestJson = jest.fn(async (address: string) => {
+    if (address === oscMappings.showControl.liveBlindState) {
+      return { status: 'ok', data: { status: 'ok', state: 'live' }, payload: null };
+    }
+    if (address === oscMappings.system.getVersion) {
+      return { status: 'ok', data: { status: 'ok', version: '3.2.1' }, payload: null };
+    }
+
+    return { status: 'ok', data: null, payload: null };
+  });
 }
 
 describe('eos_capabilities_get', () => {
-  let gateway: FakeGateway;
+  let client: FakeConnectionAwareClient;
 
   beforeEach(() => {
-    gateway = new FakeGateway();
-    const client = new OscClient(gateway, { defaultTimeoutMs: 50 });
-    setOscClient(client);
+    client = new FakeConnectionAwareClient();
+    setOscClient(client as unknown as OscClient);
 
     setCapabilitiesToolNamesProvider(() => [
       'eos_capabilities_get',
@@ -67,16 +57,7 @@ describe('eos_capabilities_get', () => {
   });
 
   it('retourne les familles, le contexte et les infos serveur', async () => {
-    const promise = runTool(eosCapabilitiesGetTool, {});
-
-    queueMicrotask(() => {
-      gateway.emit({
-        address: oscMappings.showControl.liveBlindState,
-        args: [{ type: 's', value: JSON.stringify({ status: 'ok', state: 'live' }) }]
-      });
-    });
-
-    const result = await promise;
+    const result = await runTool(eosCapabilitiesGetTool, {});
     const structured = getStructuredContent(result);
 
     expect(structured).toBeDefined();
@@ -91,5 +72,14 @@ describe('eos_capabilities_get', () => {
     expect(structured.context.mode.live_blind).toBe('live');
     expect(structured.server.version).toBeDefined();
     expect(structured.server.compatibility.osc_protocol).toBe('ETCOSC');
+    expect(structured.osc_compatibility.context.eos_version).toBe('3.2.1');
+    expect(structured.osc_compatibility.tools).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          tool: 'eos_cue_go',
+          min_eos_version: '3.0.0'
+        })
+      ])
+    );
   });
 });
