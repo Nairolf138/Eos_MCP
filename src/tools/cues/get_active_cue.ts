@@ -4,6 +4,7 @@
  */
 import { z, type ZodRawShape } from 'zod';
 import { getOscClient } from '../../services/osc/client';
+import { buildCueJsonMessage } from '../../services/osc/messageBuilders';
 import { oscMappings } from '../../services/osc/mappings';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 import {
@@ -59,10 +60,8 @@ export const eosGetActiveCueTool: ToolDefinition<typeof getActiveCueInputSchema>
       cuePart: null
     });
 
-    const response = await client.requestJson(oscMappings.cues.active, {
-      payload,
-      ...extractTargetOptions(options)
-    });
+    const request = buildCueJsonMessage(oscMappings.cues.active, payload);
+    const response = await client.requestBuiltJson(request, extractTargetOptions(options));
 
     const state = mapCuePlaybackState(response.data, identifier);
     const text = formatActiveText(state.details.identifier, state.progressPercent);

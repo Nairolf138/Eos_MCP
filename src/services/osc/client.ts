@@ -25,6 +25,13 @@ import {
 import { getResourceCache } from '../cache/index';
 import { RequestQueue, type RequestQueueRunOptions } from './requestQueue';
 import { getRequestContext } from '../../server/requestContext';
+import {
+  extractJsonPayloadFromMessage,
+  isDocumentedJsonEndpoint,
+  validateWireMessage,
+  type BuiltOscWireMessage,
+  type OscWireContract
+} from './messageBuilders';
 
 const HANDSHAKE_REQUEST = '/eos/handshake';
 const HANDSHAKE_REPLY = '/eos/handshake/reply';
@@ -82,6 +89,7 @@ export interface TargetOptions {
   targetPort?: number;
   toolId?: string;
   transportPreference?: ToolTransportPreference;
+  wireContract?: OscWireContract;
 }
 
 export interface ConnectOptions extends TargetOptions {
@@ -501,6 +509,11 @@ export class OscClient {
   }
 
   public async requestJson(address: string, options: OscJsonRequestOptions = {}): Promise<OscJsonResponse> {
+    if (!isDocumentedJsonEndpoint(address)) {
+      throw new Error(
+        `requestJson n'est pas autorise pour l'adresse '${address}'. Utilisez un builder specialise + sendMessage.`
+      );
+    }
     const targetOptions: TargetOptions = {
       targetAddress: options.targetAddress,
       targetPort: options.targetPort,
@@ -587,6 +600,17 @@ export class OscClient {
 
       throw error;
     }
+  }
+
+  public async requestBuiltJson(
+    request: BuiltOscWireMessage,
+    options: Omit<OscJsonRequestOptions, 'payload'> = {}
+  ): Promise<OscJsonResponse> {
+    validateWireMessage(request.contract, request.message);
+    return this.requestJson(request.message.address, {
+      ...options,
+      payload: extractJsonPayloadFromMessage(request.message)
+    });
   }
 
   public setLogging(options: OscLoggingOptions = {}): OscLoggingState {
@@ -712,6 +736,10 @@ export class OscClient {
       correlationId: getRequestContext()?.correlationId,
       transportPreference: options.transportPreference
     };
+
+    if (options.wireContract) {
+      validateWireMessage(options.wireContract, message);
+    }
 
     if (gatewayOptions.transportPreference && gatewayOptions.toolId) {
       this.gateway.setToolPreference?.(gatewayOptions.toolId, gatewayOptions.transportPreference);

@@ -11,6 +11,7 @@ import {
 } from '../../services/cache/index';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
+import { buildGroupJsonMessage, buildGroupSelectMessage } from '../../services/osc/messageBuilders';
 import { oscMappings } from '../../services/osc/mappings';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 
@@ -241,28 +242,19 @@ export const eosGroupSelectTool: ToolDefinition<typeof selectInputSchema> = {
     const schema = z.object(selectInputSchema).strict();
     const options = schema.parse(args ?? {});
     const client = getOscClient();
-    const oscArgs: OscMessageArgument[] = [
-      {
-        type: 'i',
-        value: options.group_number
-      }
-    ];
-
-    await client.sendMessage(
-      oscMappings.groups.select,
-      oscArgs,
-      {
-        targetAddress: options.targetAddress,
-        targetPort: options.targetPort
-      }
-    );
+    const request = buildGroupSelectMessage(options.group_number);
+    await client.sendMessage(request.message.address, request.message.args ?? [], {
+      targetAddress: options.targetAddress,
+      targetPort: options.targetPort,
+      wireContract: request.contract
+    });
 
     return createResult(`Groupe ${options.group_number} selectionne`, {
       action: 'select',
       group_number: options.group_number,
       osc: {
         address: oscMappings.groups.select,
-        args: oscArgs
+        args: request.message.args ?? []
       }
     });
   }
@@ -376,8 +368,8 @@ export const eosGroupGetInfoTool: ToolDefinition<typeof getInfoInputSchema> = {
       ],
       prefixTags: [createOscPrefixTag('/eos/out/group')],
       fetcher: async () => {
-        const response: OscJsonResponse = await client.requestJson(oscMappings.groups.info, {
-          payload,
+        const request = buildGroupJsonMessage(oscMappings.groups.info, payload);
+        const response: OscJsonResponse = await client.requestBuiltJson(request, {
           timeoutMs: options.timeoutMs,
           targetAddress: options.targetAddress,
           targetPort: options.targetPort
@@ -455,8 +447,8 @@ export const eosGroupListAllTool: ToolDefinition<typeof listAllInputSchema> = {
       tags: [createResourceTag('groups')],
       prefixTags: [createOscPrefixTag('/eos/out/group')],
       fetcher: async () => {
-        const response: OscJsonResponse = await client.requestJson(oscMappings.groups.list, {
-          payload,
+        const request = buildGroupJsonMessage(oscMappings.groups.list, payload);
+        const response: OscJsonResponse = await client.requestBuiltJson(request, {
           timeoutMs: options.timeoutMs,
           targetAddress: options.targetAddress,
           targetPort: options.targetPort

@@ -4,7 +4,6 @@
  */
 import { z, type ZodRawShape } from 'zod';
 import { cueObjectNumberSchema, cuelistNumberSchema as sharedCuelistNumberSchema, optionalPortSchema } from '../../utils/validators';
-import type { OscMessageArgument } from '../../services/osc/index';
 import type { ToolExecutionResult } from '../types';
 import { safetyOptionsSchema } from '../common/safety';
 import type { CueIdentifier } from './types';
@@ -37,15 +36,6 @@ export function formatCueTarget(cueNumber: string | number, cuelistNumber?: numb
 
 export function buildRecordCueCommand(cueNumber: string | number, cuelistNumber?: number | null): string {
   return `Record ${formatCueTarget(cueNumber, cuelistNumber)}`;
-}
-
-export function buildJsonArgs(payload: Record<string, unknown>): OscMessageArgument[] {
-  return [
-    {
-      type: 's' as const,
-      value: JSON.stringify(payload)
-    }
-  ];
 }
 
 export function extractTargetOptions<T extends { targetAddress?: string; targetPort?: number }>(

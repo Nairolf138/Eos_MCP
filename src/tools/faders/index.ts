@@ -4,7 +4,10 @@
  */
 import { z, type ZodRawShape } from 'zod';
 import { getOscClient } from '../../services/osc/client';
-import type { OscMessageArgument } from '../../services/osc/index';
+import {
+  buildFaderBankCreateMessage,
+  buildFaderSetLevelMessage
+} from '../../services/osc/messageBuilders';
 import { oscMappings } from '../../services/osc/mappings';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 
@@ -101,15 +104,6 @@ function annotate(osc: string): Record<string, unknown> {
   };
 }
 
-function buildFloatArgs(value: number): OscMessageArgument[] {
-  return [
-    {
-      type: 'f',
-      value
-    }
-  ];
-}
-
 function createResult(text: string, structuredContent: Record<string, unknown>): ToolExecutionResult {
   return {
     content: [{ type: 'text', text }],
@@ -204,9 +198,12 @@ export const eosFaderBankCreateTool: ToolDefinition<typeof bankCreateInputSchema
     const options = schema.parse(args ?? {});
     const client = getOscClient();
     const page = options.page_number ?? 0;
-    const address = `${oscMappings.faders.base}/${options.bank_index}/config/${options.fader_count}/${page}`;
-
-    await client.sendMessage(address, [], extractTargetOptions(options));
+    const request = buildFaderBankCreateMessage(options.bank_index, options.fader_count, page);
+    await client.sendMessage(request.message.address, request.message.args ?? [], {
+      ...extractTargetOptions(options),
+      wireContract: request.contract
+    });
+    const address = request.message.address;
 
     setBankState(options.bank_index, { page, faderCount: options.fader_count });
 
@@ -246,9 +243,12 @@ export const eosFaderSetLevelTool: ToolDefinition<typeof setLevelInputSchema> = 
     const client = getOscClient();
     const state = getBankState(options.bank_index);
     const level = resolveLevelValue(options.level);
-    const address = `${oscMappings.faders.base}/${options.bank_index}/${state.page}/${options.fader_index}`;
-
-    await client.sendMessage(address, buildFloatArgs(level), extractTargetOptions(options));
+    const request = buildFaderSetLevelMessage(options.bank_index, state.page, options.fader_index, level);
+    await client.sendMessage(request.message.address, request.message.args ?? [], {
+      ...extractTargetOptions(options),
+      wireContract: request.contract
+    });
+    const address = request.message.address;
 
     return createResult(
       `Fader ${options.bank_index}.${state.page}.${options.fader_index} regle a ${formatPercent(level)}.`,
