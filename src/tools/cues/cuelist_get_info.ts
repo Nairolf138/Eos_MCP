@@ -10,6 +10,7 @@ import {
   getResourceCache
 } from '../../services/cache/index';
 import { getOscClient } from '../../services/osc/client';
+import { buildCueJsonMessage } from '../../services/osc/messageBuilders';
 import { oscMappings } from '../../services/osc/mappings';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 import {
@@ -76,10 +77,8 @@ export const eosCuelistGetInfoTool: ToolDefinition<typeof cuelistInfoInputSchema
       ],
       prefixTags: [createOscPrefixTag('/eos/out/')],
       fetcher: async () => {
-        const response = await client.requestJson(oscMappings.cues.cuelistInfo, {
-          payload,
-          ...extractTargetOptions(options)
-        });
+        const request = buildCueJsonMessage(oscMappings.cues.cuelistInfo, payload);
+        const response = await client.requestBuiltJson(request, extractTargetOptions(options));
 
         const info = mapCuelistInfo(response.data, identifier);
 

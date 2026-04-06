@@ -11,7 +11,7 @@ import {
   getResourceCache
 } from '../../services/cache/index';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
-import type { OscMessageArgument } from '../../services/osc/index';
+import { buildPaletteFireMessage, buildPaletteInfoJsonMessage } from '../../services/osc/messageBuilders';
 import { oscMappings } from '../../services/osc/mappings';
 import {
   assertSensitiveActionAllowed,
@@ -349,12 +349,7 @@ function createPaletteFireTool({ type, name, title, description, mapping }: Pale
       const schema = z.object(paletteFireInputSchema).strict();
       const options = schema.parse(args ?? {});
       const client = getOscClient();
-      const oscArgs: OscMessageArgument[] = [
-        {
-          type: 'i',
-          value: options.palette_number
-        }
-      ];
+      const request = buildPaletteFireMessage(mapping, options.palette_number);
 
       const safety = resolveSafetyOptions(options);
       if (safety.dryRun) {
@@ -363,7 +358,7 @@ function createPaletteFireTool({ type, name, title, description, mapping }: Pale
           action: 'palette_fire',
           request: { palette_number: options.palette_number, palette_type: type },
           oscAddress: mapping,
-          oscArgs,
+          oscArgs: request.message.args ?? [],
           extra: {
             palette_type: type,
             palette_number: options.palette_number
@@ -373,7 +368,10 @@ function createPaletteFireTool({ type, name, title, description, mapping }: Pale
 
       assertSensitiveActionAllowed(options, `${name}`);
 
-      await client.sendMessage(mapping, oscArgs, extractTargetOptions(options));
+      await client.sendMessage(request.message.address, request.message.args ?? [], {
+        ...extractTargetOptions(options),
+        wireContract: request.contract
+      });
 
       return createResult(`Palette ${paletteTypeLabels[type]} ${options.palette_number} declenchee`, {
         action: 'palette_fire',
@@ -381,7 +379,7 @@ function createPaletteFireTool({ type, name, title, description, mapping }: Pale
         palette_number: options.palette_number,
         osc: {
           address: mapping,
-          args: oscArgs
+          args: request.message.args ?? []
         }
       });
     }
@@ -529,8 +527,8 @@ export const eosPaletteGetInfoTool: ToolDefinition<typeof paletteGetInfoInputSch
       ],
       prefixTags: [createOscPrefixTag('/eos/out/')],
       fetcher: async () => {
-        const response: OscJsonResponse = await client.requestJson(mapping, {
-          payload,
+        const request = buildPaletteInfoJsonMessage(mapping, payload);
+        const response: OscJsonResponse = await client.requestBuiltJson(request, {
           timeoutMs: options.timeoutMs,
           ...extractTargetOptions(options)
         });

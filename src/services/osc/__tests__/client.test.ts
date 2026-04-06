@@ -656,7 +656,7 @@ describe('OscClient', () => {
     const service = new FakeOscService();
     const client = new OscClient(service);
 
-    const responsePromise = client.requestJson('/custom/request', {
+    const responsePromise = client.requestJson('/eos/get/cue', {
       toolId: 'custom_tool',
       transportPreference: 'reliability',
       responseAddress: '/custom/reply',
