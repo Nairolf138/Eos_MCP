@@ -8,8 +8,8 @@ import { oscMappings } from '../../services/osc/mappings';
 import { assertSensitiveActionAllowed, createDryRunResult, resolveSafetyOptions } from '../common/safety';
 import type { ToolDefinition } from '../types';
 import {
+  buildCueFireCommand,
   buildCueCommandPayload,
-  buildJsonArgs,
   createCueCommandResult,
   createCueIdentifierFromOptions,
   cueNumberSchema,
@@ -61,7 +61,7 @@ export const eosCueFireTool: ToolDefinition<typeof fireInputSchema> = {
     };
 
     const payload = buildCueCommandPayload(identifier, { defaultPart: 0 });
-    const oscArgs = buildJsonArgs(payload);
+    const command = buildCueFireCommand(identifier);
     const safety = resolveSafetyOptions(options);
 
     if (safety.dryRun) {
@@ -70,13 +70,13 @@ export const eosCueFireTool: ToolDefinition<typeof fireInputSchema> = {
         action: 'cue_fire',
         request: payload,
         oscAddress: oscMappings.cues.fire,
-        oscArgs
+        oscArgs: [{ type: 's', value: command }]
       });
     }
 
     assertSensitiveActionAllowed(options, 'eos_cue_fire');
 
-    await client.sendMessage(oscMappings.cues.fire, oscArgs, extractTargetOptions(options));
+    await client.sendCommand(command, extractTargetOptions(options));
 
     return createCueCommandResult(
       'cue_fire',
@@ -85,6 +85,10 @@ export const eosCueFireTool: ToolDefinition<typeof fireInputSchema> = {
       oscMappings.cues.fire,
       {
         summary: `Declenchement de ${formatCueDescription(identifier)}`
+      },
+      {
+        oscArgs: [{ type: 's', value: command }],
+        request: { command }
       }
     );
   }

@@ -61,15 +61,6 @@ const magicSheetInfoOutputSchema = z.object({
   uid: z.string().nullable()
 });
 
-function buildJsonArgs(payload: Record<string, unknown>): OscMessageArgument[] {
-  return [
-    {
-      type: 's' as const,
-      value: JSON.stringify(payload)
-    }
-  ];
-}
-
 function extractTargetOptions(options: { targetAddress?: string; targetPort?: number }): {
   targetAddress?: string;
   targetPort?: number;
@@ -326,28 +317,21 @@ export const eosMagicSheetOpenTool: ToolDefinition<typeof openInputSchema> = {
     const schema = z.object(openInputSchema).strict();
     const options = schema.parse(args ?? {});
     const client = getOscClient();
-    const payload: Record<string, unknown> = {
-      number: options.ms_number
-    };
-
+    const oscArgs: OscMessageArgument[] = [{ type: 'i', value: options.ms_number }];
     if (typeof options.view_number === 'number') {
-      payload.view = options.view_number;
+      oscArgs.push({ type: 'i', value: options.view_number });
     }
 
-    await client.sendMessage(
-      oscMappings.magicSheets.open,
-      buildJsonArgs(payload),
-      extractTargetOptions(options)
-    );
+    await client.sendMessage(oscMappings.magicSheets.open, oscArgs, extractTargetOptions(options));
 
     const viewPart = typeof options.view_number === 'number' ? ` (vue ${options.view_number})` : '';
 
     return createResult(`Magic sheet ${options.ms_number}${viewPart} ouvert.`, {
       action: 'magic_sheet_open',
-      request: payload,
+      request: { ms_number: options.ms_number, view_number: options.view_number ?? null },
       osc: {
         address: oscMappings.magicSheets.open,
-        args: payload
+        args: oscArgs.map((arg) => arg.value)
       },
       ...extractTargetOptions(options)
     });
@@ -395,16 +379,7 @@ export const eosMagicSheetSendStringTool: ToolDefinition<typeof sendStringInputS
 
     const client = getOscClient();
 
-    await client.sendMessage(
-      oscMappings.magicSheets.sendString,
-      [
-        {
-          type: 's',
-          value: options.osc_command
-        }
-      ],
-      extractTargetOptions(options)
-    );
+    await client.sendNewCommand(options.osc_command, extractTargetOptions(options));
 
     return createResult('Commande envoyee via magic sheet.', {
       action: 'magic_sheet_send_string',

@@ -64,10 +64,10 @@ Ce document mappe chaque outil MCP aux commandes OSC officielles de la documenta
 
 | Outils MCP | Adresse OSC utilisee | Commande OSC officielle (manuel) | Arguments OSC (manuel) | Version | Reference (section/page) | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `eos_macro_select` | `/eos/macro/select` | `/eos/macro` | Numero de macro a selectionner | v3.0.0 | ShowControl > OSC > Macro (p. 608) | MCP scinde select/fire. |
+| `eos_macro_select` | `/eos/macro` | `/eos/macro` | Numero de macro a selectionner | v3.0.0 | ShowControl > OSC > Macro (p. 608) | MCP scinde select/fire. |
 | `eos_macro_fire` | `/eos/macro/fire` | `/eos/macro/fire` | Numero de macro a executer | v3.0.0 | ShowControl > OSC > Macro (p. 608) | — |
 | `eos_macro_get_info` | `/eos/get/macro` | `/eos/get/macro/...` | Requetes de synchronisation | v3.0.0 | ShowControl > OSC > Synchronisation (p. 623-624) | — |
-| `eos_snapshot_recall` | `/eos/snapshot/recall` | `/eos/snap` | Numero de snapshot a rappeler | v3.0.0 | ShowControl > OSC > Autres elements (p. 613) | MCP utilise `/eos/snapshot/recall` comme alias. |
+| `eos_snapshot_recall` | `/eos/snap` | `/eos/snap` | Numero de snapshot a rappeler | v3.0.0 | ShowControl > OSC > Autres elements (p. 613) | Adresse MCP alignee sur la commande officielle. |
 | `eos_snapshot_get_info` | `/eos/get/snapshot` | `/eos/get/snap/...` | Requetes de synchronisation | v3.0.0 | ShowControl > OSC > Synchronisation (p. 623-624) | — |
 
 ## Courbes & effets
@@ -76,8 +76,8 @@ Ce document mappe chaque outil MCP aux commandes OSC officielles de la documenta
 | --- | --- | --- | --- | --- | --- | --- |
 | `eos_curve_select` | `/eos/curve/select` | `/eos/curve` | Numero de courbe a selectionner | v3.0.0 | ShowControl > OSC > Autres elements (p. 613) | MCP utilise `/eos/curve/select` comme alias. |
 | `eos_curve_get_info` | `/eos/get/curve` | `/eos/get/curve/...` | Requetes de synchronisation | v3.0.0 | ShowControl > OSC > Synchronisation (p. 623-624) | — |
-| `eos_effect_select` | `/eos/effect/select` | `/eos/fx` | Numero d'effet a selectionner | v3.0.0 | ShowControl > OSC > Autres elements (p. 613) | MCP utilise `/eos/effect/select` comme alias. |
-| `eos_effect_stop` | `/eos/effect/stop` | `/eos/fx` + stop (commande) | Etat touche/stop | v3.0.0 | ShowControl > OSC > Autres elements (p. 613) | MCP encapsule l'action stop. |
+| `eos_effect_select` | `/eos/cmd` | `/eos/fx` | Numero d'effet a selectionner | v3.0.0 | ShowControl > OSC > Autres elements (p. 613) | Traduction explicite MCP: commande texte `Effect <n>`. |
+| `eos_effect_stop` | `/eos/cmd` | `/eos/fx` + stop (commande) | Etat touche/stop | v3.0.0 | ShowControl > OSC > Autres elements (p. 613) | Traduction explicite MCP: commande texte `Effect ... Stop`. |
 | `eos_effect_get_info` | `/eos/get/effect` | `/eos/get/fx/...` | Requetes de synchronisation | v3.0.0 | ShowControl > OSC > Synchronisation (p. 623-624) | — |
 
 ## Parametres, couleurs & roues
@@ -114,10 +114,10 @@ Ce document mappe chaque outil MCP aux commandes OSC officielles de la documenta
 
 | Outils MCP | Adresse OSC utilisee | Commande OSC officielle (manuel) | Arguments OSC (manuel) | Version | Reference (section/page) | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `eos_pixmap_select` | `/eos/pixmap/select` | `/eos/pixmap` | Numero de pixel map | v3.0.0 | ShowControl > OSC > Autres elements (p. 613) | MCP utilise un alias `/select`. |
+| `eos_pixmap_select` | `/eos/pixmap` | `/eos/pixmap` | Numero de pixel map | v3.0.0 | ShowControl > OSC > Autres elements (p. 613) | Adresse MCP alignee sur la commande officielle. |
 | `eos_pixmap_get_info` | `/eos/get/pixmap` | `/eos/get/pixmap/...` | Requetes de synchronisation | v3.0.0 | ShowControl > OSC > Synchronisation (p. 623-624) | — |
-| `eos_magic_sheet_open` | `/eos/magic_sheet/open` | `/eos/ms` | Numero de MagicSheet (option vue) | v3.0.0 | ShowControl > OSC > MagicSheet (p. 607) | MCP utilise `/eos/magic_sheet/open` comme alias. |
-| `eos_magic_sheet_send_string` | `/eos/magic_sheet/send_string` | _Non documente dans le manuel v3.0.0_ | Chaine a injecter | n/a | n/a | Extension MCP pour MagicSheet. |
+| `eos_magic_sheet_open` | `/eos/ms` | `/eos/ms` | Numero de MagicSheet (option vue) | v3.0.0 | ShowControl > OSC > MagicSheet (p. 607) | Adresse MCP alignee sur la commande officielle. |
+| `eos_magic_sheet_send_string` | `/eos/newcmd` | `/eos/newcmd` | Chaine de commande complete | v3.0.0 | ShowControl > OSC > Ligne de commande (p. 614) | Remplacement de l'extension par une commande officielle. |
 | `eos_magic_sheet_get_info` | `/eos/get/magic_sheet` | `/eos/get/ms/...` | Requetes de synchronisation | v3.0.0 | ShowControl > OSC > Synchronisation (p. 623-624) | — |
 
 ## Requetes (Get Count / List)
@@ -141,17 +141,17 @@ Ce document mappe chaque outil MCP aux commandes OSC officielles de la documenta
 
 | Outils MCP | Adresse OSC utilisee | Commande OSC officielle (manuel) | Arguments OSC (manuel) | Version | Reference (section/page) | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `eos_cue_fire` | `/eos/cue/fire` | `/eos/cue/<cuelist>/<cue>/fire` | Numero de cue (option cue list/part) | v3.0.0 | ShowControl > OSC > Cue (p. 611) | MCP encapsule en endpoint `/fire`. |
-| `eos_cue_go` | `/eos/cue/go` | `/eos/cue/<cuelist>/go` | Numero de cue list | v3.0.0 | ShowControl > OSC > Cue (p. 611) | MCP utilise endpoint dedie. |
-| `eos_cue_select` | `/eos/cue/select` | `/eos/cue/<num>` | Numero de cue | v3.0.0 | ShowControl > OSC > Cue (p. 611) | MCP encapsule selection. |
+| `eos_cue_fire` | `/eos/cmd` | `/eos/cue/<cuelist>/<cue>/fire` | Numero de cue (option cue list/part) | v3.0.0 | ShowControl > OSC > Cue (p. 611) | Traduction explicite MCP vers commande texte `Cue ... Fire`. |
+| `eos_cue_go` | `/eos/cmd` | `/eos/cue/<cuelist>/go` | Numero de cue list | v3.0.0 | ShowControl > OSC > Cue (p. 611) | Traduction explicite MCP vers commande texte `CueList ... Go`. |
+| `eos_cue_select` | `/eos/cmd` | `/eos/cue/<num>` | Numero de cue | v3.0.0 | ShowControl > OSC > Cue (p. 611) | Traduction explicite MCP vers commande texte `Cue ...`. |
 | `eos_cue_get_info`, `eos_cue_list_all` | `/eos/get/cue`, `/eos/get/cuelist` | `/eos/get/cue/...`, `/eos/get/cuelist/...` | Requetes de synchronisation | v3.0.0 | ShowControl > OSC > Synchronisation (p. 623-624) | — |
 | `eos_cuelist_get_info` | `/eos/get/cuelist/info` | `/eos/get/cuelist/...` | Requetes de synchronisation | v3.0.0 | ShowControl > OSC > Synchronisation (p. 623-624) | — |
 | `eos_cuelist_bank_create`, `eos_cuelist_bank_page` | `/eos/cuelist/{bank_index}/config/...`, `/eos/cuelist/{bank_index}/page/{delta}` | `/eos/cuelist/<index>/config/...` | Config bank + pagination | v3.0.0 | ShowControl > OSC > Banques Cuelist (p. 612) | — |
 | `eos_get_active_cue`, `eos_get_pending_cue` | `/eos/get/active/cue`, `/eos/get/pending/cue` | `/eos/out/active/cue`, `/eos/out/pending/cue` | Sortie implicite | v3.0.0 | ShowControl > OSC > Sortie OSC implicite (p. 616) | MCP transforme en requetes explicites. |
 | `eos_get_show_name` | `/eos/get/show/name` | `/eos/out/show/name` | Sortie implicite | v3.0.0 | ShowControl > OSC > Evenements (p. 617) | MCP transforme en requete explicite. |
 | `eos_get_live_blind_state` | `/eos/get/live/blind` | `/eos/out/event/state` | Etat Live/Blind (0/1) | v3.0.0 | ShowControl > OSC > Evenements (p. 617) | MCP transforme en requete explicite. |
-| `eos_toggle_staging_mode` | `/eos/toggle/staging_mode` | _Non documente dans le manuel v3.0.0_ | Toggle staging | n/a | n/a | Extension MCP. |
-| `eos_set_cue_send_string`, `eos_set_cue_receive_string` | `/eos/set/cue/send_string`, `/eos/set/cue/receive_string` | _Non documente dans le manuel v3.0.0_ | Format string | n/a | n/a | Extension MCP pour formatage ShowControl. |
+| `eos_toggle_staging_mode` | `/eos/newcmd` | `/eos/newcmd` | Commande texte `Staging Mode` | v3.0.0 | ShowControl > OSC > Ligne de commande (p. 614) | Remplacement de l'extension par une commande officielle. |
+| `eos_set_cue_send_string`, `eos_set_cue_receive_string` | `/eos/newcmd`, `/eos/newcmd` | `/eos/newcmd` | Commande texte de configuration ShowControl | v3.0.0 | ShowControl > OSC > Ligne de commande (p. 614) | Remplacement de l'extension par une commande officielle. |
 
 ## Systeme & diagnostics
 

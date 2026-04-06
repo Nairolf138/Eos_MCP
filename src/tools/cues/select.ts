@@ -7,8 +7,8 @@ import { getOscClient } from '../../services/osc/client';
 import { oscMappings } from '../../services/osc/mappings';
 import type { ToolDefinition } from '../types';
 import {
+  buildCueSelectCommand,
   buildCueCommandPayload,
-  buildJsonArgs,
   createCueCommandResult,
   createCueIdentifierFromOptions,
   cueNumberSchema,
@@ -53,8 +53,9 @@ export const eosCueSelectTool: ToolDefinition<typeof selectInputSchema> = {
     const client = getOscClient();
     const identifier = createCueIdentifierFromOptions(options);
     const payload = buildCueCommandPayload(identifier, { defaultPart: 0 });
+    const command = buildCueSelectCommand(identifier);
 
-    await client.sendMessage(oscMappings.cues.select, buildJsonArgs(payload), extractTargetOptions(options));
+    await client.sendCommand(command, extractTargetOptions(options));
 
     return createCueCommandResult(
       'cue_select',
@@ -63,6 +64,10 @@ export const eosCueSelectTool: ToolDefinition<typeof selectInputSchema> = {
       oscMappings.cues.select,
       {
         summary: `Selection de ${formatCueDescription(identifier)}`
+      },
+      {
+        oscArgs: [{ type: 's', value: command }],
+        request: { command }
       }
     );
   }

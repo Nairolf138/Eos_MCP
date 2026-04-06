@@ -9,8 +9,8 @@ import { oscMappings } from '../../services/osc/mappings';
 import { createDryRunResult, resolveSafetyOptions } from '../common/safety';
 import type { ToolDefinition } from '../types';
 import {
+  buildCueGoCommand,
   buildCueCommandPayload,
-  buildJsonArgs,
   createCueCommandResult,
   createCueIdentifierFromOptions,
   cueNumberSchema,
@@ -56,7 +56,7 @@ export const eosCueGoTool: ToolDefinition<typeof goInputSchema> = {
     const client = getOscClient();
     const identifier = createCueIdentifierFromOptions(options);
     const payload = buildCueCommandPayload(identifier);
-    const oscArgs = buildJsonArgs(payload);
+    const command = buildCueGoCommand(identifier);
     const safety = resolveSafetyOptions(options);
 
     if (safety.dryRun) {
@@ -65,11 +65,11 @@ export const eosCueGoTool: ToolDefinition<typeof goInputSchema> = {
         action: 'cue_go',
         request: payload,
         oscAddress: oscMappings.cues.go,
-        oscArgs
+        oscArgs: [{ type: 's', value: command }]
       });
     }
 
-    await client.sendMessage(oscMappings.cues.go, oscArgs, extractTargetOptions(options));
+    await client.sendCommand(command, extractTargetOptions(options));
 
     return createCueCommandResult(
       'cue_go',
@@ -78,6 +78,10 @@ export const eosCueGoTool: ToolDefinition<typeof goInputSchema> = {
       oscMappings.cues.go,
       {
         summary: `GO envoye sur ${formatCueDescription(identifier)}`
+      },
+      {
+        oscArgs: [{ type: 's', value: command }],
+        request: { command }
       }
     );
   }

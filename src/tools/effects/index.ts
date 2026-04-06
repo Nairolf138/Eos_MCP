@@ -10,7 +10,6 @@ import {
   getResourceCache
 } from '../../services/cache/index';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
-import type { OscMessageArgument } from '../../services/osc/index';
 import { oscMappings } from '../../services/osc/mappings';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 
@@ -129,15 +128,6 @@ export const effectDetailsOutputSchema = z.object({
   duration: z.number().nullable(),
   raw: z.record(z.string(), z.unknown())
 });
-
-function buildJsonArgs(payload: Record<string, unknown>): OscMessageArgument[] {
-  return [
-    {
-      type: 's' as const,
-      value: JSON.stringify(payload)
-    }
-  ];
-}
 
 function createSimpleResult(
   action: string,
@@ -546,13 +536,10 @@ export const eosEffectSelectTool: ToolDefinition<typeof selectInputSchema> = {
     const schema = z.object(selectInputSchema).strict();
     const options = schema.parse(args ?? {});
     const client = getOscClient();
-    const payload = {
-      effect: options.effect_number
-    };
+    const command = `Effect ${options.effect_number}`;
 
-    await client.sendMessage(
-      oscMappings.effects.select,
-      buildJsonArgs(payload),
+    await client.sendCommand(
+      command,
       {
         targetAddress: options.targetAddress,
         targetPort: options.targetPort
@@ -563,7 +550,7 @@ export const eosEffectSelectTool: ToolDefinition<typeof selectInputSchema> = {
       'effect_select',
       `Effet ${options.effect_number} selectionne`,
       options.effect_number,
-      payload,
+      { command },
       oscMappings.effects.select
     );
   }
@@ -594,14 +581,12 @@ export const eosEffectStopTool: ToolDefinition<typeof stopInputSchema> = {
     const schema = z.object(stopInputSchema).strict();
     const options = schema.parse(args ?? {});
     const client = getOscClient();
-    const payload: Record<string, unknown> = {};
-    if (typeof options.effect_number === 'number') {
-      payload.effect = options.effect_number;
-    }
+    const command = typeof options.effect_number === 'number'
+      ? `Effect ${options.effect_number} Stop`
+      : 'Effect Stop';
 
-    await client.sendMessage(
-      oscMappings.effects.stop,
-      buildJsonArgs(payload),
+    await client.sendCommand(
+      command,
       {
         targetAddress: options.targetAddress,
         targetPort: options.targetPort
@@ -616,7 +601,7 @@ export const eosEffectStopTool: ToolDefinition<typeof stopInputSchema> = {
       'effect_stop',
       text,
       options.effect_number ?? null,
-      payload,
+      { command },
       oscMappings.effects.stop
     );
   }

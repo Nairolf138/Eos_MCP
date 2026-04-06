@@ -61,11 +61,11 @@ export const oscMappings = {
   },
   macros: {
     fire: '/eos/macro/fire',
-    select: '/eos/macro/select',
+    select: '/eos/macro',
     info: '/eos/get/macro'
   },
   snapshots: {
-    recall: '/eos/snapshot/recall',
+    recall: '/eos/snap',
     info: '/eos/get/snapshot'
   },
   curves: {
@@ -73,8 +73,8 @@ export const oscMappings = {
     info: '/eos/get/curve'
   },
   effects: {
-    select: '/eos/effect/select',
-    stop: '/eos/effect/stop',
+    select: '/eos/cmd',
+    stop: '/eos/cmd',
     info: '/eos/get/effect'
   },
   parameters: {
@@ -102,12 +102,12 @@ export const oscMappings = {
     bankPage: '/eos/ds/{index}/page/{delta}'
   },
   pixelMaps: {
-    select: '/eos/pixmap/select',
+    select: '/eos/pixmap',
     info: '/eos/get/pixmap'
   },
   magicSheets: {
-    open: '/eos/magic_sheet/open',
-    sendString: '/eos/magic_sheet/send_string',
+    open: '/eos/ms',
+    sendString: '/eos/newcmd',
     info: '/eos/get/magic_sheet'
   },
   queries: {
@@ -182,10 +182,10 @@ export const oscMappings = {
     info: '/eos/get/submaster'
   },
   cues: {
-    fire: '/eos/cue/fire',
-    go: '/eos/cue/go',
+    fire: '/eos/cmd',
+    go: '/eos/cmd',
     stopBackCommand: '/eos/cmd',
-    select: '/eos/cue/select',
+    select: '/eos/cmd',
     info: '/eos/get/cue',
     list: '/eos/get/cuelist',
     cuelistInfo: '/eos/get/cuelist/info',
@@ -197,9 +197,9 @@ export const oscMappings = {
   showControl: {
     showName: '/eos/get/show/name',
     liveBlindState: '/eos/get/live/blind',
-    toggleStagingMode: '/eos/toggle/staging_mode',
-    setCueSendString: '/eos/set/cue/send_string',
-    setCueReceiveString: '/eos/set/cue/receive_string'
+    toggleStagingMode: '/eos/newcmd',
+    setCueSendString: '/eos/newcmd',
+    setCueReceiveString: '/eos/newcmd'
   },
   system: {
     getVersion: '/eos/get/version',
