@@ -13,6 +13,10 @@ import type {
   ToolContext
 } from '../tools/types';
 import { setCapabilitiesToolNamesProvider } from '../tools/capabilities/context';
+import {
+  evaluateToolCompatibility,
+  resolveCompatibilityContext
+} from '../services/osc/compatibilityMatrix';
 
 const logger = createLogger('tool-registry');
 
@@ -278,8 +282,16 @@ class ToolRegistry {
       address: asObject(args).targetAddress,
       port: asObject(args).targetPort
     };
+    const compatibilityContext = resolveCompatibilityContext(args, extra);
+    const compatibilityStatus = evaluateToolCompatibility(toolName, compatibilityContext);
 
     try {
+      if (this.shouldEnforceCompatibilityGate(toolName) && !compatibilityStatus.compatible) {
+        throw new Error(
+          `Outil ${toolName} incompatible avec le contexte EOS courant: ${compatibilityStatus.reasons.join(' ')}`
+        );
+      }
+
       const result = await runWithRequestContext(
         {
           correlationId,
@@ -300,6 +312,7 @@ class ToolRegistry {
         result: sanitizeValue(result),
         sensitiveAction,
         safetyMode,
+        compatibility: compatibilityStatus,
         durationMs: Date.now() - startedAt,
         status: 'ok'
       });
@@ -317,11 +330,31 @@ class ToolRegistry {
         result: sanitizeValue(error instanceof Error ? { message: error.message, name: error.name } : error),
         sensitiveAction,
         safetyMode,
+        compatibility: compatibilityStatus,
         durationMs: Date.now() - startedAt,
         status: 'error'
       });
       throw error;
     }
+  }
+
+  private shouldEnforceCompatibilityGate(toolName: string): boolean {
+    if (!toolName.startsWith('eos_')) {
+      return false;
+    }
+
+    if (
+      toolName.startsWith('eos_connect') ||
+      toolName.startsWith('eos_configure') ||
+      toolName.startsWith('eos_ping') ||
+      toolName.startsWith('eos_reset') ||
+      toolName.startsWith('eos_subscribe') ||
+      toolName === 'eos_capabilities_get'
+    ) {
+      return false;
+    }
+
+    return true;
   }
 
   private compose(

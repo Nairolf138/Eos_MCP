@@ -8,6 +8,10 @@ import { getCurrentUserId } from '../session';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 import { getPackageVersion, getServerCompatibility } from '../../utils/version';
 import { getCapabilitiesToolNames } from './context';
+import {
+  evaluateToolCompatibility,
+  getCompatibilityRulesForTools
+} from '../../services/osc/compatibilityMatrix';
 
 const emptySchema = {} as const;
 
@@ -88,6 +92,21 @@ function parseLiveBlindLabel(payload: unknown): 'live' | 'blind' | 'unknown' {
   return 'unknown';
 }
 
+function parseDetectedEosVersion(payload: unknown): string | null {
+  if (typeof payload === 'string' && payload.trim().length > 0) {
+    return payload.trim();
+  }
+
+  if (payload && typeof payload === 'object') {
+    const value = (payload as Record<string, unknown>).version;
+    if (typeof value === 'string' && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+
+  return null;
+}
+
 /**
  * @tool eos_capabilities_get
  * @summary Capacites serveur EOS MCP
@@ -123,12 +142,20 @@ export const eosCapabilitiesGetTool: ToolDefinition<typeof emptySchema> = {
     const client = getOscClient();
     let liveBlindMode: 'live' | 'blind' | 'unknown' = 'unknown';
     let liveBlindRaw: OscJsonResponse | null = null;
+    let detectedEosVersion: string | null = null;
 
     try {
       liveBlindRaw = await client.requestJson(oscMappings.showControl.liveBlindState, { timeoutMs: 400 });
       liveBlindMode = parseLiveBlindLabel(liveBlindRaw.data);
     } catch (_error) {
       liveBlindMode = 'unknown';
+    }
+
+    try {
+      const versionResponse = await client.requestJson(oscMappings.system.getVersion, { timeoutMs: 400 });
+      detectedEosVersion = parseDetectedEosVersion(versionResponse.data);
+    } catch (_error) {
+      detectedEosVersion = null;
     }
 
     const safety = {
@@ -139,12 +166,29 @@ export const eosCapabilitiesGetTool: ToolDefinition<typeof emptySchema> = {
 
     const version = getPackageVersion();
     const compatibility = getServerCompatibility();
+    const compatibilityRules = getCompatibilityRulesForTools(tools);
+    const compatibilityStatuses = compatibilityRules.map(({ tool, rule }) =>
+      evaluateToolCompatibility(tool, {
+        eosVersion: detectedEosVersion,
+        role: 'Unknown'
+      })
+    ).map((status) => ({
+      tool: status.tool,
+      compatible: status.compatible,
+      reasons: status.reasons,
+      min_eos_version: status.requirements.minEosVersion,
+      required_role: status.requirements.requiredRole,
+      functional_availability: status.requirements.functionalAvailability,
+      rule_id: status.requirements.id,
+      notes: status.requirements.notes ?? null
+    }));
 
     const summary = [
       `Capacites disponibles: ${tools.length} outils, ${Object.keys(families).length} familles.`,
       `Connexion OSC: ${oscConnection.health}.`,
       `Utilisateur courant: ${typeof user === 'number' ? user : 'non defini'}.`,
       `Mode console: ${liveBlindMode}.`,
+      `Version EOS detectee: ${detectedEosVersion ?? 'inconnue'}.`,
       `Version serveur: ${version}.`
     ].join(' ');
 
@@ -167,6 +211,13 @@ export const eosCapabilitiesGetTool: ToolDefinition<typeof emptySchema> = {
         server: {
           version,
           compatibility
+        },
+        osc_compatibility: {
+          context: {
+            eos_version: detectedEosVersion,
+            role: 'Unknown'
+          },
+          tools: compatibilityStatuses
         }
       }
     } as ToolExecutionResult;
