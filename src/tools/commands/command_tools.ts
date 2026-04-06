@@ -15,6 +15,7 @@ import {
   type SafetyOptions
 } from '../common/safety';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
+import eosV3CommandProfile from './commandProfiles/eos-v3.json';
 
 type SubstitutionValue = string | number | boolean;
 
@@ -43,52 +44,126 @@ const cueProgrammingGuardrails = {
   manual: ['manual://eos#command-line', 'manual://eos#cue-timing', 'manual://eos#cue-playback']
 };
 
-const eosBasicSyntaxPattern = /^[\w\s./:+\-*()'",=<>[\]]+$/i;
+type SafetyLevel = 'strict' | 'standard' | 'off';
+type CommandDomain = 'cue' | 'patch' | 'palette' | 'playback';
 
-const eosCommandFamilyPatterns = {
-  patch: [
-    /^patch\b/i,
-    /^address\b/i,
-    /^patch\s+(copy|delete|insert|increment|offset)\b/i
-  ],
-  cues: [
-    /^(record\s+)?cue\b/i,
-    /^update\s+cue\b/i,
-    /^delete\s+cue\b/i,
-    /^go(\s+to)?\s+cue\b/i,
-    /^load\s+cue\b/i,
-    /^stop\b/i,
-    /^resume\b/i
-  ],
-  palettes: [
-    /^(record\s+)?(intensity|color|beam|focus)\s+palette\b/i,
-    /^update\s+(intensity|color|beam|focus)\s+palette\b/i,
-    /^delete\s+(intensity|color|beam|focus)\s+palette\b/i
-  ]
-} as const;
+interface CommandRuleProfile {
+  id: string;
+  pattern: string;
+  description: string;
+  example: string;
+}
+
+interface CommandDomainProfile {
+  description: string;
+  rules: CommandRuleProfile[];
+}
+
+interface CommandProfile {
+  version: string;
+  syntax: {
+    allowedCharsPattern: string;
+    ruleId: string;
+    description: string;
+  };
+  securityLevels: Record<'strict' | 'standard', { allowedDomains: CommandDomain[]; description: string }>;
+  domains: Record<CommandDomain, CommandDomainProfile>;
+}
+
+interface CompiledCommandRule {
+  id: string;
+  domain: CommandDomain;
+  regex: RegExp;
+  description: string;
+  example: string;
+}
+
+const commandProfile = eosV3CommandProfile as CommandProfile;
+const syntaxAllowedCharsRegex = new RegExp(commandProfile.syntax.allowedCharsPattern, 'i');
+
+const compiledRules: CompiledCommandRule[] = (Object.entries(commandProfile.domains) as Array<[CommandDomain, CommandDomainProfile]>)
+  .flatMap(([domain, domainProfile]) =>
+    domainProfile.rules.map((rule) => ({
+      id: rule.id,
+      domain,
+      regex: new RegExp(rule.pattern, 'i'),
+      description: rule.description,
+      example: rule.example
+    }))
+  );
 
 function normalizeCommandForValidation(command: string): string {
   return command.replace(/#\s*$/, '').trim();
 }
 
-function isCommandInAllowedFamilies(command: string): boolean {
-  return Object.values(eosCommandFamilyPatterns).some((patterns) =>
-    patterns.some((pattern) => pattern.test(command))
+function levenshteinDistance(a: string, b: string): number {
+  if (a === b) {
+    return 0;
+  }
+  if (!a.length) {
+    return b.length;
+  }
+  if (!b.length) {
+    return a.length;
+  }
+
+  const matrix = Array.from({ length: a.length + 1 }, (_, row) =>
+    Array.from({ length: b.length + 1 }, (_value, col) => (row === 0 ? col : col === 0 ? row : 0))
   );
+
+  for (let row = 1; row <= a.length; row += 1) {
+    for (let col = 1; col <= b.length; col += 1) {
+      const cost = a[row - 1] === b[col - 1] ? 0 : 1;
+      matrix[row]![col] = Math.min(
+        matrix[row - 1]![col]! + 1,
+        matrix[row]![col - 1]! + 1,
+        matrix[row - 1]![col - 1]! + cost
+      );
+    }
+  }
+
+  return matrix[a.length]![b.length]!;
 }
 
-function assertCommandSyntaxAllowed(command: string, safetyLevel: 'strict' | 'standard' | 'off'): void {
+function closestAllowedRule(command: string, allowedDomains: CommandDomain[]): CompiledCommandRule | null {
+  const normalizedCommand = command.toLowerCase();
+  const candidateRules = compiledRules.filter((rule) => allowedDomains.includes(rule.domain));
+  if (!candidateRules.length) {
+    return null;
+  }
+
+  return candidateRules.reduce<CompiledCommandRule | null>((best, current) => {
+    if (!best) {
+      return current;
+    }
+    const bestDistance = levenshteinDistance(normalizedCommand, best.example.toLowerCase());
+    const currentDistance = levenshteinDistance(normalizedCommand, current.example.toLowerCase());
+    return currentDistance < bestDistance ? current : best;
+  }, null);
+}
+
+function assertCommandSyntaxAllowed(command: string, safetyLevel: SafetyLevel): void {
   if (safetyLevel === 'off') {
     return;
   }
 
   const normalized = normalizeCommandForValidation(command);
-  if (!normalized || !eosBasicSyntaxPattern.test(normalized)) {
-    throw new Error('syntaxe non conforme au manuel Eos');
+  if (!normalized || !syntaxAllowedCharsRegex.test(normalized)) {
+    throw new Error(
+      `Validation profile ${commandProfile.version} - regle violee ${commandProfile.syntax.ruleId}: ${commandProfile.syntax.description}.`
+    );
   }
 
-  if (safetyLevel === 'strict' && !isCommandInAllowedFamilies(normalized)) {
-    throw new Error('syntaxe non conforme au manuel Eos');
+  const allowedDomains = commandProfile.securityLevels[safetyLevel].allowedDomains;
+  const matchedRule = compiledRules.find((rule) => allowedDomains.includes(rule.domain) && rule.regex.test(normalized));
+  if (!matchedRule) {
+    const closestRule = closestAllowedRule(normalized, allowedDomains);
+    const closestMessage = closestRule
+      ? `Commande autorisee la plus proche: "${closestRule.example}" (regle ${closestRule.id}, domaine ${closestRule.domain}).`
+      : 'Aucune commande autorisee disponible pour ce niveau.';
+    throw new Error(
+      `Validation profile ${commandProfile.version} - regle violee security.${safetyLevel}.allowlist: commande "${normalized}" non autorisee pour domaines [${allowedDomains.join(', ')}]. ${closestMessage}`
+    );
   }
 }
 

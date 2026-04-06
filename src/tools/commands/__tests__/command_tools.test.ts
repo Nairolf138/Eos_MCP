@@ -51,7 +51,7 @@ describe('command tools', () => {
 
 
   it('retourne la commande calculee sans envoi en dry_run', async () => {
-    const result = await runTool(eosCommandTool, { command: 'Chan 9 At 50', dry_run: true, user: 3 });
+    const result = await runTool(eosCommandTool, { command: 'Go To Cue 9', dry_run: true, user: 3 });
 
     expect(service.sentMessages).toHaveLength(0);
     const structured = getStructuredContent(result);
@@ -59,7 +59,7 @@ describe('command tools', () => {
       action: 'command',
       dry_run: true,
       osc: { address: '/eos/cmd' },
-      cli: { text: 'Chan 9 At 50' }
+      cli: { text: 'Go To Cue 9' }
     });
   });
 
@@ -75,13 +75,13 @@ describe('command tools', () => {
   });
 
   it('envoie une commande en respectant le terminateur', async () => {
-    const result = await runTool(eosCommandTool, { command: 'Chan 1', terminateWithEnter: true, user: 2 });
+    const result = await runTool(eosCommandTool, { command: 'Go To Cue 1', terminateWithEnter: true, user: 2 });
 
     expect(service.sentMessages).toHaveLength(1);
     expect(service.sentMessages[0]).toMatchObject({
       address: '/eos/cmd',
       args: [
-        { type: 's', value: 'Chan 1#' },
+        { type: 's', value: 'Go To Cue 1#' },
         { type: 'i', value: 2 }
       ]
     });
@@ -91,24 +91,25 @@ describe('command tools', () => {
 
   it('applique la substitution et efface la ligne pour eos_new_command', async () => {
     await runTool(eosNewCommandTool, {
-      command: 'Group %1 At %2',
-      substitutions: [5, 'Full'],
+      command: 'Record Cue %1 Time %2',
+      substitutions: [5, '10'],
       clearLine: true,
-      terminateWithEnter: true
+      terminateWithEnter: true,
+      require_confirmation: true
     });
 
     expect(service.sentMessages).toHaveLength(1);
     expect(service.sentMessages[0]).toMatchObject({
       address: '/eos/newcmd',
       args: [
-        { type: 's', value: 'Group 5 At Full#' }
+        { type: 's', value: 'Record Cue 5 Time 10#' }
       ]
     });
   });
 
   it('peut envoyer un new_command sans effacement prealable', async () => {
     await runTool(eosNewCommandTool, {
-      command: 'Chan %1 At 50',
+      command: 'Go To Cue %1',
       substitutions: [1],
       clearLine: false
     });
@@ -119,7 +120,7 @@ describe('command tools', () => {
 
   it('envoie une commande via gabarit avec substitutions numerotees', async () => {
     await runTool(eosCommandWithSubstitutionTool, {
-      template: 'Cue %1/%2 Go',
+      template: 'Go To Cue %1/%2',
       values: [1, 2],
       terminateWithEnter: true
     });
@@ -128,7 +129,7 @@ describe('command tools', () => {
     expect(service.sentMessages[0]).toMatchObject({
       address: '/eos/cmd',
       args: [
-        { type: 's', value: 'Cue 1/2 Go#' }
+        { type: 's', value: 'Go To Cue 1/2#' }
       ]
     });
   });
@@ -167,16 +168,44 @@ describe('command tools', () => {
   it('utilise le numero utilisateur stocke lorsquaucun identifiant nest fourni', async () => {
     setCurrentUserId(6);
 
-    await runTool(eosCommandTool, { command: 'Chan 1', terminateWithEnter: true });
+    await runTool(eosCommandTool, { command: 'Go', terminateWithEnter: true });
 
     expect(service.sentMessages).toHaveLength(1);
     expect(service.sentMessages[0]).toMatchObject({
       address: '/eos/cmd',
       args: [
-        { type: 's', value: 'Chan 1#' },
+        { type: 's', value: 'Go#' },
         { type: 'i', value: 6 }
       ]
     });
+  });
+
+  it('autorise les commandes patch en mode standard', async () => {
+    await runTool(eosCommandTool, { command: 'Patch 101 Enter', safety_level: 'standard' });
+
+    expect(service.sentMessages).toHaveLength(1);
+    expect(service.sentMessages[0]?.address).toBe('/eos/cmd');
+  });
+
+  it('bloque une commande hors allowlist stricte avec message actionnable', async () => {
+    await expect(runTool(eosCommandTool, { command: 'Patch 101 Enter' })).rejects.toThrow(
+      'regle violee security.strict.allowlist'
+    );
+    await expect(runTool(eosCommandTool, { command: 'Patch 101 Enter' })).rejects.toThrow(
+      'Commande autorisee la plus proche'
+    );
+  });
+
+  it('bloque une commande avec caracteres interdits et indique la regle violee', async () => {
+    await expect(runTool(eosCommandTool, { command: 'Go To Cue 1$' })).rejects.toThrow(
+      'regle violee syntax.allowed_chars'
+    );
+  });
+
+  it('propose une commande proche en cas de faute de frappe EOS reelle', async () => {
+    await expect(runTool(eosCommandTool, { command: 'Recrod Cue 8', require_confirmation: true })).rejects.toThrow(
+      'Record Cue 1'
+    );
   });
 
   it('permet des interactions multi-utilisateurs pour la recuperation de ligne de commande', async () => {

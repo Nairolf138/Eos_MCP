@@ -1,0 +1,118 @@
+{
+  "version": "eos-v3",
+  "syntax": {
+    "allowedCharsPattern": "^[\\w\\s./:+\\-*()\"',=<>\\[\\]]+$",
+    "ruleId": "syntax.allowed_chars",
+    "description": "La commande contient des caracteres hors alphabet EOS autorise"
+  },
+  "securityLevels": {
+    "strict": {
+      "allowedDomains": ["cue", "playback"],
+      "description": "Mode strict: uniquement commandes cue/playback"
+    },
+    "standard": {
+      "allowedDomains": ["cue", "patch", "palette", "playback"],
+      "description": "Mode standard: domaines EOS critiques autorises"
+    }
+  },
+  "domains": {
+    "cue": {
+      "description": "Programmation et maintenance de cues",
+      "rules": [
+        {
+          "id": "cue.record",
+          "pattern": "^record\\s+cue(\\s|$)",
+          "description": "Enregistrement de cue",
+          "example": "Record Cue 1"
+        },
+        {
+          "id": "cue.update",
+          "pattern": "^update\\s+cue(\\s|$)",
+          "description": "Mise a jour de cue",
+          "example": "Update Cue 12"
+        },
+        {
+          "id": "cue.delete",
+          "pattern": "^delete\\s+cue(\\s|$)",
+          "description": "Suppression de cue",
+          "example": "Delete Cue 5"
+        },
+        {
+          "id": "cue.load",
+          "pattern": "^load\\s+cue(\\s|$)",
+          "description": "Chargement de cue",
+          "example": "Load Cue 20"
+        }
+      ]
+    },
+    "patch": {
+      "description": "Patch et adressage",
+      "rules": [
+        {
+          "id": "patch.patch",
+          "pattern": "^patch(\\s|$)",
+          "description": "Operations de patch EOS",
+          "example": "Patch 1 Enter"
+        },
+        {
+          "id": "patch.address",
+          "pattern": "^address(\\s|$)",
+          "description": "Affectation d'adresse",
+          "example": "Address 1/101"
+        }
+      ]
+    },
+    "palette": {
+      "description": "Gestion des palettes",
+      "rules": [
+        {
+          "id": "palette.record",
+          "pattern": "^(record\\s+)?(intensity|color|beam|focus)\\s+palette(\\s|$)",
+          "description": "Enregistrement de palette",
+          "example": "Record Color Palette 21"
+        },
+        {
+          "id": "palette.update",
+          "pattern": "^update\\s+(intensity|color|beam|focus)\\s+palette(\\s|$)",
+          "description": "Mise a jour de palette",
+          "example": "Update Focus Palette 4"
+        },
+        {
+          "id": "palette.delete",
+          "pattern": "^delete\\s+(intensity|color|beam|focus)\\s+palette(\\s|$)",
+          "description": "Suppression de palette",
+          "example": "Delete Beam Palette 7"
+        }
+      ]
+    },
+    "playback": {
+      "description": "Commande de playback",
+      "rules": [
+        {
+          "id": "playback.go",
+          "pattern": "^go(\\s|$)",
+          "description": "Go playback",
+          "example": "Go"
+        },
+        {
+          "id": "playback.go_to_cue",
+          "pattern": "^go\\s+to\\s+cue(\\s|$)",
+          "description": "Go To Cue",
+          "example": "Go To Cue 100"
+        },
+        {
+          "id": "playback.stop",
+          "pattern": "^stop(\\s|$)",
+          "description": "Arret playback",
+          "example": "Stop Effect 1"
+        },
+        {
+          "id": "playback.resume",
+          "pattern": "^resume(\\s|$)",
+          "description": "Reprise playback",
+          "example": "Resume"
+        }
+      ]
+    }
+  }
+}
