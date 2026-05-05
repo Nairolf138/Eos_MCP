@@ -62,6 +62,19 @@ function buildWorkflowResult(
   };
 }
 
+
+function pushDefaultLog(steps: WorkflowStepLog[], step: string, detail: string): void {
+  steps.push({ step, status: 'ok', detail });
+}
+
+function resolveNumericCueNumber(value: string | number, field: string): number {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    throw new Error(`${field} doit etre numerique pour permettre l auto-increment.`);
+  }
+  return numeric;
+}
+
 async function runCommandStep(
   steps: WorkflowStepLog[],
   partialErrors: Array<{ step: string; error: string }>,
@@ -142,6 +155,10 @@ export const eosWorkflowCreateLookTool: ToolDefinition<typeof createLookInputSch
     const options = workflowObject(createLookInputSchema).parse(args ?? {});
     const steps: WorkflowStepLog[] = [];
     const partialErrors: Array<{ step: string; error: string }> = [];
+
+    if (options.cuelist_number == null) {
+      pushDefaultLog(steps, 'default_cuelist_number', 'cuelist_number absent: utilisation automatique de la cuelist master.');
+    }
 
     const commands = [
       { step: 'select_channels', command: `Chan ${options.channels}` },
@@ -280,6 +297,7 @@ const createCueSeriesInputSchema = {
   start_cue_number: cueNumberSchema.optional().default(1),
   looks: z.array(workflowObject({
     channels: z.string().trim().min(1).max(256),
+    cue_number: cueNumberSchema.optional(),
     color_palette: z.coerce.number().int().min(1).max(99999).optional(),
     focus_palette: z.coerce.number().int().min(1).max(99999).optional(),
     beam_palette: z.coerce.number().int().min(1).max(99999).optional(),
@@ -306,16 +324,29 @@ export const eosWorkflowCreateCueSeriesTool: ToolDefinition<typeof createCueSeri
     inputSchema: createCueSeriesInputSchema
   },
   handler: async (args) => {
-    const options = workflowObject(createCueSeriesInputSchema).parse(args ?? {});
+    const rawArgs = (args ?? {}) as Record<string, unknown>;
+    const options = workflowObject(createCueSeriesInputSchema).parse(rawArgs);
     const dryRun = options.dry_run === true;
     const steps: WorkflowStepLog[] = [];
     const partialErrors: Array<{ step: string; error: string }> = [];
     const commandsPreview: string[] = [];
-    let cueNumber = Number(options.start_cue_number ?? 1);
+    let cueNumber = resolveNumericCueNumber(options.start_cue_number, 'start_cue_number');
+
+    if (rawArgs.base_cuelist_number == null) {
+      pushDefaultLog(steps, 'default_base_cuelist_number', 'base_cuelist_number absent: utilisation automatique de la cuelist master.');
+    }
+
+    if (rawArgs.start_cue_number == null) {
+      pushDefaultLog(steps, 'default_start_cue_number', 'start_cue_number absent: valeur par defaut 1 appliquee automatiquement.');
+    }
 
     for (let index = 0; index < options.looks.length; index += 1) {
       const look = options.looks[index];
-      const cueStepPrefix = `look_${index + 1}_cue_${cueNumber}`;
+      const effectiveCueNumber = look.cue_number ?? cueNumber;
+      if (look.cue_number == null) {
+        pushDefaultLog(steps, `look_${index + 1}_default_cue_number`, `cue_number absent: auto-increment applique avec la valeur ${effectiveCueNumber}.`);
+      }
+      const cueStepPrefix = `look_${index + 1}_cue_${effectiveCueNumber}`;
       const commands = [
         { step: `${cueStepPrefix}_select_channels`, command: `Chan ${look.channels}` },
         ...(look.color_palette != null ? [{ step: `${cueStepPrefix}_apply_color_palette`, command: `CP ${look.color_palette}` }] : []),
@@ -323,13 +354,13 @@ export const eosWorkflowCreateCueSeriesTool: ToolDefinition<typeof createCueSeri
         ...(look.beam_palette != null ? [{ step: `${cueStepPrefix}_apply_beam_palette`, command: `BP ${look.beam_palette}` }] : []),
         {
           step: `${cueStepPrefix}_record_cue`,
-          command: buildRecordCueCommand(cueNumber, options.base_cuelist_number)
+          command: buildRecordCueCommand(effectiveCueNumber, options.base_cuelist_number)
         },
         ...(look.cue_label
           ? [
               {
                 step: `${cueStepPrefix}_label_cue`,
-                command: `${formatCueTarget(cueNumber, options.base_cuelist_number)} Label "${look.cue_label.replace(/"/g, '\\"')}"`
+                command: `${formatCueTarget(effectiveCueNumber, options.base_cuelist_number)} Label "${look.cue_label.replace(/"/g, '\\"')}"`
               }
             ]
           : [])
@@ -355,7 +386,7 @@ export const eosWorkflowCreateCueSeriesTool: ToolDefinition<typeof createCueSeri
         }
       }
 
-      cueNumber += 1;
+      cueNumber = resolveNumericCueNumber(effectiveCueNumber, `looks[${index}].cue_number`) + 1;
     }
 
     return buildWorkflowResult(
@@ -822,23 +853,27 @@ export const eosWorkflowUpdateCueLookTool: ToolDefinition<typeof updateCueLookIn
     inputSchema: updateCueLookInputSchema
   },
   handler: async (args) => {
-    const options = workflowObject(updateCueLookInputSchema)
-      .superRefine((value, ctx) => {
-        validateCueArgumentsPair(value, ctx);
-      })
-      .parse(args ?? {});
+    const options = workflowObject(updateCueLookInputSchema).parse(args ?? {});
 
     const dryRun = options.dry_run === true;
     const steps: WorkflowStepLog[] = [];
     const partialErrors: Array<{ step: string; error: string }> = [];
     const commandsPreview: string[] = [];
-    const updateTarget = options.cuelist_number == null || options.cue_number == null
+
+    if (options.cue_number != null && options.cuelist_number == null) {
+      pushDefaultLog(steps, 'default_cuelist_number', 'cuelist_number absent: utilisation automatique de la cuelist master pour la cue cible.');
+    }
+
+    if (options.cue_number == null) {
+      pushDefaultLog(steps, 'default_cue_number', 'cue_number absent: modification appliquee a la cue courante via Update Cue.');
+    }
+    const updateTarget = options.cue_number == null
       ? 'Update Cue'
-      : `Update Cue ${options.cuelist_number}/${String(options.cue_number).trim()}`;
+      : `Update ${formatCueTarget(options.cue_number, options.cuelist_number)}`;
 
     const commands = [
-      ...(options.cuelist_number != null && options.cue_number != null
-        ? [{ step: 'go_to_cue', command: `Go To Cue ${options.cuelist_number}/${String(options.cue_number).trim()}` }]
+      ...(options.cue_number != null
+        ? [{ step: 'go_to_cue', command: `Go To ${formatCueTarget(options.cue_number, options.cuelist_number)}` }]
         : []),
       { step: 'select_channels', command: `Chan ${options.channels}` },
       ...(options.intensity_factor != null ? [{ step: 'apply_intensity_factor', command: `At * ${options.intensity_factor}` }] : []),

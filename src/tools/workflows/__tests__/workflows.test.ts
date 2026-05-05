@@ -174,6 +174,12 @@ describe('workflow tools', () => {
     const structured = getStructuredContent(result);
     expect(structured?.status).toBe('partial_failure');
     expect(structured?.partialErrors).toEqual([{ step: 'apply_color_palette', error: 'Echec simule envoi #2' }]);
+    expect(structured?.executedSteps).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        step: 'default_cuelist_number',
+        detail: 'cuelist_number absent: utilisation automatique de la cuelist master.'
+      })
+    ]));
   });
 
 
@@ -256,6 +262,47 @@ describe('workflow tools', () => {
       'CP 12',
       'Record Cue 2'
     ]);
+    expect(structured?.executedSteps).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        step: 'default_base_cuelist_number',
+        detail: 'base_cuelist_number absent: utilisation automatique de la cuelist master.'
+      }),
+      expect.objectContaining({
+        step: 'default_start_cue_number',
+        detail: 'start_cue_number absent: valeur par defaut 1 appliquee automatiquement.'
+      }),
+      expect.objectContaining({
+        step: 'look_1_default_cue_number',
+        detail: 'cue_number absent: auto-increment applique avec la valeur 1.'
+      })
+    ]));
+  });
+
+  it('autorise un cue_number ponctuel dans create_cue_series puis reprend l auto-increment', async () => {
+    const result = await runTool(eosWorkflowCreateCueSeriesTool, {
+      start_cue_number: 10,
+      looks: [
+        { channels: '1', cue_number: 20, cue_label: 'Jump' },
+        { channels: '2', cue_label: 'Next' }
+      ],
+      dry_run: true
+    });
+
+    const structured = getStructuredContent(result);
+    expect(structured?.commands_preview).toEqual([
+      'Chan 1',
+      'Record Cue 20',
+      'Cue 20 Label "Jump"',
+      'Chan 2',
+      'Record Cue 21',
+      'Cue 21 Label "Next"'
+    ]);
+    expect(structured?.executedSteps).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        step: 'look_2_default_cue_number',
+        detail: 'cue_number absent: auto-increment applique avec la valeur 21.'
+      })
+    ]));
   });
 
   it('orchestre eos_workflow_patch_fixture avec position 3D par defaut', async () => {
@@ -405,6 +452,33 @@ describe('workflow tools', () => {
     expect(structured?.executedSteps).toEqual(expect.arrayContaining([
       expect.objectContaining({ step: 'apply_desaturate', status: 'skipped' }),
       expect.objectContaining({ step: 'apply_warmify', status: 'skipped' })
+    ]));
+    expect(structured?.executedSteps).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        step: 'default_cue_number',
+        detail: 'cue_number absent: modification appliquee a la cue courante via Update Cue.'
+      })
+    ]));
+  });
+
+  it('applique le fallback cuelist master dans update_cue_look quand seule la cue est fournie', async () => {
+    const result = await runTool(eosWorkflowUpdateCueLookTool, {
+      cue_number: 5,
+      channels: '9',
+      dry_run: true
+    });
+
+    const structured = getStructuredContent(result);
+    expect(structured?.commands_preview).toEqual([
+      'Go To Cue 5',
+      'Chan 9',
+      'Update Cue 5'
+    ]);
+    expect(structured?.executedSteps).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        step: 'default_cuelist_number',
+        detail: 'cuelist_number absent: utilisation automatique de la cuelist master pour la cue cible.'
+      })
     ]));
   });
 });
