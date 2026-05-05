@@ -135,7 +135,6 @@ export const eosWorkflowCreateLookTool: ToolDefinition<typeof createLookInputSch
           ]
         : [])
     ];
-
     for (const commandStep of commands) {
       const ok = await runCommandStep(steps, partialErrors, commandStep.step, commandStep.command, options);
       if (!ok) {
@@ -173,6 +172,15 @@ const createCueSeriesInputSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
+/**
+ * @tool eos_workflow_create_cue_series
+ * @summary Workflow creation serie de cues
+ * @description Enchaine plusieurs looks et enregistre une serie de cues auto-incrementees.
+ * @arguments Voir docs/tools.md#eos-workflow-create-cue-series pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-workflow-create-cue-series pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-workflow-create-cue-series pour un exemple OSC.
+ */
 export const eosWorkflowCreateCueSeriesTool: ToolDefinition<typeof createCueSeriesInputSchema> = {
   name: 'eos_workflow_create_cue_series',
   config: {
@@ -186,7 +194,7 @@ export const eosWorkflowCreateCueSeriesTool: ToolDefinition<typeof createCueSeri
     const steps: WorkflowStepLog[] = [];
     const partialErrors: Array<{ step: string; error: string }> = [];
     const commandsPreview: string[] = [];
-    let cueNumber = options.start_cue_number ?? 1;
+    let cueNumber = Number(options.start_cue_number ?? 1);
 
     for (let index = 0; index < options.looks.length; index += 1) {
       const look = options.looks[index];
@@ -348,6 +356,15 @@ const autopatchBandInputSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
+/**
+ * @tool eos_workflow_autopatch_band
+ * @summary Workflow autopatch band
+ * @description Patche sequentiellement plusieurs blocs de fixtures avec option face trad.
+ * @arguments Voir docs/tools.md#eos-workflow-autopatch-band pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-workflow-autopatch-band pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-workflow-autopatch-band pour un exemple OSC.
+ */
 export const eosWorkflowAutopatchBandTool: ToolDefinition<typeof autopatchBandInputSchema> = {
   name: 'eos_workflow_autopatch_band',
   config: {
@@ -403,7 +420,7 @@ export const eosWorkflowAutopatchBandTool: ToolDefinition<typeof autopatchBandIn
               const executionResult = await executePatchSequence([command], options);
               partialErrors.push(...executionResult.partialErrors);
               if (!executionResult.success) {
-                throw new Error(executionResult.partialErrors.at(-1)?.error ?? 'Erreur patch');
+                throw new Error(executionResult.partialErrors[executionResult.partialErrors.length - 1]?.error ?? 'Erreur patch');
               }
             }
           }
@@ -481,6 +498,17 @@ const buildGroupsAndPalettesInputSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
+const updateCueLookInputSchema = {
+  cuelist_number: cuelistNumberSchema.optional(),
+  cue_number: cueNumberSchema.optional(),
+  channels: z.string().trim().min(1).max(256),
+  intensity_factor: z.coerce.number().finite().positive().optional(),
+  desaturate: z.boolean().optional(),
+  warmify: z.boolean().optional(),
+  dry_run: z.boolean().optional(),
+  ...targetOptionsSchema
+} satisfies ZodRawShape;
+
 /**
  * @tool eos_workflow_rehearsal_go_safe
  * @summary Workflow rehearsal go safe
@@ -520,8 +548,7 @@ export const eosWorkflowRehearsalGoSafeTool: ToolDefinition<typeof rehearsalGoSa
       user: options.user,
       timeoutMs: options.precheck_timeout_ms,
       targetAddress: options.targetAddress,
-      targetPort: options.targetPort,
-      safety_level: 'off'
+      targetPort: options.targetPort
     });
 
     if (precheck.status !== 'ok') {
@@ -600,6 +627,15 @@ export const eosWorkflowRehearsalGoSafeTool: ToolDefinition<typeof rehearsalGoSa
   }
 };
 
+/**
+ * @tool eos_workflow_build_groups_and_palettes
+ * @summary Workflow build groups and palettes
+ * @description Construit des groupes, color palettes et focus palettes en sequence.
+ * @arguments Voir docs/tools.md#eos-workflow-build-groups-and-palettes pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-workflow-build-groups-and-palettes pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-workflow-build-groups-and-palettes pour un exemple OSC.
+ */
 export const eosWorkflowBuildGroupsAndPalettesTool: ToolDefinition<typeof buildGroupsAndPalettesInputSchema> = {
   name: 'eos_workflow_build_groups_and_palettes',
   config: {
@@ -654,13 +690,102 @@ export const eosWorkflowBuildGroupsAndPalettesTool: ToolDefinition<typeof buildG
   }
 };
 
+/**
+ * @tool eos_workflow_update_cue_look
+ * @summary Workflow update cue look
+ * @description Va a une cue, applique des modifications explicites, puis met a jour la cue.
+ * @arguments Voir docs/tools.md#eos-workflow-update-cue-look pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-workflow-update-cue-look pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-workflow-update-cue-look pour un exemple OSC.
+ */
+export const eosWorkflowUpdateCueLookTool: ToolDefinition<typeof updateCueLookInputSchema> = {
+  name: 'eos_workflow_update_cue_look',
+  config: {
+    title: 'Workflow update cue look',
+    description: 'Va a une cue, applique des modifications explicites, puis met a jour la cue.',
+    inputSchema: updateCueLookInputSchema
+  },
+  handler: async (args) => {
+    const options = z
+      .object(updateCueLookInputSchema)
+      .strict()
+      .superRefine((value, ctx) => {
+        validateCueArgumentsPair(value, ctx);
+      })
+      .parse(args ?? {});
+
+    const dryRun = options.dry_run === true;
+    const steps: WorkflowStepLog[] = [];
+    const partialErrors: Array<{ step: string; error: string }> = [];
+    const commandsPreview: string[] = [];
+    const updateTarget = options.cuelist_number == null || options.cue_number == null
+      ? 'Update Cue'
+      : `Update Cue ${options.cuelist_number}/${String(options.cue_number).trim()}`;
+
+    const commands = [
+      ...(options.cuelist_number != null && options.cue_number != null
+        ? [{ step: 'go_to_cue', command: `Go To Cue ${options.cuelist_number}/${String(options.cue_number).trim()}` }]
+        : []),
+      { step: 'select_channels', command: `Chan ${options.channels}` },
+      ...(options.intensity_factor != null ? [{ step: 'apply_intensity_factor', command: `At * ${options.intensity_factor}` }] : []),
+      { step: 'update_cue', command: updateTarget }
+    ];
+
+    if (options.desaturate === true) {
+      steps.push({
+        step: 'apply_desaturate',
+        status: 'skipped',
+        detail: 'Transformation artistique non calculee en v1: aucune commande implicite envoyee.'
+      });
+    }
+
+    if (options.warmify === true) {
+      steps.push({
+        step: 'apply_warmify',
+        status: 'skipped',
+        detail: 'Transformation artistique non calculee en v1: aucune commande implicite envoyee.'
+      });
+    }
+
+    for (const commandStep of commands) {
+      commandsPreview.push(commandStep.command);
+      if (dryRun) {
+        steps.push({ step: commandStep.step, status: 'skipped', command: commandStep.command, detail: 'dry_run' });
+        continue;
+      }
+
+      const ok = await runCommandStep(steps, partialErrors, commandStep.step, commandStep.command, options);
+      if (!ok) {
+        return buildWorkflowResult(
+          'eos_workflow_update_cue_look',
+          'partial_failure',
+          `Workflow update cue look interrompu a l'etape ${commandStep.step}.`,
+          steps,
+          partialErrors
+        );
+      }
+    }
+
+    return buildWorkflowResult(
+      'eos_workflow_update_cue_look',
+      'ok',
+      dryRun ? 'Dry run update cue look genere.' : 'Workflow update cue look execute avec succes.',
+      steps,
+      partialErrors,
+      { ...(dryRun ? { commands_preview: commandsPreview } : {}) }
+    );
+  }
+};
+
 export const workflowTools = [
   eosWorkflowCreateLookTool,
   eosWorkflowCreateCueSeriesTool,
   eosWorkflowPatchFixtureTool,
   eosWorkflowAutopatchBandTool,
   eosWorkflowRehearsalGoSafeTool,
-  eosWorkflowBuildGroupsAndPalettesTool
+  eosWorkflowBuildGroupsAndPalettesTool,
+  eosWorkflowUpdateCueLookTool
 ] as ToolDefinition[];
 
 export default workflowTools;

@@ -17,7 +17,7 @@ const fixtureSearchInputSchema = {
 
 /**
  * @tool eos_fixture_search
- * @summary Recherche dans la bibliotheque de fixtures
+ * @summary Recherche fixture
  * @description Recherche dans la bibliotheque de fixtures par nom, marque, modele ou mode.
  * @arguments Voir docs/tools.md#eos-fixture-search pour le schema complet.
  * @returns ToolExecutionResult avec contenu texte et objet.

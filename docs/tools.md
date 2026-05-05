@@ -231,7 +231,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cmd s:'Chan 1 + Enter'
+oscsend 127.0.0.1 8001 /eos/newcmd s:'Chan 1'
 ```
 
 <a id="eos-channel-set-dmx"></a>
@@ -262,7 +262,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cmd s:'Chan 1 At 1 DMX Enter'
+oscsend 127.0.0.1 8001 /eos/newcmd s:'Chan 1 At 1 DMX'
 ```
 
 <a id="eos-channel-set-level"></a>
@@ -294,7 +294,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cmd s:'Chan 1 Sneak 1 Enter'
+oscsend 127.0.0.1 8001 /eos/newcmd s:'Chan 1 Sneak 1'
 ```
 
 <a id="eos-channel-set-parameter"></a>
@@ -524,7 +524,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cue/fire s:'{"cuelist_number":1,"cue_number":"exemple"}'
+oscsend 127.0.0.1 8001 /eos/cmd s:'{"cuelist_number":1,"cue_number":"exemple"}'
 ```
 
 <a id="eos-cue-get-info"></a>
@@ -595,7 +595,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cue/go s:'{"cuelist_number":1}'
+oscsend 127.0.0.1 8001 /eos/cmd s:'{"cuelist_number":1}'
 ```
 
 <a id="eos-cue-label-set"></a>
@@ -693,7 +693,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/newcmd s:'Record Cue 2/1#'
+oscsend 127.0.0.1 8001 /eos/newcmd s:'Record Cue {cuelist_number}/1#'
 ```
 
 <a id="eos-cue-select"></a>
@@ -728,7 +728,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cue/select s:'{"cuelist_number":1,"cue_number":"exemple"}'
+oscsend 127.0.0.1 8001 /eos/cmd s:'{"cuelist_number":1,"cue_number":"exemple"}'
 ```
 
 <a id="eos-cue-stop-back"></a>
@@ -1119,7 +1119,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/effect/select s:'{"effect_number":1}'
+oscsend 127.0.0.1 8001 /eos/cmd s:'{"effect_number":1}'
 ```
 
 <a id="eos-effect-stop"></a>
@@ -1149,7 +1149,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/effect/stop s:'{"effect_number":1}'
+oscsend 127.0.0.1 8001 /eos/cmd s:'{"effect_number":1}'
 ```
 
 <a id="eos-enable-logging"></a>
@@ -1334,6 +1334,36 @@ _OSC_
 # Exemple d'envoi OSC via oscsend
 oscsend 127.0.0.1 8001 /eos/fader/{bank}/{page}/{fader}/unload s:'{"bank_index":1,"fader_index":1}'
 ```
+
+<a id="eos-fixture-search"></a>
+## Recherche fixture (`eos_fixture_search`)
+
+**Description :** Recherche dans la bibliotheque de fixtures par nom, marque, modele ou mode.
+
+**Arguments :**
+
+| Nom | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `limit` | number | Non | — |
+| `manufacturer` | string | Non | — |
+| `mode` | string | Non | — |
+| `model` | string | Non | — |
+| `name` | string | Non | — |
+| `query` | string | Non | — |
+
+**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+
+**Exemples :**
+
+_CLI_
+
+```bash
+npx @modelcontextprotocol/cli call --tool eos_fixture_search --args '{"query":"exemple"}'
+```
+
+_OSC_
+
+_Pas de mapping OSC documenté._
 
 <a id="eos-focus-palette-fire"></a>
 ## Declenchement de palette de focus (`eos_focus_palette_fire`)
@@ -1723,10 +1753,7 @@ npx @modelcontextprotocol/cli call --tool eos_get_setup_defaults --args '{"timeo
 
 _OSC_
 
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/get/setup_defaults s:'{"timeoutMs":1}'
-```
+_Pas de mapping OSC documenté._
 
 <a id="eos-get-show-name"></a>
 ## Nom du show (`eos_get_show_name`)
@@ -1847,10 +1874,7 @@ npx @modelcontextprotocol/cli call --tool eos_get_version --args '{"timeoutMs":1
 
 _OSC_
 
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/get/version s:'{"timeoutMs":1}'
-```
+_Pas de mapping OSC documenté._
 
 <a id="eos-group-get-info"></a>
 ## Informations sur un groupe (`eos_group_get_info`)
@@ -2127,7 +2151,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/macro/select s:'{"macro_number":1}'
+oscsend 127.0.0.1 8001 /eos/macro s:'{"macro_number":1}'
 ```
 
 <a id="eos-magic-sheet-get-info"></a>
@@ -2189,7 +2213,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/magic_sheet/open s:'{"ms_number":1}'
+oscsend 127.0.0.1 8001 /eos/ms s:'{"ms_number":1}'
 ```
 
 <a id="eos-magic-sheet-send-string"></a>
@@ -2219,7 +2243,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/magic_sheet/send_string s:'{"osc_command":"exemple"}'
+oscsend 127.0.0.1 8001 /eos/newcmd s:'{"osc_command":"exemple"}'
 ```
 
 <a id="eos-new-command"></a>
@@ -2503,7 +2527,7 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Patch Chan 1 Part 1 Address exemple Type "
 <a id="eos-ping"></a>
 ## Ping OSC EOS (`eos_ping`)
 
-**Description :** Envoie un ping OSC a la console EOS et retourne le statut (reponse attendue sur `/eos/out/ping`).
+**Description :** Envoie un ping OSC a la console EOS et retourne le statut.
 
 **Arguments :**
 
@@ -2590,7 +2614,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/pixmap/select s:'{"pixmap_number":1}'
+oscsend 127.0.0.1 8001 /eos/pixmap s:'{"pixmap_number":1}'
 ```
 
 <a id="eos-preset-fire"></a>
@@ -2804,7 +2828,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/set/cue/receive_string s:'{"format_string":"exemple"}'
+oscsend 127.0.0.1 8001 /eos/newcmd s:'{"format_string":"exemple"}'
 ```
 
 <a id="eos-set-cue-send-string"></a>
@@ -2834,7 +2858,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/set/cue/send_string s:'{"format_string":"exemple"}'
+oscsend 127.0.0.1 8001 /eos/newcmd s:'{"format_string":"exemple"}'
 ```
 
 <a id="eos-set-dmx"></a>
@@ -2865,7 +2889,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cmd s:'Address 1 At 1 Enter'
+oscsend 127.0.0.1 8001 /eos/newcmd s:'Address 1 At 1'
 ```
 
 <a id="eos-set-pantilt-xy"></a>
@@ -2924,10 +2948,7 @@ npx @modelcontextprotocol/cli call --tool eos_set_user_id --args '{"user_id":1}'
 
 _OSC_
 
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/set/user_id s:'{"user_id":1}'
-```
+_Pas de mapping OSC documenté._
 
 <a id="eos-set-xyz-position"></a>
 ## Position XYZ (`eos_set_xyz_position`)
@@ -3020,7 +3041,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/snapshot/recall s:'{"snapshot_number":1}'
+oscsend 127.0.0.1 8001 /eos/snap s:'{"snapshot_number":1}'
 ```
 
 <a id="eos-softkey-press"></a>
@@ -3235,7 +3256,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/toggle/staging_mode s:'{"targetAddress":"exemple"}'
+oscsend 127.0.0.1 8001 /eos/newcmd s:'{"targetAddress":"exemple"}'
 ```
 
 <a id="eos-wheel-tick"></a>
@@ -3270,30 +3291,96 @@ _OSC_
 oscsend 127.0.0.1 8001 /eos/param/wheel/tick s:'{"parameter_name":"exemple","ticks":1}'
 ```
 
-<a id="eos-fixture-search"></a>
-## Recherche fixture (`eos_fixture_search`)
+<a id="eos-workflow-autopatch-band"></a>
+## Workflow autopatch band (`eos_workflow_autopatch_band`)
 
-**Description :** Recherche dans la bibliotheque de fixtures par nom, marque, modele ou mode.
+**Description :** Patche sequentiellement plusieurs blocs de fixtures avec option face trad.
 
 **Arguments :**
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
-| `limit` | number | Non | — |
-| `manufacturer` | string | Non | — |
-| `mode` | string | Non | — |
-| `model` | string | Non | — |
-| `name` | string | Non | — |
-| `query` | string | Non | — |
+| `dry_run` | boolean | Non | — |
+| `face_trad_count` | number | Non | — |
+| `face_trad_label_prefix` | string | Non | — |
+| `face_trad_start_address` | number | Non | — |
+| `face_trad_universe` | number | Non | — |
+| `fixtures` | array<object> | Oui | — |
+| `include_face_trad` | boolean | Non | — |
+| `targetAddress` | string | Non | — |
+| `targetPort` | number | Non | — |
+| `user` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les matches.
+**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
 
 **Exemples :**
 
 _CLI_
 
 ```bash
-npx @modelcontextprotocol/cli call --tool eos_fixture_search --args '{"query":"ColorSource","mode":"RGBI"}'
+npx @modelcontextprotocol/cli call --tool eos_workflow_autopatch_band --args '{"fixtures":[{"count":1,"universe":1,"start_address":1,"label_prefix":"exemple"}]}'
+```
+
+_OSC_
+
+_Pas de mapping OSC documenté._
+
+<a id="eos-workflow-build-groups-and-palettes"></a>
+## Workflow build groups and palettes (`eos_workflow_build_groups_and_palettes`)
+
+**Description :** Construit des groupes, color palettes et focus palettes en sequence.
+
+**Arguments :**
+
+| Nom | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `color_palettes` | array<object> | Non | — |
+| `dry_run` | boolean | Non | — |
+| `focus_palettes` | array<object> | Non | — |
+| `groups` | array<object> | Non | — |
+| `targetAddress` | string | Non | — |
+| `targetPort` | number | Non | — |
+| `user` | number | Non | — |
+
+**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+
+**Exemples :**
+
+_CLI_
+
+```bash
+npx @modelcontextprotocol/cli call --tool eos_workflow_build_groups_and_palettes --args '{"groups":[{"number":1,"label":"exemple","channels":"exemple"}]}'
+```
+
+_OSC_
+
+_Pas de mapping OSC documenté._
+
+<a id="eos-workflow-create-cue-series"></a>
+## Workflow creation serie de cues (`eos_workflow_create_cue_series`)
+
+**Description :** Enchaine plusieurs looks et enregistre une serie de cues auto-incrementees.
+
+**Arguments :**
+
+| Nom | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `base_cuelist_number` | number | Non | — |
+| `dry_run` | boolean | Non | — |
+| `looks` | array<object> | Oui | — |
+| `start_cue_number` | string \| number | Non | — |
+| `targetAddress` | string | Non | — |
+| `targetPort` | number | Non | — |
+| `user` | number | Non | — |
+
+**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+
+**Exemples :**
+
+_CLI_
+
+```bash
+npx @modelcontextprotocol/cli call --tool eos_workflow_create_cue_series --args '{"looks":[{"channels":"exemple"}]}'
 ```
 
 _OSC_
@@ -3367,7 +3454,7 @@ _Pas de mapping OSC documenté._
 _CLI_
 
 ```bash
-npx @modelcontextprotocol/cli call --tool eos_workflow_patch_fixture --args '{"channel_number":1,"dmx_address":"exemple","device_type":"exemple","label":"exemple"}'
+npx @modelcontextprotocol/cli call --tool eos_workflow_patch_fixture --args '{"channel_number":1,"dmx_address":"exemple","label":"exemple"}'
 ```
 
 _OSC_
@@ -3402,6 +3489,40 @@ _CLI_
 
 ```bash
 npx @modelcontextprotocol/cli call --tool eos_workflow_rehearsal_go_safe --args '{"cuelist_number":1}'
+```
+
+_OSC_
+
+_Pas de mapping OSC documenté._
+
+<a id="eos-workflow-update-cue-look"></a>
+## Workflow update cue look (`eos_workflow_update_cue_look`)
+
+**Description :** Va a une cue, applique des modifications explicites, puis met a jour la cue.
+
+**Arguments :**
+
+| Nom | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `channels` | string | Oui | — |
+| `cue_number` | string \| number | Non | — |
+| `cuelist_number` | number | Non | — |
+| `desaturate` | boolean | Non | — |
+| `dry_run` | boolean | Non | — |
+| `intensity_factor` | number | Non | — |
+| `targetAddress` | string | Non | — |
+| `targetPort` | number | Non | — |
+| `user` | number | Non | — |
+| `warmify` | boolean | Non | — |
+
+**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+
+**Exemples :**
+
+_CLI_
+
+```bash
+npx @modelcontextprotocol/cli call --tool eos_workflow_update_cue_look --args '{"channels":"exemple"}'
 ```
 
 _OSC_

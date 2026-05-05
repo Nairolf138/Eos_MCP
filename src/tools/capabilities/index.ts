@@ -167,7 +167,7 @@ export const eosCapabilitiesGetTool: ToolDefinition<typeof emptySchema> = {
     const version = getPackageVersion();
     const compatibility = getServerCompatibility();
     const compatibilityRules = getCompatibilityRulesForTools(tools);
-    const compatibilityStatuses = compatibilityRules.map(({ tool, rule }) =>
+    const compatibilityStatuses = compatibilityRules.map(({ tool }) =>
       evaluateToolCompatibility(tool, {
         eosVersion: detectedEosVersion,
         role: 'Unknown'
