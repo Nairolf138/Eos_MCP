@@ -96,6 +96,28 @@ const createLookInputSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
+
+const effectDirectionSchema = z.enum(['left_to_right', 'right_to_left', 'center_out']);
+
+type EffectDirection = z.infer<typeof effectDirectionSchema>;
+
+const effectDirectionCommandLabels: Record<EffectDirection, string> = {
+  left_to_right: 'Left To Right',
+  right_to_left: 'Right To Left',
+  center_out: 'Center Out'
+};
+
+const createEffectInputSchema = {
+  channels: z.string().trim().min(1).max(256),
+  effect_number: z.coerce.number().int().min(1).max(9999),
+  group_number: z.coerce.number().int().min(1).max(99999).optional(),
+  direction: effectDirectionSchema.optional().default('left_to_right'),
+  speed: z.coerce.number().finite().positive().max(999).optional().default(1),
+  size: z.coerce.number().finite().positive().max(1000).optional().default(100),
+  dry_run: z.boolean().optional(),
+  ...targetOptionsSchema
+} satisfies ZodRawShape;
+
 /**
  * @tool eos_workflow_create_look
  * @summary Workflow creation de look
@@ -157,6 +179,97 @@ export const eosWorkflowCreateLookTool: ToolDefinition<typeof createLookInputSch
     );
   }
 };
+
+/**
+ * @tool eos_workflow_create_effect
+ * @summary Workflow creation d'effet
+ * @description Enregistre un groupe optionnel, assigne un effet a des canaux, applique speed/size/direction puis enregistre l'effet.
+ * @arguments Voir docs/tools.md#eos-workflow-create-effect pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-workflow-create-effect pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-workflow-create-effect pour un exemple OSC.
+ */
+export const eosWorkflowCreateEffectTool: ToolDefinition<typeof createEffectInputSchema> = {
+  name: 'eos_workflow_create_effect',
+  config: {
+    title: "Workflow creation d'effet",
+    description: "Enregistre un groupe optionnel, assigne un effet a des canaux, applique speed/size/direction puis enregistre l'effet.",
+    inputSchema: createEffectInputSchema
+  },
+  handler: async (args) => {
+    const options = z.object(createEffectInputSchema).strict().parse(args ?? {});
+    const dryRun = options.dry_run === true;
+    const steps: WorkflowStepLog[] = [];
+    const partialErrors: Array<{ step: string; error: string }> = [];
+    const commandsPreview: string[] = [];
+    const directionLabel = effectDirectionCommandLabels[options.direction];
+
+    const commands = [
+      ...(options.group_number != null
+        ? [{ step: 'record_group', command: `Chan ${options.channels} Record Group ${options.group_number}` }]
+        : []),
+      { step: 'assign_effect_to_channels', command: `Chan ${options.channels} Effect ${options.effect_number}` },
+      { step: 'apply_speed', command: `Effect ${options.effect_number} Speed ${options.speed}` },
+      { step: 'apply_size', command: `Effect ${options.effect_number} Size ${options.size}` },
+      { step: 'apply_direction', command: `Effect ${options.effect_number} Direction ${directionLabel}` },
+      { step: 'record_effect', command: `Record Effect ${options.effect_number}` }
+    ];
+
+    for (const commandStep of commands) {
+      commandsPreview.push(commandStep.command);
+      if (dryRun) {
+        steps.push({ step: commandStep.step, status: 'skipped', command: commandStep.command, detail: 'dry_run' });
+        continue;
+      }
+
+      const ok = await runCommandStep(steps, partialErrors, commandStep.step, commandStep.command, options);
+      if (!ok) {
+        return buildWorkflowResult(
+          'eos_workflow_create_effect',
+          'partial_failure',
+          `Workflow creation effet interrompu a l'etape ${commandStep.step}.`,
+          steps,
+          partialErrors,
+          {
+            effect: {
+              effect_number: options.effect_number,
+              channels: options.channels,
+              group_number: options.group_number ?? null,
+              parameters: {
+                direction: options.direction,
+                speed: options.speed,
+                size: options.size
+              }
+            },
+            ...(dryRun ? { commands_preview: commandsPreview } : {})
+          }
+        );
+      }
+    }
+
+    return buildWorkflowResult(
+      'eos_workflow_create_effect',
+      'ok',
+      dryRun ? 'Dry run creation effet genere.' : 'Workflow creation effet execute avec succes.',
+      steps,
+      partialErrors,
+      {
+        effect: {
+          effect_number: options.effect_number,
+          channels: options.channels,
+          group_number: options.group_number ?? null,
+          parameters: {
+            direction: options.direction,
+            speed: options.speed,
+            size: options.size
+          }
+        },
+        ...(dryRun ? { commands_preview: commandsPreview } : {})
+      }
+    );
+  }
+};
+
 
 const createCueSeriesInputSchema = {
   base_cuelist_number: cuelistNumberSchema.optional(),
@@ -780,6 +893,7 @@ export const eosWorkflowUpdateCueLookTool: ToolDefinition<typeof updateCueLookIn
 
 export const workflowTools = [
   eosWorkflowCreateLookTool,
+  eosWorkflowCreateEffectTool,
   eosWorkflowCreateCueSeriesTool,
   eosWorkflowPatchFixtureTool,
   eosWorkflowAutopatchBandTool,

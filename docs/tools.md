@@ -3387,6 +3387,40 @@ _OSC_
 
 _Pas de mapping OSC documenté._
 
+<a id="eos-workflow-create-effect"></a>
+## Workflow creation d'effet (`eos_workflow_create_effect`)
+
+**Description :** Enregistre un groupe optionnel, assigne un effet a des canaux, applique speed/size/direction puis enregistre l'effet.
+
+**Arguments :**
+
+| Nom | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `channels` | string | Oui | — |
+| `direction` | enum(left_to_right, right_to_left, center_out) | Non | — |
+| `dry_run` | boolean | Non | — |
+| `effect_number` | number | Oui | — |
+| `group_number` | number | Non | — |
+| `size` | number | Non | — |
+| `speed` | number | Non | — |
+| `targetAddress` | string | Non | — |
+| `targetPort` | number | Non | — |
+| `user` | number | Non | — |
+
+**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+
+**Exemples :**
+
+_CLI_
+
+```bash
+npx @modelcontextprotocol/cli call --tool eos_workflow_create_effect --args '{"channels":"exemple","effect_number":1}'
+```
+
+_OSC_
+
+_Pas de mapping OSC documenté._
+
 <a id="eos-workflow-create-look"></a>
 ## Workflow creation de look (`eos_workflow_create_look`)
 
