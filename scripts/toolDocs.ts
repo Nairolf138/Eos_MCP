@@ -59,7 +59,16 @@ function patchModuleResolution(): () => void {
   };
 }
 
-function createZodSchema(schemaLike: unknown): z.ZodTypeAny | undefined {
+function isWorkflowTool(tool: ToolDefinition): boolean {
+  return tool.name.startsWith('eos_workflow_');
+}
+
+function createZodObject(shape: Record<string, ZodTypeAny>, tool: ToolDefinition): z.ZodObject<Record<string, ZodTypeAny>> {
+  const objectSchema = z.object(shape);
+  return isWorkflowTool(tool) ? objectSchema.passthrough() : objectSchema.strict();
+}
+
+function createZodSchema(tool: ToolDefinition, schemaLike: unknown): z.ZodTypeAny | undefined {
   if (!schemaLike) {
     return undefined;
   }
@@ -71,7 +80,7 @@ function createZodSchema(schemaLike: unknown): z.ZodTypeAny | undefined {
   if (typeof schemaLike === 'object' && schemaLike != null && !Array.isArray(schemaLike)) {
     const entries = Object.entries(schemaLike as Record<string, unknown>);
     if (entries.length === 0) {
-      return z.object({}).strict();
+      return createZodObject({}, tool);
     }
 
     const shape: Record<string, ZodTypeAny> = {};
@@ -82,7 +91,7 @@ function createZodSchema(schemaLike: unknown): z.ZodTypeAny | undefined {
     }
 
     if (Object.keys(shape).length > 0) {
-      return z.object(shape).strict();
+      return createZodObject(shape, tool);
     }
   }
 
@@ -454,7 +463,7 @@ function buildDocumentation(tools: ToolDefinition[]): { markdown: string; metada
   const sortedTools = [...tools].sort((a, b) => a.name.localeCompare(b.name));
 
   for (const tool of sortedTools) {
-    const schema = createZodSchema(tool.config.inputSchema);
+    const schema = createZodSchema(tool, tool.config.inputSchema);
     const properties = buildProperties(schema);
     const exampleArgs = buildExample(schema);
     metadata.set(tool.name, { tool, schema, properties, exampleArgs });
@@ -477,6 +486,18 @@ function buildDocumentation(tools: ToolDefinition[]): { markdown: string; metada
   lines.push("- `safety_level` (`strict` | `standard` | `off`) : niveau de garde-fou applique (par defaut `strict`).");
   lines.push('');
   lines.push('En mode `strict`/`standard`, les actions sensibles (`record`, `update`, `delete`, `live fire`, et declenchements `fire`) sont bloquees sans `require_confirmation=true`.');
+  lines.push('');
+  lines.push("## Politique d'arguments inconnus");
+  lines.push('');
+  lines.push("Les workflows `eos_workflow_*` sont tolerants : leurs schemas Zod utilisent `passthrough()` pour accepter les champs MCP inconnus. Ces champs sont conserves par la validation mais ne sont pas lus par la logique metier, ce qui permet d'ignorer des metadonnees clientes sans modifier les commandes OSC generees.");
+  lines.push('');
+  lines.push("Les tools bas niveau et sensibles restent stricts (`strict()`) afin de rejeter les arguments non prevus avant toute action directe : GO brut (`eos_cue_go`), patch brut (`eos_patch_*`, `eos_programming_patch_set_channel`), show control (`eos_show_*`), commandes texte et reglages directs.");
+  lines.push('');
+  lines.push('Workflows tolerants recenses :');
+  lines.push('');
+  for (const tool of sortedTools.filter(isWorkflowTool)) {
+    lines.push(`- \`${tool.name}\``);
+  }
   lines.push('');
 
   const highlightedTools = sortedTools.filter((tool) =>

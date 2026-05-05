@@ -27,6 +27,10 @@ const targetOptionsSchema = {
   user: z.coerce.number().int().min(0).optional()
 } satisfies ZodRawShape;
 
+function workflowObject<T extends ZodRawShape>(shape: T): z.ZodObject<T, 'passthrough'> {
+  return z.object(shape).passthrough();
+}
+
 type WorkflowStepStatus = 'ok' | 'error' | 'skipped';
 
 interface WorkflowStepLog {
@@ -135,7 +139,7 @@ export const eosWorkflowCreateLookTool: ToolDefinition<typeof createLookInputSch
     inputSchema: createLookInputSchema
   },
   handler: async (args) => {
-    const options = z.object(createLookInputSchema).strict().parse(args ?? {});
+    const options = workflowObject(createLookInputSchema).parse(args ?? {});
     const steps: WorkflowStepLog[] = [];
     const partialErrors: Array<{ step: string; error: string }> = [];
 
@@ -197,7 +201,7 @@ export const eosWorkflowCreateEffectTool: ToolDefinition<typeof createEffectInpu
     inputSchema: createEffectInputSchema
   },
   handler: async (args) => {
-    const options = z.object(createEffectInputSchema).strict().parse(args ?? {});
+    const options = workflowObject(createEffectInputSchema).parse(args ?? {});
     const dryRun = options.dry_run === true;
     const steps: WorkflowStepLog[] = [];
     const partialErrors: Array<{ step: string; error: string }> = [];
@@ -274,7 +278,7 @@ export const eosWorkflowCreateEffectTool: ToolDefinition<typeof createEffectInpu
 const createCueSeriesInputSchema = {
   base_cuelist_number: cuelistNumberSchema.optional(),
   start_cue_number: cueNumberSchema.optional().default(1),
-  looks: z.array(z.object({
+  looks: z.array(workflowObject({
     channels: z.string().trim().min(1).max(256),
     color_palette: z.coerce.number().int().min(1).max(99999).optional(),
     focus_palette: z.coerce.number().int().min(1).max(99999).optional(),
@@ -302,7 +306,7 @@ export const eosWorkflowCreateCueSeriesTool: ToolDefinition<typeof createCueSeri
     inputSchema: createCueSeriesInputSchema
   },
   handler: async (args) => {
-    const options = z.object(createCueSeriesInputSchema).strict().parse(args ?? {});
+    const options = workflowObject(createCueSeriesInputSchema).parse(args ?? {});
     const dryRun = options.dry_run === true;
     const steps: WorkflowStepLog[] = [];
     const partialErrors: Array<{ step: string; error: string }> = [];
@@ -399,7 +403,7 @@ export const eosWorkflowPatchFixtureTool: ToolDefinition<typeof patchFixtureInpu
     inputSchema: patchFixtureInputSchema
   },
   handler: async (args) => {
-    const options = z.object(patchFixtureInputSchema).strict().parse(args ?? {});
+    const options = workflowObject(patchFixtureInputSchema).parse(args ?? {});
     const steps: WorkflowStepLog[] = [];
     const partialErrors: Array<{ step: string; error: string }> = [];
     const execution = buildPatchSequence(options);
@@ -447,7 +451,7 @@ export const eosWorkflowPatchFixtureTool: ToolDefinition<typeof patchFixtureInpu
 };
 
 const autopatchBandInputSchema = {
-  fixtures: z.array(z.object({
+  fixtures: z.array(workflowObject({
     count: z.coerce.number().int().min(1).max(999),
     fixture_query: z.string().trim().min(1).max(128).optional(),
     fixture_manufacturer: z.string().trim().min(1).max(128).optional(),
@@ -486,7 +490,7 @@ export const eosWorkflowAutopatchBandTool: ToolDefinition<typeof autopatchBandIn
     inputSchema: autopatchBandInputSchema
   },
   handler: async (args) => {
-    const options = z.object(autopatchBandInputSchema).strict().parse(args ?? {});
+    const options = workflowObject(autopatchBandInputSchema).parse(args ?? {});
     const dryRun = options.dry_run === true;
     const logs: Array<Record<string, unknown>> = [];
     const commandsPreview: string[] = [];
@@ -589,19 +593,19 @@ const rehearsalGoSafeInputSchema = {
 } satisfies ZodRawShape;
 
 const buildGroupsAndPalettesInputSchema = {
-  groups: z.array(z.object({
+  groups: z.array(workflowObject({
     number: z.coerce.number().int().min(1).max(99999),
     label: z.string().trim().min(1).max(128),
     channels: z.string().trim().min(1).max(256)
   })).optional(),
-  color_palettes: z.array(z.object({
+  color_palettes: z.array(workflowObject({
     number: z.coerce.number().int().min(1).max(99999),
     label: z.string().trim().min(1).max(128),
     channels: z.string().trim().min(1).max(256),
     hue: z.string().trim().min(1).max(128).optional(),
     saturation: z.coerce.number().finite().optional()
   })).optional(),
-  focus_palettes: z.array(z.object({
+  focus_palettes: z.array(workflowObject({
     number: z.coerce.number().int().min(1).max(99999),
     label: z.string().trim().min(1).max(128),
     channels: z.string().trim().min(1).max(256),
@@ -639,9 +643,7 @@ export const eosWorkflowRehearsalGoSafeTool: ToolDefinition<typeof rehearsalGoSa
     inputSchema: rehearsalGoSafeInputSchema
   },
   handler: async (args) => {
-    const options = z
-      .object(rehearsalGoSafeInputSchema)
-      .strict()
+    const options = workflowObject(rehearsalGoSafeInputSchema)
       .superRefine((value, ctx) => {
         validateCueArgumentsPair(value, ctx);
         if (value.rollback_cuelist_number != null && value.rollback_cue_number == null) {
@@ -757,7 +759,7 @@ export const eosWorkflowBuildGroupsAndPalettesTool: ToolDefinition<typeof buildG
     inputSchema: buildGroupsAndPalettesInputSchema
   },
   handler: async (args) => {
-    const options = z.object(buildGroupsAndPalettesInputSchema).strict().parse(args ?? {});
+    const options = workflowObject(buildGroupsAndPalettesInputSchema).parse(args ?? {});
     const dryRun = options.dry_run === true;
     const steps: WorkflowStepLog[] = [];
     const partialErrors: Array<{ step: string; error: string }> = [];
@@ -820,9 +822,7 @@ export const eosWorkflowUpdateCueLookTool: ToolDefinition<typeof updateCueLookIn
     inputSchema: updateCueLookInputSchema
   },
   handler: async (args) => {
-    const options = z
-      .object(updateCueLookInputSchema)
-      .strict()
+    const options = workflowObject(updateCueLookInputSchema)
       .superRefine((value, ctx) => {
         validateCueArgumentsPair(value, ctx);
       })

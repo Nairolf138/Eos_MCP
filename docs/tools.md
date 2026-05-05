@@ -15,6 +15,23 @@ Les outils critiques des familles **cues**, **patch**, **palettes** et **command
 
 En mode `strict`/`standard`, les actions sensibles (`record`, `update`, `delete`, `live fire`, et declenchements `fire`) sont bloquees sans `require_confirmation=true`.
 
+## Politique d'arguments inconnus
+
+Les workflows `eos_workflow_*` sont tolerants : leurs schemas Zod utilisent `passthrough()` pour accepter les champs MCP inconnus. Ces champs sont conserves par la validation mais ne sont pas lus par la logique metier, ce qui permet d'ignorer des metadonnees clientes sans modifier les commandes OSC generees.
+
+Les tools bas niveau et sensibles restent stricts (`strict()`) afin de rejeter les arguments non prevus avant toute action directe : GO brut (`eos_cue_go`), patch brut (`eos_patch_*`, `eos_programming_patch_set_channel`), show control (`eos_show_*`), commandes texte et reglages directs.
+
+Workflows tolerants recenses :
+
+- `eos_workflow_autopatch_band`
+- `eos_workflow_build_groups_and_palettes`
+- `eos_workflow_create_cue_series`
+- `eos_workflow_create_effect`
+- `eos_workflow_create_look`
+- `eos_workflow_patch_fixture`
+- `eos_workflow_rehearsal_go_safe`
+- `eos_workflow_update_cue_look`
+
 ## Outils mis en avant
 
 | Outil | Résumé | Lien |

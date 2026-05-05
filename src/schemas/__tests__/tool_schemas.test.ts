@@ -32,4 +32,16 @@ describe('tool JSON schemas', () => {
     }
   });
 
+
+  it('publie des schemas tolerants uniquement pour les workflows', () => {
+    const workflowSchema = toolJsonSchemas.find((schema) => schema.name === 'eos_workflow_create_look')?.schema;
+    const cueGoSchema = toolJsonSchemas.find((schema) => schema.name === 'eos_cue_go')?.schema;
+
+    expect(workflowSchema).toBeDefined();
+    expect(cueGoSchema).toBeDefined();
+
+    expect((workflowSchema?.definitions as Record<string, { additionalProperties?: boolean }>).eos_workflow_create_look.additionalProperties).toBe(true);
+    expect((cueGoSchema?.definitions as Record<string, { additionalProperties?: boolean }>).eos_cue_go.additionalProperties).toBe(false);
+  });
+
 });

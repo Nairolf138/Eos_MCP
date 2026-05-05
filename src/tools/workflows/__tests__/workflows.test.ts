@@ -15,6 +15,7 @@ import {
   eosWorkflowBuildGroupsAndPalettesTool,
   eosWorkflowUpdateCueLookTool
 } from '../index';
+import { eosCueGoTool } from '../../cues/index';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -173,6 +174,41 @@ describe('workflow tools', () => {
     const structured = getStructuredContent(result);
     expect(structured?.status).toBe('partial_failure');
     expect(structured?.partialErrors).toEqual([{ step: 'apply_color_palette', error: 'Echec simule envoi #2' }]);
+  });
+
+
+  it('ignore les champs inconnus sur les workflows sans modifier la logique metier', async () => {
+    const result = await runTool(eosWorkflowCreateCueSeriesTool, {
+      looks: [
+        {
+          channels: '7',
+          cue_label: 'Solo',
+          client_note: 'metadata ignored'
+        }
+      ],
+      dry_run: true,
+      client_request_id: 'abc-123'
+    });
+
+    expect(service.sentMessages).toHaveLength(0);
+    const structured = getStructuredContent(result);
+    expect(structured?.status).toBe('ok');
+    expect(structured?.commands_preview).toEqual([
+      'Chan 7',
+      'Record Cue 1',
+      'Cue 1 Label "Solo"'
+    ]);
+    expect(structured).not.toHaveProperty('client_request_id');
+  });
+
+  it('conserve strict sur les tools bas niveau sensibles', async () => {
+    await expect(
+      runTool(eosCueGoTool, {
+        cuelist_number: 1,
+        dry_run: true,
+        client_request_id: 'abc-123'
+      })
+    ).rejects.toThrow(/Unrecognized key/);
   });
 
   it('orchestre eos_workflow_create_cue_series avec increment automatique des cues', async () => {
