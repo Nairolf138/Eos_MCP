@@ -15,7 +15,11 @@ import {
   formatCueTarget
 } from '../cues/common';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
-import { resolveFixture } from '../../fixtures';
+import {
+  buildPatchSequence,
+  executePatchSequence,
+  extractPatchSequenceError
+} from './patchSequence';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
@@ -31,18 +35,6 @@ interface WorkflowStepLog {
   command?: string;
   detail?: string;
   error?: string;
-}
-
-function extractErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  if (typeof error === 'string') {
-    return error;
-  }
-
-  return 'Erreur inconnue';
 }
 
 function buildWorkflowResult(
@@ -80,12 +72,13 @@ async function runCommandStep(
       terminateWithEnter: true,
       user: options.user,
       targetAddress: options.targetAddress,
-      targetPort: options.targetPort
+      targetPort: options.targetPort,
+      safety_level: 'off'
     });
     steps.push({ step, status: 'ok', command });
     return true;
   } catch (error) {
-    const message = extractErrorMessage(error);
+    const message = extractPatchSequenceError(error);
     steps.push({ step, status: 'error', command, error: message });
     partialErrors.push({ step, error: message });
     return false;
@@ -183,57 +176,6 @@ const patchFixtureInputSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
-type PatchFixtureOptions = z.infer<z.ZodObject<typeof patchFixtureInputSchema>>;
-
-function buildPatchFixtureExecution(options: PatchFixtureOptions): {
-  commands: Array<{ step: string; command: string }>;
-  fixtureResolution: ReturnType<typeof resolveFixture> | null;
-} {
-  const part = options.part ?? 1;
-  let resolvedDeviceType = options.device_type;
-  let fixtureResolution: ReturnType<typeof resolveFixture> | null = null;
-
-  if (!resolvedDeviceType) {
-    if (
-      !options.fixture_query &&
-      !options.fixture_manufacturer &&
-      !options.fixture_model &&
-      !options.fixture_name
-    ) {
-      throw new Error('device_type ou une recherche fixture_* est requis.');
-    }
-
-    fixtureResolution = resolveFixture({
-      fixtureQuery: options.fixture_query,
-      fixtureManufacturer: options.fixture_manufacturer,
-      fixtureModel: options.fixture_model,
-      fixtureName: options.fixture_name,
-      fixtureMode: options.fixture_mode
-    });
-    resolvedDeviceType = fixtureResolution.deviceType;
-  }
-
-  return {
-    commands: [
-      {
-        step: 'patch_fixture',
-        command:
-          `Patch Chan ${options.channel_number} Part ${part} Address ${options.dmx_address} Type "${resolvedDeviceType.replace(/"/g, '\\"')}"`
-      },
-      {
-        step: 'label_fixture',
-        command: `Chan ${options.channel_number} Part ${part} Label "${options.label.replace(/"/g, '\\"')}"`
-      },
-      {
-        step: 'set_base_3d_position',
-        command:
-          `Chan ${options.channel_number} Part ${part} Position X ${options.position_x ?? 0} Y ${options.position_y ?? 0} Z ${options.position_z ?? 0}`
-      }
-    ],
-    fixtureResolution
-  };
-}
-
 /**
  * @tool eos_workflow_patch_fixture
  * @summary Workflow patch fixture
@@ -254,7 +196,7 @@ export const eosWorkflowPatchFixtureTool: ToolDefinition<typeof patchFixtureInpu
     const options = z.object(patchFixtureInputSchema).strict().parse(args ?? {});
     const steps: WorkflowStepLog[] = [];
     const partialErrors: Array<{ step: string; error: string }> = [];
-    const execution = buildPatchFixtureExecution(options);
+    const execution = buildPatchSequence(options);
     if (execution.fixtureResolution) {
       steps.push({
         step: 'resolve_fixture',
@@ -354,7 +296,7 @@ export const eosWorkflowAutopatchBandTool: ToolDefinition<typeof autopatchBandIn
         const label = `${group.label_prefix} ${index + 1}`;
 
         try {
-          const execution = buildPatchFixtureExecution({
+          const execution = buildPatchSequence({
             channel_number: channel,
             dmx_address: dmxAddress,
             fixture_query: group.fixture_query,
@@ -373,26 +315,27 @@ export const eosWorkflowAutopatchBandTool: ToolDefinition<typeof autopatchBandIn
           for (const command of execution.commands) {
             commandsPreview.push(command.command);
             if (!dryRun) {
-              const ok = await runCommandStep([], partialErrors, command.step, command.command, options);
-              if (!ok) {
-                throw new Error(partialErrors.at(-1)?.error ?? 'Erreur patch');
+              const executionResult = await executePatchSequence([command], options);
+              partialErrors.push(...executionResult.partialErrors);
+              if (!executionResult.success) {
+                throw new Error(executionResult.partialErrors.at(-1)?.error ?? 'Erreur patch');
               }
             }
           }
 
           logs.push({
+            step: `fixture_${channel}`,
             status: 'ok',
-            channel,
-            label,
+            detail: label,
             dmx_start: dmxAddress,
             estimated_end_address: `${group.universe}/${Math.min(startAddress + 9, 512)}`
           });
         } catch (error) {
-          const message = extractErrorMessage(error);
+          const message = extractPatchSequenceError(error);
           logs.push({
+            step: `fixture_${channel}`,
             status: 'error',
-            channel,
-            label,
+            detail: label,
             dmx_start: dmxAddress,
             estimated_end_address: `${group.universe}/${Math.min(startAddress + 9, 512)}`,
             error: message
@@ -469,7 +412,8 @@ export const eosWorkflowRehearsalGoSafeTool: ToolDefinition<typeof rehearsalGoSa
       user: options.user,
       timeoutMs: options.precheck_timeout_ms,
       targetAddress: options.targetAddress,
-      targetPort: options.targetPort
+      targetPort: options.targetPort,
+      safety_level: 'off'
     });
 
     if (precheck.status !== 'ok') {
