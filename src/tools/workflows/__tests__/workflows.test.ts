@@ -7,6 +7,7 @@ import { OscClient, setOscClient, type OscGateway, type OscGatewaySendOptions } 
 import { runTool, getStructuredContent } from '../../__tests__/helpers/runTool';
 import {
   eosWorkflowCreateLookTool,
+  eosWorkflowAutopatchBandTool,
   eosWorkflowPatchFixtureTool,
   eosWorkflowRehearsalGoSafeTool
 } from '../index';
@@ -163,5 +164,26 @@ describe('workflow tools', () => {
     const structured = getStructuredContent(result);
     expect(structured?.status).toBe('partial_failure');
     expect(structured?.commandsSent).toEqual(['Go To Cue 1/15', 'Go To Cue 10']);
+  });
+
+  it('genere commands_preview en dry run pour autopatch band', async () => {
+    const result = await runTool(eosWorkflowAutopatchBandTool, {
+      fixtures: [
+        {
+          count: 2,
+          fixture_query: 'Spica',
+          universe: 2,
+          start_address: 101,
+          label_prefix: 'Wash'
+        }
+      ],
+      dry_run: true
+    });
+
+    expect(service.sentMessages).toHaveLength(0);
+    const structured = getStructuredContent(result);
+    expect(Array.isArray(structured?.commands_preview)).toBe(true);
+    expect(structured?.fixture_logs).toHaveLength(2);
+    expect(structured?.status).toBe('ok');
   });
 });
