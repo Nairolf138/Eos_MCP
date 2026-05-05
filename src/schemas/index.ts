@@ -25,16 +25,17 @@ type ZodToJsonSchema = (
 
 const toJsonSchema = zodToJsonSchema as ZodToJsonSchema;
 
-function toZodObject(shape: ZodRawShape | undefined): z.ZodObject<ZodRawShape> {
-  if (!shape) {
-    return z.object({}).strict();
-  }
+function isWorkflowTool(definition: ToolDefinition): boolean {
+  return definition.name.startsWith('eos_workflow_');
+}
 
-  return z.object(shape).strict();
+function toZodObject(shape: ZodRawShape | undefined, options: { passthrough: boolean }): z.ZodObject<ZodRawShape> {
+  const objectSchema = z.object(shape ?? {});
+  return options.passthrough ? objectSchema.passthrough() : objectSchema.strict();
 }
 
 function buildSchema(definition: ToolDefinition): ToolJsonSchemaDefinition {
-  const zodSchema = toZodObject(definition.config.inputSchema);
+  const zodSchema = toZodObject(definition.config.inputSchema, { passthrough: isWorkflowTool(definition) });
   const jsonSchema = toJsonSchema(zodSchema, {
     name: definition.name,
     $refStrategy: 'none'
