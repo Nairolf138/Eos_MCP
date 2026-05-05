@@ -159,6 +159,91 @@ export const eosWorkflowCreateLookTool: ToolDefinition<typeof createLookInputSch
   }
 };
 
+const createCueSeriesInputSchema = {
+  base_cuelist_number: cuelistNumberSchema.optional(),
+  start_cue_number: cueNumberSchema.optional().default(1),
+  looks: z.array(z.object({
+    channels: z.string().trim().min(1).max(256),
+    color_palette: z.coerce.number().int().min(1).max(99999).optional(),
+    focus_palette: z.coerce.number().int().min(1).max(99999).optional(),
+    beam_palette: z.coerce.number().int().min(1).max(99999).optional(),
+    cue_label: z.string().trim().min(1).max(128).optional()
+  })).min(1),
+  dry_run: z.boolean().optional(),
+  ...targetOptionsSchema
+} satisfies ZodRawShape;
+
+export const eosWorkflowCreateCueSeriesTool: ToolDefinition<typeof createCueSeriesInputSchema> = {
+  name: 'eos_workflow_create_cue_series',
+  config: {
+    title: 'Workflow creation serie de cues',
+    description: 'Enchaine plusieurs looks et enregistre une serie de cues auto-incrementees.',
+    inputSchema: createCueSeriesInputSchema
+  },
+  handler: async (args) => {
+    const options = z.object(createCueSeriesInputSchema).strict().parse(args ?? {});
+    const dryRun = options.dry_run === true;
+    const steps: WorkflowStepLog[] = [];
+    const partialErrors: Array<{ step: string; error: string }> = [];
+    const commandsPreview: string[] = [];
+    let cueNumber = options.start_cue_number ?? 1;
+
+    for (let index = 0; index < options.looks.length; index += 1) {
+      const look = options.looks[index];
+      const cueStepPrefix = `look_${index + 1}_cue_${cueNumber}`;
+      const commands = [
+        { step: `${cueStepPrefix}_select_channels`, command: `Chan ${look.channels}` },
+        ...(look.color_palette != null ? [{ step: `${cueStepPrefix}_apply_color_palette`, command: `CP ${look.color_palette}` }] : []),
+        ...(look.focus_palette != null ? [{ step: `${cueStepPrefix}_apply_focus_palette`, command: `FP ${look.focus_palette}` }] : []),
+        ...(look.beam_palette != null ? [{ step: `${cueStepPrefix}_apply_beam_palette`, command: `BP ${look.beam_palette}` }] : []),
+        {
+          step: `${cueStepPrefix}_record_cue`,
+          command: buildRecordCueCommand(cueNumber, options.base_cuelist_number)
+        },
+        ...(look.cue_label
+          ? [
+              {
+                step: `${cueStepPrefix}_label_cue`,
+                command: `${formatCueTarget(cueNumber, options.base_cuelist_number)} Label "${look.cue_label.replace(/"/g, '\\"')}"`
+              }
+            ]
+          : [])
+      ];
+
+      for (const commandStep of commands) {
+        commandsPreview.push(commandStep.command);
+        if (dryRun) {
+          steps.push({ step: commandStep.step, status: 'skipped', command: commandStep.command, detail: 'dry_run' });
+          continue;
+        }
+
+        const ok = await runCommandStep(steps, partialErrors, commandStep.step, commandStep.command, options);
+        if (!ok) {
+          return buildWorkflowResult(
+            'eos_workflow_create_cue_series',
+            'partial_failure',
+            `Workflow creation serie cues interrompu a l'etape ${commandStep.step}.`,
+            steps,
+            partialErrors,
+            { ...(dryRun ? { commands_preview: commandsPreview } : {}) }
+          );
+        }
+      }
+
+      cueNumber += 1;
+    }
+
+    return buildWorkflowResult(
+      'eos_workflow_create_cue_series',
+      'ok',
+      dryRun ? 'Dry run creation serie cues genere.' : 'Workflow creation serie cues execute avec succes.',
+      steps,
+      partialErrors,
+      { ...(dryRun ? { commands_preview: commandsPreview } : {}) }
+    );
+  }
+};
+
 const patchFixtureInputSchema = {
   channel_number: z.coerce.number().int().min(1).max(99999),
   dmx_address: z.string().trim().min(1).max(32),
@@ -494,6 +579,7 @@ export const eosWorkflowRehearsalGoSafeTool: ToolDefinition<typeof rehearsalGoSa
 
 export const workflowTools = [
   eosWorkflowCreateLookTool,
+  eosWorkflowCreateCueSeriesTool,
   eosWorkflowPatchFixtureTool,
   eosWorkflowAutopatchBandTool,
   eosWorkflowRehearsalGoSafeTool
