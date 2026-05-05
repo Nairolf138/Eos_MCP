@@ -7,6 +7,7 @@ import { OscClient, setOscClient, type OscGateway, type OscGatewaySendOptions } 
 import { runTool, getStructuredContent } from '../../__tests__/helpers/runTool';
 import {
   eosWorkflowCreateLookTool,
+  eosWorkflowCreateCueSeriesTool,
   eosWorkflowAutopatchBandTool,
   eosWorkflowPatchFixtureTool,
   eosWorkflowRehearsalGoSafeTool
@@ -108,6 +109,53 @@ describe('workflow tools', () => {
     const structured = getStructuredContent(result);
     expect(structured?.status).toBe('partial_failure');
     expect(structured?.partialErrors).toEqual([{ step: 'apply_color_palette', error: 'Echec simule envoi #2' }]);
+  });
+
+  it('orchestre eos_workflow_create_cue_series avec increment automatique des cues', async () => {
+    const result = await runTool(eosWorkflowCreateCueSeriesTool, {
+      base_cuelist_number: 2,
+      start_cue_number: 10,
+      looks: [
+        { channels: '1 Thru 3', color_palette: 11, cue_label: 'Intro' },
+        { channels: '4 Thru 6', focus_palette: 20, beam_palette: 30, cue_label: 'Verse' }
+      ]
+    });
+
+    const structured = getStructuredContent(result);
+    expect(structured?.status).toBe('ok');
+    expect(structured?.commandsSent).toEqual([
+      'Chan 1 Thru 3',
+      'CP 11',
+      'Record Cue 2/10',
+      'Cue 2/10 Label "Intro"',
+      'Chan 4 Thru 6',
+      'FP 20',
+      'BP 30',
+      'Record Cue 2/11',
+      'Cue 2/11 Label "Verse"'
+    ]);
+  });
+
+  it('genere commands_preview en dry run pour create_cue_series et fallback master cuelist', async () => {
+    const result = await runTool(eosWorkflowCreateCueSeriesTool, {
+      looks: [
+        { channels: '7', cue_label: 'Solo' },
+        { channels: '8', color_palette: 12 }
+      ],
+      dry_run: true
+    });
+
+    expect(service.sentMessages).toHaveLength(0);
+    const structured = getStructuredContent(result);
+    expect(structured?.status).toBe('ok');
+    expect(structured?.commands_preview).toEqual([
+      'Chan 7',
+      'Record Cue 1',
+      'Cue 1 Label "Solo"',
+      'Chan 8',
+      'CP 12',
+      'Record Cue 2'
+    ]);
   });
 
   it('orchestre eos_workflow_patch_fixture avec position 3D par defaut', async () => {
