@@ -183,6 +183,57 @@ const patchFixtureInputSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
+type PatchFixtureOptions = z.infer<z.ZodObject<typeof patchFixtureInputSchema>>;
+
+function buildPatchFixtureExecution(options: PatchFixtureOptions): {
+  commands: Array<{ step: string; command: string }>;
+  fixtureResolution: ReturnType<typeof resolveFixture> | null;
+} {
+  const part = options.part ?? 1;
+  let resolvedDeviceType = options.device_type;
+  let fixtureResolution: ReturnType<typeof resolveFixture> | null = null;
+
+  if (!resolvedDeviceType) {
+    if (
+      !options.fixture_query &&
+      !options.fixture_manufacturer &&
+      !options.fixture_model &&
+      !options.fixture_name
+    ) {
+      throw new Error('device_type ou une recherche fixture_* est requis.');
+    }
+
+    fixtureResolution = resolveFixture({
+      fixtureQuery: options.fixture_query,
+      fixtureManufacturer: options.fixture_manufacturer,
+      fixtureModel: options.fixture_model,
+      fixtureName: options.fixture_name,
+      fixtureMode: options.fixture_mode
+    });
+    resolvedDeviceType = fixtureResolution.deviceType;
+  }
+
+  return {
+    commands: [
+      {
+        step: 'patch_fixture',
+        command:
+          `Patch Chan ${options.channel_number} Part ${part} Address ${options.dmx_address} Type "${resolvedDeviceType.replace(/"/g, '\\"')}"`
+      },
+      {
+        step: 'label_fixture',
+        command: `Chan ${options.channel_number} Part ${part} Label "${options.label.replace(/"/g, '\\"')}"`
+      },
+      {
+        step: 'set_base_3d_position',
+        command:
+          `Chan ${options.channel_number} Part ${part} Position X ${options.position_x ?? 0} Y ${options.position_y ?? 0} Z ${options.position_z ?? 0}`
+      }
+    ],
+    fixtureResolution
+  };
+}
+
 /**
  * @tool eos_workflow_patch_fixture
  * @summary Workflow patch fixture
@@ -203,53 +254,16 @@ export const eosWorkflowPatchFixtureTool: ToolDefinition<typeof patchFixtureInpu
     const options = z.object(patchFixtureInputSchema).strict().parse(args ?? {});
     const steps: WorkflowStepLog[] = [];
     const partialErrors: Array<{ step: string; error: string }> = [];
-    const part = options.part ?? 1;
-    let resolvedDeviceType = options.device_type;
-    let fixtureResolution: ReturnType<typeof resolveFixture> | null = null;
-
-    if (!resolvedDeviceType) {
-      if (
-        !options.fixture_query &&
-        !options.fixture_manufacturer &&
-        !options.fixture_model &&
-        !options.fixture_name
-      ) {
-        throw new Error('device_type ou une recherche fixture_* est requis.');
-      }
-
-      fixtureResolution = resolveFixture({
-        fixtureQuery: options.fixture_query,
-        fixtureManufacturer: options.fixture_manufacturer,
-        fixtureModel: options.fixture_model,
-        fixtureName: options.fixture_name,
-        fixtureMode: options.fixture_mode
-      });
-      resolvedDeviceType = fixtureResolution.deviceType;
+    const execution = buildPatchFixtureExecution(options);
+    if (execution.fixtureResolution) {
       steps.push({
         step: 'resolve_fixture',
         status: 'ok',
-        detail: `${fixtureResolution.fixture.manufacturer} ${fixtureResolution.fixture.model} (${fixtureResolution.mode.name})`
+        detail: `${execution.fixtureResolution.fixture.manufacturer} ${execution.fixtureResolution.fixture.model} (${execution.fixtureResolution.mode.name})`
       });
     }
 
-    const commands = [
-      {
-        step: 'patch_fixture',
-        command:
-          `Patch Chan ${options.channel_number} Part ${part} Address ${options.dmx_address} Type "${resolvedDeviceType.replace(/"/g, '\\"')}"`
-      },
-      {
-        step: 'label_fixture',
-        command: `Chan ${options.channel_number} Part ${part} Label "${options.label.replace(/"/g, '\\"')}"`
-      },
-      {
-        step: 'set_base_3d_position',
-        command:
-          `Chan ${options.channel_number} Part ${part} Position X ${options.position_x ?? 0} Y ${options.position_y ?? 0} Z ${options.position_z ?? 0}`
-      }
-    ];
-
-    for (const commandStep of commands) {
+    for (const commandStep of execution.commands) {
       const ok = await runCommandStep(steps, partialErrors, commandStep.step, commandStep.command, options);
       if (!ok) {
         return buildWorkflowResult(
@@ -268,18 +282,139 @@ export const eosWorkflowPatchFixtureTool: ToolDefinition<typeof patchFixtureInpu
       'Workflow patch fixture execute avec succes.',
       steps,
       partialErrors,
-      fixtureResolution
+      execution.fixtureResolution
         ? {
             fixture_resolution: {
-              manufacturer: fixtureResolution.fixture.manufacturer,
-              model: fixtureResolution.fixture.model,
-              name: fixtureResolution.fixture.name,
-              mode: fixtureResolution.mode.name,
-              device_type: resolvedDeviceType,
-              score: fixtureResolution.score
+              manufacturer: execution.fixtureResolution.fixture.manufacturer,
+              model: execution.fixtureResolution.fixture.model,
+              name: execution.fixtureResolution.fixture.name,
+              mode: execution.fixtureResolution.mode.name,
+              device_type: execution.fixtureResolution.deviceType,
+              score: execution.fixtureResolution.score
             }
           }
         : {}
+    );
+  }
+};
+
+const autopatchBandInputSchema = {
+  fixtures: z.array(z.object({
+    count: z.coerce.number().int().min(1).max(999),
+    fixture_query: z.string().trim().min(1).max(128).optional(),
+    fixture_manufacturer: z.string().trim().min(1).max(128).optional(),
+    fixture_model: z.string().trim().min(1).max(128).optional(),
+    fixture_mode: z.string().trim().min(1).max(128).optional(),
+    universe: z.coerce.number().int().min(1).max(999),
+    start_address: z.coerce.number().int().min(1).max(512),
+    label_prefix: z.string().trim().min(1).max(128),
+    position_x: z.coerce.number().finite().optional(),
+    position_y: z.coerce.number().finite().optional(),
+    position_z: z.coerce.number().finite().optional()
+  })).min(1),
+  include_face_trad: z.boolean().optional(),
+  face_trad_count: z.coerce.number().int().min(1).max(999).optional(),
+  face_trad_universe: z.coerce.number().int().min(1).max(999).optional(),
+  face_trad_start_address: z.coerce.number().int().min(1).max(512).optional(),
+  face_trad_label_prefix: z.string().trim().min(1).max(128).optional(),
+  dry_run: z.boolean().optional(),
+  ...targetOptionsSchema
+} satisfies ZodRawShape;
+
+export const eosWorkflowAutopatchBandTool: ToolDefinition<typeof autopatchBandInputSchema> = {
+  name: 'eos_workflow_autopatch_band',
+  config: {
+    title: 'Workflow autopatch band',
+    description: 'Patche sequentiellement plusieurs blocs de fixtures avec option face trad.',
+    inputSchema: autopatchBandInputSchema
+  },
+  handler: async (args) => {
+    const options = z.object(autopatchBandInputSchema).strict().parse(args ?? {});
+    const dryRun = options.dry_run === true;
+    const logs: Array<Record<string, unknown>> = [];
+    const commandsPreview: string[] = [];
+    const partialErrors: Array<{ step: string; error: string }> = [];
+    let channel = 1;
+
+    const groups = [...options.fixtures];
+    if (options.include_face_trad === true) {
+      groups.push({
+        count: options.face_trad_count ?? 4,
+        universe: options.face_trad_universe ?? 1,
+        start_address: options.face_trad_start_address ?? 1,
+        label_prefix: options.face_trad_label_prefix ?? 'Face Trad',
+        fixture_query: 'trad'
+      });
+    }
+
+    for (const group of groups) {
+      for (let index = 0; index < group.count; index += 1) {
+        const startAddress = group.start_address + (index * 10);
+        const dmxAddress = `${group.universe}/${startAddress}`;
+        const label = `${group.label_prefix} ${index + 1}`;
+
+        try {
+          const execution = buildPatchFixtureExecution({
+            channel_number: channel,
+            dmx_address: dmxAddress,
+            fixture_query: group.fixture_query,
+            fixture_manufacturer: group.fixture_manufacturer,
+            fixture_model: group.fixture_model,
+            fixture_mode: group.fixture_mode,
+            label,
+            position_x: group.position_x,
+            position_y: group.position_y,
+            position_z: group.position_z,
+            targetAddress: options.targetAddress,
+            targetPort: options.targetPort,
+            user: options.user
+          });
+
+          for (const command of execution.commands) {
+            commandsPreview.push(command.command);
+            if (!dryRun) {
+              const ok = await runCommandStep([], partialErrors, command.step, command.command, options);
+              if (!ok) {
+                throw new Error(partialErrors.at(-1)?.error ?? 'Erreur patch');
+              }
+            }
+          }
+
+          logs.push({
+            status: 'ok',
+            channel,
+            label,
+            dmx_start: dmxAddress,
+            estimated_end_address: `${group.universe}/${Math.min(startAddress + 9, 512)}`
+          });
+        } catch (error) {
+          const message = extractErrorMessage(error);
+          logs.push({
+            status: 'error',
+            channel,
+            label,
+            dmx_start: dmxAddress,
+            estimated_end_address: `${group.universe}/${Math.min(startAddress + 9, 512)}`,
+            error: message
+          });
+          partialErrors.push({ step: `fixture_${channel}`, error: message });
+        }
+
+        channel += 1;
+      }
+    }
+
+    const hasErrors = logs.some((entry) => entry.status === 'error');
+    return buildWorkflowResult(
+      'eos_workflow_autopatch_band',
+      hasErrors ? 'partial_failure' : 'ok',
+      dryRun ? 'Dry run autopatch band genere.' : 'Workflow autopatch band execute.',
+      [],
+      partialErrors,
+      {
+        fixture_logs: logs,
+        ...(dryRun ? { commands_preview: commandsPreview } : {})
+      }
     );
   }
 };
@@ -416,6 +551,7 @@ export const eosWorkflowRehearsalGoSafeTool: ToolDefinition<typeof rehearsalGoSa
 export const workflowTools = [
   eosWorkflowCreateLookTool,
   eosWorkflowPatchFixtureTool,
+  eosWorkflowAutopatchBandTool,
   eosWorkflowRehearsalGoSafeTool
 ] as ToolDefinition[];
 
