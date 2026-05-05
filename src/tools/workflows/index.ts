@@ -458,6 +458,29 @@ const rehearsalGoSafeInputSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
+const buildGroupsAndPalettesInputSchema = {
+  groups: z.array(z.object({
+    number: z.coerce.number().int().min(1).max(99999),
+    label: z.string().trim().min(1).max(128),
+    channels: z.string().trim().min(1).max(256)
+  })).optional(),
+  color_palettes: z.array(z.object({
+    number: z.coerce.number().int().min(1).max(99999),
+    label: z.string().trim().min(1).max(128),
+    channels: z.string().trim().min(1).max(256),
+    hue: z.string().trim().min(1).max(128).optional(),
+    saturation: z.coerce.number().finite().optional()
+  })).optional(),
+  focus_palettes: z.array(z.object({
+    number: z.coerce.number().int().min(1).max(99999),
+    label: z.string().trim().min(1).max(128),
+    channels: z.string().trim().min(1).max(256),
+    description: z.string().trim().min(1).max(256).optional()
+  })).optional(),
+  dry_run: z.boolean().optional(),
+  ...targetOptionsSchema
+} satisfies ZodRawShape;
+
 /**
  * @tool eos_workflow_rehearsal_go_safe
  * @summary Workflow rehearsal go safe
@@ -577,12 +600,67 @@ export const eosWorkflowRehearsalGoSafeTool: ToolDefinition<typeof rehearsalGoSa
   }
 };
 
+export const eosWorkflowBuildGroupsAndPalettesTool: ToolDefinition<typeof buildGroupsAndPalettesInputSchema> = {
+  name: 'eos_workflow_build_groups_and_palettes',
+  config: {
+    title: 'Workflow build groups and palettes',
+    description: 'Construit des groupes, color palettes et focus palettes en sequence.',
+    inputSchema: buildGroupsAndPalettesInputSchema
+  },
+  handler: async (args) => {
+    const options = z.object(buildGroupsAndPalettesInputSchema).strict().parse(args ?? {});
+    const dryRun = options.dry_run === true;
+    const steps: WorkflowStepLog[] = [];
+    const partialErrors: Array<{ step: string; error: string }> = [];
+    const commandsPreview: string[] = [];
+
+    const queueCommand = async (step: string, command: string): Promise<void> => {
+      commandsPreview.push(command);
+      if (dryRun) {
+        steps.push({ step, status: 'skipped', command, detail: 'dry_run' });
+        return;
+      }
+      await runCommandStep(steps, partialErrors, step, command, options);
+    };
+
+    for (const group of options.groups ?? []) {
+      await queueCommand(`group_${group.number}_record`, `Chan ${group.channels} Record Group ${group.number}`);
+      await queueCommand(`group_${group.number}_label`, `Group ${group.number} Label "${group.label.replace(/"/g, '\\"')}"`);
+    }
+
+    for (const palette of options.color_palettes ?? []) {
+      await queueCommand(`cp_${palette.number}_select_channels`, `Chan ${palette.channels}`);
+      if (palette.hue) await queueCommand(`cp_${palette.number}_set_hue`, `Hue ${palette.hue}`);
+      if (palette.saturation != null) await queueCommand(`cp_${palette.number}_set_saturation`, `Saturation ${palette.saturation}`);
+      await queueCommand(`cp_${palette.number}_record`, `Record CP ${palette.number}`);
+      await queueCommand(`cp_${palette.number}_label`, `CP ${palette.number} Label "${palette.label.replace(/"/g, '\\"')}"`);
+    }
+
+    for (const palette of options.focus_palettes ?? []) {
+      await queueCommand(`fp_${palette.number}_select_channels`, `Chan ${palette.channels}`);
+      if (palette.description) await queueCommand(`fp_${palette.number}_set_description`, palette.description);
+      await queueCommand(`fp_${palette.number}_record`, `Record FP ${palette.number}`);
+      await queueCommand(`fp_${palette.number}_label`, `FP ${palette.number} Label "${palette.label.replace(/"/g, '\\"')}"`);
+    }
+
+    return buildWorkflowResult(
+      'eos_workflow_build_groups_and_palettes',
+      partialErrors.length > 0 ? 'partial_failure' : 'ok',
+      dryRun ? 'Dry run build groups and palettes genere.' : 'Workflow build groups and palettes execute.',
+      steps,
+      partialErrors,
+      { ...(dryRun ? { commands_preview: commandsPreview } : {}) }
+    );
+  }
+};
+
 export const workflowTools = [
   eosWorkflowCreateLookTool,
   eosWorkflowCreateCueSeriesTool,
   eosWorkflowPatchFixtureTool,
   eosWorkflowAutopatchBandTool,
-  eosWorkflowRehearsalGoSafeTool
+  eosWorkflowRehearsalGoSafeTool,
+  eosWorkflowBuildGroupsAndPalettesTool
 ] as ToolDefinition[];
 
 export default workflowTools;

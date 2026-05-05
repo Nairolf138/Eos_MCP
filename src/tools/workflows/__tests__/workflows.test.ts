@@ -10,7 +10,8 @@ import {
   eosWorkflowCreateCueSeriesTool,
   eosWorkflowAutopatchBandTool,
   eosWorkflowPatchFixtureTool,
-  eosWorkflowRehearsalGoSafeTool
+  eosWorkflowRehearsalGoSafeTool,
+  eosWorkflowBuildGroupsAndPalettesTool
 } from '../index';
 
 class FakeOscService implements OscGateway {
@@ -232,6 +233,41 @@ describe('workflow tools', () => {
     const structured = getStructuredContent(result);
     expect(Array.isArray(structured?.commands_preview)).toBe(true);
     expect(structured?.fixture_logs).toHaveLength(2);
+    expect(structured?.status).toBe('partial_failure');
+  });
+
+  it('orchestre eos_workflow_build_groups_and_palettes avec blocs partiels', async () => {
+    const result = await runTool(eosWorkflowBuildGroupsAndPalettesTool, {
+      groups: [{ number: 1, label: 'Face', channels: '1 Thru 4' }],
+      focus_palettes: [{ number: 2, label: 'Down', channels: '1 Thru 4', description: 'Pan 50 Tilt 30' }]
+    });
+
+    const structured = getStructuredContent(result);
     expect(structured?.status).toBe('ok');
+    expect(structured?.commandsSent).toEqual([
+      'Chan 1 Thru 4 Record Group 1',
+      'Group 1 Label "Face"',
+      'Chan 1 Thru 4',
+      'Pan 50 Tilt 30',
+      'Record FP 2',
+      'FP 2 Label "Down"'
+    ]);
+  });
+
+  it('genere commands_preview en dry run pour build_groups_and_palettes', async () => {
+    const result = await runTool(eosWorkflowBuildGroupsAndPalettesTool, {
+      color_palettes: [{ number: 10, label: 'Warm', channels: '5', hue: 'Amber', saturation: 45 }],
+      dry_run: true
+    });
+
+    expect(service.sentMessages).toHaveLength(0);
+    const structured = getStructuredContent(result);
+    expect(structured?.commands_preview).toEqual([
+      'Chan 5',
+      'Hue Amber',
+      'Saturation 45',
+      'Record CP 10',
+      'CP 10 Label "Warm"'
+    ]);
   });
 });
