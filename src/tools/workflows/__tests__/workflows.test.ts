@@ -7,6 +7,7 @@ import { OscClient, setOscClient, type OscGateway, type OscGatewaySendOptions } 
 import { runTool, getStructuredContent } from '../../__tests__/helpers/runTool';
 import {
   eosWorkflowCreateLookTool,
+  eosWorkflowCreateEffectTool,
   eosWorkflowCreateCueSeriesTool,
   eosWorkflowAutopatchBandTool,
   eosWorkflowPatchFixtureTool,
@@ -96,6 +97,67 @@ describe('workflow tools', () => {
       'Record Cue 2/101',
       'Cue 2/101 Label "Look Intro"'
     ]);
+  });
+
+  it('orchestre eos_workflow_create_effect avec groupe optionnel et parametres', async () => {
+    const result = await runTool(eosWorkflowCreateEffectTool, {
+      channels: '1 Thru 6',
+      effect_number: 21,
+      group_number: 3,
+      direction: 'right_to_left',
+      speed: 1.5,
+      size: 75
+    });
+
+    const structured = getStructuredContent(result);
+    expect(structured?.status).toBe('ok');
+    expect(structured?.commandsSent).toEqual([
+      'Chan 1 Thru 6 Record Group 3',
+      'Chan 1 Thru 6 Effect 21',
+      'Effect 21 Speed 1.5',
+      'Effect 21 Size 75',
+      'Effect 21 Direction Right To Left',
+      'Record Effect 21'
+    ]);
+    expect(structured?.effect).toEqual({
+      effect_number: 21,
+      channels: '1 Thru 6',
+      group_number: 3,
+      parameters: {
+        direction: 'right_to_left',
+        speed: 1.5,
+        size: 75
+      }
+    });
+  });
+
+  it('applique les valeurs par defaut et dry_run pour create_effect', async () => {
+    const result = await runTool(eosWorkflowCreateEffectTool, {
+      channels: '10',
+      effect_number: 22,
+      dry_run: true
+    });
+
+    expect(service.sentMessages).toHaveLength(0);
+    const structured = getStructuredContent(result);
+    expect(structured?.status).toBe('ok');
+    expect(structured?.commands_preview).toEqual([
+      'Chan 10 Effect 22',
+      'Effect 22 Speed 1',
+      'Effect 22 Size 100',
+      'Effect 22 Direction Left To Right',
+      'Record Effect 22'
+    ]);
+    expect(structured?.effect).toEqual({
+      effect_number: 22,
+      channels: '10',
+      group_number: null,
+      parameters: {
+        direction: 'left_to_right',
+        speed: 1,
+        size: 100
+      }
+    });
   });
 
   it('retourne un echec partiel sur erreur intermediaire de workflow create_look', async () => {
