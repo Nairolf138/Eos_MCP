@@ -11,7 +11,8 @@ import {
   eosWorkflowAutopatchBandTool,
   eosWorkflowPatchFixtureTool,
   eosWorkflowRehearsalGoSafeTool,
-  eosWorkflowBuildGroupsAndPalettesTool
+  eosWorkflowBuildGroupsAndPalettesTool,
+  eosWorkflowUpdateCueLookTool
 } from '../index';
 
 class FakeOscService implements OscGateway {
@@ -269,5 +270,43 @@ describe('workflow tools', () => {
       'Record CP 10',
       'CP 10 Label "Warm"'
     ]);
+  });
+
+  it('orchestre eos_workflow_update_cue_look avec go-to + update', async () => {
+    const result = await runTool(eosWorkflowUpdateCueLookTool, {
+      cuelist_number: 4,
+      cue_number: 12,
+      channels: '1 Thru 5',
+      intensity_factor: 0.8
+    });
+
+    const structured = getStructuredContent(result);
+    expect(structured?.status).toBe('ok');
+    expect(structured?.commandsSent).toEqual([
+      'Go To Cue 4/12',
+      'Chan 1 Thru 5',
+      'At * 0.8',
+      'Update Cue 4/12'
+    ]);
+  });
+
+  it('genere commands_preview en dry run pour update_cue_look', async () => {
+    const result = await runTool(eosWorkflowUpdateCueLookTool, {
+      channels: '9',
+      desaturate: true,
+      warmify: true,
+      dry_run: true
+    });
+
+    expect(service.sentMessages).toHaveLength(0);
+    const structured = getStructuredContent(result);
+    expect(structured?.commands_preview).toEqual([
+      'Chan 9',
+      'Update Cue'
+    ]);
+    expect(structured?.executedSteps).toEqual(expect.arrayContaining([
+      expect.objectContaining({ step: 'apply_desaturate', status: 'skipped' }),
+      expect.objectContaining({ step: 'apply_warmify', status: 'skipped' })
+    ]));
   });
 });
