@@ -477,6 +477,12 @@ function buildDocumentation(tools: ToolDefinition[]): { markdown: string; metada
   lines.push('');
   lines.push("Chaque outil expose son nom MCP, une description, la liste des arguments attendus ainsi qu'un exemple d'appel en CLI et par OSC.");
   lines.push('');
+  lines.push('## Comportement dry-run des workflows');
+  lines.push('');
+  lines.push('Tous les workflows `eos_workflow_*` exposent `dry_run` en option. Quand `dry_run` est absent ou vaut `false`, le workflow execute reellement la sequence EOS et retourne un journal structure commande par commande dans `structuredContent.command_log` ainsi que les commandes tentees dans `structuredContent.commandsSent`.');
+  lines.push('');
+  lines.push("Quand `dry_run=true`, aucune commande EOS n'est envoyee via `sendDeterministicCommand`; la sequence EOS complete est retournee dans `structuredContent.commands_preview`, et `structuredContent.commandsSent` reste vide. Les garde-fous sensibles restent portes par les tools bas niveau et ne sont pas exposes dans les schemas workflow.");
+  lines.push('');
   lines.push('## Options communes de securite (outils critiques)');
   lines.push('');
   lines.push('Les outils critiques des familles **cues**, **patch**, **palettes** et **commandes texte** exposent les options suivantes :');

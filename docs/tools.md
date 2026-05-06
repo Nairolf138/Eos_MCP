@@ -5,6 +5,12 @@
 
 Chaque outil expose son nom MCP, une description, la liste des arguments attendus ainsi qu'un exemple d'appel en CLI et par OSC.
 
+## Comportement dry-run des workflows
+
+Tous les workflows `eos_workflow_*` exposent `dry_run` en option. Quand `dry_run` est absent ou vaut `false`, le workflow execute reellement la sequence EOS et retourne un journal structure commande par commande dans `structuredContent.command_log` ainsi que les commandes tentees dans `structuredContent.commandsSent`.
+
+Quand `dry_run=true`, aucune commande EOS n'est envoyee via `sendDeterministicCommand`; la sequence EOS complete est retournee dans `structuredContent.commands_preview`, et `structuredContent.commandsSent` reste vide. Les garde-fous sensibles restent portes par les tools bas niveau et ne sont pas exposes dans les schemas workflow.
+
 ## Options communes de securite (outils critiques)
 
 Les outils critiques des familles **cues**, **patch**, **palettes** et **commandes texte** exposent les options suivantes :
@@ -3317,7 +3323,7 @@ oscsend 127.0.0.1 8001 /eos/param/wheel/tick s:'{"parameter_name":"exemple","tic
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
-| `dry_run` | boolean | Non | — |
+| `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes et retourne un journal commande par commande. |
 | `face_trad_count` | number | Non | — |
 | `face_trad_label_prefix` | string | Non | — |
 | `face_trad_start_address` | number | Non | — |
@@ -3352,7 +3358,7 @@ _Pas de mapping OSC documenté._
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
 | `color_palettes` | array<object> | Non | — |
-| `dry_run` | boolean | Non | — |
+| `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes et retourne un journal commande par commande. |
 | `focus_palettes` | array<object> | Non | — |
 | `groups` | array<object> | Non | — |
 | `targetAddress` | string | Non | — |
@@ -3383,7 +3389,7 @@ _Pas de mapping OSC documenté._
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
 | `base_cuelist_number` | number | Non | — |
-| `dry_run` | boolean | Non | — |
+| `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes et retourne un journal commande par commande. |
 | `looks` | array<object> | Oui | — |
 | `start_cue_number` | string \| number | Non | — |
 | `targetAddress` | string | Non | — |
@@ -3415,7 +3421,7 @@ _Pas de mapping OSC documenté._
 | --- | --- | --- | --- |
 | `channels` | string | Oui | — |
 | `direction` | enum(left_to_right, right_to_left, center_out) | Non | — |
-| `dry_run` | boolean | Non | — |
+| `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes et retourne un journal commande par commande. |
 | `effect_number` | number | Oui | — |
 | `group_number` | number | Non | — |
 | `size` | number | Non | — |
@@ -3453,6 +3459,7 @@ _Pas de mapping OSC documenté._
 | `cue_label` | string | Non | — |
 | `cue_number` | string \| number | Oui | — |
 | `cuelist_number` | number | Non | — |
+| `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes et retourne un journal commande par commande. |
 | `focus_palette` | number | Non | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
@@ -3484,6 +3491,7 @@ _Pas de mapping OSC documenté._
 | `channel_number` | number | Oui | — |
 | `device_type` | string | Non | — |
 | `dmx_address` | string | Oui | — |
+| `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes et retourne un journal commande par commande. |
 | `fixture_manufacturer` | string | Non | — |
 | `fixture_mode` | string | Non | — |
 | `fixture_model` | string | Non | — |
@@ -3524,6 +3532,7 @@ _Pas de mapping OSC documenté._
 | `allow_non_empty_command_line` | boolean | Non | — |
 | `cue_number` | string \| number | Non | — |
 | `cuelist_number` | number | Oui | — |
+| `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes et retourne un journal commande par commande. |
 | `precheck_timeout_ms` | number | Non | — |
 | `rollback_cue_number` | string \| number | Non | — |
 | `rollback_cuelist_number` | number | Non | — |
@@ -3559,7 +3568,7 @@ _Pas de mapping OSC documenté._
 | `cue_number` | string \| number | Non | — |
 | `cuelist_number` | number | Non | — |
 | `desaturate` | boolean | Non | — |
-| `dry_run` | boolean | Non | — |
+| `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes et retourne un journal commande par commande. |
 | `intensity_factor` | number | Non | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
