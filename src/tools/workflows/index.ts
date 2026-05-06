@@ -27,6 +27,10 @@ const targetOptionsSchema = {
   user: z.coerce.number().int().min(0).optional()
 } satisfies ZodRawShape;
 
+const workflowDryRunSchema = z.boolean().optional().describe(
+  "Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes et retourne un journal commande par commande."
+);
+
 function workflowObject<T extends ZodRawShape>(shape: T): z.ZodObject<T, 'passthrough'> {
   return z.object(shape).passthrough();
 }
@@ -49,13 +53,26 @@ function buildWorkflowResult(
   partialErrors: Array<{ step: string; error: string }>,
   extraStructuredContent: Record<string, unknown> = {}
 ): ToolExecutionResult {
+  const commandLog = steps
+    .filter((step) => typeof step.command === 'string')
+    .map((step) => ({
+      step: step.step,
+      status: step.status,
+      command: step.command,
+      ...(step.detail != null ? { detail: step.detail } : {}),
+      ...(step.error != null ? { error: step.error } : {})
+    }));
+
   return {
     content: [{ type: 'text', text: summary }],
     structuredContent: {
       workflow,
       status,
       executedSteps: steps,
-      commandsSent: steps.filter((step) => typeof step.command === 'string').map((step) => step.command),
+      command_log: commandLog,
+      commandsSent: commandLog
+        .filter((step) => step.status !== 'skipped')
+        .map((step) => step.command),
       partialErrors,
       ...extraStructuredContent
     }
@@ -110,6 +127,7 @@ const createLookInputSchema = {
   focus_palette: z.coerce.number().int().min(1).max(99999).optional(),
   beam_palette: z.coerce.number().int().min(1).max(99999).optional(),
   cue_label: z.string().trim().min(1).max(128).optional(),
+  dry_run: workflowDryRunSchema,
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
@@ -131,7 +149,7 @@ const createEffectInputSchema = {
   direction: effectDirectionSchema.optional().default('left_to_right'),
   speed: z.coerce.number().finite().positive().max(999).optional().default(1),
   size: z.coerce.number().finite().positive().max(1000).optional().default(100),
-  dry_run: z.boolean().optional(),
+  dry_run: workflowDryRunSchema,
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
@@ -153,8 +171,10 @@ export const eosWorkflowCreateLookTool: ToolDefinition<typeof createLookInputSch
   },
   handler: async (args) => {
     const options = workflowObject(createLookInputSchema).parse(args ?? {});
+    const dryRun = options.dry_run === true;
     const steps: WorkflowStepLog[] = [];
     const partialErrors: Array<{ step: string; error: string }> = [];
+    const commandsPreview: string[] = [];
 
     if (options.cuelist_number == null) {
       pushDefaultLog(steps, 'default_cuelist_number', 'cuelist_number absent: utilisation automatique de la cuelist master.');
@@ -179,6 +199,12 @@ export const eosWorkflowCreateLookTool: ToolDefinition<typeof createLookInputSch
         : [])
     ];
     for (const commandStep of commands) {
+      commandsPreview.push(commandStep.command);
+      if (dryRun) {
+        steps.push({ step: commandStep.step, status: 'skipped', command: commandStep.command, detail: 'dry_run' });
+        continue;
+      }
+
       const ok = await runCommandStep(steps, partialErrors, commandStep.step, commandStep.command, options);
       if (!ok) {
         return buildWorkflowResult(
@@ -194,9 +220,10 @@ export const eosWorkflowCreateLookTool: ToolDefinition<typeof createLookInputSch
     return buildWorkflowResult(
       'eos_workflow_create_look',
       'ok',
-      'Workflow creation look execute avec succes.',
+      dryRun ? 'Dry run creation look genere.' : 'Workflow creation look execute avec succes.',
       steps,
-      partialErrors
+      partialErrors,
+      { ...(dryRun ? { commands_preview: commandsPreview } : {}) }
     );
   }
 };
@@ -303,7 +330,7 @@ const createCueSeriesInputSchema = {
     beam_palette: z.coerce.number().int().min(1).max(99999).optional(),
     cue_label: z.string().trim().min(1).max(128).optional()
   })).min(1),
-  dry_run: z.boolean().optional(),
+  dry_run: workflowDryRunSchema,
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
@@ -414,6 +441,7 @@ const patchFixtureInputSchema = {
   position_x: z.coerce.number().finite().optional(),
   position_y: z.coerce.number().finite().optional(),
   position_z: z.coerce.number().finite().optional(),
+  dry_run: workflowDryRunSchema,
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
@@ -435,8 +463,10 @@ export const eosWorkflowPatchFixtureTool: ToolDefinition<typeof patchFixtureInpu
   },
   handler: async (args) => {
     const options = workflowObject(patchFixtureInputSchema).parse(args ?? {});
+    const dryRun = options.dry_run === true;
     const steps: WorkflowStepLog[] = [];
     const partialErrors: Array<{ step: string; error: string }> = [];
+    const commandsPreview: string[] = [];
     const execution = buildPatchSequence(options);
     if (execution.fixtureResolution) {
       steps.push({
@@ -447,6 +477,12 @@ export const eosWorkflowPatchFixtureTool: ToolDefinition<typeof patchFixtureInpu
     }
 
     for (const commandStep of execution.commands) {
+      commandsPreview.push(commandStep.command);
+      if (dryRun) {
+        steps.push({ step: commandStep.step, status: 'skipped', command: commandStep.command, detail: 'dry_run' });
+        continue;
+      }
+
       const ok = await runCommandStep(steps, partialErrors, commandStep.step, commandStep.command, options);
       if (!ok) {
         return buildWorkflowResult(
@@ -462,21 +498,24 @@ export const eosWorkflowPatchFixtureTool: ToolDefinition<typeof patchFixtureInpu
     return buildWorkflowResult(
       'eos_workflow_patch_fixture',
       'ok',
-      'Workflow patch fixture execute avec succes.',
+      dryRun ? 'Dry run patch fixture genere.' : 'Workflow patch fixture execute avec succes.',
       steps,
       partialErrors,
-      execution.fixtureResolution
-        ? {
-            fixture_resolution: {
-              manufacturer: execution.fixtureResolution.fixture.manufacturer,
-              model: execution.fixtureResolution.fixture.model,
-              name: execution.fixtureResolution.fixture.name,
-              mode: execution.fixtureResolution.mode.name,
-              device_type: execution.fixtureResolution.deviceType,
-              score: execution.fixtureResolution.score
+      {
+        ...(execution.fixtureResolution
+          ? {
+              fixture_resolution: {
+                manufacturer: execution.fixtureResolution.fixture.manufacturer,
+                model: execution.fixtureResolution.fixture.model,
+                name: execution.fixtureResolution.fixture.name,
+                mode: execution.fixtureResolution.mode.name,
+                device_type: execution.fixtureResolution.deviceType,
+                score: execution.fixtureResolution.score
+              }
             }
-          }
-        : {}
+          : {}),
+        ...(dryRun ? { commands_preview: commandsPreview } : {})
+      }
     );
   }
 };
@@ -500,7 +539,7 @@ const autopatchBandInputSchema = {
   face_trad_universe: z.coerce.number().int().min(1).max(999).optional(),
   face_trad_start_address: z.coerce.number().int().min(1).max(512).optional(),
   face_trad_label_prefix: z.string().trim().min(1).max(128).optional(),
-  dry_run: z.boolean().optional(),
+  dry_run: workflowDryRunSchema,
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
@@ -524,6 +563,7 @@ export const eosWorkflowAutopatchBandTool: ToolDefinition<typeof autopatchBandIn
     const options = workflowObject(autopatchBandInputSchema).parse(args ?? {});
     const dryRun = options.dry_run === true;
     const logs: Array<Record<string, unknown>> = [];
+    const steps: WorkflowStepLog[] = [];
     const commandsPreview: string[] = [];
     const partialErrors: Array<{ step: string; error: string }> = [];
     let channel = 1;
@@ -564,12 +604,24 @@ export const eosWorkflowAutopatchBandTool: ToolDefinition<typeof autopatchBandIn
 
           for (const command of execution.commands) {
             commandsPreview.push(command.command);
-            if (!dryRun) {
-              const executionResult = await executePatchSequence([command], options);
-              partialErrors.push(...executionResult.partialErrors);
-              if (!executionResult.success) {
-                throw new Error(executionResult.partialErrors[executionResult.partialErrors.length - 1]?.error ?? 'Erreur patch');
-              }
+            if (dryRun) {
+              steps.push({ step: `fixture_${channel}_${command.step}`, status: 'skipped', command: command.command, detail: 'dry_run' });
+              continue;
+            }
+
+            const executionResult = await executePatchSequence([command], options);
+            steps.push(...executionResult.steps.map((step) => ({
+              step: `fixture_${channel}_${step.step}`,
+              status: step.status,
+              command: step.command,
+              ...(step.error != null ? { error: step.error } : {})
+            })));
+            partialErrors.push(...executionResult.partialErrors.map((entry) => ({
+              step: `fixture_${channel}_${entry.step}`,
+              error: entry.error
+            })));
+            if (!executionResult.success) {
+              throw new Error(executionResult.partialErrors[executionResult.partialErrors.length - 1]?.error ?? 'Erreur patch');
             }
           }
 
@@ -602,7 +654,7 @@ export const eosWorkflowAutopatchBandTool: ToolDefinition<typeof autopatchBandIn
       'eos_workflow_autopatch_band',
       hasErrors ? 'partial_failure' : 'ok',
       dryRun ? 'Dry run autopatch band genere.' : 'Workflow autopatch band execute.',
-      [],
+      steps,
       partialErrors,
       {
         fixture_logs: logs,
@@ -620,6 +672,7 @@ const rehearsalGoSafeInputSchema = {
   rollback_on_failure: z.boolean().optional(),
   precheck_timeout_ms: optionalTimeoutMsSchema.refine((value) => value == null || value <= 10000, { message: 'precheck_timeout_ms doit etre <= 10000.' }),
   allow_non_empty_command_line: z.boolean().optional(),
+  dry_run: workflowDryRunSchema,
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
@@ -642,7 +695,7 @@ const buildGroupsAndPalettesInputSchema = {
     channels: z.string().trim().min(1).max(256),
     description: z.string().trim().min(1).max(256).optional()
   })).optional(),
-  dry_run: z.boolean().optional(),
+  dry_run: workflowDryRunSchema,
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
@@ -653,7 +706,7 @@ const updateCueLookInputSchema = {
   intensity_factor: z.coerce.number().finite().positive().optional(),
   desaturate: z.boolean().optional(),
   warmify: z.boolean().optional(),
-  dry_run: z.boolean().optional(),
+  dry_run: workflowDryRunSchema,
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
@@ -686,8 +739,43 @@ export const eosWorkflowRehearsalGoSafeTool: ToolDefinition<typeof rehearsalGoSa
         }
       })
       .parse(args ?? {});
+    const dryRun = options.dry_run === true;
     const steps: WorkflowStepLog[] = [];
     const partialErrors: Array<{ step: string; error: string }> = [];
+
+    const goIdentifier = createCueIdentifierFromOptions({
+      cuelist_number: options.cuelist_number,
+      ...(options.cue_number != null ? { cue_number: options.cue_number } : {})
+    });
+
+    const goCommand = options.cue_number == null
+      ? `Cue ${options.cuelist_number} Go`
+      : `Go To Cue ${options.cuelist_number}/${String(options.cue_number).trim()}`;
+    const rollbackCommand = options.rollback_on_failure && options.rollback_cue_number != null
+      ? (options.rollback_cuelist_number == null
+          ? `Go To Cue ${String(options.rollback_cue_number).trim()}`
+          : `Go To Cue ${options.rollback_cuelist_number}/${String(options.rollback_cue_number).trim()}`)
+      : null;
+    const commandsPreview = rollbackCommand == null ? [goCommand] : [goCommand, rollbackCommand];
+
+    if (dryRun) {
+      steps.push({ step: 'precheck_console_state', status: 'skipped', detail: 'dry_run' });
+      steps.push({ step: 'go', status: 'skipped', command: goCommand, detail: 'dry_run' });
+      if (rollbackCommand != null) {
+        steps.push({ step: 'rollback', status: 'skipped', command: rollbackCommand, detail: 'dry_run_conditional_on_go_failure' });
+      } else {
+        steps.push({ step: 'rollback', status: 'skipped', detail: 'rollback_not_requested' });
+      }
+      return buildWorkflowResult(
+        'eos_workflow_rehearsal_go_safe',
+        'ok',
+        `Dry run GO safe genere pour ${formatCueDescription(goIdentifier)}.`,
+        steps,
+        partialErrors,
+        { commands_preview: commandsPreview }
+      );
+    }
+
     const client = getOscClient();
 
     const precheck = await client.getCommandLine({
@@ -725,15 +813,6 @@ export const eosWorkflowRehearsalGoSafeTool: ToolDefinition<typeof rehearsalGoSa
 
     steps.push({ step: 'precheck_console_state', status: 'ok', detail: 'command_line_empty' });
 
-    const goIdentifier = createCueIdentifierFromOptions({
-      cuelist_number: options.cuelist_number,
-      ...(options.cue_number != null ? { cue_number: options.cue_number } : {})
-    });
-
-    const goCommand = options.cue_number == null
-      ? `Cue ${options.cuelist_number} Go`
-      : `Go To Cue ${options.cuelist_number}/${String(options.cue_number).trim()}`;
-
     const goOk = await runCommandStep(steps, partialErrors, 'go', goCommand, options);
     if (goOk) {
       return buildWorkflowResult(
@@ -745,10 +824,7 @@ export const eosWorkflowRehearsalGoSafeTool: ToolDefinition<typeof rehearsalGoSa
       );
     }
 
-    if (options.rollback_on_failure && options.rollback_cue_number != null) {
-      const rollbackCommand = options.rollback_cuelist_number == null
-        ? `Go To Cue ${String(options.rollback_cue_number).trim()}`
-        : `Go To Cue ${options.rollback_cuelist_number}/${String(options.rollback_cue_number).trim()}`;
+    if (rollbackCommand != null) {
       const rollbackOk = await runCommandStep(steps, partialErrors, 'rollback', rollbackCommand, options);
       if (!rollbackOk) {
         return buildWorkflowResult(

@@ -44,4 +44,15 @@ describe('tool JSON schemas', () => {
     expect((cueGoSchema?.definitions as Record<string, { additionalProperties?: boolean }>).eos_cue_go.additionalProperties).toBe(false);
   });
 
+
+  it('publie dry_run sur tous les workflows', () => {
+    const workflowSchemas = toolJsonSchemas.filter((schema) => schema.name.startsWith('eos_workflow_'));
+
+    expect(workflowSchemas.length).toBeGreaterThan(0);
+    for (const schema of workflowSchemas) {
+      const definition = (schema.schema.definitions as Record<string, { properties?: Record<string, unknown> }>)[schema.name];
+      expect(definition.properties).toHaveProperty('dry_run');
+    }
+  });
+
 });

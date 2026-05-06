@@ -100,6 +100,28 @@ describe('workflow tools', () => {
     ]);
   });
 
+  it('genere commands_preview en dry run pour create_look sans envoyer de commande', async () => {
+    const result = await runTool(eosWorkflowCreateLookTool, {
+      channels: '1 Thru 3',
+      cue_number: 101,
+      color_palette: 11,
+      dry_run: true
+    });
+
+    expect(service.sentMessages).toHaveLength(0);
+    const structured = getStructuredContent(result);
+    expect(structured?.commandsSent).toEqual([]);
+    expect(structured?.commands_preview).toEqual([
+      'Chan 1 Thru 3',
+      'CP 11',
+      'Record Cue 101'
+    ]);
+    expect(structured?.command_log).toEqual(expect.arrayContaining([
+      expect.objectContaining({ step: 'select_channels', status: 'skipped', command: 'Chan 1 Thru 3' })
+    ]));
+  });
+
+
   it('orchestre eos_workflow_create_effect avec groupe optionnel et parametres', async () => {
     const result = await runTool(eosWorkflowCreateEffectTool, {
       channels: '1 Thru 6',
@@ -323,6 +345,26 @@ describe('workflow tools', () => {
     ]);
   });
 
+  it('genere commands_preview en dry run pour patch_fixture', async () => {
+    const result = await runTool(eosWorkflowPatchFixtureTool, {
+      channel_number: 201,
+      dmx_address: '2/101',
+      device_type: 'LED Wash',
+      label: 'Contre',
+      dry_run: true
+    });
+
+    expect(service.sentMessages).toHaveLength(0);
+    const structured = getStructuredContent(result);
+    expect(structured?.commandsSent).toEqual([]);
+    expect(structured?.commands_preview).toEqual([
+      'Patch Chan 201 Part 1 Address 2/101 Type "LED Wash"',
+      'Chan 201 Part 1 Label "Contre"',
+      'Chan 201 Part 1 Position X 0 Y 0 Z 0'
+    ]);
+  });
+
+
   it('bloque rehearsal_go_safe si la ligne de commande est non vide', async () => {
     service.commandLineText = 'Chan 1 At Full';
 
@@ -360,6 +402,25 @@ describe('workflow tools', () => {
     expect(structured?.status).toBe('partial_failure');
     expect(structured?.commandsSent).toEqual(['Go To Cue 1/15', 'Go To Cue 10']);
   });
+
+  it('genere commands_preview en dry run pour rehearsal_go_safe sans precheck OSC', async () => {
+    service.commandLineText = 'Chan 1 At Full';
+
+    const result = await runTool(eosWorkflowRehearsalGoSafeTool, {
+      cuelist_number: 1,
+      cue_number: 15,
+      rollback_on_failure: true,
+      rollback_cue_number: 10,
+      dry_run: true
+    });
+
+    expect(service.sentMessages).toHaveLength(0);
+    const structured = getStructuredContent(result);
+    expect(structured?.status).toBe('ok');
+    expect(structured?.commandsSent).toEqual([]);
+    expect(structured?.commands_preview).toEqual(['Go To Cue 1/15', 'Go To Cue 10']);
+  });
+
 
   it('genere commands_preview en dry run pour autopatch band', async () => {
     const result = await runTool(eosWorkflowAutopatchBandTool, {
