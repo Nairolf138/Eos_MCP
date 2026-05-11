@@ -11,6 +11,21 @@ Tous les workflows `eos_workflow_*` exposent `dry_run` en option. Quand `dry_run
 
 Quand `dry_run=true`, aucune commande EOS n'est envoyee via `sendDeterministicCommand`; la sequence EOS complete est retournee dans `structuredContent.commands_preview`, et `structuredContent.commandsSent` reste vide. Les garde-fous sensibles restent portes par les tools bas niveau et ne sont pas exposes dans les schemas workflow.
 
+## Safety pattern
+
+> **Plan -> dry-run -> confirmation -> execution.** Pour toute modification de show (cue, patch, palette, commande texte ou declenchement live), l’assistant doit annoncer le plan d’action, proposer un dry-run avec preview des commandes, puis executer en reel uniquement apres confirmation explicite de l’operateur.
+
+Exemple concret pour modifier une cue :
+
+1. **Plan annonce** : "Je vais mettre a jour la cue 12 de la liste 1 sur les canaux `1 Thru 10`, appliquer un facteur d’intensite `0.7`, puis preparer l’update sans l’envoyer."
+2. **Dry-run propose** : appeler `eos_workflow_update_cue_look` avec `dry_run=true` afin de retourner `structuredContent.commands_preview`, par exemple `Chan 1 Thru 10 At * 0.7` puis `Update Cue 1 / 12`.
+3. **Confirmation explicite** : attendre une reponse non ambigue, par exemple "Confirme, execute la mise a jour de la cue 12".
+4. **Execution reelle** : relancer le meme workflow avec `dry_run=false` seulement apres cette confirmation, puis verifier `structuredContent.command_log` et `structuredContent.commandsSent`.
+
+Les **outils bas niveau sensibles** (`eos_cue_record`, `eos_cue_update`, `eos_patch_*`, `eos_command`, `eos_new_command`, declenchements `fire`, etc.) exposent des garde-fous stricts comme `require_confirmation`, `safety_level` et le rejet des arguments inconnus. Ils sont adaptes aux integrations qui savent exactement quelle commande EOS envoyer.
+
+Les **workflows haut niveau guides** (`eos_workflow_*`) orchestrent plusieurs commandes metier, acceptent des metadonnees clientes inconnues sans les executer et fournissent une preview complete via `dry_run=true`. Ils sont a privilegier pour les assistants conversationnels, car ils imposent un parcours operateur plus lisible avant toute action destructive ou visible en live.
+
 ## Options communes de securite (outils critiques)
 
 Les outils critiques des familles **cues**, **patch**, **palettes** et **commandes texte** exposent les options suivantes :
