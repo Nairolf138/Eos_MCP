@@ -46,6 +46,7 @@ const definitions = [
   eosPingTool,
   eosResetTool,
   eosSubscribeTool,
+  ...workflowTools,
   ...commandTools,
   ...channelTools,
   ...groupTools,
@@ -71,8 +72,7 @@ const definitions = [
   ...fpeTools,
   ...dmxTools,
   ...sessionTools,
-  ...programmingTools,
-  ...workflowTools
+  ...programmingTools
 ];
 
 export const toolDefinitions = definitions as ToolDefinition[];

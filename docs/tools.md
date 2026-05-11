@@ -3315,9 +3315,9 @@ oscsend 127.0.0.1 8001 /eos/param/wheel/tick s:'{"parameter_name":"exemple","tic
 ```
 
 <a id="eos-workflow-autopatch-band"></a>
-## Workflow autopatch band (`eos_workflow_autopatch_band`)
+## Patch complet du groupe sur scene (`eos_workflow_autopatch_band`)
 
-**Description :** Patche sequentiellement plusieurs blocs de fixtures avec option face trad.
+**Description :** Point d entree naturel pour patcher tout un patch band: blocs de fixtures, adresses DMX, labels et option face trad en une seule sequence.
 
 **Arguments :**
 
@@ -3349,9 +3349,9 @@ _OSC_
 _Pas de mapping OSC documenté._
 
 <a id="eos-workflow-build-groups-and-palettes"></a>
-## Workflow build groups and palettes (`eos_workflow_build_groups_and_palettes`)
+## Construire groupes et palettes (`eos_workflow_build_groups_and_palettes`)
 
-**Description :** Construit des groupes, color palettes et focus palettes en sequence.
+**Description :** Point d entree naturel pour preparer un show: enregistrer des groupes de canaux puis creer et nommer les color palettes et focus palettes associees.
 
 **Arguments :**
 
@@ -3380,9 +3380,9 @@ _OSC_
 _Pas de mapping OSC documenté._
 
 <a id="eos-workflow-create-cue-series"></a>
-## Workflow creation serie de cues (`eos_workflow_create_cue_series`)
+## Programmer une suite de cues reggae (`eos_workflow_create_cue_series`)
 
-**Description :** Enchaine plusieurs looks et enregistre une serie de cues auto-incrementees.
+**Description :** Point d entree naturel pour generer plusieurs cues musicales ou reggae: looks successifs, palettes couleur/focus/beam et numerotation automatique.
 
 **Arguments :**
 
@@ -3411,9 +3411,9 @@ _OSC_
 _Pas de mapping OSC documenté._
 
 <a id="eos-workflow-create-effect"></a>
-## Workflow creation d'effet (`eos_workflow_create_effect`)
+## Creer un effet fly-out (`eos_workflow_create_effect`)
 
-**Description :** Enregistre un groupe optionnel, assigne un effet a des canaux, applique speed/size/direction puis enregistre l'effet.
+**Description :** Point d entree naturel pour creer un fly-out ou effet de mouvement: assignation aux canaux, groupe optionnel, direction center-out/left-right, speed et size.
 
 **Arguments :**
 
@@ -3556,9 +3556,9 @@ _OSC_
 _Pas de mapping OSC documenté._
 
 <a id="eos-workflow-update-cue-look"></a>
-## Workflow update cue look (`eos_workflow_update_cue_look`)
+## Mettre a jour le look d une cue (`eos_workflow_update_cue_look`)
 
-**Description :** Va a une cue, applique des modifications explicites, puis met a jour la cue.
+**Description :** Point d entree naturel pour modifier une cue existante ou courante: aller a la cue, selectionner les canaux, ajuster l intensite puis lancer Update.
 
 **Arguments :**
 
