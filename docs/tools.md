@@ -38,6 +38,208 @@ Workflows tolerants recenses :
 - `eos_workflow_rehearsal_go_safe`
 - `eos_workflow_update_cue_look`
 
+## Exemples rapides par workflow naturel
+
+Les payloads ci-dessous utilisent le format MCP `tools/call` complet. Les exemples gardent `dry_run=true` pour previsualiser les commandes sans modifier la console; passez `dry_run=false` ou omettez le champ pour executer reellement le workflow.
+
+### Workflow autopatch band
+
+**Phrase utilisateur :** "patch moi 10 Mac Aura a partir du 1/1, puis 4 faces trad en univers 2."
+
+**Payload MCP complet :**
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "workflow-autopatch-band-1",
+  "method": "tools/call",
+  "params": {
+    "name": "eos_workflow_autopatch_band",
+    "arguments": {
+      "fixtures": [
+        {
+          "count": 10,
+          "fixture_manufacturer": "Martin",
+          "fixture_model": "MAC Aura",
+          "fixture_mode": "Extended",
+          "universe": 1,
+          "start_address": 1,
+          "label_prefix": "Mac Aura"
+        }
+      ],
+      "include_face_trad": true,
+      "face_trad_count": 4,
+      "face_trad_universe": 2,
+      "face_trad_start_address": 1,
+      "face_trad_label_prefix": "Face Trad",
+      "dry_run": true
+    }
+  }
+}
+```
+
+**Options et valeurs par defaut :** `fixtures` est obligatoire. Chaque fixture du bloc est espacee automatiquement de 10 adresses DMX estimees. `include_face_trad=false` par defaut; si `include_face_trad=true`, les valeurs par defaut sont `face_trad_count=4`, `face_trad_universe=1`, `face_trad_start_address=1`, `face_trad_label_prefix="Face Trad"` et `fixture_query="trad"`. `dry_run` absent vaut `false`. `targetAddress`, `targetPort` et `user` sont optionnels.
+
+### Workflow cue series
+
+**Phrase utilisateur :** "crée moi 10 cues reggae avec des ambiances rouge, jaune et vert sur les Mac Aura."
+
+**Payload MCP complet :**
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "workflow-cue-series-1",
+  "method": "tools/call",
+  "params": {
+    "name": "eos_workflow_create_cue_series",
+    "arguments": {
+      "base_cuelist_number": 1,
+      "start_cue_number": 10,
+      "looks": [
+        {
+          "channels": "1 Thru 10",
+          "color_palette": 101,
+          "focus_palette": 201,
+          "beam_palette": 301,
+          "cue_label": "Reggae rouge"
+        },
+        {
+          "channels": "1 Thru 10",
+          "color_palette": 102,
+          "focus_palette": 202,
+          "beam_palette": 301,
+          "cue_label": "Reggae jaune"
+        },
+        {
+          "channels": "1 Thru 10",
+          "color_palette": 103,
+          "focus_palette": 203,
+          "beam_palette": 302,
+          "cue_label": "Reggae vert"
+        }
+      ],
+      "dry_run": true
+    }
+  }
+}
+```
+
+**Options et valeurs par defaut :** `looks` est obligatoire et doit contenir au moins un look; chaque look requiert `channels`. `start_cue_number` vaut `1` par defaut et s'auto-incremente si un look ne precise pas `cue_number`. `base_cuelist_number` absent utilise la cuelist master. `color_palette`, `focus_palette`, `beam_palette` et `cue_label` sont optionnels par look. Pour "10 cues", envoyez 10 objets dans `looks` ou ajoutez des `cue_number` explicites pour les positions particulieres.
+
+### Workflow groups/palettes
+
+**Phrase utilisateur :** "prépare les groupes Mac Aura et Trad, puis les palettes rouge, ambre et centre."
+
+**Payload MCP complet :**
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "workflow-groups-palettes-1",
+  "method": "tools/call",
+  "params": {
+    "name": "eos_workflow_build_groups_and_palettes",
+    "arguments": {
+      "groups": [
+        {
+          "number": 1,
+          "label": "Mac Aura",
+          "channels": "1 Thru 10"
+        },
+        {
+          "number": 2,
+          "label": "Face Trad",
+          "channels": "11 Thru 14"
+        }
+      ],
+      "color_palettes": [
+        {
+          "number": 101,
+          "label": "Rouge reggae",
+          "channels": "1 Thru 10",
+          "hue": "Red",
+          "saturation": 100
+        },
+        {
+          "number": 102,
+          "label": "Ambre reggae",
+          "channels": "1 Thru 14",
+          "hue": "Amber",
+          "saturation": 80
+        }
+      ],
+      "focus_palettes": [
+        {
+          "number": 201,
+          "label": "Centre scene",
+          "channels": "1 Thru 10",
+          "description": "Pan 0 Tilt -20"
+        }
+      ],
+      "dry_run": true
+    }
+  }
+}
+```
+
+**Options et valeurs par defaut :** `groups`, `color_palettes` et `focus_palettes` sont tous optionnels, ce qui permet d'envoyer seulement les blocs necessaires. Dans un groupe, `number`, `label` et `channels` sont requis. Dans une color palette, `hue` et `saturation` sont optionnels. Dans une focus palette, `description` est optionnel et envoye comme commande libre avant l'enregistrement de la palette. `dry_run` absent vaut `false`.
+
+### Workflow update cue look
+
+**Phrase utilisateur :** "mets a jour la cue 12 en baissant les Mac Aura a 70% et en rechauffant le look."
+
+**Payload MCP complet :**
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "workflow-update-cue-look-1",
+  "method": "tools/call",
+  "params": {
+    "name": "eos_workflow_update_cue_look",
+    "arguments": {
+      "cuelist_number": 1,
+      "cue_number": 12,
+      "channels": "1 Thru 10",
+      "intensity_factor": 0.7,
+      "warmify": true,
+      "dry_run": true
+    }
+  }
+}
+```
+
+**Options et valeurs par defaut :** `channels` est obligatoire. Si `cue_number` est absent, le workflow applique `Update Cue` sur la cue courante. Si `cue_number` est fourni sans `cuelist_number`, la cuelist master est utilisee. `intensity_factor` est optionnel et genere `At * <valeur>`. `warmify` et `desaturate` sont acceptes mais documentes comme transformations artistiques non calculees en v1; aucune commande implicite supplementaire n'est envoyee pour ces deux options. `dry_run` absent vaut `false`.
+
+### Workflow flyout effect
+
+**Phrase utilisateur :** "crée un flyout center-out sur les Mac Aura, effet 21, rapide et assez large."
+
+**Payload MCP complet :**
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "workflow-flyout-effect-1",
+  "method": "tools/call",
+  "params": {
+    "name": "eos_workflow_create_effect",
+    "arguments": {
+      "channels": "1 Thru 10",
+      "effect_number": 21,
+      "group_number": 1,
+      "direction": "center_out",
+      "speed": 1.8,
+      "size": 140,
+      "dry_run": true
+    }
+  }
+}
+```
+
+**Options et valeurs par defaut :** `channels` et `effect_number` sont obligatoires. `group_number` est optionnel; s'il est fourni, le workflow enregistre d'abord le groupe correspondant. `direction` vaut `left_to_right` par defaut et accepte aussi `right_to_left` ou `center_out`. `speed` vaut `1` par defaut et `size` vaut `100` par defaut. `dry_run` absent vaut `false`.
+
 ## Outils mis en avant
 
 | Outil | Résumé | Lien |
