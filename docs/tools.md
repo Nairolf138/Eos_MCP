@@ -11,6 +11,8 @@ Tous les workflows `eos_workflow_*` exposent `dry_run` en option. Quand `dry_run
 
 Quand `dry_run=true`, aucune commande EOS n'est envoyee via `sendDeterministicCommand`; la sequence EOS complete est retournee dans `structuredContent.commands_preview`, et `structuredContent.commandsSent` reste vide. Les garde-fous sensibles restent portes par les tools bas niveau et ne sont pas exposes dans les schemas workflow.
 
+Tous les workflows retournent aussi une structure stable et lisible par les LLM : `structuredContent.steps` (alias moderne de `executedSteps`), `structuredContent.commands_preview` (toujours present), `structuredContent.applied_defaults` (defaults explicites comme `start_cue_number=1` ou fallback cuelist master) et `structuredContent.warnings` (avertissements non bloquants et erreurs partielles resumées).
+
 ## Safety pattern
 
 > **Plan -> dry-run -> confirmation -> execution.** Pour toute modification de show (cue, patch, palette, commande texte ou declenchement live), l’assistant doit annoncer le plan d’action, proposer un dry-run avec preview des commandes, puis executer en reel uniquement apres confirmation explicite de l’operateur.
@@ -52,6 +54,14 @@ Workflows tolerants recenses :
 - `eos_workflow_patch_fixture`
 - `eos_workflow_rehearsal_go_safe`
 - `eos_workflow_update_cue_look`
+
+## Checklist release interne — LLM-friendly workflows
+
+- [ ] Verifier que chaque nouveau workflow `eos_workflow_*` utilise un schema `passthrough()` au niveau racine et sur les objets imbriques pertinents afin d accepter les metadonnees clientes sans les executer.
+- [ ] Documenter chaque valeur par defaut observable (`dry_run=false`, `start_cue_number=1`, fallback cuelist master si `cuelist_number` ou `base_cuelist_number` est absent, defaults `direction/speed/size`, defaults `face_trad_*`, position 3D `0/0/0`).
+- [ ] Confirmer que `structuredContent.steps`, `commands_preview`, `applied_defaults` et `warnings` sont toujours presents et restent des tableaux lisibles par un LLM.
+- [ ] Comparer les noms des tools entre `src/tools/workflows/index.ts`, `manifest.json` (`featured_workflows` et `presentation_order`) et `docs/tools.md`; aucun alias divergent ne doit etre publie.
+- [ ] Executer `npm run docs:check`, `npm run lint:manifest` et les tests workflows avant tag/release.
 
 ## Exemples rapides par workflow naturel
 

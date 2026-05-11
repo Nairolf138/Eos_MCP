@@ -2,6 +2,8 @@
  * Copyright 2026 Florian Ribes (NairolfConcept)
  * SPDX-License-Identifier: Apache-2.0
  */
+import fs from 'node:fs';
+import path from 'node:path';
 import type { OscMessage } from '../../../services/osc/index';
 import { OscClient, setOscClient, type OscGateway, type OscGatewaySendOptions } from '../../../services/osc/client';
 import { runTool, getStructuredContent } from '../../__tests__/helpers/runTool';
@@ -237,6 +239,136 @@ describe('workflow tools', () => {
         client_request_id: 'abc-123'
       })
     ).rejects.toThrow(/Unrecognized key/);
+  });
+
+  it('accepte le passthrough et retourne une structure LLM stable sur tous les workflows', async () => {
+    const workflowCases = [
+      {
+        tool: eosWorkflowCreateLookTool,
+        args: { channels: '1', cue_number: 1, dry_run: true, client_trace_id: 'trace-create-look' }
+      },
+      {
+        tool: eosWorkflowCreateEffectTool,
+        args: { channels: '1', effect_number: 1, dry_run: true, client_trace_id: 'trace-create-effect' }
+      },
+      {
+        tool: eosWorkflowCreateCueSeriesTool,
+        args: {
+          looks: [{ channels: '1', cue_label: 'A', client_note: 'nested passthrough' }],
+          dry_run: true,
+          client_trace_id: 'trace-cue-series'
+        }
+      },
+      {
+        tool: eosWorkflowPatchFixtureTool,
+        args: {
+          channel_number: 1,
+          dmx_address: '1/1',
+          device_type: 'Dimmer',
+          label: 'Dimmer 1',
+          dry_run: true,
+          client_trace_id: 'trace-patch-fixture'
+        }
+      },
+      {
+        tool: eosWorkflowAutopatchBandTool,
+        args: {
+          fixtures: [{ count: 1, fixture_query: 'Spica', universe: 1, start_address: 1, label_prefix: 'Wash', client_note: 'nested passthrough' }],
+          dry_run: true,
+          client_trace_id: 'trace-autopatch-band'
+        }
+      },
+      {
+        tool: eosWorkflowRehearsalGoSafeTool,
+        args: { cuelist_number: 1, dry_run: true, client_trace_id: 'trace-rehearsal-go-safe' }
+      },
+      {
+        tool: eosWorkflowBuildGroupsAndPalettesTool,
+        args: {
+          groups: [{ number: 1, label: 'Face', channels: '1', client_note: 'nested passthrough' }],
+          dry_run: true,
+          client_trace_id: 'trace-groups-palettes'
+        }
+      },
+      {
+        tool: eosWorkflowUpdateCueLookTool,
+        args: { channels: '1', dry_run: true, client_trace_id: 'trace-update-cue-look' }
+      }
+    ];
+
+    for (const workflowCase of workflowCases) {
+      const result = await runTool(workflowCase.tool, workflowCase.args);
+      const structured = getStructuredContent(result);
+      expect(structured?.workflow).toBe(workflowCase.tool.name);
+      expect(Array.isArray(structured?.steps)).toBe(true);
+      expect(Array.isArray(structured?.commands_preview)).toBe(true);
+      expect(Array.isArray(structured?.applied_defaults)).toBe(true);
+      expect(Array.isArray(structured?.warnings)).toBe(true);
+      expect(structured).not.toHaveProperty('client_trace_id');
+    }
+  });
+
+  it('expose les defaults documentes dans applied_defaults', async () => {
+    const cueSeriesResult = await runTool(eosWorkflowCreateCueSeriesTool, {
+      looks: [{ channels: '7', cue_label: 'Solo' }],
+      dry_run: true
+    });
+    const cueSeriesStructured = getStructuredContent(cueSeriesResult);
+    expect(cueSeriesStructured?.applied_defaults).toEqual(expect.arrayContaining([
+      {
+        step: 'default_base_cuelist_number',
+        detail: 'base_cuelist_number absent: utilisation automatique de la cuelist master.'
+      },
+      {
+        step: 'default_start_cue_number',
+        detail: 'start_cue_number absent: valeur par defaut 1 appliquee automatiquement.'
+      },
+      {
+        step: 'look_1_default_cue_number',
+        detail: 'cue_number absent: auto-increment applique avec la valeur 1.'
+      }
+    ]));
+
+    const updateResult = await runTool(eosWorkflowUpdateCueLookTool, {
+      cue_number: 5,
+      channels: '9',
+      dry_run: true
+    });
+    const updateStructured = getStructuredContent(updateResult);
+    expect(updateStructured?.applied_defaults).toEqual(expect.arrayContaining([
+      {
+        step: 'default_cuelist_number',
+        detail: 'cuelist_number absent: utilisation automatique de la cuelist master pour la cue cible.'
+      }
+    ]));
+  });
+
+  it('garde les noms de workflows homogenes entre code, manifest et docs', () => {
+    const repoRoot = path.resolve(__dirname, '../../../..');
+    const manifest = JSON.parse(fs.readFileSync(path.join(repoRoot, 'manifest.json'), 'utf8')) as {
+      mcp: { capabilities: { tools: { presentation_order: string[]; featured_workflows: Array<{ id: string }> } } };
+    };
+    const docs = fs.readFileSync(path.join(repoRoot, 'docs/tools.md'), 'utf8');
+    const codeWorkflowNames = [
+      eosWorkflowCreateLookTool,
+      eosWorkflowCreateEffectTool,
+      eosWorkflowCreateCueSeriesTool,
+      eosWorkflowPatchFixtureTool,
+      eosWorkflowAutopatchBandTool,
+      eosWorkflowRehearsalGoSafeTool,
+      eosWorkflowBuildGroupsAndPalettesTool,
+      eosWorkflowUpdateCueLookTool
+    ].map((tool) => tool.name).sort();
+    const manifestWorkflowNames = manifest.mcp.capabilities.tools.presentation_order.filter((name) => name.startsWith('eos_workflow_')).sort();
+
+    expect(manifestWorkflowNames).toEqual(codeWorkflowNames);
+    for (const workflow of manifest.mcp.capabilities.tools.featured_workflows) {
+      expect(codeWorkflowNames).toContain(workflow.id);
+      expect(docs).toContain(`\`${workflow.id}\``);
+    }
+    for (const name of codeWorkflowNames) {
+      expect(docs).toContain(`\`${name}\``);
+    }
   });
 
   it('orchestre eos_workflow_create_cue_series avec increment automatique des cues', async () => {

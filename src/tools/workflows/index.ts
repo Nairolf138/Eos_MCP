@@ -50,6 +50,44 @@ interface WorkflowStepLog {
   error?: string;
 }
 
+interface WorkflowAppliedDefault {
+  step: string;
+  detail: string;
+}
+
+interface WorkflowWarning {
+  step: string;
+  detail: string;
+}
+
+function isDefaultStep(step: WorkflowStepLog): boolean {
+  return step.step.startsWith('default_') || step.step.includes('_default_');
+}
+
+function buildAppliedDefaults(steps: WorkflowStepLog[]): WorkflowAppliedDefault[] {
+  return steps
+    .filter((step) => isDefaultStep(step) && typeof step.detail === 'string')
+    .map((step) => ({ step: step.step, detail: step.detail! }));
+}
+
+function buildWarnings(steps: WorkflowStepLog[], partialErrors: Array<{ step: string; error: string }>): WorkflowWarning[] {
+  const skippedWarnings = steps
+    .filter((step) =>
+      step.status === 'skipped'
+      && typeof step.detail === 'string'
+      && step.detail !== 'dry_run'
+      && step.detail !== 'dry_run_conditional_on_go_failure'
+      && step.detail !== 'rollback_not_requested'
+      && !isDefaultStep(step)
+    )
+    .map((step) => ({ step: step.step, detail: step.detail! }));
+
+  return [
+    ...skippedWarnings,
+    ...partialErrors.map((entry) => ({ step: entry.step, detail: entry.error }))
+  ];
+}
+
 function buildWorkflowResult(
   workflow: string,
   status: 'ok' | 'partial_failure' | 'failed',
@@ -58,6 +96,7 @@ function buildWorkflowResult(
   partialErrors: Array<{ step: string; error: string }>,
   extraStructuredContent: Record<string, unknown> = {}
 ): ToolExecutionResult {
+  const { commands_preview: explicitCommandsPreview, ...restStructuredContent } = extraStructuredContent;
   const commandLog = steps
     .filter((step) => typeof step.command === 'string')
     .map((step) => ({
@@ -67,19 +106,26 @@ function buildWorkflowResult(
       ...(step.detail != null ? { detail: step.detail } : {}),
       ...(step.error != null ? { error: step.error } : {})
     }));
+  const commandsPreview = Array.isArray(explicitCommandsPreview)
+    ? explicitCommandsPreview.filter((command): command is string => typeof command === 'string')
+    : commandLog.map((step) => step.command);
 
   return {
     content: [{ type: 'text', text: summary }],
     structuredContent: {
       workflow,
       status,
+      steps,
       executedSteps: steps,
+      commands_preview: commandsPreview,
+      applied_defaults: buildAppliedDefaults(steps),
+      warnings: buildWarnings(steps, partialErrors),
       command_log: commandLog,
       commandsSent: commandLog
         .filter((step) => step.status !== 'skipped')
         .map((step) => step.command),
       partialErrors,
-      ...extraStructuredContent
+      ...restStructuredContent
     }
   };
 }
