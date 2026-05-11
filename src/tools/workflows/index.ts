@@ -21,6 +21,11 @@ import {
   extractPatchSequenceError
 } from './patchSequence';
 
+const primaryWorkflowAnnotations = {
+  recommended: true,
+  primaryEntryPoint: true
+} satisfies Record<string, unknown>;
+
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
   targetPort: z.coerce.number().int().min(1).max(65535).optional(),
@@ -230,8 +235,8 @@ export const eosWorkflowCreateLookTool: ToolDefinition<typeof createLookInputSch
 
 /**
  * @tool eos_workflow_create_effect
- * @summary Workflow creation d'effet
- * @description Enregistre un groupe optionnel, assigne un effet a des canaux, applique speed/size/direction puis enregistre l'effet.
+ * @summary Creer un effet fly-out
+ * @description Point d entree naturel pour creer un fly-out ou effet de mouvement: assignation aux canaux, groupe optionnel, direction center-out/left-right, speed et size.
  * @arguments Voir docs/tools.md#eos-workflow-create-effect pour le schema complet.
  * @returns ToolExecutionResult avec contenu texte et objet.
  * @example CLI Consultez docs/tools.md#eos-workflow-create-effect pour un exemple CLI.
@@ -240,8 +245,9 @@ export const eosWorkflowCreateLookTool: ToolDefinition<typeof createLookInputSch
 export const eosWorkflowCreateEffectTool: ToolDefinition<typeof createEffectInputSchema> = {
   name: 'eos_workflow_create_effect',
   config: {
-    title: "Workflow creation d'effet",
-    description: "Enregistre un groupe optionnel, assigne un effet a des canaux, applique speed/size/direction puis enregistre l'effet.",
+    title: 'Creer un effet fly-out',
+    description: 'Point d entree naturel pour creer un fly-out ou effet de mouvement: assignation aux canaux, groupe optionnel, direction center-out/left-right, speed et size.',
+    annotations: primaryWorkflowAnnotations,
     inputSchema: createEffectInputSchema
   },
   handler: async (args) => {
@@ -336,8 +342,8 @@ const createCueSeriesInputSchema = {
 
 /**
  * @tool eos_workflow_create_cue_series
- * @summary Workflow creation serie de cues
- * @description Enchaine plusieurs looks et enregistre une serie de cues auto-incrementees.
+ * @summary Programmer une suite de cues reggae
+ * @description Point d entree naturel pour generer plusieurs cues musicales ou reggae: looks successifs, palettes couleur/focus/beam et numerotation automatique.
  * @arguments Voir docs/tools.md#eos-workflow-create-cue-series pour le schema complet.
  * @returns ToolExecutionResult avec contenu texte et objet.
  * @example CLI Consultez docs/tools.md#eos-workflow-create-cue-series pour un exemple CLI.
@@ -346,8 +352,9 @@ const createCueSeriesInputSchema = {
 export const eosWorkflowCreateCueSeriesTool: ToolDefinition<typeof createCueSeriesInputSchema> = {
   name: 'eos_workflow_create_cue_series',
   config: {
-    title: 'Workflow creation serie de cues',
-    description: 'Enchaine plusieurs looks et enregistre une serie de cues auto-incrementees.',
+    title: 'Programmer une suite de cues reggae',
+    description: 'Point d entree naturel pour generer plusieurs cues musicales ou reggae: looks successifs, palettes couleur/focus/beam et numerotation automatique.',
+    annotations: primaryWorkflowAnnotations,
     inputSchema: createCueSeriesInputSchema
   },
   handler: async (args) => {
@@ -545,8 +552,8 @@ const autopatchBandInputSchema = {
 
 /**
  * @tool eos_workflow_autopatch_band
- * @summary Workflow autopatch band
- * @description Patche sequentiellement plusieurs blocs de fixtures avec option face trad.
+ * @summary Patch complet du groupe sur scene
+ * @description Point d entree naturel pour patcher tout un patch band: blocs de fixtures, adresses DMX, labels et option face trad en une seule sequence.
  * @arguments Voir docs/tools.md#eos-workflow-autopatch-band pour le schema complet.
  * @returns ToolExecutionResult avec contenu texte et objet.
  * @example CLI Consultez docs/tools.md#eos-workflow-autopatch-band pour un exemple CLI.
@@ -555,8 +562,9 @@ const autopatchBandInputSchema = {
 export const eosWorkflowAutopatchBandTool: ToolDefinition<typeof autopatchBandInputSchema> = {
   name: 'eos_workflow_autopatch_band',
   config: {
-    title: 'Workflow autopatch band',
-    description: 'Patche sequentiellement plusieurs blocs de fixtures avec option face trad.',
+    title: 'Patch complet du groupe sur scene',
+    description: 'Point d entree naturel pour patcher tout un patch band: blocs de fixtures, adresses DMX, labels et option face trad en une seule sequence.',
+    annotations: primaryWorkflowAnnotations,
     inputSchema: autopatchBandInputSchema
   },
   handler: async (args) => {
@@ -851,8 +859,8 @@ export const eosWorkflowRehearsalGoSafeTool: ToolDefinition<typeof rehearsalGoSa
 
 /**
  * @tool eos_workflow_build_groups_and_palettes
- * @summary Workflow build groups and palettes
- * @description Construit des groupes, color palettes et focus palettes en sequence.
+ * @summary Construire groupes et palettes
+ * @description Point d entree naturel pour preparer un show: enregistrer des groupes de canaux puis creer et nommer les color palettes et focus palettes associees.
  * @arguments Voir docs/tools.md#eos-workflow-build-groups-and-palettes pour le schema complet.
  * @returns ToolExecutionResult avec contenu texte et objet.
  * @example CLI Consultez docs/tools.md#eos-workflow-build-groups-and-palettes pour un exemple CLI.
@@ -861,8 +869,9 @@ export const eosWorkflowRehearsalGoSafeTool: ToolDefinition<typeof rehearsalGoSa
 export const eosWorkflowBuildGroupsAndPalettesTool: ToolDefinition<typeof buildGroupsAndPalettesInputSchema> = {
   name: 'eos_workflow_build_groups_and_palettes',
   config: {
-    title: 'Workflow build groups and palettes',
-    description: 'Construit des groupes, color palettes et focus palettes en sequence.',
+    title: 'Construire groupes et palettes',
+    description: 'Point d entree naturel pour preparer un show: enregistrer des groupes de canaux puis creer et nommer les color palettes et focus palettes associees.',
+    annotations: primaryWorkflowAnnotations,
     inputSchema: buildGroupsAndPalettesInputSchema
   },
   handler: async (args) => {
@@ -914,8 +923,8 @@ export const eosWorkflowBuildGroupsAndPalettesTool: ToolDefinition<typeof buildG
 
 /**
  * @tool eos_workflow_update_cue_look
- * @summary Workflow update cue look
- * @description Va a une cue, applique des modifications explicites, puis met a jour la cue.
+ * @summary Mettre a jour le look d une cue
+ * @description Point d entree naturel pour modifier une cue existante ou courante: aller a la cue, selectionner les canaux, ajuster l intensite puis lancer Update.
  * @arguments Voir docs/tools.md#eos-workflow-update-cue-look pour le schema complet.
  * @returns ToolExecutionResult avec contenu texte et objet.
  * @example CLI Consultez docs/tools.md#eos-workflow-update-cue-look pour un exemple CLI.
@@ -924,8 +933,9 @@ export const eosWorkflowBuildGroupsAndPalettesTool: ToolDefinition<typeof buildG
 export const eosWorkflowUpdateCueLookTool: ToolDefinition<typeof updateCueLookInputSchema> = {
   name: 'eos_workflow_update_cue_look',
   config: {
-    title: 'Workflow update cue look',
-    description: 'Va a une cue, applique des modifications explicites, puis met a jour la cue.',
+    title: 'Mettre a jour le look d une cue',
+    description: 'Point d entree naturel pour modifier une cue existante ou courante: aller a la cue, selectionner les canaux, ajuster l intensite puis lancer Update.',
+    annotations: primaryWorkflowAnnotations,
     inputSchema: updateCueLookInputSchema
   },
   handler: async (args) => {

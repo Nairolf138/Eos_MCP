@@ -6,6 +6,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import Ajv, { type JSONSchemaType } from 'ajv';
+import { workflowTools } from '../src/tools/workflows/index';
 
 const HTTP_PUBLIC_URL_PLACEHOLDER = 'http://{HOST}:{PORT}';
 
@@ -31,6 +32,15 @@ interface Manifest {
         invoke_endpoint?: string;
         schema_catalogs?: string[];
         schema_base_path?: string;
+        featured_workflows?: Array<{
+          id: string;
+          title: string;
+          description: string;
+          recommended?: boolean;
+          primary_entry_point?: boolean;
+          annotations?: Record<string, unknown>;
+        }>;
+        presentation_order?: string[];
       };
     };
     schemas?: {
@@ -105,7 +115,34 @@ const manifestSchema: JSONSchemaType<Manifest> = {
                   nullable: true,
                   items: { type: 'string', minLength: 1 }
                 },
-                schema_base_path: { type: 'string', nullable: true }
+                schema_base_path: { type: 'string', nullable: true },
+                featured_workflows: {
+                  type: 'array',
+                  nullable: true,
+                  items: {
+                    type: 'object',
+                    additionalProperties: true,
+                    required: ['id', 'title', 'description'],
+                    properties: {
+                      id: { type: 'string', minLength: 1 },
+                      title: { type: 'string', minLength: 1 },
+                      description: { type: 'string', minLength: 1 },
+                      recommended: { type: 'boolean', nullable: true },
+                      primary_entry_point: { type: 'boolean', nullable: true },
+                      annotations: {
+                        type: 'object',
+                        nullable: true,
+                        required: [],
+                        additionalProperties: true
+                      }
+                    }
+                  }
+                },
+                presentation_order: {
+                  type: 'array',
+                  nullable: true,
+                  items: { type: 'string', minLength: 1 }
+                }
               }
             }
           }
@@ -151,6 +188,82 @@ function ensureToolSchemaLinks(manifest: Manifest): void {
       "Le manifest doit aligner mcp.schemas.tool_catalog sur '/schemas/tools/index.json'."
     );
   }
+}
+
+function ensureUniqueValues(values: string[], context: string): void {
+  const seen = new Set<string>();
+  const duplicates = values.filter((value) => {
+    if (seen.has(value)) {
+      return true;
+    }
+    seen.add(value);
+    return false;
+  });
+
+  if (duplicates.length > 0) {
+    throw new Error(`${context} contient des doublons: ${[...new Set(duplicates)].join(', ')}.`);
+  }
+}
+
+function ensureWorkflowManifestCoherence(manifest: Manifest): void {
+  const tools = manifest.mcp.capabilities.tools;
+  const featuredWorkflows = tools?.featured_workflows ?? [];
+  const presentationOrder = tools?.presentation_order ?? [];
+  const exportedWorkflowIds = workflowTools.map((tool) => tool.name);
+  const exportedWorkflowSet = new Set(exportedWorkflowIds);
+
+  if (featuredWorkflows.length === 0) {
+    throw new Error('Le manifest doit exposer les workflows recommandes dans mcp.capabilities.tools.featured_workflows.');
+  }
+
+  const featuredIds = featuredWorkflows.map((entry) => entry.id);
+  ensureUniqueValues(featuredIds, 'mcp.capabilities.tools.featured_workflows');
+  ensureUniqueValues(presentationOrder, 'mcp.capabilities.tools.presentation_order');
+
+  const unknownFeaturedIds = featuredIds.filter((id) => !exportedWorkflowSet.has(id));
+  if (unknownFeaturedIds.length > 0) {
+    throw new Error(
+      `Le manifest reference des workflows non exportes par workflowTools: ${unknownFeaturedIds.join(', ')}.`
+    );
+  }
+
+  const unknownPresentationIds = presentationOrder.filter((id) => !exportedWorkflowSet.has(id));
+  if (unknownPresentationIds.length > 0) {
+    throw new Error(
+      `mcp.capabilities.tools.presentation_order reference des workflows non exportes: ${unknownPresentationIds.join(', ')}.`
+    );
+  }
+
+  const missingExportedWorkflowIds = exportedWorkflowIds.filter((id) => !presentationOrder.includes(id));
+  if (missingExportedWorkflowIds.length > 0) {
+    throw new Error(
+      `mcp.capabilities.tools.presentation_order doit inclure tous les workflowTools exportes: ${missingExportedWorkflowIds.join(', ')}.`
+    );
+  }
+
+  const featuredPrefix = presentationOrder.slice(0, featuredIds.length);
+  if (featuredPrefix.join('\n') !== featuredIds.join('\n')) {
+    throw new Error(
+      'mcp.capabilities.tools.presentation_order doit commencer par les workflows recommandes, dans le meme ordre que featured_workflows.'
+    );
+  }
+
+  featuredWorkflows.forEach((entry) => {
+    if (entry.title.trim().length === 0 || entry.description.trim().length === 0) {
+      throw new Error(`Le workflow ${entry.id} doit definir title et description dans le manifest.`);
+    }
+
+    if (entry.recommended !== true || entry.primary_entry_point !== true) {
+      throw new Error(`Le workflow ${entry.id} doit etre marque recommended et primary_entry_point dans le manifest.`);
+    }
+
+    const annotations = entry.annotations ?? {};
+    if (annotations.recommended !== true || annotations.primaryEntryPoint !== true) {
+      throw new Error(
+        `Le workflow ${entry.id} doit exposer les annotations recommended et primaryEntryPoint pour les clients compatibles.`
+      );
+    }
+  });
 }
 
 function ensureHttpTransportUrls(manifest: Manifest): void {
@@ -210,6 +323,7 @@ async function main(): Promise<void> {
   }
 
   ensureToolSchemaLinks(manifest);
+  ensureWorkflowManifestCoherence(manifest);
   ensureHttpTransportUrls(manifest);
   console.log('Manifest valide ✅');
 }
