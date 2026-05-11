@@ -687,6 +687,8 @@ function buildDocumentation(tools: ToolDefinition[]): { markdown: string; metada
   lines.push('');
   lines.push("Quand `dry_run=true`, aucune commande EOS n'est envoyee via `sendDeterministicCommand`; la sequence EOS complete est retournee dans `structuredContent.commands_preview`, et `structuredContent.commandsSent` reste vide. Les garde-fous sensibles restent portes par les tools bas niveau et ne sont pas exposes dans les schemas workflow.");
   lines.push('');
+  lines.push('Tous les workflows retournent aussi une structure stable et lisible par les LLM : `structuredContent.steps` (alias moderne de `executedSteps`), `structuredContent.commands_preview` (toujours present), `structuredContent.applied_defaults` (defaults explicites comme `start_cue_number=1` ou fallback cuelist master) et `structuredContent.warnings` (avertissements non bloquants et erreurs partielles resumées).');
+  lines.push('');
   lines.push('## Safety pattern');
   lines.push('');
   lines.push('> **Plan -> dry-run -> confirmation -> execution.** Pour toute modification de show (cue, patch, palette, commande texte ou declenchement live), l’assistant doit annoncer le plan d’action, proposer un dry-run avec preview des commandes, puis executer en reel uniquement apres confirmation explicite de l’operateur.');
@@ -723,6 +725,14 @@ function buildDocumentation(tools: ToolDefinition[]): { markdown: string; metada
   for (const tool of sortedTools.filter(isWorkflowTool)) {
     lines.push(`- \`${tool.name}\``);
   }
+  lines.push('');
+  lines.push('## Checklist release interne — LLM-friendly workflows');
+  lines.push('');
+  lines.push('- [ ] Verifier que chaque nouveau workflow `eos_workflow_*` utilise un schema `passthrough()` au niveau racine et sur les objets imbriques pertinents afin d accepter les metadonnees clientes sans les executer.');
+  lines.push('- [ ] Documenter chaque valeur par defaut observable (`dry_run=false`, `start_cue_number=1`, fallback cuelist master si `cuelist_number` ou `base_cuelist_number` est absent, defaults `direction/speed/size`, defaults `face_trad_*`, position 3D `0/0/0`).');
+  lines.push('- [ ] Confirmer que `structuredContent.steps`, `commands_preview`, `applied_defaults` et `warnings` sont toujours presents et restent des tableaux lisibles par un LLM.');
+  lines.push('- [ ] Comparer les noms des tools entre `src/tools/workflows/index.ts`, `manifest.json` (`featured_workflows` et `presentation_order`) et `docs/tools.md`; aucun alias divergent ne doit etre publie.');
+  lines.push('- [ ] Executer `npm run docs:check`, `npm run lint:manifest` et les tests workflows avant tag/release.');
   lines.push('');
   lines.push(...workflowNaturalExamplesLines);
   lines.push('');
