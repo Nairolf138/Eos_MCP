@@ -70,6 +70,19 @@ Formats à utiliser selon le langage :
 | `eos_preset_fire` | Rappel immédiat d’un preset. | [docs/tools.md#eos-preset-fire](docs/tools.md#eos-preset-fire) |
 | `eos_channel_set_level` | Réglage d’intensité (0–100 %) d’un canal. | [docs/tools.md#eos-channel-set-level](docs/tools.md#eos-channel-set-level) |
 
+### Safety pattern
+
+> **Plan → dry-run → confirmation → exécution.** Pour toute modification du show (cue, patch, palette, commande texte ou déclenchement live), l’assistant doit annoncer son plan d’action, proposer un dry-run avec preview des commandes, puis exécuter en réel uniquement après confirmation explicite de l’opérateur.
+
+Exemple de modification de cue :
+
+1. **Plan annoncé** : « Je vais mettre à jour la cue 12 de la liste 1 sur les canaux `1 Thru 10`, appliquer un facteur d’intensité `0.7`, puis préparer l’update sans l’envoyer. »
+2. **Dry-run proposé** : appeler `eos_workflow_update_cue_look` avec `dry_run=true` pour prévisualiser `Chan 1 Thru 10 At * 0.7` puis `Update Cue 1 / 12` dans `structuredContent.commands_preview`.
+3. **Confirmation explicite** : attendre une réponse non ambiguë, par exemple « Confirme, exécute la mise à jour de la cue 12. »
+4. **Exécution réelle** : relancer le même workflow avec `dry_run=false`, puis contrôler `structuredContent.command_log` et `structuredContent.commandsSent`.
+
+Les **outils bas niveau sensibles** (`eos_cue_record`, `eos_cue_update`, `eos_patch_*`, `eos_command`, `eos_new_command`, déclenchements `fire`, etc.) s’adressent aux intégrations qui savent exactement quelle commande EOS envoyer et s’appuient sur `require_confirmation`, `safety_level` et des schémas stricts. Les **workflows haut niveau guidés** (`eos_workflow_*`) orchestrent plusieurs commandes métier, acceptent des métadonnées clientes inconnues sans les exécuter et fournissent une preview complète via `dry_run=true`; ils sont donc à privilégier pour les assistants conversationnels.
+
 ## Prérequis
 
 - Node.js 20+ (tests effectués avec la LTS actuelle).
