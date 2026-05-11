@@ -536,6 +536,29 @@ Les trois intégrations ci-dessous s’appuient sur le protocole MCP. Chaque out
 4. Redémarrez Claude Desktop puis ouvrez un chat. Tapez une instruction liée à Eos ; Claude sélectionnera automatiquement le serveur MCP si pertinent.
 5. Vérifiez que les réponses incluent la trace des outils MCP utilisés et que la console Eos reçoit bien les messages OSC.
 
+#### Guide d’usage avec Claude
+
+Pour limiter les ambiguïtés en conduite et garder une trace claire des décisions, demandez à Claude de suivre ce flux avant toute action Eos :
+
+1. **Connexion** : appeler `eos_connect` si la session OSC n’est pas encore établie ou si la cible réseau doit être confirmée.
+2. **Audit des capacités** : appeler `eos_capabilities_get` pour vérifier les outils disponibles, le mode de sécurité et l’état de la passerelle avant de proposer un plan.
+3. **Choix du niveau d’abstraction** : privilégier les workflows haut niveau lorsque l’intention correspond au besoin :
+   - `eos_workflow_autopatch_band` pour préparer rapidement un patch groupe/band ;
+   - `eos_workflow_create_look` pour construire un look cohérent à partir de canaux, palettes ou groupes ;
+   - `eos_workflow_create_cue_series` pour générer une suite de cues structurée.
+4. **Répétitions** : utiliser `eos_workflow_rehearsal_go_safe` pour les tops en répétition, plutôt qu’un `GO` bas niveau direct, afin de conserver les garde-fous de cuelist, cue cible et validation.
+5. **Prévisualisation obligatoire** : demander d’abord `dry_run: true` sur les workflows ou outils qui le supportent, relire le journal/aperçu retourné avec l’utilisateur, puis relancer uniquement après validation explicite avec `dry_run: false` ou sans champ `dry_run`.
+
+**Règle de confirmation utilisateur** : Claude doit obtenir une confirmation explicite de l’utilisateur avant toute action destructive ou toute modification du show, notamment patch, record, update, delete, live fire, rappel de palette/preset affectant la scène, ou déclenchement de cue. Lorsque l’outil expose `require_confirmation`, l’appel réel doit inclure `require_confirmation: true` après cette confirmation.
+
+Mini exemples conversationnels :
+
+| Intention utilisateur | Workflow conseillé avec Claude |
+| --- | --- |
+| « Prépare le patch de mon groupe batterie sur l’univers 2, mais montre-moi d’abord ce qui sera envoyé. » | `eos_connect` → `eos_capabilities_get` → `eos_workflow_autopatch_band` avec `dry_run: true`, puis confirmation utilisateur avant l’exécution réelle. |
+| « Crée un look bleu doux sur les faces et les contres pour la scène 3. » | `eos_capabilities_get` → `eos_workflow_create_look` en `dry_run: true`, revue du rendu prévu, puis exécution avec confirmation si le show est modifié. |
+| « En répétition, envoie la prochaine cue de la liste 1 si tout est prêt. » | `eos_capabilities_get` → `eos_workflow_rehearsal_go_safe` avec confirmation utilisateur et garde-fous, plutôt qu’un `eos_cue_go` direct. |
+
 ### n8n (automatisation de workflows)
 
 Deux options s’offrent à vous : appeler directement le serveur via STDIO (nœud **Execute Command**) ou passer par la CLI MCP.
