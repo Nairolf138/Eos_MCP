@@ -96,6 +96,50 @@ function normalizeCommandForValidation(command: string): string {
   return command.replace(/#\s*$/, '').trim();
 }
 
+const composedCueProgrammingSequence = 'Chan 1 Thru 10 At Full puis Record Cue 3 puis Cue 3 Label "Reggae"';
+
+function stripQuotedText(command: string): string {
+  return command.replace(/"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*'/g, ' ');
+}
+
+function commandContainsWord(command: string, word: string): boolean {
+  return new RegExp(`(^|\\s)${word}(\\s|$)`, 'i').test(command);
+}
+
+function assertNoComposedCueProgrammingCommand(command: string): void {
+  const normalized = stripQuotedText(normalizeCommandForValidation(command)).replace(/\s+/g, ' ').trim();
+  if (!normalized) {
+    return;
+  }
+
+  const hasAt = commandContainsWord(normalized, 'at');
+  const hasRecord = commandContainsWord(normalized, 'record');
+  const hasUpdate = commandContainsWord(normalized, 'update');
+  const hasDelete = commandContainsWord(normalized, 'delete');
+  const hasLabel = commandContainsWord(normalized, 'label');
+  const violations: string[] = [];
+
+  if (hasRecord && hasLabel) {
+    violations.push('Record + Label');
+  }
+  if (hasAt && hasRecord) {
+    violations.push('At + Record');
+  }
+  if (hasUpdate && hasLabel) {
+    violations.push('Update + Label');
+  }
+  if (hasDelete && (hasAt || hasRecord || hasUpdate || hasLabel)) {
+    violations.push('Delete + autre action');
+  }
+
+  if (violations.length > 0) {
+    throw new Error(
+      `Commande composee de programmation de cues refusee (${violations.join(', ')}). ` +
+        `Envoyez une action sensible par ligne. Sequence correcte: ${composedCueProgrammingSequence}.`
+    );
+  }
+}
+
 function levenshteinDistance(a: string, b: string): number {
   if (a === b) {
     return 0;
@@ -260,6 +304,7 @@ export interface DeterministicCommandOptions extends SafetyOptions {
 }
 
 export async function sendDeterministicCommand(options: DeterministicCommandOptions): Promise<ToolExecutionResult> {
+  assertNoComposedCueProgrammingCommand(options.command);
   const client = getOscClient();
   const command = ensureTerminator(options.command, options.terminateWithEnter);
   const shouldClear = options.clearLine !== false;
@@ -393,6 +438,7 @@ export const eosNewCommandTool: ToolDefinition<typeof newCommandInputSchema> = {
     const schema = z.object(newCommandInputSchema).strict();
     const options = schema.parse(args ?? {});
     const substituted = applySubstitutions(options.command, options.substitutions ?? []);
+    assertNoComposedCueProgrammingCommand(substituted);
     const safety = resolveSafetyOptions(options);
     assertCommandSyntaxAllowed(substituted, safety.safetyLevel);
     if (!options.dry_run && isSensitiveCommandText(substituted)) {

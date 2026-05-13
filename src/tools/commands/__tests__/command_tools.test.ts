@@ -107,6 +107,44 @@ describe('command tools', () => {
     });
   });
 
+  it('refuse une commande composee de programmation de cue dans eos_new_command', async () => {
+    await expect(
+      runTool(eosNewCommandTool, {
+        command: 'Chan 1 Thru 10 At 100 Record Cue 10 Label "Outro"',
+        safety_level: 'off',
+        require_confirmation: true
+      })
+    ).rejects.toThrow('Sequence correcte: Chan 1 Thru 10 At Full puis Record Cue 3 puis Cue 3 Label "Reggae"');
+
+    expect(service.sentMessages).toHaveLength(0);
+  });
+
+  it('autorise la programmation de cue envoyee en commandes separees', async () => {
+    await runTool(eosNewCommandTool, {
+      command: 'Chan 1 Thru 10 At Full',
+      clearLine: true,
+      safety_level: 'off'
+    });
+    await runTool(eosNewCommandTool, {
+      command: 'Record Cue 3',
+      clearLine: true,
+      safety_level: 'off',
+      require_confirmation: true
+    });
+    await runTool(eosNewCommandTool, {
+      command: 'Cue 3 Label "Reggae"',
+      clearLine: true,
+      safety_level: 'off'
+    });
+
+    expect(service.sentMessages).toHaveLength(3);
+    expect(service.sentMessages.map((message) => message.args?.[0]?.value)).toEqual([
+      'Chan 1 Thru 10 At Full',
+      'Record Cue 3',
+      'Cue 3 Label "Reggae"'
+    ]);
+  });
+
   it('peut envoyer un new_command sans effacement prealable', async () => {
     await runTool(eosNewCommandTool, {
       command: 'Go To Cue %1',
