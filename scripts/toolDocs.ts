@@ -705,6 +705,10 @@ function buildDocumentation(tools: ToolDefinition[]): { markdown: string; metada
   lines.push('');
   lines.push('Les **workflows haut niveau guides** (`eos_workflow_*`) orchestrent plusieurs commandes metier, acceptent des metadonnees clientes inconnues sans les executer et fournissent une preview complete via `dry_run=true`. Ils sont a privilegier pour les assistants conversationnels, car ils imposent un parcours operateur plus lisible avant toute action destructive ou visible en live.');
   lines.push('');
+  lines.push('## Capacites de lecture OSC');
+  lines.push('');
+  lines.push('Avant de raisonner sur le contenu du show, Claude doit lire `eos_connect.structuredContent` ou `eos_capabilities_get.structuredContent.context.osc_limitations`. Si `can_read_queries=false`, Claude ne doit pas inventer le patch, la cuelist, les cues ou les objets EOS : il doit les presenter comme inconnus et demander une lecture reussie ou une confirmation utilisateur explicite. En `handshake_mode=degraded`, le serveur indique seulement que l’envoi est possible; la lecture reste non garantie tant qu’une requete de lecture ne retourne pas `status=ok`.');
+  lines.push('');
   lines.push('## Options communes de securite (outils critiques)');
   lines.push('');
   lines.push('Les outils critiques des familles **cues**, **patch**, **palettes** et **commandes texte** exposent les options suivantes :');

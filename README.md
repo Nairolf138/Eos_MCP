@@ -554,13 +554,14 @@ Les trois intégrations ci-dessous s’appuient sur le protocole MCP. Chaque out
 Pour limiter les ambiguïtés en conduite et garder une trace claire des décisions, demandez à Claude de suivre ce flux avant toute action Eos :
 
 1. **Connexion** : appeler `eos_connect` si la session OSC n’est pas encore établie ou si la cible réseau doit être confirmée.
-2. **Audit des capacités** : appeler `eos_capabilities_get` pour vérifier les outils disponibles, le mode de sécurité et l’état de la passerelle avant de proposer un plan.
+2. **Audit des capacités** : appeler `eos_capabilities_get` pour vérifier les outils disponibles, le mode de sécurité et l’état de la passerelle avant de proposer un plan. Lire explicitement `structuredContent.context.osc_limitations` (ou le résultat de `eos_connect`) : si `can_read_queries=false`, Claude doit annoncer que la lecture EOS n’est pas garantie et ne doit pas inventer le patch, la cuelist, les cues ou l’état du show sans réponse de lecture explicite.
 3. **Choix du niveau d’abstraction** : privilégier les workflows haut niveau lorsque l’intention correspond au besoin :
    - `eos_workflow_autopatch_band` pour préparer rapidement un patch groupe/band ;
    - `eos_workflow_create_look` pour construire un look cohérent à partir de canaux, palettes ou groupes ;
    - `eos_workflow_create_cue_series` pour générer une suite de cues structurée; pour un niveau, renseigner `looks[].intensity` ou `looks[].level` (`Full`, `Out`, `0`-`100`, valeurs EOS sûres) plutôt que d’ajouter `At` dans `channels`.
 4. **Répétitions** : utiliser `eos_workflow_rehearsal_go_safe` pour les tops en répétition, plutôt qu’un `GO` bas niveau direct, afin de conserver les garde-fous de cuelist, cue cible et validation.
 5. **Prévisualisation obligatoire** : demander d’abord `dry_run: true` sur les workflows ou outils qui le supportent, relire le journal/aperçu retourné avec l’utilisateur, puis relancer uniquement après validation explicite avec `dry_run: false` ou sans champ `dry_run`.
+6. **Mode dégradé** : si `eos_connect` retourne `handshake_mode=degraded` ou une limitation « mode dégradé : envoi possible, lecture non garantie », Claude peut proposer des envois prudents après confirmation, mais doit traiter toute lecture de patch/cuelist comme inconnue tant qu’un outil de lecture ne répond pas avec succès.
 
 **Règle de confirmation utilisateur** : Claude doit obtenir une confirmation explicite de l’utilisateur avant toute action destructive ou toute modification du show, notamment patch, record, update, delete, live fire, rappel de palette/preset affectant la scène, ou déclenchement de cue. Lorsque l’outil expose `require_confirmation`, l’appel réel doit inclure `require_confirmation: true` après cette confirmation.
 

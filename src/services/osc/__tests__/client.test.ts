@@ -318,7 +318,8 @@ describe('OscClient', () => {
     expect(parseLegacyHandshakeMessage(legacyMessage)).toEqual({
       version: null,
       protocols: [],
-      raw: legacyMessage
+      raw: legacyMessage,
+      mode: 'legacy'
     });
   });
 
@@ -488,6 +489,9 @@ describe('OscClient', () => {
     await Promise.resolve();
     await Promise.resolve();
     await jest.advanceTimersByTimeAsync(11);
+    await Promise.resolve();
+    await Promise.resolve();
+    await jest.advanceTimersByTimeAsync(11);
 
     await expect(promise).resolves.toMatchObject<Partial<ConnectResult>>({
       status: 'timeout',
@@ -495,6 +499,40 @@ describe('OscClient', () => {
       version: null,
       error: expect.stringContaining('expire')
     });
+  });
+
+  it('retourne un mode degrade lorsque le handshake expire mais que le ping repond et la lecture timeout', async () => {
+    const service = new FakeOscService();
+    const client = new OscClient(service);
+
+    const promise = client.connect({ handshakeTimeoutMs: 5 });
+
+    await waitFor(() => service.sentMessages.some((message) => message.address === '/eos/ping'), 200);
+
+    service.emit({
+      address: '/eos/out/ping',
+      args: [
+        {
+          type: 's',
+          value: JSON.stringify({ status: 'ok', echo: 'degraded-connect-probe' })
+        }
+      ]
+    });
+
+    const result = await promise;
+
+    expect(result).toMatchObject<Partial<ConnectResult>>({
+      status: 'ok',
+      handshake_mode: 'degraded',
+      can_send_commands: true,
+      can_read_queries: false,
+      version: null,
+      protocolStatus: 'skipped',
+      selectedProtocol: null
+    });
+    expect(result.limitations.join(' ')).toContain('Mode dégradé : envoi possible, lecture non garantie.');
+    expect(result.limitations.join(' ')).toContain('Lecture des requêtes EOS non garantie');
+    expect(service.sentMessages.map((message) => message.address)).toContain('/eos/get/cmd_line');
   });
 
   it('retente le handshake en mode speed apres un timeout TCP', async () => {

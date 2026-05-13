@@ -99,10 +99,13 @@ export interface ConnectOptions extends TargetOptions {
   clientId?: string;
 }
 
+export type HandshakeMode = 'canonical' | 'legacy' | 'timeout' | 'degraded';
+
 export interface HandshakeData {
   version: string | null;
   protocols: string[];
   raw: unknown;
+  mode: Extract<HandshakeMode, 'canonical' | 'legacy'>;
 }
 
 export function parseLegacyHandshakeMessage(message: OscMessage): HandshakeData | null {
@@ -117,7 +120,8 @@ export function parseLegacyHandshakeMessage(message: OscMessage): HandshakeData 
   return {
     version: null,
     protocols: [],
-    raw: message
+    raw: message,
+    mode: 'legacy'
   };
 }
 
@@ -128,6 +132,10 @@ export interface ConnectResult extends Record<string, unknown> {
   selectedProtocol: string | null;
   protocolStatus: StepStatus;
   handshakePayload: unknown;
+  can_send_commands: boolean;
+  can_read_queries: boolean;
+  handshake_mode: HandshakeMode;
+  limitations: string[];
   protocolResponse?: unknown;
   error?: string;
 }
@@ -235,21 +243,23 @@ export class OscClient {
         selectedProtocol: protocolResult.selectedProtocol,
         protocolStatus: protocolResult.status,
         handshakePayload: handshake.raw,
+        can_send_commands: true,
+        can_read_queries: handshake.mode === 'canonical',
+        handshake_mode: handshake.mode,
+        limitations: this.buildConnectionLimitations(
+          handshake.mode,
+          true,
+          handshake.mode === 'canonical',
+          protocolResult.status,
+          protocolResult.error
+        ),
         protocolResponse: protocolResult.payload,
         ...(protocolResult.error ? { error: protocolResult.error } : {})
       };
     } catch (error) {
       const timeoutError = this.asAppError(error, ErrorCode.OSC_TIMEOUT);
       if (timeoutError) {
-        return {
-          status: 'timeout',
-          version: null,
-          availableProtocols: [],
-          selectedProtocol: null,
-          protocolStatus: 'skipped',
-          handshakePayload: null,
-          error: timeoutError.message
-        };
+        return this.buildTimeoutConnectResult(options, timeoutError.message);
       }
 
       const connectionLostError = this.asAppError(error, ErrorCode.OSC_CONNECTION_LOST);
@@ -261,6 +271,10 @@ export class OscClient {
           selectedProtocol: null,
           protocolStatus: 'skipped',
           handshakePayload: null,
+          can_send_commands: false,
+          can_read_queries: false,
+          handshake_mode: 'timeout',
+          limitations: this.buildConnectionLimitations('timeout', false, false, 'skipped', connectionLostError.message),
           error: connectionLostError.message
         };
       }
@@ -789,6 +803,108 @@ export class OscClient {
     return args;
   }
 
+  private async buildTimeoutConnectResult(options: ConnectOptions, errorMessage: string): Promise<ConnectResult> {
+    const timeoutMs = Math.max(1, Math.min(
+      options.handshakeTimeoutMs ?? this.config.handshakeTimeoutMs ?? this.config.defaultTimeoutMs ?? DEFAULT_HANDSHAKE_TIMEOUT_MS,
+      this.config.defaultTimeoutMs ?? DEFAULT_OPERATION_TIMEOUT_MS,
+      400
+    ));
+
+    const targetOptions: TargetOptions = {
+      targetAddress: options.targetAddress,
+      targetPort: options.targetPort,
+      toolId: options.toolId,
+      transportPreference: options.transportPreference
+    };
+
+    let canSendCommands = false;
+    let canReadQueries = false;
+    const probeErrors: string[] = [];
+
+    const ping = await this.ping({
+      ...targetOptions,
+      message: 'degraded-connect-probe',
+      timeoutMs
+    });
+
+    if (ping.status === 'ok') {
+      canSendCommands = true;
+
+      const queryProbe = await this.getCommandLine({
+        ...targetOptions,
+        timeoutMs
+      });
+      canReadQueries = queryProbe.status === 'ok';
+      if (!canReadQueries && queryProbe.error) {
+        probeErrors.push(`Probe lecture: ${queryProbe.error}`);
+      }
+    } else if (ping.error) {
+      probeErrors.push(`Probe ping: ${ping.error}`);
+    }
+
+    const handshakeMode: HandshakeMode = canSendCommands ? 'degraded' : 'timeout';
+    const limitations = this.buildConnectionLimitations(
+      handshakeMode,
+      canSendCommands,
+      canReadQueries,
+      'skipped',
+      [errorMessage, ...probeErrors].join(' ')
+    );
+
+    return {
+      status: canSendCommands ? 'ok' : 'timeout',
+      version: null,
+      availableProtocols: [],
+      selectedProtocol: null,
+      protocolStatus: 'skipped',
+      handshakePayload: null,
+      can_send_commands: canSendCommands,
+      can_read_queries: canReadQueries,
+      handshake_mode: handshakeMode,
+      limitations,
+      error: errorMessage
+    };
+  }
+
+  private buildConnectionLimitations(
+    handshakeMode: HandshakeMode,
+    canSendCommands: boolean,
+    canReadQueries: boolean,
+    protocolStatus: StepStatus,
+    detail?: string
+  ): string[] {
+    const limitations: string[] = [];
+
+    if (handshakeMode === 'degraded') {
+      limitations.push('Mode dégradé : envoi possible, lecture non garantie.');
+      limitations.push('Handshake EOS canonique indisponible; version et protocoles non confirmés.');
+    } else if (handshakeMode === 'timeout') {
+      limitations.push('Handshake EOS expiré; aucune capacité OSC confirmée.');
+    } else if (handshakeMode === 'legacy') {
+      limitations.push('Handshake legacy détecté; les requêtes de lecture JSON ne sont pas garanties.');
+    }
+
+    if (!canSendCommands) {
+      limitations.push('Envoi de commandes EOS non confirmé.');
+    }
+
+    if (!canReadQueries) {
+      limitations.push('Lecture des requêtes EOS non garantie; ne pas inventer le patch, les cues ou les cuelists sans réponse de lecture explicite.');
+    }
+
+    if (protocolStatus === 'timeout') {
+      limitations.push('Sélection de protocole expirée; transport OSC conservé en mode best-effort.');
+    } else if (protocolStatus === 'error') {
+      limitations.push('Sélection de protocole en erreur; transport OSC conservé en mode best-effort.');
+    }
+
+    if (detail && detail.trim().length > 0) {
+      limitations.push(`Détail: ${detail.trim()}`);
+    }
+
+    return Array.from(new Set(limitations));
+  }
+
   private async performHandshake(options: ConnectOptions, timeout: number): Promise<HandshakeData> {
     const args = [
       { type: 's', value: 'ETCOSC?' },
@@ -1088,7 +1204,8 @@ export class OscClient {
     return {
       version,
       protocols,
-      raw: payload ?? message
+      raw: payload ?? message,
+      mode: 'canonical'
     };
   }
 
