@@ -10,7 +10,7 @@ import {
   getResourceCache
 } from '../../services/cache/index';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
-import { oscMappings } from '../../services/osc/mappings';
+import { oscMappings, oscResponseMappings, withEosOutResponseVariant } from '../../services/osc/mappings';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 interface QueryListItem {
@@ -23,6 +23,8 @@ interface QueryTargetConfig {
   label: string;
   countAddress: string;
   listAddress: string;
+  countResponseAddresses: readonly string[];
+  listResponseAddresses: readonly string[];
   responseKeys: string[];
 }
 
@@ -33,90 +35,120 @@ const TARGET_TYPE_CONFIGS = {
     label: 'cues',
     countAddress: oscMappings.queries.cue.count,
     listAddress: oscMappings.queries.cue.list,
+    countResponseAddresses: oscResponseMappings.queries.cue.count,
+    listResponseAddresses: oscResponseMappings.queries.cue.list,
     responseKeys: ['cues', 'items']
   },
   cuelist: {
     label: 'cue lists',
     countAddress: oscMappings.queries.cuelist.count,
     listAddress: oscMappings.queries.cuelist.list,
+    countResponseAddresses: withEosOutResponseVariant(oscMappings.queries.cuelist.count),
+    listResponseAddresses: oscResponseMappings.queries.cuelist.list,
     responseKeys: ['cuelists', 'lists', 'items']
   },
   group: {
     label: 'groupes',
     countAddress: oscMappings.queries.group.count,
     listAddress: oscMappings.queries.group.list,
+    countResponseAddresses: withEosOutResponseVariant(oscMappings.queries.group.count),
+    listResponseAddresses: withEosOutResponseVariant(oscMappings.queries.group.list),
     responseKeys: ['groups', 'items']
   },
   macro: {
     label: 'macros',
     countAddress: oscMappings.queries.macro.count,
     listAddress: oscMappings.queries.macro.list,
+    countResponseAddresses: withEosOutResponseVariant(oscMappings.queries.macro.count),
+    listResponseAddresses: withEosOutResponseVariant(oscMappings.queries.macro.list),
     responseKeys: ['macros', 'items']
   },
   ms: {
     label: 'magic sheets',
     countAddress: oscMappings.queries.ms.count,
     listAddress: oscMappings.queries.ms.list,
+    countResponseAddresses: withEosOutResponseVariant(oscMappings.queries.ms.count),
+    listResponseAddresses: withEosOutResponseVariant(oscMappings.queries.ms.list),
     responseKeys: ['magic_sheets', 'magicSheets', 'items']
   },
   ip: {
     label: 'intensity palettes',
     countAddress: oscMappings.queries.ip.count,
     listAddress: oscMappings.queries.ip.list,
+    countResponseAddresses: withEosOutResponseVariant(oscMappings.queries.ip.count),
+    listResponseAddresses: withEosOutResponseVariant(oscMappings.queries.ip.list),
     responseKeys: ['intensity_palettes', 'ip', 'items']
   },
   fp: {
     label: 'focus palettes',
     countAddress: oscMappings.queries.fp.count,
     listAddress: oscMappings.queries.fp.list,
+    countResponseAddresses: withEosOutResponseVariant(oscMappings.queries.fp.count),
+    listResponseAddresses: withEosOutResponseVariant(oscMappings.queries.fp.list),
     responseKeys: ['focus_palettes', 'fp', 'items']
   },
   cp: {
     label: 'color palettes',
     countAddress: oscMappings.queries.cp.count,
     listAddress: oscMappings.queries.cp.list,
+    countResponseAddresses: withEosOutResponseVariant(oscMappings.queries.cp.count),
+    listResponseAddresses: withEosOutResponseVariant(oscMappings.queries.cp.list),
     responseKeys: ['color_palettes', 'cp', 'items']
   },
   bp: {
     label: 'beam palettes',
     countAddress: oscMappings.queries.bp.count,
     listAddress: oscMappings.queries.bp.list,
+    countResponseAddresses: withEosOutResponseVariant(oscMappings.queries.bp.count),
+    listResponseAddresses: withEosOutResponseVariant(oscMappings.queries.bp.list),
     responseKeys: ['beam_palettes', 'bp', 'items']
   },
   preset: {
     label: 'presets',
     countAddress: oscMappings.queries.preset.count,
     listAddress: oscMappings.queries.preset.list,
+    countResponseAddresses: withEosOutResponseVariant(oscMappings.queries.preset.count),
+    listResponseAddresses: withEosOutResponseVariant(oscMappings.queries.preset.list),
     responseKeys: ['presets', 'items']
   },
   sub: {
     label: 'submasters',
     countAddress: oscMappings.queries.sub.count,
     listAddress: oscMappings.queries.sub.list,
+    countResponseAddresses: withEosOutResponseVariant(oscMappings.queries.sub.count),
+    listResponseAddresses: withEosOutResponseVariant(oscMappings.queries.sub.list),
     responseKeys: ['submasters', 'subs', 'items']
   },
   fx: {
     label: 'effects',
     countAddress: oscMappings.queries.fx.count,
     listAddress: oscMappings.queries.fx.list,
+    countResponseAddresses: withEosOutResponseVariant(oscMappings.queries.fx.count),
+    listResponseAddresses: withEosOutResponseVariant(oscMappings.queries.fx.list),
     responseKeys: ['effects', 'fx', 'items']
   },
   curve: {
     label: 'courbes',
     countAddress: oscMappings.queries.curve.count,
     listAddress: oscMappings.queries.curve.list,
+    countResponseAddresses: withEosOutResponseVariant(oscMappings.queries.curve.count),
+    listResponseAddresses: withEosOutResponseVariant(oscMappings.queries.curve.list),
     responseKeys: ['curves', 'items']
   },
   snap: {
     label: 'snapshots',
     countAddress: oscMappings.queries.snap.count,
     listAddress: oscMappings.queries.snap.list,
+    countResponseAddresses: withEosOutResponseVariant(oscMappings.queries.snap.count),
+    listResponseAddresses: withEosOutResponseVariant(oscMappings.queries.snap.list),
     responseKeys: ['snapshots', 'snaps', 'items']
   },
   pixmap: {
     label: 'pixel maps',
     countAddress: oscMappings.queries.pixmap.count,
     listAddress: oscMappings.queries.pixmap.list,
+    countResponseAddresses: withEosOutResponseVariant(oscMappings.queries.pixmap.count),
+    listResponseAddresses: withEosOutResponseVariant(oscMappings.queries.pixmap.list),
     responseKeys: ['pixmaps', 'pixel_maps', 'items']
   }
 } as const satisfies Record<string, QueryTargetConfig>;
@@ -237,7 +269,8 @@ export const eosGetCountTool: ToolDefinition<typeof countInputSchema> = {
         const response: OscJsonResponse = await client.requestJson(config.countAddress, {
           timeoutMs: options.timeoutMs,
           targetAddress: options.targetAddress,
-          targetPort: options.targetPort
+          targetPort: options.targetPort,
+          responseAddresses: config.countResponseAddresses
         });
 
         const count = Math.max(0, normaliseCount(response.data));
@@ -309,7 +342,8 @@ export const eosGetListAllTool: ToolDefinition<typeof listInputSchema> = {
         const response: OscJsonResponse = await client.requestJson(config.listAddress, {
           timeoutMs: options.timeoutMs,
           targetAddress: options.targetAddress,
-          targetPort: options.targetPort
+          targetPort: options.targetPort,
+          responseAddresses: config.listResponseAddresses
         });
 
         const items = normaliseList(response.data, config);

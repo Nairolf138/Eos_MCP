@@ -722,6 +722,44 @@ describe('OscClient', () => {
     });
   });
 
+  it('accepte les variantes /eos/out/get pour les reponses JSON EOS', async () => {
+    const service = new FakeOscService();
+    const client = new OscClient(service);
+
+    const responsePromise = client.requestJson('/eos/get/cue/list', {
+      responseAddresses: ['/eos/get/cue/list', '/eos/out/get/cue/list']
+    });
+
+    await waitFor(() => service.sentMessages.length >= 1);
+
+    expect(service.sentMessages[0]).toEqual({
+      address: '/eos/get/cue/list',
+      args: []
+    });
+
+    service.emit({
+      address: '/eos/out/get/cue/list',
+      args: [
+        {
+          type: 's',
+          value: JSON.stringify({
+            status: 'ok',
+            cues: [{ number: '1', uid: 'cue-1', label: 'Intro' }]
+          })
+        }
+      ]
+    });
+
+    const result = await responsePromise;
+
+    expect(result.status).toBe('ok');
+    expect(result.data).toEqual({
+      status: 'ok',
+      cues: [{ number: '1', uid: 'cue-1', label: 'Intro' }]
+    });
+    expect(result.payload).toMatchObject({ address: '/eos/out/get/cue/list' });
+  });
+
   it('respecte la limite de concurrence configuree', async () => {
     const service = new FakeOscService();
     service.delayMs = 10;

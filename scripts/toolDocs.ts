@@ -709,6 +709,18 @@ function buildDocumentation(tools: ToolDefinition[]): { markdown: string; metada
   lines.push('');
   lines.push('Avant de raisonner sur le contenu du show, Claude doit lire `eos_connect.structuredContent` ou `eos_capabilities_get.structuredContent.context.osc_limitations`. Si `can_read_queries=false`, Claude ne doit pas inventer le patch, la cuelist, les cues ou les objets EOS : il doit les presenter comme inconnus et demander une lecture reussie ou une confirmation utilisateur explicite. En `handshake_mode=degraded`, le serveur indique seulement que l’envoi est possible; la lecture reste non garantie tant qu’une requete de lecture ne retourne pas `status=ok`.');
   lines.push('');
+  lines.push('### Adresses de reponse OSC acceptees pour les lectures cues/cuelists');
+  lines.push('');
+  lines.push('Les requetes JSON EOS attendent par defaut une reponse sur l’adresse de requete, et les outils de lecture transmettent explicitement les variantes `/eos/out/...` observees sur EOS quand elles sont supportees. Les adresses actuellement acceptees sont :');
+  lines.push('');
+  lines.push('| Famille | Requete envoyee | Reponses acceptees | Outils concernes |');
+  lines.push('| --- | --- | --- | --- |');
+  lines.push('| `queries.cue.count` | `/eos/get/cue/count` | `/eos/get/cue/count`, `/eos/out/get/cue/count` | `eos_get_count` avec `target_type: "cue"` |');
+  lines.push('| `queries.cue.list` | `/eos/get/cue/list` | `/eos/get/cue/list`, `/eos/out/get/cue/list` | `eos_get_list_all` avec `target_type: "cue"` |');
+  lines.push('| `queries.cuelist.list` | `/eos/get/cuelist/list` | `/eos/get/cuelist/list`, `/eos/out/get/cuelist/list` | `eos_get_list_all` avec `target_type: "cuelist"` |');
+  lines.push('| `cues.list` | `/eos/get/cuelist` | `/eos/get/cuelist`, `/eos/out/get/cuelist` | `eos_cue_list_all` |');
+  lines.push('| `cues.info` | `/eos/get/cue` | `/eos/get/cue`, `/eos/out/get/cue` | `eos_cue_get_info` |');
+  lines.push('');
   lines.push('## Options communes de securite (outils critiques)');
   lines.push('');
   lines.push('Les outils critiques des familles **cues**, **patch**, **palettes** et **commandes texte** exposent les options suivantes :');

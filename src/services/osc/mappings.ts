@@ -209,3 +209,27 @@ export const oscMappings = {
 } as const;
 
 export type OscMappings = typeof oscMappings;
+
+export function toEosOutResponseAddress(address: string): string {
+  return address.startsWith('/eos/out/') ? address : address.replace(/^\/eos\//, '/eos/out/');
+}
+
+export function withEosOutResponseVariant(address: string): readonly [string, string] {
+  return [address, toEosOutResponseAddress(address)] as const;
+}
+
+export const oscResponseMappings = {
+  queries: {
+    cue: {
+      count: withEosOutResponseVariant(oscMappings.queries.cue.count),
+      list: withEosOutResponseVariant(oscMappings.queries.cue.list)
+    },
+    cuelist: {
+      list: withEosOutResponseVariant(oscMappings.queries.cuelist.list)
+    }
+  },
+  cues: {
+    info: withEosOutResponseVariant(oscMappings.cues.info),
+    list: withEosOutResponseVariant(oscMappings.cues.list)
+  }
+} as const;

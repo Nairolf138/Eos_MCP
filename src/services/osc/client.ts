@@ -201,6 +201,7 @@ export interface CommandLineState extends Record<string, unknown> {
 export interface OscJsonRequestOptions extends TargetOptions {
   payload?: Record<string, unknown>;
   responseAddress?: string;
+  responseAddresses?: readonly string[];
   timeoutMs?: number;
 }
 
@@ -535,7 +536,12 @@ export class OscClient {
       transportPreference: options.transportPreference
     };
     const timeoutMs = options.timeoutMs ?? this.config.defaultTimeoutMs ?? DEFAULT_OPERATION_TIMEOUT_MS;
-    const responseAddress = options.responseAddress ?? address;
+    const responseAddresses = this.normaliseResponseAddresses(
+      address,
+      options.responseAddress,
+      options.responseAddresses
+    );
+    const responseAddressSet = new Set(responseAddresses);
     const payload = options.payload ?? {};
     const hasPayload = Object.keys(payload).length > 0;
     const operation = `la requete OSC ${address}`;
@@ -553,11 +559,11 @@ export class OscClient {
     }
 
     const awaiter = this.createResponseAwaiter(
-      (incoming) => (incoming.address === responseAddress ? incoming : null),
+      (incoming) => (responseAddressSet.has(incoming.address) ? incoming : null),
       timeoutMs,
-      `Aucune reponse pour ${responseAddress} recue avant expiration`,
+      `Aucune reponse pour ${responseAddresses.join(' ou ')} recue avant expiration`,
       operation,
-      { address: responseAddress, requestAddress: address }
+      { address: responseAddresses, requestAddress: address }
     );
 
     try {
@@ -578,7 +584,8 @@ export class OscClient {
       const status = this.normaliseStatus(data);
       if (status === 'error') {
         this.ensureConnectionActive(operation, data, {
-          address: responseAddress,
+          address: response.address,
+          acceptedResponseAddresses: responseAddresses,
           requestAddress: address
         });
       }
@@ -625,6 +632,23 @@ export class OscClient {
       ...options,
       payload: extractJsonPayloadFromMessage(request.message)
     });
+  }
+
+  private normaliseResponseAddresses(
+    requestAddress: string,
+    responseAddress?: string,
+    responseAddresses?: readonly string[]
+  ): string[] {
+    const candidates = [
+      responseAddress,
+      ...(responseAddresses ?? []),
+      requestAddress
+    ];
+    return candidates.filter((candidate, index, values): candidate is string => (
+      typeof candidate === 'string' &&
+      candidate.length > 0 &&
+      values.indexOf(candidate) === index
+    ));
   }
 
   public setLogging(options: OscLoggingOptions = {}): OscLoggingState {

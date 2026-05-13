@@ -11,7 +11,7 @@ import {
 } from '../../services/cache/index';
 import { getOscClient } from '../../services/osc/client';
 import { buildCueJsonMessage } from '../../services/osc/messageBuilders';
-import { oscMappings } from '../../services/osc/mappings';
+import { oscMappings, oscResponseMappings } from '../../services/osc/mappings';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 import {
   buildCueCommandPayload,
@@ -78,7 +78,10 @@ export const eosCueListAllTool: ToolDefinition<typeof listAllInputSchema> = {
       prefixTags: [createOscPrefixTag('/eos/out/')],
       fetcher: async () => {
         const request = buildCueJsonMessage(oscMappings.cues.list, payload);
-        const response = await client.requestBuiltJson(request, extractTargetOptions(options));
+        const response = await client.requestBuiltJson(request, {
+          ...extractTargetOptions(options),
+          responseAddresses: oscResponseMappings.cues.list
+        });
 
         const cues = mapCueList(response.data, identifier);
 
