@@ -159,6 +159,11 @@ export function extractJsonPayloadFromMessage(message: OscMessage): Record<strin
   return parsed as Record<string, unknown>;
 }
 
+const QUERY_JSON_ENDPOINTS = Object.values(oscMappings.queries).flatMap((mapping) => [
+  mapping.count,
+  mapping.list
+]);
+
 const DOCUMENTED_JSON_ENDPOINTS = new Set<string>([
   oscMappings.cues.info,
   oscMappings.cues.list,
@@ -171,7 +176,8 @@ const DOCUMENTED_JSON_ENDPOINTS = new Set<string>([
   oscMappings.palettes.intensity.info,
   oscMappings.palettes.focus.info,
   oscMappings.palettes.color.info,
-  oscMappings.palettes.beam.info
+  oscMappings.palettes.beam.info,
+  ...QUERY_JSON_ENDPOINTS
 ]);
 
 export function isDocumentedJsonEndpoint(address: string): boolean {
