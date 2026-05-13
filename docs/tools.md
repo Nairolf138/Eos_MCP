@@ -7,9 +7,9 @@ Chaque outil expose son nom MCP, une description, la liste des arguments attendu
 
 ## Comportement dry-run des workflows
 
-Tous les workflows `eos_workflow_*` exposent `dry_run` en option. Quand `dry_run` est absent ou vaut `false`, le workflow execute reellement la sequence EOS et retourne un journal structure commande par commande dans `structuredContent.command_log` ainsi que les commandes tentees dans `structuredContent.commandsSent`.
+Tous les workflows `eos_workflow_*` exposent `dry_run` et `require_confirmation` en option. Quand `dry_run` est absent ou vaut `false`, le workflow refuse l execution reelle tant que `require_confirmation` ne vaut pas explicitement `true`; cette confirmation ne doit etre ajoutee qu apres validation utilisateur explicite de `structuredContent.commands_preview`.
 
-Quand `dry_run=true`, aucune commande EOS n'est envoyee via `sendDeterministicCommand`; la sequence EOS complete est retournee dans `structuredContent.commands_preview`, et `structuredContent.commandsSent` reste vide. Les garde-fous sensibles restent portes par les tools bas niveau et ne sont pas exposes dans les schemas workflow.
+Quand `dry_run=true`, aucune commande EOS n'est envoyee via `sendDeterministicCommand`; la sequence EOS complete est retournee dans `structuredContent.commands_preview`, et `structuredContent.commandsSent` reste vide. Les executions refusees faute de `require_confirmation=true` retournent aussi systematiquement `structuredContent.commands_preview` pour permettre a Claude de relire exactement les commandes avec l operateur.
 
 Tous les workflows retournent aussi une structure stable et lisible par les LLM : `structuredContent.steps` (alias moderne de `executedSteps`), `structuredContent.commands_preview` (toujours present), `structuredContent.applied_defaults` (defaults explicites comme `start_cue_number=1` ou fallback cuelist master) et `structuredContent.warnings` (avertissements non bloquants et erreurs partielles resumées).
 
@@ -22,11 +22,11 @@ Exemple concret pour modifier une cue :
 1. **Plan annonce** : "Je vais mettre a jour la cue 12 de la liste 1 sur les canaux `1 Thru 10`, appliquer un facteur d’intensite `0.7`, puis preparer l’update sans l’envoyer."
 2. **Dry-run propose** : appeler `eos_workflow_update_cue_look` avec `dry_run=true` afin de retourner `structuredContent.commands_preview`, par exemple `Chan 1 Thru 10 At * 0.7` puis `Update Cue 1 / 12`.
 3. **Confirmation explicite** : attendre une reponse non ambigue, par exemple "Confirme, execute la mise a jour de la cue 12".
-4. **Execution reelle** : relancer le meme workflow avec `dry_run=false` seulement apres cette confirmation, puis verifier `structuredContent.command_log` et `structuredContent.commandsSent`.
+4. **Execution reelle** : relancer le meme workflow avec les memes arguments metier, `dry_run=false` (ou sans `dry_run`) et `require_confirmation=true` seulement apres cette confirmation explicite, puis verifier `structuredContent.command_log` et `structuredContent.commandsSent`.
 
 Les **outils bas niveau sensibles** (`eos_cue_record`, `eos_cue_update`, `eos_patch_*`, `eos_command`, `eos_new_command`, declenchements `fire`, etc.) exposent des garde-fous stricts comme `require_confirmation`, `safety_level` et le rejet des arguments inconnus. Ils sont adaptes aux integrations qui savent exactement quelle commande EOS envoyer. `eos_new_command` refuse aussi les commandes composees de programmation de cues (par exemple `At` + `Record` + `Label`). Pour une serie de cues, Claude doit privilegier `eos_workflow_create_cue_series` avec `looks[].intensity` (ou `looks[].level`) afin que le workflow emette `Chan 1 Thru 10 At Full`, puis `Record Cue 3`, puis `Cue 3 Label "Reggae"` comme commandes separees.
 
-Les **workflows haut niveau guides** (`eos_workflow_*`) orchestrent plusieurs commandes metier, acceptent des metadonnees clientes inconnues sans les executer et fournissent une preview complete via `dry_run=true`. Ils sont a privilegier pour les assistants conversationnels, car ils imposent un parcours operateur plus lisible avant toute action destructive ou visible en live.
+Les **workflows haut niveau guides** (`eos_workflow_*`) orchestrent plusieurs commandes metier, acceptent des metadonnees clientes inconnues sans les executer et fournissent une preview complete via `dry_run=true`. Pour les workflows qui modifient le show (creation de looks/cues/effects, patch/autopatch, groupes/palettes, update de cue et rehearsal/go), l execution reelle est bloquee sans `require_confirmation=true`; Claude doit donc relancer exactement le meme workflow avec ce champ uniquement apres validation utilisateur explicite. Ils sont a privilegier pour les assistants conversationnels, car ils imposent un parcours operateur plus lisible avant toute action destructive ou visible en live.
 
 ## Capacites de lecture OSC
 
@@ -3565,13 +3565,14 @@ oscsend 127.0.0.1 8001 /eos/param/wheel/tick s:'{"parameter_name":"exemple","tic
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
-| `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes et retourne un journal commande par commande. |
+| `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes uniquement si require_confirmation vaut true. |
 | `face_trad_count` | number | Non | — |
 | `face_trad_label_prefix` | string | Non | — |
 | `face_trad_start_address` | number | Non | — |
 | `face_trad_universe` | number | Non | — |
 | `fixtures` | array<object> | Oui | — |
 | `include_face_trad` | boolean | Non | — |
+| `require_confirmation` | boolean | Non | Obligatoire a true pour toute execution reelle (dry_run absent ou false). Ne doit etre fourni par un assistant qu'apres validation utilisateur explicite de commands_preview. |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 | `user` | number | Non | — |
@@ -3600,9 +3601,10 @@ _Pas de mapping OSC documenté._
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
 | `color_palettes` | array<object> | Non | — |
-| `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes et retourne un journal commande par commande. |
+| `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes uniquement si require_confirmation vaut true. |
 | `focus_palettes` | array<object> | Non | — |
 | `groups` | array<object> | Non | — |
+| `require_confirmation` | boolean | Non | Obligatoire a true pour toute execution reelle (dry_run absent ou false). Ne doit etre fourni par un assistant qu'apres validation utilisateur explicite de commands_preview. |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 | `user` | number | Non | — |
@@ -3631,8 +3633,9 @@ _Pas de mapping OSC documenté._
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
 | `base_cuelist_number` | number | Non | — |
-| `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes et retourne un journal commande par commande. |
+| `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes uniquement si require_confirmation vaut true. |
 | `looks` | array<object> | Oui | — |
+| `require_confirmation` | boolean | Non | Obligatoire a true pour toute execution reelle (dry_run absent ou false). Ne doit etre fourni par un assistant qu'apres validation utilisateur explicite de commands_preview. |
 | `start_cue_number` | string \| number | Non | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
@@ -3663,9 +3666,10 @@ _Pas de mapping OSC documenté._
 | --- | --- | --- | --- |
 | `channels` | string | Oui | — |
 | `direction` | enum(left_to_right, right_to_left, center_out) | Non | — |
-| `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes et retourne un journal commande par commande. |
+| `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes uniquement si require_confirmation vaut true. |
 | `effect_number` | number | Oui | — |
 | `group_number` | number | Non | — |
+| `require_confirmation` | boolean | Non | Obligatoire a true pour toute execution reelle (dry_run absent ou false). Ne doit etre fourni par un assistant qu'apres validation utilisateur explicite de commands_preview. |
 | `size` | number | Non | — |
 | `speed` | number | Non | — |
 | `targetAddress` | string | Non | — |
@@ -3701,8 +3705,9 @@ _Pas de mapping OSC documenté._
 | `cue_label` | string | Non | — |
 | `cue_number` | string \| number | Oui | — |
 | `cuelist_number` | number | Non | — |
-| `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes et retourne un journal commande par commande. |
+| `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes uniquement si require_confirmation vaut true. |
 | `focus_palette` | number | Non | — |
+| `require_confirmation` | boolean | Non | Obligatoire a true pour toute execution reelle (dry_run absent ou false). Ne doit etre fourni par un assistant qu'apres validation utilisateur explicite de commands_preview. |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 | `user` | number | Non | — |
@@ -3733,7 +3738,7 @@ _Pas de mapping OSC documenté._
 | `channel_number` | number | Oui | — |
 | `device_type` | string | Non | — |
 | `dmx_address` | string | Oui | — |
-| `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes et retourne un journal commande par commande. |
+| `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes uniquement si require_confirmation vaut true. |
 | `fixture_manufacturer` | string | Non | — |
 | `fixture_mode` | string | Non | — |
 | `fixture_model` | string | Non | — |
@@ -3744,6 +3749,7 @@ _Pas de mapping OSC documenté._
 | `position_x` | number | Non | — |
 | `position_y` | number | Non | — |
 | `position_z` | number | Non | — |
+| `require_confirmation` | boolean | Non | Obligatoire a true pour toute execution reelle (dry_run absent ou false). Ne doit etre fourni par un assistant qu'apres validation utilisateur explicite de commands_preview. |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 | `user` | number | Non | — |
@@ -3774,8 +3780,9 @@ _Pas de mapping OSC documenté._
 | `allow_non_empty_command_line` | boolean | Non | — |
 | `cue_number` | string \| number | Non | — |
 | `cuelist_number` | number | Oui | — |
-| `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes et retourne un journal commande par commande. |
+| `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes uniquement si require_confirmation vaut true. |
 | `precheck_timeout_ms` | number | Non | — |
+| `require_confirmation` | boolean | Non | Obligatoire a true pour toute execution reelle (dry_run absent ou false). Ne doit etre fourni par un assistant qu'apres validation utilisateur explicite de commands_preview. |
 | `rollback_cue_number` | string \| number | Non | — |
 | `rollback_cuelist_number` | number | Non | — |
 | `rollback_on_failure` | boolean | Non | — |
@@ -3810,8 +3817,9 @@ _Pas de mapping OSC documenté._
 | `cue_number` | string \| number | Non | — |
 | `cuelist_number` | number | Non | — |
 | `desaturate` | boolean | Non | — |
-| `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes et retourne un journal commande par commande. |
+| `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes uniquement si require_confirmation vaut true. |
 | `intensity_factor` | number | Non | — |
+| `require_confirmation` | boolean | Non | Obligatoire a true pour toute execution reelle (dry_run absent ou false). Ne doit etre fourni par un assistant qu'apres validation utilisateur explicite de commands_preview. |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 | `user` | number | Non | — |

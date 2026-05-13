@@ -106,7 +106,8 @@ describe('workflow tools', () => {
       color_palette: 11,
       focus_palette: 12,
       beam_palette: 13,
-      cue_label: 'Look Intro'
+      cue_label: 'Look Intro',
+      require_confirmation: true
     });
 
     expect(service.sentMessages).toHaveLength(7);
@@ -153,6 +154,27 @@ describe('workflow tools', () => {
     ]));
   });
 
+  it('refuse l execution reelle des workflows show sans require_confirmation tout en retournant commands_preview', async () => {
+    const result = await runTool(eosWorkflowCreateLookTool, {
+      channels: '1 Thru 3',
+      cue_number: 101,
+      color_palette: 11
+    });
+
+    expect(service.sentMessages).toHaveLength(0);
+    const structured = getStructuredContent(result);
+    expect(structured?.status).toBe('failed');
+    expect(structured?.commandsSent).toEqual([]);
+    expect(structured?.commands_preview).toEqual([
+      'Chan 1 Thru 3',
+      'CP 11',
+      'Record Cue 101'
+    ]);
+    expect(structured?.partialErrors).toEqual(expect.arrayContaining([
+      expect.objectContaining({ step: 'require_confirmation' })
+    ]));
+  });
+
 
   it('orchestre eos_workflow_create_effect avec groupe optionnel et parametres', async () => {
     const result = await runTool(eosWorkflowCreateEffectTool, {
@@ -161,7 +183,8 @@ describe('workflow tools', () => {
       group_number: 3,
       direction: 'right_to_left',
       speed: 1.5,
-      size: 75
+      size: 75,
+      require_confirmation: true
     });
 
     const structured = getStructuredContent(result);
@@ -221,7 +244,8 @@ describe('workflow tools', () => {
     const result = await runTool(eosWorkflowCreateLookTool, {
       channels: '5',
       cue_number: 2,
-      color_palette: 101
+      color_palette: 101,
+      require_confirmation: true
     });
 
     expect(service.sentMessages).toHaveLength(2);
@@ -242,7 +266,8 @@ describe('workflow tools', () => {
 
     const result = await runTool(eosWorkflowCreateLookTool, {
       channels: '5',
-      cue_number: 2
+      cue_number: 2,
+      require_confirmation: true
     });
 
     const structured = getStructuredContent(result);
@@ -260,7 +285,8 @@ describe('workflow tools', () => {
     service.omitRecordedCuesFromVerification = true;
 
     const result = await runTool(eosWorkflowCreateCueSeriesTool, {
-      looks: [{ channels: '5', cue_number: 7 }]
+      looks: [{ channels: '5', cue_number: 7 }],
+      require_confirmation: true
     });
 
     const structured = getStructuredContent(result);
@@ -446,7 +472,8 @@ describe('workflow tools', () => {
       looks: [
         { channels: '1 Thru 3', color_palette: 11, cue_label: 'Intro' },
         { channels: '4 Thru 6', focus_palette: 20, beam_palette: 30, cue_label: 'Verse' }
-      ]
+      ],
+      require_confirmation: true
     });
 
     const structured = getStructuredContent(result);
@@ -473,7 +500,8 @@ describe('workflow tools', () => {
           intensity: 'Full',
           cue_label: 'Reggae'
         }
-      ]
+      ],
+      require_confirmation: true
     });
 
     const structured = getStructuredContent(result);
@@ -558,7 +586,8 @@ describe('workflow tools', () => {
       channel_number: 201,
       dmx_address: '2/101',
       device_type: 'LED Wash',
-      label: 'Contre'
+      label: 'Contre',
+      require_confirmation: true
     });
 
     expect(service.sentMessages).toHaveLength(3);
@@ -595,7 +624,8 @@ describe('workflow tools', () => {
     service.commandLineText = 'Chan 1 At Full';
 
     const result = await runTool(eosWorkflowRehearsalGoSafeTool, {
-      cuelist_number: 1
+      cuelist_number: 1,
+      require_confirmation: true
     });
 
     const structured = getStructuredContent(result);
@@ -621,7 +651,8 @@ describe('workflow tools', () => {
       cuelist_number: 1,
       cue_number: 15,
       rollback_on_failure: true,
-      rollback_cue_number: 10
+      rollback_cue_number: 10,
+      require_confirmation: true
     });
 
     const structured = getStructuredContent(result);
@@ -672,7 +703,8 @@ describe('workflow tools', () => {
   it('orchestre eos_workflow_build_groups_and_palettes avec blocs partiels', async () => {
     const result = await runTool(eosWorkflowBuildGroupsAndPalettesTool, {
       groups: [{ number: 1, label: 'Face', channels: '1 Thru 4' }],
-      focus_palettes: [{ number: 2, label: 'Down', channels: '1 Thru 4', description: 'Pan 50 Tilt 30' }]
+      focus_palettes: [{ number: 2, label: 'Down', channels: '1 Thru 4', description: 'Pan 50 Tilt 30' }],
+      require_confirmation: true
     });
 
     const structured = getStructuredContent(result);
@@ -709,7 +741,8 @@ describe('workflow tools', () => {
       cuelist_number: 4,
       cue_number: 12,
       channels: '1 Thru 5',
-      intensity_factor: 0.8
+      intensity_factor: 0.8,
+      require_confirmation: true
     });
 
     const structured = getStructuredContent(result);
