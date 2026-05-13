@@ -142,6 +142,7 @@ export const eosCapabilitiesGetTool: ToolDefinition<typeof emptySchema> = {
     const client = getOscClient();
     let liveBlindMode: 'live' | 'blind' | 'unknown' = 'unknown';
     let liveBlindRaw: OscJsonResponse | null = null;
+    let versionRaw: OscJsonResponse | null = null;
     let detectedEosVersion: string | null = null;
 
     try {
@@ -152,11 +153,27 @@ export const eosCapabilitiesGetTool: ToolDefinition<typeof emptySchema> = {
     }
 
     try {
-      const versionResponse = await client.requestJson(oscMappings.system.getVersion, { timeoutMs: 400 });
-      detectedEosVersion = parseDetectedEosVersion(versionResponse.data);
+      versionRaw = await client.requestJson(oscMappings.system.getVersion, { timeoutMs: 400 });
+      detectedEosVersion = parseDetectedEosVersion(versionRaw.data);
     } catch (_error) {
       detectedEosVersion = null;
     }
+
+    const canReadQueries = liveBlindRaw?.status === 'ok' || versionRaw?.status === 'ok';
+    const canSendCommands = oscConnection.health !== 'offline';
+    const limitations = [
+      ...(canSendCommands ? [] : ['Envoi de commandes EOS non confirmé par l’état de transport OSC.']),
+      ...(canReadQueries
+        ? []
+        : ['Lecture des requêtes EOS non garantie; Claude ne doit pas inventer le patch, les cues ou les cuelists sans réponse de lecture explicite.'])
+    ];
+
+    const connectionLimitations = {
+      can_send_commands: canSendCommands,
+      can_read_queries: canReadQueries,
+      handshake_mode: oscConnection.health === 'online' ? 'canonical' : oscConnection.health === 'degraded' ? 'degraded' : 'timeout',
+      limitations
+    };
 
     const safety = {
       default_safety_level: 'strict',
@@ -186,10 +203,12 @@ export const eosCapabilitiesGetTool: ToolDefinition<typeof emptySchema> = {
     const summary = [
       `Capacites disponibles: ${tools.length} outils, ${Object.keys(families).length} familles.`,
       `Connexion OSC: ${oscConnection.health}.`,
+      `Capacites OSC: envoi commandes ${canSendCommands ? 'oui' : 'non'}, lecture requetes ${canReadQueries ? 'oui' : 'non'}.`,
       `Utilisateur courant: ${typeof user === 'number' ? user : 'non defini'}.`,
       `Mode console: ${liveBlindMode}.`,
       `Version EOS detectee: ${detectedEosVersion ?? 'inconnue'}.`,
-      `Version serveur: ${version}.`
+      `Version serveur: ${version}.`,
+      `Limitations: ${limitations.length > 0 ? limitations.join(' | ') : 'aucune'}.`
     ].join(' ');
 
     return {
@@ -201,6 +220,7 @@ export const eosCapabilitiesGetTool: ToolDefinition<typeof emptySchema> = {
         },
         context: {
           osc_connection: oscConnection,
+          osc_limitations: connectionLimitations,
           current_user: user,
           mode: {
             live_blind: liveBlindMode,

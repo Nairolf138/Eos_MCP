@@ -45,9 +45,13 @@ export const eosConnectTool: ToolDefinition<typeof inputSchema> = {
 
     const summaryParts = [
       `Handshake: ${result.status}`,
+      `Mode handshake: ${result.handshake_mode}`,
+      `Envoi commandes: ${result.can_send_commands ? 'oui' : 'non'}`,
+      `Lecture requetes: ${result.can_read_queries ? 'oui' : 'non'}`,
       `Protocoles disponibles: ${result.availableProtocols.length > 0 ? result.availableProtocols.join(', ') : 'aucun'}`,
       `Protocole selectionne: ${result.selectedProtocol ?? 'non defini'} (${result.protocolStatus})`,
-      `Version detectee: ${result.version ?? 'inconnue'}`
+      `Version detectee: ${result.version ?? 'inconnue'}`,
+      `Limitations: ${result.limitations.length > 0 ? result.limitations.join(' | ') : 'aucune'}`
     ];
 
     return {

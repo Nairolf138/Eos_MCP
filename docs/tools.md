@@ -28,6 +28,10 @@ Les **outils bas niveau sensibles** (`eos_cue_record`, `eos_cue_update`, `eos_pa
 
 Les **workflows haut niveau guides** (`eos_workflow_*`) orchestrent plusieurs commandes metier, acceptent des metadonnees clientes inconnues sans les executer et fournissent une preview complete via `dry_run=true`. Ils sont a privilegier pour les assistants conversationnels, car ils imposent un parcours operateur plus lisible avant toute action destructive ou visible en live.
 
+## Capacites de lecture OSC
+
+Avant de raisonner sur le contenu du show, Claude doit lire `eos_connect.structuredContent` ou `eos_capabilities_get.structuredContent.context.osc_limitations`. Si `can_read_queries=false`, Claude ne doit pas inventer le patch, la cuelist, les cues ou les objets EOS : il doit les presenter comme inconnus et demander une lecture reussie ou une confirmation utilisateur explicite. En `handshake_mode=degraded`, le serveur indique seulement que l’envoi est possible; la lecture reste non garantie tant qu’une requete de lecture ne retourne pas `status=ok`.
+
 ## Options communes de securite (outils critiques)
 
 Les outils critiques des familles **cues**, **patch**, **palettes** et **commandes texte** exposent les options suivantes :
@@ -630,6 +634,8 @@ oscsend 127.0.0.1 8001 /eos/cp/fire s:'{"palette_number":1}'
 | `targetPort` | number | Non | — |
 | `terminateWithEnter` | boolean | Non | — |
 | `user` | number | Non | — |
+| `verification_timeout_ms` | number | Non | — |
+| `verify_after_send` | boolean | Non | — |
 
 **Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
 
@@ -666,6 +672,8 @@ oscsend 127.0.0.1 8001 /eos/cmd s:'{"command":"exemple"}'
 | `terminateWithEnter` | boolean | Non | — |
 | `user` | number | Non | — |
 | `values` | array<string \| number \| boolean> | Non | — |
+| `verification_timeout_ms` | number | Non | — |
+| `verify_after_send` | boolean | Non | — |
 
 **Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
 
@@ -1821,6 +1829,8 @@ oscsend 127.0.0.1 8001 /eos/get/active/wheels s:'{"timeoutMs":1}'
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
 | `user` | number | Non | — |
+| `verification_timeout_ms` | number | Non | — |
+| `verify_after_send` | boolean | Non | — |
 
 **Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
 
@@ -2082,6 +2092,8 @@ oscsend 127.0.0.1 8001 /eos/get/softkey_labels s:'{"timeoutMs":1}'
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
 | `user` | number | Oui | — |
+| `verification_timeout_ms` | number | Non | — |
+| `verify_after_send` | boolean | Non | — |
 
 **Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
 
@@ -2516,6 +2528,8 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'{"osc_command":"exemple"}'
 | `targetPort` | number | Non | — |
 | `terminateWithEnter` | boolean | Non | — |
 | `user` | number | Non | — |
+| `verification_timeout_ms` | number | Non | — |
+| `verify_after_send` | boolean | Non | — |
 
 **Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
 
