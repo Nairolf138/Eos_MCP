@@ -2,6 +2,7 @@
  * Copyright 2026 Florian Ribes (NairolfConcept)
  * SPDX-License-Identifier: Apache-2.0
  */
+import { getResourceCache } from '../../../services/cache/index';
 import type { OscMessage } from '../../../services/osc/index';
 import { OscClient, setOscClient, type OscGateway, type OscGatewaySendOptions } from '../../../services/osc/client';
 import { oscMappings } from '../../../services/osc/mappings';
@@ -29,10 +30,41 @@ class FakeOscService implements OscGateway {
   }
 }
 
+const QUERY_TARGET_TYPES = [
+  'cue',
+  'cuelist',
+  'group',
+  'macro',
+  'ms',
+  'ip',
+  'fp',
+  'cp',
+  'bp',
+  'preset',
+  'sub',
+  'fx',
+  'curve',
+  'snap',
+  'pixmap'
+] as const;
+
+function emitJson(service: FakeOscService, address: string, payload: Record<string, unknown>): void {
+  service.emit({
+    address,
+    args: [
+      {
+        type: 's',
+        value: JSON.stringify(payload)
+      }
+    ]
+  });
+}
+
 describe('query tools', () => {
   let service: FakeOscService;
 
   beforeEach(() => {
+    getResourceCache().clearAll();
     service = new FakeOscService();
     const client = new OscClient(service, { defaultTimeoutMs: 50 });
     setOscClient(client);
@@ -40,6 +72,45 @@ describe('query tools', () => {
 
   afterEach(() => {
     setOscClient(null);
+    getResourceCache().clearAll();
+  });
+
+  it('autorise requestJson pour les endpoints count et list de chaque target_type', async () => {
+    for (const targetType of QUERY_TARGET_TYPES) {
+      const mapping = oscMappings.queries[targetType];
+      const countPromise = runTool(eosGetCountTool, { target_type: targetType });
+
+      queueMicrotask(() => {
+        expect(service.sentMessages.at(-1)).toMatchObject({ address: mapping.count });
+        emitJson(service, mapping.count, { status: 'ok', count: 1 });
+      });
+
+      const countContent = getStructuredContent(await countPromise);
+      expect(countContent).toMatchObject({
+        action: 'get_count',
+        status: 'ok',
+        target_type: targetType,
+        count: 1
+      });
+
+      const listPromise = runTool(eosGetListAllTool, { target_type: targetType });
+
+      queueMicrotask(() => {
+        expect(service.sentMessages.at(-1)).toMatchObject({ address: mapping.list });
+        emitJson(service, mapping.list, {
+          status: 'ok',
+          items: [{ number: 1, uid: `${targetType}:1`, label: targetType }]
+        });
+      });
+
+      const listContent = getStructuredContent(await listPromise);
+      expect(listContent).toMatchObject({
+        action: 'list_all',
+        status: 'ok',
+        target_type: targetType,
+        items: [{ number: '1', uid: `${targetType}:1`, label: targetType }]
+      });
+    }
   });
 
   it('envoie la requete de count vers le mapping FX et normalise la reponse', async () => {
@@ -189,5 +260,27 @@ describe('query tools', () => {
         { number: '2', uid: 'ms:2', label: null }
       ]
     });
+  });
+
+  it('retourne un structuredContent timeout quand aucune reponse OSC narrive', async () => {
+    const result = await runTool(eosGetCountTool, { target_type: 'group', timeoutMs: 50 });
+    const structuredContent = getStructuredContent(result);
+    expect(structuredContent).toBeDefined();
+    if (!structuredContent) {
+      throw new Error('Expected structured content');
+    }
+
+    expect(structuredContent).toMatchObject({
+      action: 'get_count',
+      status: 'timeout',
+      target_type: 'group',
+      count: 0,
+      data: null,
+      osc: {
+        address: oscMappings.queries.group.count,
+        args: {}
+      }
+    });
+    expect(typeof structuredContent.error).toBe('string');
   });
 });
