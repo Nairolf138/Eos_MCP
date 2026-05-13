@@ -4,6 +4,7 @@
  */
 import { z } from 'zod';
 import { getOscClient, type CommandLineState } from '../../services/osc/client';
+import { buildCueJsonMessage } from '../../services/osc/messageBuilders';
 import { oscMappings } from '../../services/osc/mappings';
 import { getCurrentUserId } from '../session/index';
 import {
@@ -15,6 +16,9 @@ import {
   type SafetyOptions
 } from '../common/safety';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
+import { buildCueCommandPayload, createCueIdentifierFromOptions, formatCueDescription } from '../cues/common';
+import { mapCueList } from '../cues/mappers';
+import type { CueIdentifier } from '../cues/types';
 import eosV3CommandProfile from './commandProfiles/eos-v3.json';
 
 type SubstitutionValue = string | number | boolean;
@@ -22,7 +26,9 @@ type SubstitutionValue = string | number | boolean;
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
   targetPort: z.coerce.number().int().min(1).max(65535).optional(),
-  ...safetyOptionsSchema
+  ...safetyOptionsSchema,
+  verify_after_send: z.boolean().optional(),
+  verification_timeout_ms: z.coerce.number().int().positive().max(10000).optional()
 };
 
 const substitutionsSchema = z.array(z.union([z.string(), z.number(), z.boolean()])).optional();
@@ -244,17 +250,163 @@ function buildOscDescriptor(command: string, user?: number | null): Record<strin
   return { args };
 }
 
-function formatSendResult(command: string, user: number | null, oscAddress: string): ToolExecutionResult {
+interface CommandVerificationResult {
+  status: 'verified' | 'not_verified' | 'skipped';
+  accepted_by_eos: boolean | null;
+  verified: boolean;
+  method: string | null;
+  warning?: string;
+  details?: unknown;
+}
+
+const unverifiedWarning = 'commande envoyée mais non vérifiée dans EOS';
+
+function parseRecordCueIdentifier(command: string): CueIdentifier | null {
+  const normalized = command.replace(/#/g, ' ').replace(/\s+/g, ' ').trim();
+  const match = /(?:^|\s)Record\s+Cue\s+(?:(\d+)\s*\/\s*)?([^\s]+)(?:\s+Part\s+(\d+))?/i.exec(normalized);
+  if (!match) {
+    return null;
+  }
+
+  return createCueIdentifierFromOptions({
+    cuelist_number: match[1] != null ? Number(match[1]) : undefined,
+    cue_number: match[2],
+    cue_part: match[3] != null ? Number(match[3]) : undefined
+  });
+}
+
+function cueIdentifiersMatch(actual: CueIdentifier, expected: CueIdentifier): boolean {
+  const sameCue = actual.cueNumber != null && expected.cueNumber != null && String(actual.cueNumber) === String(expected.cueNumber);
+  const sameList = expected.cuelistNumber == null || actual.cuelistNumber == null || actual.cuelistNumber === expected.cuelistNumber;
+  const expectedPart = expected.cuePart ?? null;
+  const actualPart = actual.cuePart ?? null;
+  const samePart = expectedPart == null || expectedPart === actualPart;
+  return sameCue && sameList && samePart;
+}
+
+async function verifyRecordedCue(
+  command: string,
+  options: { targetAddress?: string; targetPort?: number; timeoutMs?: number }
+): Promise<CommandVerificationResult> {
+  const identifier = parseRecordCueIdentifier(command);
+  if (!identifier?.cueNumber) {
+    return {
+      status: 'not_verified',
+      accepted_by_eos: null,
+      verified: false,
+      method: 'eos_cue_list_all',
+      warning: unverifiedWarning,
+      details: { reason: 'record_cue_target_not_parsed' }
+    };
+  }
+
+  const client = getOscClient();
+  const payload = buildCueCommandPayload({
+    cuelistNumber: identifier.cuelistNumber,
+    cueNumber: null,
+    cuePart: null
+  });
+  const request = buildCueJsonMessage(oscMappings.cues.list, payload);
+  const response = await client.requestBuiltJson(request, {
+    targetAddress: options.targetAddress,
+    targetPort: options.targetPort,
+    timeoutMs: options.timeoutMs
+  });
+  const cues = response.status === 'ok' ? mapCueList(response.data, identifier) : [];
+  const found = cues.some((cue) => cueIdentifiersMatch(cue.identifier, identifier));
+
+  return {
+    status: found ? 'verified' : 'not_verified',
+    accepted_by_eos: response.status === 'ok' ? found : null,
+    verified: found,
+    method: 'eos_cue_list_all',
+    ...(found ? {} : { warning: unverifiedWarning }),
+    details: {
+      status: response.status,
+      identifier,
+      cue_description: formatCueDescription(identifier),
+      ...(response.error ? { error: response.error } : {})
+    }
+  };
+}
+
+async function verifyCommandLineAccepted(
+  options: { user?: number; targetAddress?: string; targetPort?: number; timeoutMs?: number }
+): Promise<CommandVerificationResult> {
+  const result = await getOscClient().getCommandLine({
+    user: options.user,
+    targetAddress: options.targetAddress,
+    targetPort: options.targetPort,
+    timeoutMs: options.timeoutMs
+  });
+
+  return {
+    status: result.status === 'ok' ? 'verified' : 'not_verified',
+    accepted_by_eos: result.status === 'ok' ? true : null,
+    verified: result.status === 'ok',
+    method: 'eos_get_command_line',
+    ...(result.status === 'ok' ? {} : { warning: unverifiedWarning }),
+    details: result
+  };
+}
+
+async function verifySensitiveCommandAfterSend(
+  command: string,
+  options: { user?: number; targetAddress?: string; targetPort?: number; timeoutMs?: number }
+): Promise<CommandVerificationResult> {
+  if (/\bRecord\s+Cue\b/i.test(command)) {
+    return verifyRecordedCue(command, options);
+  }
+  return verifyCommandLineAccepted(options);
+}
+
+async function safelyVerifySensitiveCommandAfterSend(
+  command: string,
+  options: { user?: number; targetAddress?: string; targetPort?: number; timeoutMs?: number }
+): Promise<CommandVerificationResult> {
+  try {
+    return await verifySensitiveCommandAfterSend(command, options);
+  } catch (error) {
+    return {
+      status: 'not_verified',
+      accepted_by_eos: null,
+      verified: false,
+      method: null,
+      warning: unverifiedWarning,
+      details: { error: error instanceof Error ? error.message : String(error) }
+    };
+  }
+}
+
+function formatSendResult(
+  command: string,
+  user: number | null,
+  oscAddress: string,
+  verification?: CommandVerificationResult
+): ToolExecutionResult {
+  const isPartialFailure = verification?.status === 'not_verified';
+  const suffix = verification?.verified === true
+    ? ' Verification EOS reussie.'
+    : verification?.status === 'not_verified'
+      ? ` ${unverifiedWarning}.`
+      : ' Acceptation EOS non verifiee.';
+
   return {
     content: [
       {
         type: 'text',
-        text: `Commande envoyee sur ${oscAddress}: ${command}`
+        text: `Commande remise au transport OSC sur ${oscAddress}: ${command}.${suffix}`
       }
     ],
     structuredContent: {
+      status: isPartialFailure ? 'partial_failure' : 'ok',
       command,
       user,
+      sent_to_transport: true,
+      accepted_by_eos: verification?.accepted_by_eos ?? null,
+      verified: verification?.verified ?? false,
+      ...(verification ? { verification } : {}),
+      ...(verification?.warning ? { warnings: [{ detail: verification.warning }] } : {}),
       osc: {
         address: oscAddress,
         ...buildOscDescriptor(command, user)
@@ -301,6 +453,8 @@ export interface DeterministicCommandOptions extends SafetyOptions {
   targetAddress?: string;
   targetPort?: number;
   dry_run?: boolean;
+  verify_after_send?: boolean;
+  verification_timeout_ms?: number;
 }
 
 export async function sendDeterministicCommand(options: DeterministicCommandOptions): Promise<ToolExecutionResult> {
@@ -309,8 +463,8 @@ export async function sendDeterministicCommand(options: DeterministicCommandOpti
   const command = ensureTerminator(options.command, options.terminateWithEnter);
   const shouldClear = options.clearLine !== false;
   const user = resolveUserId(options.user);
-  const safety = resolveSafetyOptions(options);
-  assertCommandSyntaxAllowed(command, safety.safetyLevel);
+  const safetyLevel = options.safety_level ?? 'off';
+  assertCommandSyntaxAllowed(command, safetyLevel);
 
   if (options.dry_run) {
     return createDryRunResult({
@@ -329,7 +483,15 @@ export async function sendDeterministicCommand(options: DeterministicCommandOpti
       targetAddress: options.targetAddress,
       targetPort: options.targetPort
     });
-    return formatSendResult(command, user ?? null, oscMappings.commands.newCommand);
+    const verification = options.verify_after_send && isSensitiveCommandText(command)
+      ? await safelyVerifySensitiveCommandAfterSend(command, {
+          user,
+          targetAddress: options.targetAddress,
+          targetPort: options.targetPort,
+          timeoutMs: options.verification_timeout_ms
+        })
+      : undefined;
+    return formatSendResult(command, user ?? null, oscMappings.commands.newCommand, verification);
   }
 
   await client.sendCommand(command, {
@@ -338,7 +500,16 @@ export async function sendDeterministicCommand(options: DeterministicCommandOpti
     targetPort: options.targetPort
   });
 
-  return formatSendResult(command, user ?? null, oscMappings.commands.command);
+  const verification = options.verify_after_send && isSensitiveCommandText(command)
+    ? await safelyVerifySensitiveCommandAfterSend(command, {
+        user,
+        targetAddress: options.targetAddress,
+        targetPort: options.targetPort,
+        timeoutMs: options.verification_timeout_ms
+      })
+    : undefined;
+
+  return formatSendResult(command, user ?? null, oscMappings.commands.command, verification);
 }
 
 const commandInputSchema = {
@@ -400,7 +571,16 @@ export const eosCommandTool: ToolDefinition<typeof commandInputSchema> = {
       targetPort: options.targetPort
     });
 
-    return formatSendResult(command, user ?? null, oscMappings.commands.command);
+    const verification = options.verify_after_send && isSensitiveCommandText(command)
+      ? await safelyVerifySensitiveCommandAfterSend(command, {
+          user,
+          targetAddress: options.targetAddress,
+          targetPort: options.targetPort,
+          timeoutMs: options.verification_timeout_ms
+        })
+      : undefined;
+
+    return formatSendResult(command, user ?? null, oscMappings.commands.command, verification);
   }
 };
 
@@ -452,6 +632,8 @@ export const eosNewCommandTool: ToolDefinition<typeof newCommandInputSchema> = {
       targetAddress: options.targetAddress,
       targetPort: options.targetPort,
       dry_run: options.dry_run,
+      verify_after_send: options.verify_after_send,
+      verification_timeout_ms: options.verification_timeout_ms,
       require_confirmation: options.require_confirmation,
       safety_level: options.safety_level
     });
@@ -515,7 +697,16 @@ export const eosCommandWithSubstitutionTool: ToolDefinition<typeof substitutionC
       targetPort: options.targetPort
     });
 
-    return formatSendResult(command, user ?? null, oscMappings.commands.command);
+    const verification = options.verify_after_send && isSensitiveCommandText(command)
+      ? await safelyVerifySensitiveCommandAfterSend(command, {
+          user,
+          targetAddress: options.targetAddress,
+          targetPort: options.targetPort,
+          timeoutMs: options.verification_timeout_ms
+        })
+      : undefined;
+
+    return formatSendResult(command, user ?? null, oscMappings.commands.command, verification);
   }
 };
 

@@ -5,8 +5,11 @@
 import { z, type ZodRawShape } from 'zod';
 import { validateCueArgumentsPair, optionalTimeoutMsSchema } from '../../utils/validators';
 import { getOscClient } from '../../services/osc/client';
+import { buildCueJsonMessage } from '../../services/osc/messageBuilders';
+import { oscMappings } from '../../services/osc/mappings';
 import { sendDeterministicCommand } from '../commands/command_tools';
 import {
+  buildCueCommandPayload,
   buildRecordCueCommand,
   createCueIdentifierFromOptions,
   cueNumberSchema,
@@ -14,6 +17,8 @@ import {
   formatCueDescription,
   formatCueTarget
 } from '../cues/common';
+import { mapCueList } from '../cues/mappers';
+import type { CueIdentifier } from '../cues/types';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 import {
   buildPatchSequence,
@@ -143,6 +148,78 @@ function resolveNumericCueNumber(value: string | number, field: string): number 
   return numeric;
 }
 
+function cueIdentifiersMatch(actual: CueIdentifier, expected: CueIdentifier): boolean {
+  const sameCue = actual.cueNumber != null && expected.cueNumber != null && String(actual.cueNumber) === String(expected.cueNumber);
+  const sameList = expected.cuelistNumber == null || actual.cuelistNumber == null || actual.cuelistNumber === expected.cuelistNumber;
+  const expectedPart = expected.cuePart ?? null;
+  const actualPart = actual.cuePart ?? null;
+  const samePart = expectedPart == null || expectedPart === actualPart;
+  return sameCue && sameList && samePart;
+}
+
+async function verifyCueExistsAfterRecord(
+  cueNumber: string | number,
+  cuelistNumber: number | null | undefined,
+  options: { targetAddress?: string; targetPort?: number }
+): Promise<{ ok: boolean; detail: string; error?: string }> {
+  const identifier = createCueIdentifierFromOptions({
+    cue_number: cueNumber,
+    cuelist_number: cuelistNumber
+  });
+  const client = getOscClient();
+  const payload = buildCueCommandPayload({
+    cuelistNumber: identifier.cuelistNumber,
+    cueNumber: null,
+    cuePart: null
+  });
+  const request = buildCueJsonMessage(oscMappings.cues.list, payload);
+  const response = await client.requestBuiltJson(request, {
+    targetAddress: options.targetAddress,
+    targetPort: options.targetPort
+  });
+
+  if (response.status !== 'ok') {
+    return {
+      ok: false,
+      detail: `verification cue status=${response.status}`,
+      error: response.error ?? 'commande envoyée mais non vérifiée dans EOS'
+    };
+  }
+
+  const cues = mapCueList(response.data, identifier);
+  const found = cues.some((cue) => cueIdentifiersMatch(cue.identifier, identifier));
+  return found
+    ? { ok: true, detail: 'cue verifiee dans EOS' }
+    : { ok: false, detail: 'cue absente apres Record Cue', error: 'commande envoyée mais non vérifiée dans EOS' };
+}
+
+async function verifyRecordCueStep(
+  steps: WorkflowStepLog[],
+  partialErrors: Array<{ step: string; error: string }>,
+  step: string,
+  cueNumber: string | number,
+  cuelistNumber: number | null | undefined,
+  options: { targetAddress?: string; targetPort?: number }
+): Promise<boolean> {
+  try {
+    const verification = await verifyCueExistsAfterRecord(cueNumber, cuelistNumber, options);
+    if (verification.ok) {
+      steps.push({ step: `${step}_verify`, status: 'ok', detail: verification.detail });
+      return true;
+    }
+
+    const error = verification.error ?? 'commande envoyée mais non vérifiée dans EOS';
+    steps.push({ step: `${step}_verify`, status: 'error', detail: verification.detail, error });
+    partialErrors.push({ step: `${step}_verify`, error });
+    return false;
+  } catch (error) {
+    const message = extractPatchSequenceError(error) || 'commande envoyée mais non vérifiée dans EOS';
+    steps.push({ step: `${step}_verify`, status: 'error', detail: 'verification cue exception', error: message });
+    partialErrors.push({ step: `${step}_verify`, error: message });
+    return false;
+  }
+}
+
 async function runCommandStep(
   steps: WorkflowStepLog[],
   partialErrors: Array<{ step: string; error: string }>,
@@ -238,7 +315,8 @@ export const eosWorkflowCreateLookTool: ToolDefinition<typeof createLookInputSch
       ...(options.beam_palette != null ? [{ step: 'apply_beam_palette', command: `BP ${options.beam_palette}` }] : []),
       {
         step: 'record_cue',
-        command: buildRecordCueCommand(options.cue_number, options.cuelist_number)
+        command: buildRecordCueCommand(options.cue_number, options.cuelist_number),
+        verifyCue: { cueNumber: options.cue_number, cuelistNumber: options.cuelist_number }
       },
       ...(options.cue_label
         ? [
@@ -265,6 +343,26 @@ export const eosWorkflowCreateLookTool: ToolDefinition<typeof createLookInputSch
           steps,
           partialErrors
         );
+      }
+
+      if ('verifyCue' in commandStep && commandStep.verifyCue != null) {
+        const verified = await verifyRecordCueStep(
+          steps,
+          partialErrors,
+          commandStep.step,
+          commandStep.verifyCue.cueNumber,
+          commandStep.verifyCue.cuelistNumber,
+          options
+        );
+        if (!verified) {
+          return buildWorkflowResult(
+            'eos_workflow_create_look',
+            'partial_failure',
+            'Workflow creation look interrompu: commande envoyée mais non vérifiée dans EOS.',
+            steps,
+            partialErrors
+          );
+        }
       }
     }
 
@@ -466,7 +564,8 @@ export const eosWorkflowCreateCueSeriesTool: ToolDefinition<typeof createCueSeri
         ...(look.beam_palette != null ? [{ step: `${cueStepPrefix}_apply_beam_palette`, command: `BP ${look.beam_palette}` }] : []),
         {
           step: `${cueStepPrefix}_record_cue`,
-          command: buildRecordCueCommand(effectiveCueNumber, options.base_cuelist_number)
+          command: buildRecordCueCommand(effectiveCueNumber, options.base_cuelist_number),
+          verifyCue: { cueNumber: effectiveCueNumber, cuelistNumber: options.base_cuelist_number }
         },
         ...(look.cue_label
           ? [
@@ -495,6 +594,27 @@ export const eosWorkflowCreateCueSeriesTool: ToolDefinition<typeof createCueSeri
             partialErrors,
             { ...(dryRun ? { commands_preview: commandsPreview } : {}) }
           );
+        }
+
+        if ('verifyCue' in commandStep && commandStep.verifyCue != null) {
+          const verified = await verifyRecordCueStep(
+            steps,
+            partialErrors,
+            commandStep.step,
+            commandStep.verifyCue.cueNumber,
+            commandStep.verifyCue.cuelistNumber,
+            options
+          );
+          if (!verified) {
+            return buildWorkflowResult(
+              'eos_workflow_create_cue_series',
+              'partial_failure',
+              'Workflow creation serie cues interrompu: commande envoyée mais non vérifiée dans EOS.',
+              steps,
+              partialErrors,
+              { ...(dryRun ? { commands_preview: commandsPreview } : {}) }
+            );
+          }
         }
       }
 
