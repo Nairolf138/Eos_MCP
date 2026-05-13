@@ -38,8 +38,47 @@ const targetOptionsSchema = {
 } satisfies ZodRawShape;
 
 const workflowDryRunSchema = z.boolean().optional().describe(
-  "Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes et retourne un journal commande par commande."
+  "Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes uniquement si require_confirmation vaut true."
 );
+
+const workflowRequireConfirmationSchema = z.boolean().optional().describe(
+  "Obligatoire a true pour toute execution reelle (dry_run absent ou false). Ne doit etre fourni par un assistant qu'apres validation utilisateur explicite de commands_preview."
+);
+
+const requireConfirmationMissingDetail = 'require_confirmation=true obligatoire pour executer reellement ce workflow apres validation utilisateur explicite.';
+
+function shouldBlockUnconfirmedExecution(options: { dry_run?: boolean; require_confirmation?: boolean }): boolean {
+  return options.dry_run !== true && options.require_confirmation !== true;
+}
+
+function previewSkipDetail(dryRun: boolean): string {
+  return dryRun ? 'dry_run' : 'require_confirmation_missing';
+}
+
+function buildUnconfirmedExecutionResult(
+  workflow: string,
+  steps: WorkflowStepLog[],
+  partialErrors: Array<{ step: string; error: string }>,
+  commandsPreview: string[],
+  extraStructuredContent: Record<string, unknown> = {}
+): ToolExecutionResult {
+  steps.push({
+    step: 'require_confirmation',
+    status: 'error',
+    detail: 'execution_reelle_refusee',
+    error: requireConfirmationMissingDetail
+  });
+  partialErrors.push({ step: 'require_confirmation', error: requireConfirmationMissingDetail });
+
+  return buildWorkflowResult(
+    workflow,
+    'failed',
+    'Execution reelle refusee: relancez le meme workflow avec require_confirmation=true uniquement apres validation utilisateur explicite de commands_preview.',
+    steps,
+    partialErrors,
+    { commands_preview: commandsPreview, ...extraStructuredContent }
+  );
+}
 
 function workflowObject<T extends ZodRawShape>(shape: T): z.ZodObject<T, 'passthrough'> {
   return z.object(shape).passthrough();
@@ -256,6 +295,7 @@ const createLookInputSchema = {
   beam_palette: z.coerce.number().int().min(1).max(99999).optional(),
   cue_label: z.string().trim().min(1).max(128).optional(),
   dry_run: workflowDryRunSchema,
+  require_confirmation: workflowRequireConfirmationSchema,
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
@@ -278,6 +318,7 @@ const createEffectInputSchema = {
   speed: z.coerce.number().finite().positive().max(999).optional().default(1),
   size: z.coerce.number().finite().positive().max(1000).optional().default(100),
   dry_run: workflowDryRunSchema,
+  require_confirmation: workflowRequireConfirmationSchema,
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
@@ -300,6 +341,7 @@ export const eosWorkflowCreateLookTool: ToolDefinition<typeof createLookInputSch
   handler: async (args) => {
     const options = workflowObject(createLookInputSchema).parse(args ?? {});
     const dryRun = options.dry_run === true;
+    const blockUnconfirmedExecution = shouldBlockUnconfirmedExecution(options);
     const steps: WorkflowStepLog[] = [];
     const partialErrors: Array<{ step: string; error: string }> = [];
     const commandsPreview: string[] = [];
@@ -329,8 +371,8 @@ export const eosWorkflowCreateLookTool: ToolDefinition<typeof createLookInputSch
     ];
     for (const commandStep of commands) {
       commandsPreview.push(commandStep.command);
-      if (dryRun) {
-        steps.push({ step: commandStep.step, status: 'skipped', command: commandStep.command, detail: 'dry_run' });
+      if (dryRun || blockUnconfirmedExecution) {
+        steps.push({ step: commandStep.step, status: 'skipped', command: commandStep.command, detail: previewSkipDetail(dryRun) });
         continue;
       }
 
@@ -366,6 +408,10 @@ export const eosWorkflowCreateLookTool: ToolDefinition<typeof createLookInputSch
       }
     }
 
+    if (blockUnconfirmedExecution) {
+      return buildUnconfirmedExecutionResult('eos_workflow_create_look', steps, partialErrors, commandsPreview);
+    }
+
     return buildWorkflowResult(
       'eos_workflow_create_look',
       'ok',
@@ -397,6 +443,7 @@ export const eosWorkflowCreateEffectTool: ToolDefinition<typeof createEffectInpu
   handler: async (args) => {
     const options = workflowObject(createEffectInputSchema).parse(args ?? {});
     const dryRun = options.dry_run === true;
+    const blockUnconfirmedExecution = shouldBlockUnconfirmedExecution(options);
     const steps: WorkflowStepLog[] = [];
     const partialErrors: Array<{ step: string; error: string }> = [];
     const commandsPreview: string[] = [];
@@ -415,8 +462,8 @@ export const eosWorkflowCreateEffectTool: ToolDefinition<typeof createEffectInpu
 
     for (const commandStep of commands) {
       commandsPreview.push(commandStep.command);
-      if (dryRun) {
-        steps.push({ step: commandStep.step, status: 'skipped', command: commandStep.command, detail: 'dry_run' });
+      if (dryRun || blockUnconfirmedExecution) {
+        steps.push({ step: commandStep.step, status: 'skipped', command: commandStep.command, detail: previewSkipDetail(dryRun) });
         continue;
       }
 
@@ -443,6 +490,21 @@ export const eosWorkflowCreateEffectTool: ToolDefinition<typeof createEffectInpu
           }
         );
       }
+    }
+
+    if (blockUnconfirmedExecution) {
+      return buildUnconfirmedExecutionResult('eos_workflow_create_effect', steps, partialErrors, commandsPreview, {
+        effect: {
+          effect_number: options.effect_number,
+          channels: options.channels,
+          group_number: options.group_number ?? null,
+          parameters: {
+            direction: options.direction,
+            speed: options.speed,
+            size: options.size
+          }
+        }
+      });
     }
 
     return buildWorkflowResult(
@@ -509,6 +571,7 @@ const createCueSeriesInputSchema = {
     cue_label: z.string().trim().min(1).max(128).optional()
   })).min(1),
   dry_run: workflowDryRunSchema,
+  require_confirmation: workflowRequireConfirmationSchema,
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
@@ -533,6 +596,7 @@ export const eosWorkflowCreateCueSeriesTool: ToolDefinition<typeof createCueSeri
     const rawArgs = (args ?? {}) as Record<string, unknown>;
     const options = workflowObject(createCueSeriesInputSchema).parse(rawArgs);
     const dryRun = options.dry_run === true;
+    const blockUnconfirmedExecution = shouldBlockUnconfirmedExecution(options);
     const steps: WorkflowStepLog[] = [];
     const partialErrors: Array<{ step: string; error: string }> = [];
     const commandsPreview: string[] = [];
@@ -579,8 +643,8 @@ export const eosWorkflowCreateCueSeriesTool: ToolDefinition<typeof createCueSeri
 
       for (const commandStep of commands) {
         commandsPreview.push(commandStep.command);
-        if (dryRun) {
-          steps.push({ step: commandStep.step, status: 'skipped', command: commandStep.command, detail: 'dry_run' });
+        if (dryRun || blockUnconfirmedExecution) {
+          steps.push({ step: commandStep.step, status: 'skipped', command: commandStep.command, detail: previewSkipDetail(dryRun) });
           continue;
         }
 
@@ -621,6 +685,10 @@ export const eosWorkflowCreateCueSeriesTool: ToolDefinition<typeof createCueSeri
       cueNumber = resolveNumericCueNumber(effectiveCueNumber, `looks[${index}].cue_number`) + 1;
     }
 
+    if (blockUnconfirmedExecution) {
+      return buildUnconfirmedExecutionResult('eos_workflow_create_cue_series', steps, partialErrors, commandsPreview);
+    }
+
     return buildWorkflowResult(
       'eos_workflow_create_cue_series',
       'ok',
@@ -647,6 +715,7 @@ const patchFixtureInputSchema = {
   position_y: z.coerce.number().finite().optional(),
   position_z: z.coerce.number().finite().optional(),
   dry_run: workflowDryRunSchema,
+  require_confirmation: workflowRequireConfirmationSchema,
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
@@ -669,6 +738,7 @@ export const eosWorkflowPatchFixtureTool: ToolDefinition<typeof patchFixtureInpu
   handler: async (args) => {
     const options = workflowObject(patchFixtureInputSchema).parse(args ?? {});
     const dryRun = options.dry_run === true;
+    const blockUnconfirmedExecution = shouldBlockUnconfirmedExecution(options);
     const steps: WorkflowStepLog[] = [];
     const partialErrors: Array<{ step: string; error: string }> = [];
     const commandsPreview: string[] = [];
@@ -683,8 +753,8 @@ export const eosWorkflowPatchFixtureTool: ToolDefinition<typeof patchFixtureInpu
 
     for (const commandStep of execution.commands) {
       commandsPreview.push(commandStep.command);
-      if (dryRun) {
-        steps.push({ step: commandStep.step, status: 'skipped', command: commandStep.command, detail: 'dry_run' });
+      if (dryRun || blockUnconfirmedExecution) {
+        steps.push({ step: commandStep.step, status: 'skipped', command: commandStep.command, detail: previewSkipDetail(dryRun) });
         continue;
       }
 
@@ -698,6 +768,23 @@ export const eosWorkflowPatchFixtureTool: ToolDefinition<typeof patchFixtureInpu
           partialErrors
         );
       }
+    }
+
+    if (blockUnconfirmedExecution) {
+      return buildUnconfirmedExecutionResult('eos_workflow_patch_fixture', steps, partialErrors, commandsPreview, {
+        ...(execution.fixtureResolution
+          ? {
+              fixture_resolution: {
+                manufacturer: execution.fixtureResolution.fixture.manufacturer,
+                model: execution.fixtureResolution.fixture.model,
+                name: execution.fixtureResolution.fixture.name,
+                mode: execution.fixtureResolution.mode.name,
+                device_type: execution.fixtureResolution.deviceType,
+                score: execution.fixtureResolution.score
+              }
+            }
+          : {})
+      });
     }
 
     return buildWorkflowResult(
@@ -745,6 +832,7 @@ const autopatchBandInputSchema = {
   face_trad_start_address: z.coerce.number().int().min(1).max(512).optional(),
   face_trad_label_prefix: z.string().trim().min(1).max(128).optional(),
   dry_run: workflowDryRunSchema,
+  require_confirmation: workflowRequireConfirmationSchema,
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
@@ -768,6 +856,7 @@ export const eosWorkflowAutopatchBandTool: ToolDefinition<typeof autopatchBandIn
   handler: async (args) => {
     const options = workflowObject(autopatchBandInputSchema).parse(args ?? {});
     const dryRun = options.dry_run === true;
+    const blockUnconfirmedExecution = shouldBlockUnconfirmedExecution(options);
     const logs: Array<Record<string, unknown>> = [];
     const steps: WorkflowStepLog[] = [];
     const commandsPreview: string[] = [];
@@ -810,8 +899,8 @@ export const eosWorkflowAutopatchBandTool: ToolDefinition<typeof autopatchBandIn
 
           for (const command of execution.commands) {
             commandsPreview.push(command.command);
-            if (dryRun) {
-              steps.push({ step: `fixture_${channel}_${command.step}`, status: 'skipped', command: command.command, detail: 'dry_run' });
+            if (dryRun || blockUnconfirmedExecution) {
+              steps.push({ step: `fixture_${channel}_${command.step}`, status: 'skipped', command: command.command, detail: previewSkipDetail(dryRun) });
               continue;
             }
 
@@ -855,6 +944,10 @@ export const eosWorkflowAutopatchBandTool: ToolDefinition<typeof autopatchBandIn
       }
     }
 
+    if (blockUnconfirmedExecution) {
+      return buildUnconfirmedExecutionResult('eos_workflow_autopatch_band', steps, partialErrors, commandsPreview, { fixture_logs: logs });
+    }
+
     const hasErrors = logs.some((entry) => entry.status === 'error');
     return buildWorkflowResult(
       'eos_workflow_autopatch_band',
@@ -879,6 +972,7 @@ const rehearsalGoSafeInputSchema = {
   precheck_timeout_ms: optionalTimeoutMsSchema.refine((value) => value == null || value <= 10000, { message: 'precheck_timeout_ms doit etre <= 10000.' }),
   allow_non_empty_command_line: z.boolean().optional(),
   dry_run: workflowDryRunSchema,
+  require_confirmation: workflowRequireConfirmationSchema,
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
@@ -902,6 +996,7 @@ const buildGroupsAndPalettesInputSchema = {
     description: z.string().trim().min(1).max(256).optional()
   })).optional(),
   dry_run: workflowDryRunSchema,
+  require_confirmation: workflowRequireConfirmationSchema,
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
@@ -913,6 +1008,7 @@ const updateCueLookInputSchema = {
   desaturate: z.boolean().optional(),
   warmify: z.boolean().optional(),
   dry_run: workflowDryRunSchema,
+  require_confirmation: workflowRequireConfirmationSchema,
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
@@ -946,6 +1042,7 @@ export const eosWorkflowRehearsalGoSafeTool: ToolDefinition<typeof rehearsalGoSa
       })
       .parse(args ?? {});
     const dryRun = options.dry_run === true;
+    const blockUnconfirmedExecution = shouldBlockUnconfirmedExecution(options);
     const steps: WorkflowStepLog[] = [];
     const partialErrors: Array<{ step: string; error: string }> = [];
 
@@ -963,6 +1060,17 @@ export const eosWorkflowRehearsalGoSafeTool: ToolDefinition<typeof rehearsalGoSa
           : `Go To Cue ${options.rollback_cuelist_number}/${String(options.rollback_cue_number).trim()}`)
       : null;
     const commandsPreview = rollbackCommand == null ? [goCommand] : [goCommand, rollbackCommand];
+
+    if (blockUnconfirmedExecution) {
+      steps.push({ step: 'precheck_console_state', status: 'skipped', detail: 'require_confirmation_missing' });
+      steps.push({ step: 'go', status: 'skipped', command: goCommand, detail: 'require_confirmation_missing' });
+      if (rollbackCommand != null) {
+        steps.push({ step: 'rollback', status: 'skipped', command: rollbackCommand, detail: 'require_confirmation_missing' });
+      } else {
+        steps.push({ step: 'rollback', status: 'skipped', detail: 'rollback_not_requested' });
+      }
+      return buildUnconfirmedExecutionResult('eos_workflow_rehearsal_go_safe', steps, partialErrors, commandsPreview);
+    }
 
     if (dryRun) {
       steps.push({ step: 'precheck_console_state', status: 'skipped', detail: 'dry_run' });
@@ -1075,14 +1183,15 @@ export const eosWorkflowBuildGroupsAndPalettesTool: ToolDefinition<typeof buildG
   handler: async (args) => {
     const options = workflowObject(buildGroupsAndPalettesInputSchema).parse(args ?? {});
     const dryRun = options.dry_run === true;
+    const blockUnconfirmedExecution = shouldBlockUnconfirmedExecution(options);
     const steps: WorkflowStepLog[] = [];
     const partialErrors: Array<{ step: string; error: string }> = [];
     const commandsPreview: string[] = [];
 
     const queueCommand = async (step: string, command: string): Promise<void> => {
       commandsPreview.push(command);
-      if (dryRun) {
-        steps.push({ step, status: 'skipped', command, detail: 'dry_run' });
+      if (dryRun || blockUnconfirmedExecution) {
+        steps.push({ step, status: 'skipped', command, detail: previewSkipDetail(dryRun) });
         return;
       }
       await runCommandStep(steps, partialErrors, step, command, options);
@@ -1106,6 +1215,10 @@ export const eosWorkflowBuildGroupsAndPalettesTool: ToolDefinition<typeof buildG
       if (palette.description) await queueCommand(`fp_${palette.number}_set_description`, palette.description);
       await queueCommand(`fp_${palette.number}_record`, `Record FP ${palette.number}`);
       await queueCommand(`fp_${palette.number}_label`, `FP ${palette.number} Label "${palette.label.replace(/"/g, '\\"')}"`);
+    }
+
+    if (blockUnconfirmedExecution) {
+      return buildUnconfirmedExecutionResult('eos_workflow_build_groups_and_palettes', steps, partialErrors, commandsPreview);
     }
 
     return buildWorkflowResult(
@@ -1140,6 +1253,7 @@ export const eosWorkflowUpdateCueLookTool: ToolDefinition<typeof updateCueLookIn
     const options = workflowObject(updateCueLookInputSchema).parse(args ?? {});
 
     const dryRun = options.dry_run === true;
+    const blockUnconfirmedExecution = shouldBlockUnconfirmedExecution(options);
     const steps: WorkflowStepLog[] = [];
     const partialErrors: Array<{ step: string; error: string }> = [];
     const commandsPreview: string[] = [];
@@ -1182,8 +1296,8 @@ export const eosWorkflowUpdateCueLookTool: ToolDefinition<typeof updateCueLookIn
 
     for (const commandStep of commands) {
       commandsPreview.push(commandStep.command);
-      if (dryRun) {
-        steps.push({ step: commandStep.step, status: 'skipped', command: commandStep.command, detail: 'dry_run' });
+      if (dryRun || blockUnconfirmedExecution) {
+        steps.push({ step: commandStep.step, status: 'skipped', command: commandStep.command, detail: previewSkipDetail(dryRun) });
         continue;
       }
 
@@ -1197,6 +1311,10 @@ export const eosWorkflowUpdateCueLookTool: ToolDefinition<typeof updateCueLookIn
           partialErrors
         );
       }
+    }
+
+    if (blockUnconfirmedExecution) {
+      return buildUnconfirmedExecutionResult('eos_workflow_update_cue_look', steps, partialErrors, commandsPreview);
     }
 
     return buildWorkflowResult(
