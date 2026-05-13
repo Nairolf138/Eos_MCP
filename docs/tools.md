@@ -24,7 +24,7 @@ Exemple concret pour modifier une cue :
 3. **Confirmation explicite** : attendre une reponse non ambigue, par exemple "Confirme, execute la mise a jour de la cue 12".
 4. **Execution reelle** : relancer le meme workflow avec `dry_run=false` seulement apres cette confirmation, puis verifier `structuredContent.command_log` et `structuredContent.commandsSent`.
 
-Les **outils bas niveau sensibles** (`eos_cue_record`, `eos_cue_update`, `eos_patch_*`, `eos_command`, `eos_new_command`, declenchements `fire`, etc.) exposent des garde-fous stricts comme `require_confirmation`, `safety_level` et le rejet des arguments inconnus. Ils sont adaptes aux integrations qui savent exactement quelle commande EOS envoyer.
+Les **outils bas niveau sensibles** (`eos_cue_record`, `eos_cue_update`, `eos_patch_*`, `eos_command`, `eos_new_command`, declenchements `fire`, etc.) exposent des garde-fous stricts comme `require_confirmation`, `safety_level` et le rejet des arguments inconnus. Ils sont adaptes aux integrations qui savent exactement quelle commande EOS envoyer. `eos_new_command` refuse aussi les commandes composees de programmation de cues (par exemple `At` + `Record` + `Label`) : envoyez plutot `Chan 1 Thru 10 At Full`, puis `Record Cue 3`, puis `Cue 3 Label "Reggae"` en appels separes.
 
 Les **workflows haut niveau guides** (`eos_workflow_*`) orchestrent plusieurs commandes metier, acceptent des metadonnees clientes inconnues sans les executer et fournissent une preview complete via `dry_run=true`. Ils sont a privilegier pour les assistants conversationnels, car ils imposent un parcours operateur plus lisible avant toute action destructive ou visible en live.
 
