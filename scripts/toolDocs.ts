@@ -520,6 +520,7 @@ const workflowNaturalExamplesLines = [
   "      \"looks\": [",
   "        {",
   "          \"channels\": \"1 Thru 10\",",
+  "          \"intensity\": \"Full\",",
   "          \"color_palette\": 101,",
   "          \"focus_palette\": 201,",
   "          \"beam_palette\": 301,",
@@ -546,7 +547,7 @@ const workflowNaturalExamplesLines = [
   "}",
   "```",
   "",
-  "**Options et valeurs par defaut :** `looks` est obligatoire et doit contenir au moins un look; chaque look requiert `channels`. `start_cue_number` vaut `1` par defaut et s'auto-incremente si un look ne precise pas `cue_number`. `base_cuelist_number` absent utilise la cuelist master. `color_palette`, `focus_palette`, `beam_palette` et `cue_label` sont optionnels par look. Pour \"10 cues\", envoyez 10 objets dans `looks` ou ajoutez des `cue_number` explicites pour les positions particulieres.",
+  "**Options et valeurs par defaut :** `looks` est obligatoire et doit contenir au moins un look; chaque look requiert `channels`. Pour regler un niveau, renseignez `intensity` (ou l'alias `level`) avec `Full`, `Out`, une valeur `0` a `100`, ou une valeur EOS textuelle sure (`On`, `Home`, `FL`) : le workflow genere alors une commande separee `Chan <channels> At <intensity>` avant les palettes. Ne concatenez pas `At`, `Record` ou `Label` dans `channels`. `start_cue_number` vaut `1` par defaut et s'auto-incremente si un look ne precise pas `cue_number`. `base_cuelist_number` absent utilise la cuelist master. `color_palette`, `focus_palette`, `beam_palette` et `cue_label` sont optionnels par look. Pour \"10 cues\", envoyez 10 objets dans `looks` ou ajoutez des `cue_number` explicites pour les positions particulieres.",
   "",
   "### Workflow groups/palettes",
   "",
@@ -700,7 +701,7 @@ function buildDocumentation(tools: ToolDefinition[]): { markdown: string; metada
   lines.push('3. **Confirmation explicite** : attendre une reponse non ambigue, par exemple "Confirme, execute la mise a jour de la cue 12".');
   lines.push('4. **Execution reelle** : relancer le meme workflow avec `dry_run=false` seulement apres cette confirmation, puis verifier `structuredContent.command_log` et `structuredContent.commandsSent`.');
   lines.push('');
-  lines.push('Les **outils bas niveau sensibles** (`eos_cue_record`, `eos_cue_update`, `eos_patch_*`, `eos_command`, `eos_new_command`, declenchements `fire`, etc.) exposent des garde-fous stricts comme `require_confirmation`, `safety_level` et le rejet des arguments inconnus. Ils sont adaptes aux integrations qui savent exactement quelle commande EOS envoyer. `eos_new_command` refuse aussi les commandes composees de programmation de cues (par exemple `At` + `Record` + `Label`) : envoyez plutot `Chan 1 Thru 10 At Full`, puis `Record Cue 3`, puis `Cue 3 Label "Reggae"` en appels separes.');
+  lines.push('Les **outils bas niveau sensibles** (`eos_cue_record`, `eos_cue_update`, `eos_patch_*`, `eos_command`, `eos_new_command`, declenchements `fire`, etc.) exposent des garde-fous stricts comme `require_confirmation`, `safety_level` et le rejet des arguments inconnus. Ils sont adaptes aux integrations qui savent exactement quelle commande EOS envoyer. `eos_new_command` refuse aussi les commandes composees de programmation de cues (par exemple `At` + `Record` + `Label`). Pour une serie de cues, Claude doit privilegier `eos_workflow_create_cue_series` avec `looks[].intensity` (ou `looks[].level`) afin que le workflow emette `Chan 1 Thru 10 At Full`, puis `Record Cue 3`, puis `Cue 3 Label "Reggae"` comme commandes separees.');
   lines.push('');
   lines.push('Les **workflows haut niveau guides** (`eos_workflow_*`) orchestrent plusieurs commandes metier, acceptent des metadonnees clientes inconnues sans les executer et fournissent une preview complete via `dry_run=true`. Ils sont a privilegier pour les assistants conversationnels, car ils imposent un parcours operateur plus lisible avant toute action destructive ou visible en live.');
   lines.push('');

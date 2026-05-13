@@ -371,12 +371,40 @@ export const eosWorkflowCreateEffectTool: ToolDefinition<typeof createEffectInpu
 };
 
 
+const safeIntensityTextSchema = z.string().trim().min(1).max(32).refine((value) => {
+  const numeric = Number(value);
+  if (Number.isFinite(numeric)) {
+    return numeric >= 0 && numeric <= 100;
+  }
+
+  return /^(?:Full|Out|On|Home|FL)$/i.test(value);
+}, 'intensity doit etre Full, Out, On, Home, FL ou une valeur numerique de 0 a 100.');
+
+const cueSeriesIntensitySchema = z.union([
+  z.number().finite().min(0).max(100),
+  safeIntensityTextSchema
+]);
+
+function formatCueSeriesIntensity(value: string | number | undefined): string | undefined {
+  if (value == null) {
+    return undefined;
+  }
+
+  if (typeof value === 'number') {
+    return String(value);
+  }
+
+  return value.trim();
+}
+
 const createCueSeriesInputSchema = {
   base_cuelist_number: cuelistNumberSchema.optional(),
   start_cue_number: cueNumberSchema.optional().default(1),
   looks: z.array(workflowObject({
     channels: z.string().trim().min(1).max(256),
     cue_number: cueNumberSchema.optional(),
+    intensity: cueSeriesIntensitySchema.optional(),
+    level: cueSeriesIntensitySchema.optional(),
     color_palette: z.coerce.number().int().min(1).max(99999).optional(),
     focus_palette: z.coerce.number().int().min(1).max(99999).optional(),
     beam_palette: z.coerce.number().int().min(1).max(99999).optional(),
@@ -427,8 +455,12 @@ export const eosWorkflowCreateCueSeriesTool: ToolDefinition<typeof createCueSeri
         pushDefaultLog(steps, `look_${index + 1}_default_cue_number`, `cue_number absent: auto-increment applique avec la valeur ${effectiveCueNumber}.`);
       }
       const cueStepPrefix = `look_${index + 1}_cue_${effectiveCueNumber}`;
+      const intensity = formatCueSeriesIntensity(look.intensity ?? look.level);
       const commands = [
-        { step: `${cueStepPrefix}_select_channels`, command: `Chan ${look.channels}` },
+        {
+          step: `${cueStepPrefix}_select_channels`,
+          command: intensity != null ? `Chan ${look.channels} At ${intensity}` : `Chan ${look.channels}`
+        },
         ...(look.color_palette != null ? [{ step: `${cueStepPrefix}_apply_color_palette`, command: `CP ${look.color_palette}` }] : []),
         ...(look.focus_palette != null ? [{ step: `${cueStepPrefix}_apply_focus_palette`, command: `FP ${look.focus_palette}` }] : []),
         ...(look.beam_palette != null ? [{ step: `${cueStepPrefix}_apply_beam_palette`, command: `BP ${look.beam_palette}` }] : []),

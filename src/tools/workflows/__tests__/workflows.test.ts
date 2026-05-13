@@ -396,6 +396,32 @@ describe('workflow tools', () => {
     ]);
   });
 
+  it('applique une intensite separee avant palettes, record et label dans create_cue_series', async () => {
+    const result = await runTool(eosWorkflowCreateCueSeriesTool, {
+      start_cue_number: 3,
+      looks: [
+        {
+          channels: '1 Thru 10',
+          intensity: 'Full',
+          cue_label: 'Reggae'
+        }
+      ]
+    });
+
+    const structured = getStructuredContent(result);
+    expect(structured?.status).toBe('ok');
+    expect(structured?.commands_preview).toEqual([
+      'Chan 1 Thru 10 At Full',
+      'Record Cue 3',
+      'Cue 3 Label "Reggae"'
+    ]);
+    expect(structured?.commandsSent).toEqual([
+      'Chan 1 Thru 10 At Full',
+      'Record Cue 3',
+      'Cue 3 Label "Reggae"'
+    ]);
+  });
+
   it('genere commands_preview en dry run pour create_cue_series et fallback master cuelist', async () => {
     const result = await runTool(eosWorkflowCreateCueSeriesTool, {
       looks: [

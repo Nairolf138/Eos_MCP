@@ -81,7 +81,7 @@ Exemple de modification de cue :
 3. **Confirmation explicite** : attendre une réponse non ambiguë, par exemple « Confirme, exécute la mise à jour de la cue 12. »
 4. **Exécution réelle** : relancer le même workflow avec `dry_run=false`, puis contrôler `structuredContent.command_log` et `structuredContent.commandsSent`.
 
-Les **outils bas niveau sensibles** (`eos_cue_record`, `eos_cue_update`, `eos_patch_*`, `eos_command`, `eos_new_command`, déclenchements `fire`, etc.) s’adressent aux intégrations qui savent exactement quelle commande EOS envoyer et s’appuient sur `require_confirmation`, `safety_level` et des schémas stricts. `eos_new_command` refuse aussi les commandes composées de programmation de cues (par exemple `At` + `Record` + `Label`) : envoyez plutôt `Chan 1 Thru 10 At Full`, puis `Record Cue 3`, puis `Cue 3 Label "Reggae"` en appels séparés. Les **workflows haut niveau guidés** (`eos_workflow_*`) orchestrent plusieurs commandes métier, acceptent des métadonnées clientes inconnues sans les exécuter et fournissent une preview complète via `dry_run=true`; ils sont donc à privilégier pour les assistants conversationnels.
+Les **outils bas niveau sensibles** (`eos_cue_record`, `eos_cue_update`, `eos_patch_*`, `eos_command`, `eos_new_command`, déclenchements `fire`, etc.) s’adressent aux intégrations qui savent exactement quelle commande EOS envoyer et s’appuient sur `require_confirmation`, `safety_level` et des schémas stricts. `eos_new_command` refuse aussi les commandes composées de programmation de cues (par exemple `At` + `Record` + `Label`). Pour une série de cues, Claude doit privilégier `eos_workflow_create_cue_series` avec `looks[].intensity` (ou `looks[].level`) afin que le workflow émette `Chan 1 Thru 10 At Full`, puis `Record Cue 3`, puis `Cue 3 Label "Reggae"` comme commandes séparées, sans concaténer `At`, `Record` ou `Label` dans `channels`. Les **workflows haut niveau guidés** (`eos_workflow_*`) orchestrent plusieurs commandes métier, acceptent des métadonnées clientes inconnues sans les exécuter et fournissent une preview complète via `dry_run=true`; ils sont donc à privilégier pour les assistants conversationnels.
 
 ## Prérequis
 
@@ -558,7 +558,7 @@ Pour limiter les ambiguïtés en conduite et garder une trace claire des décisi
 3. **Choix du niveau d’abstraction** : privilégier les workflows haut niveau lorsque l’intention correspond au besoin :
    - `eos_workflow_autopatch_band` pour préparer rapidement un patch groupe/band ;
    - `eos_workflow_create_look` pour construire un look cohérent à partir de canaux, palettes ou groupes ;
-   - `eos_workflow_create_cue_series` pour générer une suite de cues structurée.
+   - `eos_workflow_create_cue_series` pour générer une suite de cues structurée; pour un niveau, renseigner `looks[].intensity` ou `looks[].level` (`Full`, `Out`, `0`-`100`, valeurs EOS sûres) plutôt que d’ajouter `At` dans `channels`.
 4. **Répétitions** : utiliser `eos_workflow_rehearsal_go_safe` pour les tops en répétition, plutôt qu’un `GO` bas niveau direct, afin de conserver les garde-fous de cuelist, cue cible et validation.
 5. **Prévisualisation obligatoire** : demander d’abord `dry_run: true` sur les workflows ou outils qui le supportent, relire le journal/aperçu retourné avec l’utilisateur, puis relancer uniquement après validation explicite avec `dry_run: false` ou sans champ `dry_run`.
 
