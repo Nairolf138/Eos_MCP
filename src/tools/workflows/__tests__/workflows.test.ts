@@ -26,6 +26,12 @@ class FakeOscService implements OscGateway {
 
   public commandLineText = '';
 
+  public omitRecordedCuesFromVerification = false;
+
+  public consoleErrorOnCueList = false;
+
+  private readonly recordedCues: Array<{ cuelist: number | null; cue: string }> = [];
+
   private readonly listeners = new Set<(message: OscMessage) => void>();
 
   public async send(message: OscMessage, _options?: OscGatewaySendOptions): Promise<void> {
@@ -34,6 +40,29 @@ class FakeOscService implements OscGateway {
 
     if (this.failAtSendIndex != null && this.failAtSendIndex === currentIndex) {
       throw new Error(`Echec simule envoi #${currentIndex}`);
+    }
+
+    const command = message.args?.[0]?.value;
+    if (typeof command === 'string' && message.address === '/eos/newcmd') {
+      const match = /Record\s+Cue\s+(?:(\d+)\s*\/\s*)?([^#\s]+)/i.exec(command);
+      if (match) {
+        this.recordedCues.push({ cuelist: match[1] == null ? null : Number(match[1]), cue: match[2] ?? '' });
+      }
+    }
+
+    if (message.address === '/eos/get/cuelist') {
+      const payload = this.consoleErrorOnCueList
+        ? { status: 'error', error: 'Erreur console simulee' }
+        : { cues: this.omitRecordedCuesFromVerification ? [] : this.recordedCues.map((cue) => ({ cuelist: cue.cuelist, cue: cue.cue })) };
+      const reply: OscMessage = {
+        address: '/eos/get/cuelist',
+        args: [{ type: 's', value: JSON.stringify(payload) }]
+      };
+      queueMicrotask(() => {
+        for (const listener of this.listeners) {
+          listener(reply);
+        }
+      });
     }
 
     if (message.address === '/eos/get/cmd_line') {
@@ -80,13 +109,14 @@ describe('workflow tools', () => {
       cue_label: 'Look Intro'
     });
 
-    expect(service.sentMessages).toHaveLength(6);
+    expect(service.sentMessages).toHaveLength(7);
     expect(service.sentMessages.map((msg) => msg.address)).toEqual([
       '/eos/newcmd',
       '/eos/newcmd',
       '/eos/newcmd',
       '/eos/newcmd',
       '/eos/newcmd',
+      '/eos/get/cuelist',
       '/eos/newcmd'
     ]);
 
@@ -203,6 +233,44 @@ describe('workflow tools', () => {
         step: 'default_cuelist_number',
         detail: 'cuelist_number absent: utilisation automatique de la cuelist master.'
       })
+    ]));
+  });
+
+
+  it('retourne partial_failure si EOS signale une erreur console pendant la verification apres Record Cue', async () => {
+    service.consoleErrorOnCueList = true;
+
+    const result = await runTool(eosWorkflowCreateLookTool, {
+      channels: '5',
+      cue_number: 2
+    });
+
+    const structured = getStructuredContent(result);
+    expect(structured?.status).toBe('partial_failure');
+    expect(structured?.warnings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ detail: 'Erreur console simulee' })
+    ]));
+    expect(structured?.executedSteps).toEqual(expect.arrayContaining([
+      expect.objectContaining({ step: 'record_cue', status: 'ok', command: 'Record Cue 2' }),
+      expect.objectContaining({ step: 'record_cue_verify', status: 'error' })
+    ]));
+  });
+
+  it('retourne partial_failure si la cue reste absente apres Record Cue', async () => {
+    service.omitRecordedCuesFromVerification = true;
+
+    const result = await runTool(eosWorkflowCreateCueSeriesTool, {
+      looks: [{ channels: '5', cue_number: 7 }]
+    });
+
+    const structured = getStructuredContent(result);
+    expect(structured?.status).toBe('partial_failure');
+    expect(structured?.warnings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ detail: 'commande envoyée mais non vérifiée dans EOS' })
+    ]));
+    expect(structured?.executedSteps).toEqual(expect.arrayContaining([
+      expect.objectContaining({ step: 'look_1_cue_7_record_cue', status: 'ok', command: 'Record Cue 7' }),
+      expect.objectContaining({ step: 'look_1_cue_7_record_cue_verify', status: 'error' })
     ]));
   });
 

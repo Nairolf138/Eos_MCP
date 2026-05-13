@@ -74,6 +74,41 @@ describe('command tools', () => {
     expect(service.sentMessages[0]?.address).toBe('/eos/cmd');
   });
 
+  it('distingue transport OSC et validation EOS dans le resultat structure', async () => {
+    const result = await runTool(eosCommandTool, { command: 'Record Cue 1', require_confirmation: true });
+    const structured = getStructuredContent(result);
+
+    expect(structured).toMatchObject({
+      status: 'ok',
+      sent_to_transport: true,
+      accepted_by_eos: null,
+      verified: false
+    });
+  });
+
+  it('retourne partial_failure quand la verification optionnelle apres Record Cue expire', async () => {
+    const result = await runTool(eosCommandTool, {
+      command: 'Record Cue 1',
+      require_confirmation: true,
+      verify_after_send: true,
+      verification_timeout_ms: 10
+    });
+    const structured = getStructuredContent(result);
+
+    expect(service.sentMessages.map((message) => message.address)).toEqual(['/eos/cmd', '/eos/get/cuelist']);
+    expect(structured).toMatchObject({
+      status: 'partial_failure',
+      sent_to_transport: true,
+      accepted_by_eos: null,
+      verified: false,
+      verification: {
+        status: 'not_verified',
+        method: 'eos_cue_list_all',
+        warning: 'commande envoyée mais non vérifiée dans EOS'
+      }
+    });
+  });
+
   it('envoie une commande en respectant le terminateur', async () => {
     const result = await runTool(eosCommandTool, { command: 'Go To Cue 1', terminateWithEnter: true, user: 2 });
 
@@ -134,7 +169,8 @@ describe('command tools', () => {
     await runTool(eosNewCommandTool, {
       command: 'Cue 3 Label "Reggae"',
       clearLine: true,
-      safety_level: 'off'
+      safety_level: 'off',
+      require_confirmation: true
     });
 
     expect(service.sentMessages).toHaveLength(3);

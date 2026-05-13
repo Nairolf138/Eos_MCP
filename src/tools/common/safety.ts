@@ -71,6 +71,7 @@ export function isSensitiveCommandText(command: string): boolean {
     /\brecord\b/,
     /\bupdate\b/,
     /\bdelete\b/,
+    /\blabel\b/,
     /\blive\s+fire\b/,
     /\bfire\b/
   ];
