@@ -738,8 +738,14 @@ export const eosPatchGetChannelInfoTool: ToolDefinition<typeof channelInfoInputS
           targetPort: options.targetPort
         });
 
+        const responseRecord = response.data && typeof response.data === 'object' && !Array.isArray(response.data)
+          ? response.data as Record<string, unknown>
+          : null;
+        const channelPayload = responseRecord?.channel && typeof responseRecord.channel === 'object'
+          ? responseRecord.channel
+          : response.data;
         const channelData = normaliseChannelInfo(
-          (response.data as Record<string, unknown> | null)?.channel ?? response.data,
+          channelPayload,
           options.channel_number,
           options.part_number ?? null
         );

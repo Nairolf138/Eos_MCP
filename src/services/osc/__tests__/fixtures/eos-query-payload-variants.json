@@ -1,0 +1,55 @@
+{
+  "counts": {
+    "numericScalar": 7,
+    "numericString": "12",
+    "objectCount": {
+      "status": "ok",
+      "count": "5"
+    }
+  },
+  "lists": {
+    "directArray": [
+      { "number": "1", "uid": "cue:1", "label": "Intro" },
+      { "number": "2", "uid": "cue:2", "label": "Blackout" }
+    ],
+    "objectWithItems": {
+      "status": "ok",
+      "items": [
+        { "number": 1, "uid": "group:1", "label": "Wash" }
+      ]
+    },
+    "objectWithList": {
+      "status": "ok",
+      "list": [
+        { "number": "10", "uid": "macro:10", "label": "Preset Reset" }
+      ]
+    },
+    "objectWithParallelArrays": {
+      "status": "ok",
+      "numbers": ["1", "2"],
+      "uids": ["preset:1", "preset:2"],
+      "labels": ["Warm", "Cool"]
+    },
+    "objectWithLabelsOnly": {
+      "status": "ok",
+      "labels": ["Only Label"]
+    }
+  },
+  "patch": {
+    "channelInfoWithoutStatus": {
+      "channel": "101",
+      "label": "No Status Fixture",
+      "part_count": 1,
+      "parts": [
+        {
+          "part": 1,
+          "label": "Main",
+          "manufacturer": "ETC",
+          "model": "Source Four LED",
+          "address": "1/001",
+          "gel": "L201"
+        }
+      ]
+    }
+  }
+}

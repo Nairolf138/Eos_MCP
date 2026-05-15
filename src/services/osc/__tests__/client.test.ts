@@ -769,6 +769,60 @@ describe('OscClient', () => {
 
 
 
+
+  it('applique responseShape pour les tableaux, scalaires et textes', async () => {
+    const arrayService = new FakeOscService();
+    const arrayClient = new OscClient(arrayService);
+    const arrayPromise = arrayClient.requestJson('/eos/get/cue/list', { responseShape: 'array' });
+    await waitFor(() => arrayService.sentMessages.length >= 1);
+    arrayService.emit({
+      address: '/eos/get/cue/list',
+      args: [{ type: 's', value: JSON.stringify([{ number: '1', uid: 'cue:1' }]) }]
+    });
+    await expect(arrayPromise).resolves.toMatchObject({
+      status: 'ok',
+      data: [{ number: '1', uid: 'cue:1' }]
+    });
+
+    const scalarService = new FakeOscService();
+    const scalarClient = new OscClient(scalarService);
+    const scalarPromise = scalarClient.requestJson('/eos/get/group/count', { responseShape: 'scalar' });
+    await waitFor(() => scalarService.sentMessages.length >= 1);
+    scalarService.emit({
+      address: '/eos/get/group/count',
+      args: [{ type: 's', value: JSON.stringify('12') }]
+    });
+    await expect(scalarPromise).resolves.toMatchObject({ status: 'ok', data: '12' });
+
+    const textService = new FakeOscService();
+    const textClient = new OscClient(textService);
+    const textPromise = textClient.requestJson('/eos/get/version', { responseShape: 'text' });
+    await waitFor(() => textService.sentMessages.length >= 1);
+    textService.emit({
+      address: '/eos/get/version',
+      args: [{ type: 's', value: 'Eos 3.2.0' }]
+    });
+    await expect(textPromise).resolves.toMatchObject({ status: 'ok', data: 'Eos 3.2.0' });
+  });
+
+  it('accepte un objet JSON sans status pour les endpoints qui ne lexigent pas explicitement', async () => {
+    const service = new FakeOscService();
+    const client = new OscClient(service);
+
+    const responsePromise = client.requestJson('/eos/get/patch/chan_info');
+    await waitFor(() => service.sentMessages.length >= 1);
+
+    service.emit({
+      address: '/eos/get/patch/chan_info',
+      args: [{ type: 's', value: JSON.stringify({ channel: 101, label: 'Fixture' }) }]
+    });
+
+    const result = await responsePromise;
+
+    expect(result.status).toBe('ok');
+    expect(result.data).toEqual({ channel: 101, label: 'Fixture' });
+  });
+
   it('refuse les lectures JSON quand la capacite de lecture reste non confirmee', async () => {
     const service = new FakeOscService();
     const client = new OscClient(service, { defaultTimeoutMs: 10 });

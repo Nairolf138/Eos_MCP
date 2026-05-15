@@ -6,6 +6,7 @@ import { getResourceCache } from '../../../services/cache/index';
 import type { OscMessage } from '../../../services/osc/index';
 import { OscClient, setOscClient, type OscGateway, type OscGatewaySendOptions } from '../../../services/osc/client';
 import { oscMappings } from '../../../services/osc/mappings';
+import eosPayloadVariants from '../../../services/osc/__tests__/fixtures/eos-query-payload-variants.json';
 import { eosGetCountTool, eosGetListAllTool } from '../index';
 import { getStructuredContent, runTool } from '../../__tests__/helpers/runTool';
 
@@ -48,7 +49,7 @@ const QUERY_TARGET_TYPES = [
   'pixmap'
 ] as const;
 
-function emitJson(service: FakeOscService, address: string, payload: Record<string, unknown>): void {
+function emitJson(service: FakeOscService, address: string, payload: unknown): void {
   service.emit({
     address,
     args: [
@@ -262,6 +263,97 @@ describe('query tools', () => {
     });
   });
 
+
+
+  it('accepte les variantes EOS scalaires pour les comptes', async () => {
+    const numericPromise = runTool(eosGetCountTool, { target_type: 'group' });
+
+    queueMicrotask(() => {
+      service.emit({
+        address: oscMappings.queries.group.count,
+        args: [{ type: 's', value: JSON.stringify(eosPayloadVariants.counts.numericScalar) }]
+      });
+    });
+
+    expect(getStructuredContent(await numericPromise)).toMatchObject({
+      action: 'get_count',
+      status: 'ok',
+      target_type: 'group',
+      count: 7
+    });
+
+    const stringPromise = runTool(eosGetCountTool, { target_type: 'preset' });
+
+    queueMicrotask(() => {
+      service.emit({
+        address: oscMappings.queries.preset.count,
+        args: [{ type: 's', value: JSON.stringify(eosPayloadVariants.counts.numericString) }]
+      });
+    });
+
+    expect(getStructuredContent(await stringPromise)).toMatchObject({
+      action: 'get_count',
+      status: 'ok',
+      target_type: 'preset',
+      count: 12
+    });
+  });
+
+  it('accepte les variantes EOS directes pour les listes', async () => {
+    const directArrayPromise = runTool(eosGetListAllTool, { target_type: 'cue' });
+
+    queueMicrotask(() => {
+      service.emit({
+        address: oscMappings.queries.cue.list,
+        args: [{ type: 's', value: JSON.stringify(eosPayloadVariants.lists.directArray) }]
+      });
+    });
+
+    expect(getStructuredContent(await directArrayPromise)).toMatchObject({
+      action: 'list_all',
+      status: 'ok',
+      target_type: 'cue',
+      items: [
+        { number: '1', uid: 'cue:1', label: 'Intro' },
+        { number: '2', uid: 'cue:2', label: 'Blackout' }
+      ]
+    });
+
+    const listObjectPromise = runTool(eosGetListAllTool, { target_type: 'macro' });
+
+    queueMicrotask(() => {
+      service.emit({
+        address: oscMappings.queries.macro.list,
+        args: [{ type: 's', value: JSON.stringify(eosPayloadVariants.lists.objectWithList) }]
+      });
+    });
+
+    expect(getStructuredContent(await listObjectPromise)).toMatchObject({
+      action: 'list_all',
+      status: 'ok',
+      target_type: 'macro',
+      items: [{ number: '10', uid: 'macro:10', label: 'Preset Reset' }]
+    });
+
+    const parallelPromise = runTool(eosGetListAllTool, { target_type: 'preset' });
+
+    queueMicrotask(() => {
+      service.emit({
+        address: oscMappings.queries.preset.list,
+        args: [{ type: 's', value: JSON.stringify(eosPayloadVariants.lists.objectWithParallelArrays) }]
+      });
+    });
+
+    expect(getStructuredContent(await parallelPromise)).toMatchObject({
+      action: 'list_all',
+      status: 'ok',
+      target_type: 'preset',
+      items: [
+        { number: '1', uid: 'preset:1', label: 'Warm' },
+        { number: '2', uid: 'preset:2', label: 'Cool' }
+      ]
+    });
+  });
 
   it('propage les diagnostics OSC et le message console pour timeout, payload texte, payload vide et JSON invalide', async () => {
     const timeoutResult = await runTool(eosGetCountTool, { target_type: 'group', timeoutMs: 50 });

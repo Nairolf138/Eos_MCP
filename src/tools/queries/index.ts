@@ -270,7 +270,8 @@ export const eosGetCountTool: ToolDefinition<typeof countInputSchema> = {
           timeoutMs: options.timeoutMs,
           targetAddress: options.targetAddress,
           targetPort: options.targetPort,
-          responseAddresses: config.countResponseAddresses
+          responseAddresses: config.countResponseAddresses,
+          responseShape: 'any-json'
         });
 
         const count = Math.max(0, normaliseCount(response.data));
@@ -344,7 +345,8 @@ export const eosGetListAllTool: ToolDefinition<typeof listInputSchema> = {
           timeoutMs: options.timeoutMs,
           targetAddress: options.targetAddress,
           targetPort: options.targetPort,
-          responseAddresses: config.listResponseAddresses
+          responseAddresses: config.listResponseAddresses,
+          responseShape: 'any-json'
         });
 
         const items = normaliseList(response.data, config);
@@ -492,14 +494,15 @@ function normaliseList(data: unknown, config: QueryTargetConfig): QueryListItem[
     if (numbers.length > 0 || uids.length > 0 || labels.length > 0) {
       const maxLength = Math.max(numbers.length, uids.length, labels.length);
       for (let index = 0; index < maxLength; index += 1) {
-        const uid = uids[index] ?? numbers[index] ?? '';
+        const label = labels[index] ?? null;
+        const uid = uids[index] ?? numbers[index] ?? label ?? '';
         if (!uid) {
           continue;
         }
         items.push({
           number: numbers[index] ?? uid,
           uid,
-          label: labels[index] ?? null
+          label
         });
       }
       return items;
@@ -527,8 +530,10 @@ function extractListPayload(data: unknown, config: QueryTargetConfig): unknown {
         return record[key];
       }
     }
-    if ('items' in record) {
-      return record.items;
+    for (const key of ['items', 'list'] as const) {
+      if (key in record) {
+        return record[key];
+      }
     }
     if ('all' in record) {
       return record.all;
@@ -542,8 +547,10 @@ function extractListPayload(data: unknown, config: QueryTargetConfig): unknown {
             return nestedRecord[key];
           }
         }
-        if ('items' in nestedRecord) {
-          return nestedRecord.items;
+        for (const key of ['items', 'list'] as const) {
+          if (key in nestedRecord) {
+            return nestedRecord[key];
+          }
         }
       }
       return nested;
