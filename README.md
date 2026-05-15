@@ -68,10 +68,15 @@ Formats à utiliser selon le langage :
 
 | Outil | Description | Fiche détaillée |
 | --- | --- | --- |
+| `eos_readiness_check` | Première étape obligatoire read-only : ping, handshake, version, ligne de commande, nom du show, count et lecture patch optionnelle. | [docs/tools.md#eos-readiness-check](docs/tools.md#eos-readiness-check) |
 | `eos_cue_go` | GO sur la liste de cues active. | [docs/tools.md#eos-cue-go](docs/tools.md#eos-cue-go) |
 | `eos_cue_stop_back` | Stop ou retour en arrière sur une liste. | [docs/tools.md#eos-cue-stop-back](docs/tools.md#eos-cue-stop-back) |
 | `eos_preset_fire` | Rappel immédiat d’un preset. | [docs/tools.md#eos-preset-fire](docs/tools.md#eos-preset-fire) |
 | `eos_channel_set_level` | Réglage d’intensité (0–100 %) d’un canal. | [docs/tools.md#eos-channel-set-level](docs/tools.md#eos-channel-set-level) |
+
+### Première étape obligatoire : readiness
+
+Avant toute lecture métier, dry-run ou action réelle, un assistant LLM doit appeler `eos_readiness_check`. L'outil retourne `structuredContent.overall_status`, `transport_status`, `handshake_mode`, `json_read_supported`, `failed_checks` et `operator_actions`; si la lecture JSON n'est pas supportée, l'assistant ne doit pas inventer le patch, les cues ou l'état du show et doit demander une reconfiguration OSC ou une source explicite. Fournissez `patchChannel` lorsque vous voulez aussi valider une lecture patch read-only sur un canal connu.
 
 ### Safety pattern
 

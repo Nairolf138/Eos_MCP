@@ -310,7 +310,7 @@ Les payloads ci-dessous utilisent le format MCP `tools/call` complet. Les exempl
 
 Les champs `category`, `synonyms`, `riskLevel`, `requiresConfirmation` et `preferredWorkflow` sont publiés dans `config.annotations` pour les clients MCP et repris ci-dessous pour guider le routage LLM.
 
-Catégories documentées : `commands`, `cues`, `dmx`, `keys`, `macros`, `palettes`, `patch`, `presets`, `showControl`.
+Catégories documentées : `commands`, `cues`, `diagnostics`, `dmx`, `keys`, `macros`, `palettes`, `patch`, `presets`, `showControl`.
 
 <a id="eos-address-select"></a>
 ## Selection d'adresse DMX (`eos_address_select`)
@@ -3375,6 +3375,48 @@ _OSC_
 # Exemple d'envoi OSC via oscsend
 oscsend 127.0.0.1 8001 /eos/preset s:'{"preset_number":1}'
 ```
+
+<a id="eos-readiness-check"></a>
+## Verification de readiness EOS (`eos_readiness_check`)
+
+**Description :** Premiere etape obligatoire: controle read-only du transport OSC, du handshake et des lectures JSON EOS.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `diagnostics` |
+| Niveau de risque | `low` |
+| Workflow préféré | `first_step` |
+
+**Arguments :**
+
+| Nom | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `countTarget` | enum(cue, group, preset) | Non | — |
+| `handshakeTimeoutMs` | number | Non | — |
+| `patchChannel` | number | Non | — |
+| `patchPart` | number | Non | — |
+| `protocolTimeoutMs` | number | Non | — |
+| `targetAddress` | string | Non | — |
+| `targetPort` | number | Non | — |
+| `timeoutMs` | number | Non | — |
+| `transportPreference` | enum(reliability, speed, auto) | Non | — |
+| `user` | number | Non | — |
+
+**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+
+**Exemples :**
+
+_CLI_
+
+```bash
+npx @modelcontextprotocol/cli call --tool eos_readiness_check --args '{"timeoutMs":1}'
+```
+
+_OSC_
+
+_Pas de mapping OSC documenté._
 
 <a id="eos-reset"></a>
 ## Reset OSC EOS (`eos_reset`)

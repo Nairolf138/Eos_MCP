@@ -900,6 +900,7 @@ exports[`OSC tool contracts exported from src/tools/index.ts lists every tool ex
   "eos_group_get_info",
   "eos_group_list_all",
   "eos_enable_logging",
+  "eos_readiness_check",
   "eos_get_diagnostics",
   "eos_get_version",
   "eos_get_setup_defaults",

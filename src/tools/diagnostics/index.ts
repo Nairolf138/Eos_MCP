@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { getResourceCache, type CacheStatsByResource } from '../../services/cache/index';
 import { getOscClient } from '../../services/osc/client';
 import type { OscDiagnostics, OscLoggingState } from '../../services/osc/index';
-import { oscMappings } from '../../services/osc/mappings';
+import { oscMappings, oscResponseMappings, withEosOutResponseVariant } from '../../services/osc/mappings';
 import { optionalPortSchema, optionalTimeoutMsSchema } from '../../utils/validators';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 
@@ -26,6 +26,88 @@ const systemQueryInputSchema = {
   timeoutMs: optionalTimeoutMsSchema,
   ...targetOptionsSchema
 } as const;
+
+const readinessInputSchema = {
+  timeoutMs: optionalTimeoutMsSchema,
+  handshakeTimeoutMs: optionalTimeoutMsSchema,
+  protocolTimeoutMs: optionalTimeoutMsSchema,
+  targetAddress: z.string().min(1).optional(),
+  targetPort: optionalPortSchema,
+  transportPreference: z.enum(['reliability', 'speed', 'auto']).optional(),
+  user: z.coerce.number().int().min(0).max(999).optional(),
+  countTarget: z.enum(['cue', 'group', 'preset']).optional(),
+  patchChannel: z.coerce.number().int().min(1).max(99999).optional(),
+  patchPart: z.coerce.number().int().min(0).max(99).optional()
+} as const;
+
+interface ReadinessCheck {
+  name: string;
+  status: string;
+  details?: Record<string, unknown>;
+  error?: string | null;
+}
+
+const isOkStatus = (status: unknown): boolean => status === 'ok';
+
+const recordFailedCheck = (checks: ReadinessCheck[]): string[] => checks
+  .filter((check) => !isOkStatus(check.status) && check.status !== 'skipped')
+  .map((check) => check.name);
+
+const getReadinessOperatorActions = (
+  failedChecks: string[],
+  handshakeMode: string,
+  jsonReadSupported: boolean
+): string[] => {
+  const actions: string[] = [];
+
+  if (failedChecks.includes('ping')) {
+    actions.push('Verifier l adresse IP, le port OSC, le reseau et l activation OSC RX/TX sur EOS.');
+  }
+
+  if (failedChecks.includes('handshake') || handshakeMode === 'timeout') {
+    actions.push('Relancer eos_configure/eos_connect avec la cible correcte puis verifier que la console EOS accepte le handshake OSC.');
+  }
+
+  if (!jsonReadSupported) {
+    actions.push('Confirmer le support des requetes /eos/get/*: privilegier un transport fiable, activer les reponses OSC et ne pas inventer de patch/cues sans lecture explicite.');
+  }
+
+  if (failedChecks.includes('patch_read')) {
+    actions.push('Si la lecture patch est necessaire, fournir un canal patche valide via patchChannel ou verifier que le canal existe dans le show.');
+  }
+
+  if (actions.length === 0) {
+    actions.push('Readiness validee: continuer avec les outils de lecture ou de workflow adaptes.');
+  }
+
+  return actions;
+};
+
+const normaliseReadinessCountTarget = (target: 'cue' | 'group' | 'preset' | undefined) => target ?? 'cue';
+
+const getCountAddress = (target: 'cue' | 'group' | 'preset'): string => {
+  switch (target) {
+    case 'group':
+      return oscMappings.queries.group.count;
+    case 'preset':
+      return oscMappings.queries.preset.count;
+    case 'cue':
+    default:
+      return oscMappings.queries.cue.count;
+  }
+};
+
+const getCountResponseAddresses = (target: 'cue' | 'group' | 'preset'): readonly string[] => {
+  switch (target) {
+    case 'group':
+      return oscResponseMappings.queries.group.count;
+    case 'preset':
+      return oscResponseMappings.queries.preset.count;
+    case 'cue':
+    default:
+      return oscResponseMappings.queries.cue.count;
+  }
+};
 
 const formatLoggingState = (state: OscLoggingState): string => {
   const lines = [
@@ -184,6 +266,229 @@ export const eosEnableLoggingTool: ToolDefinition<typeof loggingInputSchema> = {
 };
 
 /**
+ * @tool eos_readiness_check
+ * @summary Verification de readiness EOS
+ * @description Premiere etape obligatoire: controle read-only du transport OSC, du handshake et des lectures JSON EOS.
+ * @arguments Voir docs/tools.md#eos-readiness-check pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-readiness-check pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-readiness-check pour un exemple OSC.
+ */
+export const eosReadinessCheckTool: ToolDefinition<typeof readinessInputSchema> = {
+  name: 'eos_readiness_check',
+  config: {
+    title: 'Verification de readiness EOS',
+    description: 'Premiere etape obligatoire: controle read-only du transport OSC, du handshake et des lectures JSON EOS.',
+    inputSchema: readinessInputSchema,
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false
+    }
+  },
+  metadata: {
+    category: 'diagnostics',
+    riskLevel: 'low',
+    preferredWorkflow: 'first_step'
+  },
+  handler: async (args, _extra) => {
+    const schema = z.object(readinessInputSchema).strict();
+    const options = schema.parse(args ?? {});
+    const client = getOscClient();
+    const target = extractTargetOptions(options);
+    const timeoutMs = options.timeoutMs;
+    const checks: ReadinessCheck[] = [];
+
+    const ping = await client.ping({
+      ...target,
+      timeoutMs,
+      toolId: 'eos_readiness_check',
+      transportPreference: options.transportPreference
+    });
+    checks.push({
+      name: 'ping',
+      status: ping.status,
+      details: {
+        roundtripMs: ping.roundtripMs,
+        echo: ping.echo
+      },
+      error: ping.error ?? null
+    });
+
+    const handshake = await client.connect({
+      ...target,
+      handshakeTimeoutMs: options.handshakeTimeoutMs,
+      protocolTimeoutMs: options.protocolTimeoutMs,
+      toolId: 'eos_readiness_check',
+      transportPreference: options.transportPreference
+    });
+    checks.push({
+      name: 'handshake',
+      status: handshake.status,
+      details: {
+        handshake_mode: handshake.handshake_mode,
+        selectedProtocol: handshake.selectedProtocol,
+        protocolStatus: handshake.protocolStatus,
+        can_send_commands: handshake.can_send_commands,
+        can_read_queries: handshake.can_read_queries
+      },
+      error: handshake.error ?? null
+    });
+
+    const version = await client.requestJson(oscMappings.system.getVersion, {
+      ...target,
+      timeoutMs,
+      bypassReadCapabilityCheck: true,
+      responseAddresses: withEosOutResponseVariant(oscMappings.system.getVersion),
+      transportPreference: options.transportPreference
+    });
+    checks.push({
+      name: 'version',
+      status: version.status,
+      details: {
+        version: normaliseString(version.data),
+        diagnostics: version.diagnostics ?? null
+      },
+      error: version.error ?? null
+    });
+
+    const commandLine = await client.getCommandLine({
+      ...target,
+      user: options.user,
+      timeoutMs,
+      toolId: 'eos_readiness_check',
+      transportPreference: options.transportPreference
+    });
+    checks.push({
+      name: 'command_line_get',
+      status: commandLine.status,
+      details: {
+        user: commandLine.user,
+        text: commandLine.text
+      },
+      error: commandLine.error ?? null
+    });
+
+    const showName = await client.requestJson(oscMappings.showControl.showName, {
+      ...target,
+      timeoutMs,
+      bypassReadCapabilityCheck: true,
+      responseAddresses: withEosOutResponseVariant(oscMappings.showControl.showName),
+      transportPreference: options.transportPreference
+    });
+    checks.push({
+      name: 'show_name',
+      status: showName.status,
+      details: {
+        show_name: normaliseString(showName.data),
+        diagnostics: showName.diagnostics ?? null
+      },
+      error: showName.error ?? null
+    });
+
+    const countTarget = normaliseReadinessCountTarget(options.countTarget);
+    const count = await client.requestJson(getCountAddress(countTarget), {
+      ...target,
+      timeoutMs,
+      bypassReadCapabilityCheck: true,
+      responseAddresses: getCountResponseAddresses(countTarget),
+      transportPreference: options.transportPreference
+    });
+    checks.push({
+      name: 'count',
+      status: count.status,
+      details: {
+        target: countTarget,
+        data: count.data,
+        diagnostics: count.diagnostics ?? null
+      },
+      error: count.error ?? null
+    });
+
+    if (typeof options.patchChannel === 'number') {
+      const patchPayload = {
+        channel: options.patchChannel,
+        part: options.patchPart ?? 0
+      };
+      const patchRead = await client.requestJson(oscMappings.patch.channelInfo, {
+        ...target,
+        payload: patchPayload,
+        timeoutMs,
+        bypassReadCapabilityCheck: true,
+        responseAddresses: oscResponseMappings.patch.channelInfo,
+        transportPreference: options.transportPreference
+      });
+      checks.push({
+        name: 'patch_read',
+        status: patchRead.status,
+        details: {
+          channel: options.patchChannel,
+          part: options.patchPart ?? 0,
+          data: patchRead.data,
+          diagnostics: patchRead.diagnostics ?? null
+        },
+        error: patchRead.error ?? null
+      });
+    } else {
+      checks.push({
+        name: 'patch_read',
+        status: 'skipped',
+        details: {
+          reason: 'Aucun patchChannel fourni; lecture patch optionnelle non executee.'
+        },
+        error: null
+      });
+    }
+
+    const failedChecks = recordFailedCheck(checks);
+    const jsonReadSupported = ['version', 'show_name', 'count']
+      .every((name) => checks.some((check) => check.name === name && check.status === 'ok'));
+    const transportStatus = ping.status === 'ok' && handshake.status === 'ok'
+      ? 'ok'
+      : ping.status === 'ok' || handshake.can_send_commands
+        ? 'degraded'
+        : 'error';
+    const overallStatus = failedChecks.length === 0
+      ? 'ok'
+      : transportStatus === 'error'
+        ? 'error'
+        : 'degraded';
+    const operatorActions = getReadinessOperatorActions(failedChecks, handshake.handshake_mode, jsonReadSupported);
+
+    const text = [
+      `Readiness EOS: ${overallStatus}`,
+      `Transport: ${transportStatus}`,
+      `Handshake: ${handshake.handshake_mode}`,
+      `Lecture JSON: ${jsonReadSupported ? 'supportee' : 'non confirmee'}`,
+      `Echecs: ${failedChecks.length > 0 ? failedChecks.join(', ') : 'aucun'}`
+    ].join('\n');
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text
+        }
+      ],
+      structuredContent: {
+        status: overallStatus,
+        overall_status: overallStatus,
+        transport_status: transportStatus,
+        handshake_mode: handshake.handshake_mode,
+        json_read_supported: jsonReadSupported,
+        failed_checks: failedChecks,
+        operator_actions: operatorActions,
+        checks,
+        summary: text,
+        commandsSent: [],
+        commands_preview: [],
+        warnings: [],
+        next_actions: operatorActions
+      }
+    } as unknown as ToolExecutionResult;
+  }
+};
+
+/**
  * @tool eos_get_diagnostics
  * @summary Diagnostics OSC
  * @description Recupere les informations de diagnostic du service OSC.
@@ -319,6 +624,7 @@ export const eosGetSetupDefaultsTool: ToolDefinition<typeof systemQueryInputSche
 
 const diagnosticsTools: ToolDefinition[] = [
   eosEnableLoggingTool,
+  eosReadinessCheckTool,
   eosGetDiagnosticsTool,
   eosGetVersionTool,
   eosGetSetupDefaultsTool

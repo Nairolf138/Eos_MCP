@@ -37,6 +37,7 @@ Les contrats centralisés sont vérifiés dans `src/tools/__tests__/osc_contract
 | groups | `eos_group_get_info` | `/eos/get/group` | `src/tools/__tests__/osc_contracts.test.ts` |
 | groups | `eos_group_list_all` | `/eos/get/group/list` | `src/tools/__tests__/osc_contracts.test.ts` |
 | diagnostics | `eos_enable_logging` | — | — (outil non OSC ou orchestrateur) |
+| diagnostics | `eos_readiness_check` | — | — (outil non OSC ou orchestrateur) |
 | diagnostics | `eos_get_diagnostics` | — | — (outil non OSC ou orchestrateur) |
 | diagnostics | `eos_get_version` | — | — (outil non OSC ou orchestrateur) |
 | diagnostics | `eos_get_setup_defaults` | — | — (outil non OSC ou orchestrateur) |
