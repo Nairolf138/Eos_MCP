@@ -172,7 +172,7 @@ describe('OscClient', () => {
 
     public maxActiveSends = 0;
 
-    public async send(message: OscMessage, options?: OscGatewaySendOptions): Promise<void> {
+    public async send(message: OscMessage, options?: OscGatewaySendOptions): Promise<TransportType> {
       this.activeSends += 1;
       this.maxActiveSends = Math.max(this.maxActiveSends, this.activeSends);
       this.sentMessages.push(message);
@@ -181,6 +181,7 @@ describe('OscClient', () => {
         await new Promise<void>((resolve) => setTimeout(resolve, this.delayMs));
       }
       this.activeSends -= 1;
+      return options?.transportPreference === 'reliability' ? 'tcp' : 'udp';
     }
 
     public onMessage(listener: (message: OscMessage) => void): () => void {
@@ -192,6 +193,10 @@ describe('OscClient', () => {
 
     public emit(message: OscMessage): void {
       this.listeners.forEach((listener) => listener(message));
+    }
+
+    public getActiveTransport(_toolId: string): TransportType | null {
+      return 'udp';
     }
   }
 
@@ -619,6 +624,7 @@ describe('OscClient', () => {
 
     const promise = client.ping({ timeoutMs: 5 });
 
+    await Promise.resolve();
     jest.advanceTimersByTime(6);
 
     await expect(promise).resolves.toMatchObject({
@@ -760,6 +766,61 @@ describe('OscClient', () => {
     expect(result.payload).toMatchObject({ address: '/eos/out/get/cue/list' });
   });
 
+
+
+  it('expose les diagnostics enrichis pour timeout, payload texte, payload vide et JSON invalide', async () => {
+    const timeoutService = new FakeOscService();
+    const timeoutClient = new OscClient(timeoutService, { defaultTimeoutMs: 20 });
+
+    const timeoutResult = await timeoutClient.requestJson('/eos/get/cue', { timeoutMs: 20 });
+    expect(timeoutResult).toMatchObject({
+      status: 'timeout',
+      diagnostics: {
+        requestAddress: '/eos/get/cue',
+        responseAddress: null,
+        acceptedResponseAddresses: ['/eos/get/cue'],
+        transportType: 'udp',
+        timeoutMs: 20,
+        payloadType: 'empty',
+        rawPayloadExcerpt: '',
+        handshakeStatus: null,
+        protocolMode: null
+      }
+    });
+
+    const cases = [
+      { name: 'texte', value: 'not json', payloadType: 'plain_text', excerpt: 'not json' },
+      { name: 'vide', value: '', payloadType: 'empty', excerpt: '' },
+      { name: 'json invalide', value: '{"status":', payloadType: 'invalid_json', excerpt: '{"status":' }
+    ] as const;
+
+    for (const testCase of cases) {
+      const service = new FakeOscService();
+      const client = new OscClient(service);
+      const responsePromise = client.requestJson('/eos/get/cue', { timeoutMs: 75 });
+      await waitFor(() => service.sentMessages.length >= 1);
+
+      service.emit({
+        address: '/eos/get/cue',
+        args: [{ type: 's', value: testCase.value }]
+      });
+
+      const result = await responsePromise;
+      expect(result.status).toBe('error');
+      expect(result.diagnostics).toMatchObject({
+        requestAddress: '/eos/get/cue',
+        responseAddress: '/eos/get/cue',
+        acceptedResponseAddresses: ['/eos/get/cue'],
+        transportType: 'udp',
+        timeoutMs: 75,
+        payloadType: testCase.payloadType,
+        rawPayloadExcerpt: testCase.excerpt,
+        handshakeStatus: null,
+        protocolMode: null
+      });
+      expect(result.error).toBeDefined();
+    }
+  });
 
   it('normalise une reponse JSON invalide en erreur diagnostiquee', async () => {
     const service = new FakeOscService();

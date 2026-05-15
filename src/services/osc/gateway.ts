@@ -148,7 +148,7 @@ export class OscConnectionGateway implements OscGateway {
     this.attachManagerEvents(this.manager);
   }
 
-  public async send(message: OscMessage, options: OscGatewaySendOptions = {}): Promise<void> {
+  public async send(message: OscMessage, options: OscGatewaySendOptions = {}): Promise<TransportType> {
     const toolId = normaliseToolId(options.toolId, message);
     const encoded = this.encodeMessage(message);
     const overrides =
@@ -160,7 +160,7 @@ export class OscConnectionGateway implements OscGateway {
       this.setToolPreference(toolId, options.transportPreference);
     }
 
-    const attemptSend = (): void => {
+    const attemptSend = (): TransportType => {
       const transport = this.manager.send(toolId, encoded, undefined, overrides);
       this.updateStats('outgoing', message, encoded.byteLength);
       if (this.loggingState.outgoing) {
@@ -169,11 +169,11 @@ export class OscConnectionGateway implements OscGateway {
           `[OSC][${transport}] -> ${message.address}`
         );
       }
+      return transport;
     };
 
     try {
-      attemptSend();
-      return;
+      return attemptSend();
     } catch (error) {
       if (this.shouldWaitForTransport(error)) {
         try {
@@ -189,8 +189,7 @@ export class OscConnectionGateway implements OscGateway {
         }
 
         try {
-          attemptSend();
-          return;
+          return attemptSend();
         } catch (retryError) {
           this.logSendError(retryError, message, "Erreur lors de l'envoi OSC", options.correlationId);
           throw retryError instanceof Error
@@ -267,6 +266,10 @@ export class OscConnectionGateway implements OscGateway {
 
   public getToolPreference(toolId: string): ToolTransportPreference {
     return this.manager.getToolPreference(toolId);
+  }
+
+  public getActiveTransport(toolId: string): TransportType | null {
+    return this.manager.getActiveTransport(toolId);
   }
 
   public removeTool(toolId: string): void {

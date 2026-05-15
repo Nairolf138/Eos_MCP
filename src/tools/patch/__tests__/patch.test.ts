@@ -2,6 +2,7 @@
  * Copyright 2026 Florian Ribes (NairolfConcept)
  * SPDX-License-Identifier: Apache-2.0
  */
+import { getResourceCache } from '../../../services/cache/index';
 import type { OscMessage } from '../../../services/osc/index';
 import { OscClient, setOscClient, type OscGateway, type OscGatewaySendOptions } from '../../../services/osc/client';
 import { oscMappings } from '../../../services/osc/mappings';
@@ -42,6 +43,7 @@ describe('patch tools', () => {
   let service: FakeOscService;
 
   beforeEach(() => {
+    getResourceCache().clearAll();
     service = new FakeOscService();
     const client = new OscClient(service, { defaultTimeoutMs: 50 });
     setOscClient(client);
@@ -49,6 +51,7 @@ describe('patch tools', () => {
 
   afterEach(() => {
     setOscClient(null);
+    getResourceCache().clearAll();
   });
 
 
@@ -271,6 +274,59 @@ describe('patch tools', () => {
         hide_beam: false
       }
     });
+  });
+
+
+  it('propage les diagnostics OSC et le message console pour timeout, payload texte, payload vide et JSON invalide', async () => {
+    const timeoutResult = await runTool(eosPatchGetChannelInfoTool, {
+      channel_number: 301,
+      timeoutMs: 50
+    });
+    const timeoutContent = extractStructuredContent(timeoutResult);
+    expect(timeoutContent).toMatchObject({
+      status: 'timeout',
+      diagnostics: {
+        requestAddress: oscMappings.patch.channelInfo,
+        responseAddress: null,
+        timeoutMs: 50,
+        payloadType: 'empty'
+      }
+    });
+    expect(timeoutResult.content?.[0]?.type).toBe('text');
+    expect(timeoutResult.content?.[0]?.text).toContain('OSC RX activé');
+
+    const cases = [
+      { channel: 302, value: 'not json', payloadType: 'plain_text' },
+      { channel: 303, value: '', payloadType: 'empty' },
+      { channel: 304, value: '{"status":', payloadType: 'invalid_json' }
+    ] as const;
+
+    for (const testCase of cases) {
+      const promise = runTool(eosPatchGetChannelInfoTool, {
+        channel_number: testCase.channel,
+        timeoutMs: 50
+      });
+
+      queueMicrotask(() => {
+        service.emit({
+          address: oscMappings.patch.channelInfo,
+          args: [{ type: 's', value: testCase.value }]
+        });
+      });
+
+      const result = await promise;
+      const structuredContent = extractStructuredContent(result);
+      expect(structuredContent).toMatchObject({
+        status: 'error',
+        diagnostics: {
+          requestAddress: oscMappings.patch.channelInfo,
+          responseAddress: oscMappings.patch.channelInfo,
+          timeoutMs: 50,
+          payloadType: testCase.payloadType
+        }
+      });
+      expect(result.content?.[0]?.text).toContain('ports UDP 8000/8001 ou TCP 3032 cohérents');
+    }
   });
 
   it('valide les numeros de canal et de partie', async () => {

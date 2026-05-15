@@ -11,7 +11,8 @@ import type {
 } from './index';
 import type {
   ToolTransportPreference,
-  TransportStatus
+  TransportStatus,
+  TransportType
 } from './connectionManager';
 import { createOscGatewayFromEnv } from './gateway';
 import type { OscConnectionStateProvider } from './connectionState';
@@ -67,13 +68,14 @@ export interface OscGatewaySendOptions {
 }
 
 export interface OscGateway {
-  send(message: OscMessage, options?: OscGatewaySendOptions): Promise<void>;
+  send(message: OscMessage, options?: OscGatewaySendOptions): Promise<void | TransportType>;
   onMessage(listener: (message: OscMessage) => void): () => void;
   setLoggingOptions?(options: OscLoggingOptions): OscLoggingState;
   getDiagnostics?(): OscDiagnostics;
   getConnectionStateProvider?(): OscConnectionStateProvider | undefined;
   setToolPreference?(toolId: string, preference: ToolTransportPreference): void;
   getToolPreference?(toolId: string): ToolTransportPreference;
+  getActiveTransport?(toolId: string): TransportType | null;
   removeTool?(toolId: string): void;
   onStatus?(listener: (status: TransportStatus) => void): () => void;
   close?(): void;
@@ -220,8 +222,12 @@ export interface OscJsonDiagnostics {
   requestAddress: string;
   responseAddress: string | null;
   acceptedResponseAddresses: string[];
+  transportType: TransportType | 'unknown';
+  timeoutMs: number;
   payloadType: OscPayloadParseType;
   rawPayloadExcerpt: string;
+  handshakeStatus: StepStatus | null;
+  protocolMode: string | null;
 }
 
 export interface OscJsonResponse {
@@ -255,6 +261,10 @@ export class OscClient {
 
   private readonly requestQueueTimeoutMs: number;
 
+  private lastHandshakeStatus: StepStatus | null = null;
+
+  private lastProtocolMode: string | null = null;
+
   constructor(private readonly gateway: OscGateway, private readonly config: OscClientConfig = {}) {
     this.requestQueue = new RequestQueue({ concurrency: config.requestConcurrency });
     this.requestQueueTimeoutMs =
@@ -270,6 +280,8 @@ export class OscClient {
     try {
       const handshake = await this.performHandshake(options, handshakeTimeout);
       const protocolResult = await this.selectProtocol(handshake, options, protocolTimeout);
+      this.lastHandshakeStatus = 'ok';
+      this.lastProtocolMode = protocolResult.selectedProtocol ?? handshake.mode;
 
       return {
         status: 'ok',
@@ -299,6 +311,8 @@ export class OscClient {
 
       const connectionLostError = this.asAppError(error, ErrorCode.OSC_CONNECTION_LOST);
       if (connectionLostError) {
+        this.lastHandshakeStatus = 'error';
+        this.lastProtocolMode = 'timeout';
         return {
           status: 'error',
           version: null,
@@ -611,12 +625,14 @@ export class OscClient {
       { address: responseAddresses, requestAddress: address }
     );
 
+    let transportType: TransportType | 'unknown' = 'unknown';
+
     try {
-      await this.send(message, targetOptions, {
+      transportType = await this.send(message, targetOptions, {
         operation,
         timeoutMs,
         details: { address, hasPayload }
-      });
+      }) ?? 'unknown';
     } catch (error) {
       awaiter.cancel();
       throw error;
@@ -626,7 +642,7 @@ export class OscClient {
       const response = await awaiter.promise;
 
       const parsed = this.parseOscPayload(response);
-      const diagnostics = this.buildJsonDiagnostics(address, response.address, responseAddresses, parsed);
+      const diagnostics = this.buildJsonDiagnostics(address, response.address, responseAddresses, parsed, timeoutMs, transportType);
 
       if (internalOptions.strictJsonObjectResponse) {
         const formatError = this.validateStrictJsonObjectPayload(parsed);
@@ -667,7 +683,7 @@ export class OscClient {
           status: 'timeout',
           data: null,
           payload: null,
-          diagnostics: this.buildJsonDiagnostics(address, null, responseAddresses, this.emptyPayloadParseResult()),
+          diagnostics: this.buildJsonDiagnostics(address, null, responseAddresses, this.emptyPayloadParseResult(), timeoutMs, transportType),
           error: timeoutError.message
         };
       }
@@ -678,7 +694,7 @@ export class OscClient {
           status: 'error',
           data: null,
           payload: null,
-          diagnostics: this.buildJsonDiagnostics(address, null, responseAddresses, this.emptyPayloadParseResult()),
+          diagnostics: this.buildJsonDiagnostics(address, null, responseAddresses, this.emptyPayloadParseResult(), timeoutMs, transportType),
           error: connectionLostError.message
         };
       }
@@ -830,7 +846,7 @@ export class OscClient {
     message: OscMessage,
     options: TargetOptions,
     queueOptions: SendQueueOptions = {}
-  ): Promise<void> {
+  ): Promise<TransportType | null> {
     const operation = queueOptions.operation ?? `l'envoi du message OSC ${message.address}`;
     const timeoutMs = queueOptions.timeoutMs ?? this.requestQueueTimeoutMs;
     const details = {
@@ -856,9 +872,13 @@ export class OscClient {
 
     const queuePolicy = this.buildQueuePolicy(message.address, gatewayOptions);
 
+    let transportType: TransportType | null = null;
+
     await this.requestQueue.run(
       operation,
-      () => this.gateway.send(message, gatewayOptions),
+      () => this.gateway.send(message, gatewayOptions).then((sentTransport) => {
+        transportType = sentTransport ?? this.gateway.getActiveTransport?.(gatewayOptions.toolId ?? message.address) ?? null;
+      }),
       {
         timeoutMs,
         timeoutMessage: queueOptions.timeoutMessage,
@@ -867,6 +887,8 @@ export class OscClient {
         familyKey: queueOptions.familyKey ?? queuePolicy.familyKey
       }
     );
+
+    return transportType ?? this.gateway.getActiveTransport?.(gatewayOptions.toolId ?? message.address) ?? null;
   }
 
   private buildQueuePolicy(address: string, options: OscGatewaySendOptions): OscQueuePolicy {
@@ -934,6 +956,8 @@ export class OscClient {
   }
 
   private async buildTimeoutConnectResult(options: ConnectOptions, errorMessage: string): Promise<ConnectResult> {
+    this.lastHandshakeStatus = 'timeout';
+    this.lastProtocolMode = 'degraded';
     const timeoutMs = Math.max(1, Math.min(
       options.handshakeTimeoutMs ?? this.config.handshakeTimeoutMs ?? this.config.defaultTimeoutMs ?? DEFAULT_HANDSHAKE_TIMEOUT_MS,
       this.config.defaultTimeoutMs ?? DEFAULT_OPERATION_TIMEOUT_MS,
@@ -1484,14 +1508,20 @@ export class OscClient {
     requestAddress: string,
     responseAddress: string | null,
     acceptedResponseAddresses: string[],
-    parsed: OscPayloadParseResult
+    parsed: OscPayloadParseResult,
+    timeoutMs: number,
+    transportType: TransportType | 'unknown'
   ): OscJsonDiagnostics {
     return {
       requestAddress,
       responseAddress,
       acceptedResponseAddresses,
+      transportType,
+      timeoutMs,
       payloadType: parsed.type,
-      rawPayloadExcerpt: parsed.rawPayloadExcerpt
+      rawPayloadExcerpt: parsed.rawPayloadExcerpt,
+      handshakeStatus: this.lastHandshakeStatus,
+      protocolMode: this.lastProtocolMode
     };
   }
 
