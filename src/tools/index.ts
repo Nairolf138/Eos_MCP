@@ -30,6 +30,7 @@ import curveTools from './curves/index';
 import patchTools from './patch/index';
 import fixtureTools from './fixtures/index';
 import showControlTools from './showControl/index';
+import showfileTools from './showfile/index';
 import queryTools from './queries/index';
 import fpeTools from './fpe/index';
 import dmxTools from './dmx/index';
@@ -68,6 +69,7 @@ const definitions = [
   ...patchTools,
   ...snapshotTools,
   ...showControlTools,
+  ...showfileTools,
   ...queryTools,
   ...fpeTools,
   ...dmxTools,
