@@ -158,7 +158,7 @@ const TARGET_TYPE_ERROR_MESSAGE = [
   'Valeurs supportees: cue, cuelist, group, macro, ms, ip, fp, cp, bp, preset, sub, fx, curve, snap, pixmap.'
 ].join(' ');
 
-const statusSchema = z.enum(['ok', 'timeout', 'error', 'skipped']);
+const statusSchema = z.enum(['ok', 'timeout', 'error', 'skipped', 'unsupported_transport_mode', 'read_capability_unconfirmed']);
 
 const listItemOutputSchema = z.object({
   number: z.string(),

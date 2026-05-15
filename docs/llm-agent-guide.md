@@ -7,7 +7,8 @@ Ce guide décrit le comportement attendu d'un assistant LLM qui pilote une conso
 1. **Toujours commencer par `eos_capabilities_get`.**
    - Lire `structuredContent.context` avant de proposer une action métier.
    - Vérifier l'état OSC, l'utilisateur Eos, le mode Live/Blind, les limitations de lecture et les garde-fous de sécurité disponibles.
-   - Si `structuredContent.context.osc_limitations.can_read_queries=false`, ne jamais inventer le patch, la cuelist, les cues ou l'état du show : les présenter comme inconnus et demander une lecture réussie ou une confirmation opérateur.
+   - Si `structuredContent.context.osc_limitations.can_read_queries=false` ou `canReadJsonQueries=false`, ne jamais inventer le patch, la cuelist, les cues ou l'état du show : les présenter comme inconnus et demander une lecture réussie ou une confirmation opérateur.
+   - En mode legacy/non confirmé, les outils de lecture peuvent retourner `unsupported_transport_mode` ou `read_capability_unconfirmed` au lieu d'attendre un timeout. Dans ce cas, demander explicitement une reconfiguration OSC qui confirme les requêtes JSON, ou une source showfile fournie par l'opérateur; ne pas reconstruire ou deviner le patch depuis des suppositions.
 2. **Privilégier les workflows `eos_workflow_*`.**
    - Utiliser un workflow haut niveau dès qu'il existe pour l'intention utilisateur : cue series, update cue, look, patch fixture, autopatch, rehearsal GO, groupes/palettes, effet.
    - Réserver les outils bas niveau (`eos_cue_*`, `eos_patch_*`, `eos_command`, `eos_new_command`, `*_fire`) aux cas où aucun workflow ne couvre l'action ou lorsque l'intégration sait exactement quelle commande Eos envoyer.
@@ -488,7 +489,7 @@ Les outils MCP renvoient généralement un résumé texte et des données struct
 
 - Source principale pour le raisonnement de l'agent.
 - Peut contenir `context`, `steps`, `applied_defaults`, `command_log`, données métier lues depuis Eos, et champs de sécurité.
-- Pour `eos_capabilities_get`, lire notamment `structuredContent.context` et les limitations OSC avant d'inférer l'état du show.
+- Pour `eos_capabilities_get`, lire notamment `structuredContent.context`, `structuredContent.context.osc_limitations.canReadJsonQueries`, `read_json_queries_status` et les limitations OSC avant d'inférer l'état du show.
 
 ### `commands_preview`
 

@@ -407,7 +407,7 @@ export const eosCurveGetInfoTool: ToolDefinition<typeof getInfoInputSchema> = {
           )
           .describe('Points constitutifs de la courbe normalises (input/output).')
       }),
-      status: z.enum(['ok', 'timeout', 'error', 'skipped'])
+      status: z.enum(['ok', 'timeout', 'error', 'skipped', 'unsupported_transport_mode', 'read_capability_unconfirmed'])
     },
     annotations: annotate(oscMappings.curves.info)
   },

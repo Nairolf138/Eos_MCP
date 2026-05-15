@@ -146,20 +146,23 @@ export const eosCapabilitiesGetTool: ToolDefinition<typeof emptySchema> = {
     let detectedEosVersion: string | null = null;
 
     try {
-      liveBlindRaw = await client.requestJson(oscMappings.showControl.liveBlindState, { timeoutMs: 400 });
+      liveBlindRaw = await client.requestJson(oscMappings.showControl.liveBlindState, { timeoutMs: 400, bypassReadCapabilityCheck: true });
       liveBlindMode = parseLiveBlindLabel(liveBlindRaw.data);
     } catch (_error) {
       liveBlindMode = 'unknown';
     }
 
     try {
-      versionRaw = await client.requestJson(oscMappings.system.getVersion, { timeoutMs: 400 });
+      versionRaw = await client.requestJson(oscMappings.system.getVersion, { timeoutMs: 400, bypassReadCapabilityCheck: true });
       detectedEosVersion = parseDetectedEosVersion(versionRaw.data);
     } catch (_error) {
       detectedEosVersion = null;
     }
 
-    const canReadQueries = liveBlindRaw?.status === 'ok' || versionRaw?.status === 'ok';
+    const runtimeCapabilities = typeof client.getRuntimeCapabilities === 'function'
+      ? client.getRuntimeCapabilities()
+      : { canReadJsonQueries: false, readJsonQueriesStatus: 'read_capability_unconfirmed', reason: null };
+    const canReadQueries = liveBlindRaw?.status === 'ok' || versionRaw?.status === 'ok' || runtimeCapabilities.canReadJsonQueries;
     const canSendCommands = oscConnection.health !== 'offline';
     const limitations = [
       ...(canSendCommands ? [] : ['Envoi de commandes EOS non confirmé par l’état de transport OSC.']),
@@ -171,6 +174,9 @@ export const eosCapabilitiesGetTool: ToolDefinition<typeof emptySchema> = {
     const connectionLimitations = {
       can_send_commands: canSendCommands,
       can_read_queries: canReadQueries,
+      canReadJsonQueries: runtimeCapabilities.canReadJsonQueries || canReadQueries,
+      read_json_queries_status: canReadQueries ? 'confirmed' : runtimeCapabilities.readJsonQueriesStatus,
+      read_json_queries_reason: canReadQueries ? null : runtimeCapabilities.reason,
       handshake_mode: oscConnection.health === 'online' ? 'canonical' : oscConnection.health === 'degraded' ? 'degraded' : 'timeout',
       limitations
     };

@@ -336,7 +336,7 @@ export const eosSnapshotGetInfoTool: ToolDefinition<typeof getInfoInputSchema> =
         label: z.string().nullable(),
         uid: z.string().nullable()
       }),
-      status: z.enum(['ok', 'timeout', 'error', 'skipped'])
+      status: z.enum(['ok', 'timeout', 'error', 'skipped', 'unsupported_transport_mode', 'read_capability_unconfirmed'])
     },
     annotations: annotate(oscMappings.snapshots.info)
   },
