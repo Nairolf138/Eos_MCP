@@ -3,15 +3,20 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { z } from 'zod';
-import { createResourceTag, getResourceCache } from '../../services/cache';
+import { getRequestContext } from '../../server/requestContext';
+import {
+  getSessionContextStore,
+  SESSION_CONTEXT_CLEANUP_RULES,
+  type SessionContextPersistenceConfig
+} from '../../services/cache/sessionContextStore';
 import { getOscClient } from '../../services/osc/client';
 import { oscMappings } from '../../services/osc/mappings';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 let currentUserId: number | null = null;
 
-const SESSION_CONTEXT_CACHE_KEY = 'current_context';
-const DEFAULT_CONTEXT_TTL_MS = 10 * 60 * 1000;
+const SESSION_CONTEXT_KEY_PREFIX = 'session_context';
+const DEFAULT_CONTEXT_TTL_MS = SESSION_CONTEXT_CLEANUP_RULES.defaultTtlMs;
 
 const sessionContextSchema = z
   .object({
@@ -50,30 +55,109 @@ export function clearCurrentUserId(): void {
   currentUserId = null;
 }
 
-async function setSessionContext(context: SessionContext, ttlMs = DEFAULT_CONTEXT_TTL_MS): Promise<void> {
-  const cache = getResourceCache();
-  cache.notifyResourceChange('session', SESSION_CONTEXT_CACHE_KEY);
-  await cache.fetch<SessionContext>({
-    resourceType: 'session',
-    key: SESSION_CONTEXT_CACHE_KEY,
-    ttlMs,
-    tags: [createResourceTag('session'), createResourceTag('session', SESSION_CONTEXT_CACHE_KEY)],
-    fetcher: async () => context
-  });
+type SessionContextIdentity = {
+  key: string;
+  source: 'context_id' | 'mcp_session_id' | 'agent_id' | 'user_id' | 'current_user' | 'default';
+  id: string;
+};
+
+interface ContextIdentityInput {
+  context_id?: string;
+  mcp_session_id?: string;
+  agent_id?: string;
+  user_id?: number;
 }
 
-async function getSessionContext(): Promise<SessionContext | null> {
-  const cache = getResourceCache();
-  return cache.fetch<SessionContext | null>({
-    resourceType: 'session',
-    key: SESSION_CONTEXT_CACHE_KEY,
-    tags: [createResourceTag('session'), createResourceTag('session', SESSION_CONTEXT_CACHE_KEY)],
-    fetcher: async () => null
-  });
+function asRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+  return value as Record<string, unknown>;
 }
 
-export function clearSessionContext(): void {
-  getResourceCache().notifyResourceChange('session', SESSION_CONTEXT_CACHE_KEY);
+function normaliseContextId(value: unknown): string | null {
+  if (typeof value === 'string' && value.trim().length > 0) {
+    return value.trim();
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(Math.trunc(value));
+  }
+  return null;
+}
+
+function buildSessionContextKey(source: SessionContextIdentity['source'], id: string): string {
+  const safeId = id.replace(/[^a-zA-Z0-9_.:-]/g, '_');
+  return `${SESSION_CONTEXT_KEY_PREFIX}:${source}:${safeId}`;
+}
+
+function resolveSessionContextIdentity(
+  args: ContextIdentityInput = {},
+  extra: unknown = undefined
+): SessionContextIdentity {
+  const extraRecord = asRecord(extra);
+  const requestContext = getRequestContext();
+  const candidates: Array<[SessionContextIdentity['source'], unknown]> = [
+    ['context_id', args.context_id],
+    ['mcp_session_id', args.mcp_session_id],
+    ['agent_id', args.agent_id],
+    ['user_id', args.user_id],
+    ['mcp_session_id', extraRecord.mcpSessionId],
+    ['mcp_session_id', extraRecord.sessionId],
+    ['agent_id', extraRecord.agentId],
+    ['user_id', extraRecord.userId],
+    ['mcp_session_id', requestContext?.sessionId],
+    ['user_id', requestContext?.userId],
+    ['current_user', currentUserId]
+  ];
+
+  for (const [source, candidate] of candidates) {
+    const id = normaliseContextId(candidate);
+    if (id) {
+      return { source, id, key: buildSessionContextKey(source, id) };
+    }
+  }
+
+  return { source: 'default', id: 'local', key: buildSessionContextKey('default', 'local') };
+}
+
+export function configureSessionContextPersistence(config: SessionContextPersistenceConfig<SessionContext>): void {
+  getSessionContextStore().configure(config as SessionContextPersistenceConfig<unknown>);
+}
+
+async function setSessionContext(
+  context: SessionContext,
+  ttlMs = DEFAULT_CONTEXT_TTL_MS,
+  identityInput: ContextIdentityInput = {},
+  extra: unknown = undefined
+): Promise<SessionContextIdentity> {
+  const identity = resolveSessionContextIdentity(identityInput, extra);
+  await getSessionContextStore().set(identity.key, context, ttlMs);
+  return identity;
+}
+
+async function getSessionContext(
+  identityInput: ContextIdentityInput = {},
+  extra: unknown = undefined
+): Promise<{ context: SessionContext | null; identity: SessionContextIdentity }> {
+  const identity = resolveSessionContextIdentity(identityInput, extra);
+  const entry = await getSessionContextStore().get(identity.key);
+  return { context: (entry?.value as SessionContext | undefined) ?? null, identity };
+}
+
+export async function clearSessionContext(
+  identityInput: ContextIdentityInput = {},
+  extra: unknown = undefined
+): Promise<void> {
+  const identity = resolveSessionContextIdentity(identityInput, extra);
+  await getSessionContextStore().delete(identity.key);
+}
+
+export async function clearAllSessionContexts(): Promise<void> {
+  await getSessionContextStore().clearAll();
+}
+
+export async function cleanupExpiredSessionContexts(): Promise<number> {
+  return getSessionContextStore().cleanupExpired();
 }
 
 function buildSuggestedNextActions(hasContext: boolean): Array<Record<string, string>> {
@@ -106,9 +190,21 @@ const setCurrentUserInputSchema = {
   user: z.coerce.number().int().min(0, "L'identifiant utilisateur doit etre positif")
 };
 
+const contextIdentityInputSchema = {
+  context_id: z.string().min(1).optional(),
+  mcp_session_id: z.string().min(1).optional(),
+  agent_id: z.string().min(1).optional(),
+  user_id: z.coerce.number().int().min(0).optional()
+};
+
 const setContextInputSchema = {
   context: sessionContextSchema,
-  ttl_ms: z.coerce.number().int().min(1).max(24 * 60 * 60 * 1000).optional()
+  ttl_ms: z.coerce.number().int().min(1).max(SESSION_CONTEXT_CLEANUP_RULES.maxTtlMs).optional(),
+  ...contextIdentityInputSchema
+};
+
+const contextLookupInputSchema = {
+  ...contextIdentityInputSchema
 };
 
 const targetOptionsSchema = {
@@ -170,7 +266,7 @@ export const sessionSetCurrentUserTool: ToolDefinition<typeof setCurrentUserInpu
       ],
       structuredContent: {
         user: options.user,
-        suggested_next_actions: buildSuggestedNextActions(Boolean(await getSessionContext()))
+        suggested_next_actions: buildSuggestedNextActions(Boolean((await getSessionContext({}, args)).context))
       }
     } as ToolExecutionResult;
   }
@@ -203,7 +299,7 @@ export const sessionGetCurrentUserTool: ToolDefinition = {
       ],
       structuredContent: {
         user: user ?? null,
-        suggested_next_actions: buildSuggestedNextActions(Boolean(await getSessionContext()))
+        suggested_next_actions: buildSuggestedNextActions(Boolean((await getSessionContext()).context))
       }
     } as ToolExecutionResult;
   }
@@ -272,22 +368,25 @@ export const sessionSetContextTool: ToolDefinition<typeof setContextInputSchema>
       'Stocke le contexte courant (show, cuelist active, selections canaux/groupes, palettes recentes) avec un TTL configurable.',
     inputSchema: setContextInputSchema
   },
-  handler: async (args) => {
+  handler: async (args, extra) => {
     const schema = z.object(setContextInputSchema).strict();
     const options = schema.parse(args ?? {});
-
-    await setSessionContext(options.context, options.ttl_ms ?? DEFAULT_CONTEXT_TTL_MS);
+    const identity = await setSessionContext(options.context, options.ttl_ms ?? DEFAULT_CONTEXT_TTL_MS, options, extra);
 
     return {
       content: [
         {
           type: 'text',
-          text: 'Contexte courant enregistre'
+          text: `Contexte enregistre pour ${identity.source}:${identity.id}`
         }
       ],
       structuredContent: {
         context: options.context,
+        context_identity: identity,
+        persistence: getSessionContextStore().getPersistenceMode(),
+        expires_in_ms: options.ttl_ms ?? DEFAULT_CONTEXT_TTL_MS,
         ttl_ms: options.ttl_ms ?? DEFAULT_CONTEXT_TTL_MS,
+        cleanup_rules: SESSION_CONTEXT_CLEANUP_RULES,
         suggested_next_actions: buildSuggestedNextActions(true)
       }
     } as ToolExecutionResult;
@@ -303,14 +402,17 @@ export const sessionSetContextTool: ToolDefinition<typeof setContextInputSchema>
  * @example CLI Consultez docs/tools.md#session-get-context pour un exemple CLI.
  * @example OSC Consultez docs/tools.md#session-get-context pour un exemple OSC.
  */
-export const sessionGetContextTool: ToolDefinition = {
+export const sessionGetContextTool: ToolDefinition<typeof contextLookupInputSchema> = {
   name: 'session_get_context',
   config: {
     title: 'Contexte courant',
-    description: 'Renvoie le contexte courant memorise localement.'
+    description: 'Renvoie le contexte courant memorise localement.',
+    inputSchema: contextLookupInputSchema
   },
-  handler: async () => {
-    const context = await getSessionContext();
+  handler: async (args, extra) => {
+    const schema = z.object(contextLookupInputSchema).strict();
+    const options = schema.parse(args ?? {});
+    const { context, identity } = await getSessionContext(options, extra);
 
     return {
       content: [
@@ -321,6 +423,9 @@ export const sessionGetContextTool: ToolDefinition = {
       ],
       structuredContent: {
         context,
+        context_identity: identity,
+        persistence: getSessionContextStore().getPersistenceMode(),
+        cleanup_rules: SESSION_CONTEXT_CLEANUP_RULES,
         suggested_next_actions: buildSuggestedNextActions(Boolean(context))
       }
     } as ToolExecutionResult;
@@ -336,14 +441,18 @@ export const sessionGetContextTool: ToolDefinition = {
  * @example CLI Consultez docs/tools.md#session-clear-context pour un exemple CLI.
  * @example OSC Consultez docs/tools.md#session-clear-context pour un exemple OSC.
  */
-export const sessionClearContextTool: ToolDefinition = {
+export const sessionClearContextTool: ToolDefinition<typeof contextLookupInputSchema> = {
   name: 'session_clear_context',
   config: {
     title: 'Effacer contexte courant',
-    description: 'Supprime le contexte courant memorise localement.'
+    description: 'Supprime le contexte courant memorise localement.',
+    inputSchema: contextLookupInputSchema
   },
-  handler: async () => {
-    clearSessionContext();
+  handler: async (args, extra) => {
+    const schema = z.object(contextLookupInputSchema).strict();
+    const options = schema.parse(args ?? {});
+    const { identity } = await getSessionContext(options, extra);
+    await clearSessionContext(options, extra);
 
     return {
       content: [
@@ -354,6 +463,9 @@ export const sessionClearContextTool: ToolDefinition = {
       ],
       structuredContent: {
         context: null,
+        context_identity: identity,
+        persistence: getSessionContextStore().getPersistenceMode(),
+        cleanup_rules: SESSION_CONTEXT_CLEANUP_RULES,
         suggested_next_actions: buildSuggestedNextActions(false)
       }
     } as ToolExecutionResult;

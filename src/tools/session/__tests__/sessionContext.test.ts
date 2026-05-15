@@ -3,16 +3,22 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import {
-  clearSessionContext,
+  clearAllSessionContexts,
+  cleanupExpiredSessionContexts,
+  configureSessionContextPersistence,
   sessionClearContextTool,
   sessionGetContextTool,
   sessionSetContextTool
 } from '../index';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { getStructuredContent, runTool } from '../../__tests__/helpers/runTool';
 
 describe('session context tools', () => {
-  beforeEach(() => {
-    clearSessionContext();
+  beforeEach(async () => {
+    configureSessionContextPersistence({ mode: 'memory' });
+    await clearAllSessionContexts();
   });
 
   it('enregistre puis retourne le contexte courant', async () => {
@@ -40,7 +46,7 @@ describe('session context tools', () => {
     });
     expect(setStructuredContent.suggested_next_actions).toBeDefined();
 
-    const getResult = await runTool(sessionGetContextTool, undefined);
+    const getResult = await runTool(sessionGetContextTool, {});
     const getStructured = getStructuredContent(getResult);
 
     expect(getStructured).toBeDefined();
@@ -66,7 +72,7 @@ describe('session context tools', () => {
       await runTool(sessionSetContextTool, { context, ttl_ms: 10 });
       jest.advanceTimersByTime(11);
 
-      const result = await runTool(sessionGetContextTool, undefined);
+      const result = await runTool(sessionGetContextTool, {});
       const structured = getStructuredContent(result);
 
       expect(structured).toBeDefined();
@@ -91,7 +97,7 @@ describe('session context tools', () => {
       }
     });
 
-    const clearResult = await runTool(sessionClearContextTool, undefined);
+    const clearResult = await runTool(sessionClearContextTool, {});
     const clearStructured = getStructuredContent(clearResult);
 
     expect(clearStructured).toBeDefined();
@@ -101,7 +107,7 @@ describe('session context tools', () => {
     expect(clearStructured.context).toBeNull();
     expect(clearStructured.suggested_next_actions).toBeDefined();
 
-    const getResult = await runTool(sessionGetContextTool, undefined);
+    const getResult = await runTool(sessionGetContextTool, {});
     const getStructured = getStructuredContent(getResult);
 
     expect(getStructured).toBeDefined();
@@ -110,4 +116,77 @@ describe('session context tools', () => {
     }
     expect(getStructured.context).toBeNull();
   });
+
+  it('isole deux agents concurrents avec des contextes differents', async () => {
+    const agentAContext = {
+      show: 'Show Agent A',
+      active_cuelist: 1,
+      selected_channels: [1, 2]
+    };
+    const agentBContext = {
+      show: 'Show Agent B',
+      active_cuelist: 2,
+      selected_channels: [11, 12]
+    };
+
+    await Promise.all([
+      runTool(sessionSetContextTool, { agent_id: 'agent-a', context: agentAContext }),
+      runTool(sessionSetContextTool, { agent_id: 'agent-b', context: agentBContext })
+    ]);
+
+    const [agentAResult, agentBResult] = await Promise.all([
+      runTool(sessionGetContextTool, { agent_id: 'agent-a' }),
+      runTool(sessionGetContextTool, { agent_id: 'agent-b' })
+    ]);
+
+    expect(getStructuredContent(agentAResult)).toMatchObject({
+      context: agentAContext,
+      context_identity: { source: 'agent_id', id: 'agent-a' }
+    });
+    expect(getStructuredContent(agentBResult)).toMatchObject({
+      context: agentBContext,
+      context_identity: { source: 'agent_id', id: 'agent-b' }
+    });
+  });
+
+  it('nettoie explicitement les contextes expires', async () => {
+    jest.useFakeTimers();
+    try {
+      await runTool(sessionSetContextTool, {
+        agent_id: 'agent-expire',
+        context: { show: 'Expired' },
+        ttl_ms: 10
+      });
+      jest.advanceTimersByTime(11);
+
+      await expect(cleanupExpiredSessionContexts()).resolves.toBe(1);
+      const result = await runTool(sessionGetContextTool, { agent_id: 'agent-expire' });
+      expect(getStructuredContent(result)).toMatchObject({ context: null });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+
+  it('persiste les contextes en fichier local lorsque configure', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'eos-mcp-session-context-'));
+    const filePath = join(directory, 'contexts.json');
+    try {
+      const context = { show: 'Persisted file context' };
+      configureSessionContextPersistence({ mode: 'file', filePath });
+
+      await runTool(sessionSetContextTool, { mcp_session_id: 'session-file', context });
+      const result = await runTool(sessionGetContextTool, { mcp_session_id: 'session-file' });
+
+      expect(getStructuredContent(result)).toMatchObject({
+        context,
+        persistence: 'file',
+        context_identity: { source: 'mcp_session_id', id: 'session-file' }
+      });
+    } finally {
+      configureSessionContextPersistence({ mode: 'memory' });
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
 });
