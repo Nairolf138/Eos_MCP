@@ -7,6 +7,11 @@ et ce projet respecte la [version sémantique](https://semver.org/lang/fr/spec/v
 
 ## [Unreleased]
 ### Ajouté
+- Processus de maintenance EOS couvrant la veille, la checklist de validation, les fixtures de conformance et les conventions de changelog.
+
+### Impacts EOS
+- Documentation uniquement : ajoute une procedure de suivi des impacts EOS sans changement de compatibilite runtime.
+
 - Pipeline d'intégration continue GitHub Actions pour les lint/tests/build et la vérification optionnelle de la documentation.
 - Procédure de release documentée incluant la mise à jour du changelog et la publication des tags Git.
 
