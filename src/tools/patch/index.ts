@@ -180,6 +180,22 @@ function annotate(osc: string): Record<string, unknown> {
   };
 }
 
+const OSC_CONSOLE_CHECK_MESSAGE = 'Vérifiez côté console: OSC RX activé, OSC TX activé, IP TX vers le serveur MCP, ports UDP 8000/8001 ou TCP 3032 cohérents.';
+
+function shouldExposeOscDiagnostics(response: OscJsonResponse): boolean {
+  return response.status === 'timeout' || response.status === 'error';
+}
+
+function appendConsoleCheck(text: string, response: OscJsonResponse): string {
+  return shouldExposeOscDiagnostics(response) ? `${text} ${OSC_CONSOLE_CHECK_MESSAGE}` : text;
+}
+
+function withOscDiagnostics(response: OscJsonResponse): Record<string, unknown> {
+  return shouldExposeOscDiagnostics(response) && response.diagnostics
+    ? { diagnostics: response.diagnostics }
+    : {};
+}
+
 function createResult(text: string, structuredContent: Record<string, unknown>): ToolExecutionResult {
   return buildToolResult({
     text,
@@ -735,8 +751,9 @@ export const eosPatchGetChannelInfoTool: ToolDefinition<typeof channelInfoInputS
             ? `Informations recues pour le canal ${validatedChannel.channel_number}.`
             : `Lecture des informations du canal ${validatedChannel.channel_number} terminee avec le statut ${response.status}.`;
 
-        return createResult(baseText, {
+        return createResult(appendConsoleCheck(baseText, response), {
           status: response.status,
+          ...withOscDiagnostics(response),
           channel: validatedChannel,
           osc: {
             address: oscMappings.patch.channelInfo,
@@ -820,8 +837,9 @@ export const eosPatchGetAugment3dPositionTool: ToolDefinition<typeof augment3dIn
             ? `Position Augment3d recue pour le canal ${validatedPosition.channel_number} partie ${validatedPosition.part_number}.`
             : `Lecture de la position Augment3d du canal ${validatedPosition.channel_number} partie ${validatedPosition.part_number} terminee avec le statut ${response.status}.`;
 
-        return createResult(baseText, {
+        return createResult(appendConsoleCheck(baseText, response), {
           status: response.status,
+          ...withOscDiagnostics(response),
           augment3d: validatedPosition,
           osc: {
             address: oscMappings.patch.augment3dPosition,
@@ -905,8 +923,9 @@ export const eosPatchGetAugment3dBeamTool: ToolDefinition<typeof augment3dInputS
             ? `Faisceau Augment3d recu pour le canal ${validatedBeam.channel_number} partie ${validatedBeam.part_number}.`
             : `Lecture du faisceau Augment3d du canal ${validatedBeam.channel_number} partie ${validatedBeam.part_number} terminee avec le statut ${response.status}.`;
 
-        return createResult(baseText, {
+        return createResult(appendConsoleCheck(baseText, response), {
           status: response.status,
+          ...withOscDiagnostics(response),
           augment3d: validatedBeam,
           osc: {
             address: oscMappings.patch.augment3dBeam,

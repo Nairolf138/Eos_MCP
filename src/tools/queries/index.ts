@@ -280,9 +280,10 @@ export const eosGetCountTool: ToolDefinition<typeof countInputSchema> = {
             ? `Nombre de ${config.label}: ${count}.`
             : `Lecture du compte des ${config.label} terminee avec le statut ${response.status}.`;
 
-        return createResult(baseText, {
+        return createResult(appendConsoleCheck(baseText, response), {
           action: 'get_count',
           status: response.status,
+          ...withOscDiagnostics(response),
           target_type: config.key,
           count,
           data: response.data,
@@ -353,9 +354,10 @@ export const eosGetListAllTool: ToolDefinition<typeof listInputSchema> = {
             ? `Elements ${config.label}: ${items.length}.`
             : `Lecture de la liste des ${config.label} terminee avec le statut ${response.status}.`;
 
-        return createResult(baseText, {
+        return createResult(appendConsoleCheck(baseText, response), {
           action: 'list_all',
           status: response.status,
+          ...withOscDiagnostics(response),
           target_type: config.key,
           items,
           data: response.data,
@@ -385,6 +387,22 @@ function annotate(mode: 'count' | 'list'): Record<string, unknown> {
       osc: Object.fromEntries(mappingEntries)
     }
   };
+}
+
+const OSC_CONSOLE_CHECK_MESSAGE = 'Vérifiez côté console: OSC RX activé, OSC TX activé, IP TX vers le serveur MCP, ports UDP 8000/8001 ou TCP 3032 cohérents.';
+
+function shouldExposeOscDiagnostics(response: OscJsonResponse): boolean {
+  return response.status === 'timeout' || response.status === 'error';
+}
+
+function appendConsoleCheck(text: string, response: OscJsonResponse): string {
+  return shouldExposeOscDiagnostics(response) ? `${text} ${OSC_CONSOLE_CHECK_MESSAGE}` : text;
+}
+
+function withOscDiagnostics(response: OscJsonResponse): Record<string, unknown> {
+  return shouldExposeOscDiagnostics(response) && response.diagnostics
+    ? { diagnostics: response.diagnostics }
+    : {};
 }
 
 function createResult(text: string, structuredContent: Record<string, unknown>): ToolExecutionResult {

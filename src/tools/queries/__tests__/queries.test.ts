@@ -262,6 +262,58 @@ describe('query tools', () => {
     });
   });
 
+
+  it('propage les diagnostics OSC et le message console pour timeout, payload texte, payload vide et JSON invalide', async () => {
+    const timeoutResult = await runTool(eosGetCountTool, { target_type: 'group', timeoutMs: 50 });
+    const timeoutContent = getStructuredContent(timeoutResult);
+    expect(timeoutContent).toMatchObject({
+      action: 'get_count',
+      status: 'timeout',
+      target_type: 'group',
+      diagnostics: {
+        requestAddress: oscMappings.queries.group.count,
+        responseAddress: null,
+        timeoutMs: 50,
+        payloadType: 'empty'
+      }
+    });
+    expect(timeoutResult.content?.[0]?.type).toBe('text');
+    expect(timeoutResult.content?.[0]?.text).toContain('OSC RX activé');
+
+    const cases = [
+      { target: 'macro', value: 'not json', payloadType: 'plain_text' },
+      { target: 'preset', value: '', payloadType: 'empty' },
+      { target: 'fx', value: '{"status":', payloadType: 'invalid_json' }
+    ] as const;
+
+    for (const testCase of cases) {
+      const mapping = oscMappings.queries[testCase.target];
+      const promise = runTool(eosGetListAllTool, { target_type: testCase.target, timeoutMs: 50 });
+
+      queueMicrotask(() => {
+        service.emit({
+          address: mapping.list,
+          args: [{ type: 's', value: testCase.value }]
+        });
+      });
+
+      const result = await promise;
+      const structuredContent = getStructuredContent(result);
+      expect(structuredContent).toMatchObject({
+        action: 'list_all',
+        status: 'error',
+        target_type: testCase.target,
+        diagnostics: {
+          requestAddress: mapping.list,
+          responseAddress: mapping.list,
+          timeoutMs: 50,
+          payloadType: testCase.payloadType
+        }
+      });
+      expect(result.content?.[0]?.text).toContain('ports UDP 8000/8001 ou TCP 3032 cohérents');
+    }
+  });
+
   it('retourne un structuredContent timeout quand aucune reponse OSC narrive', async () => {
     const result = await runTool(eosGetCountTool, { target_type: 'group', timeoutMs: 50 });
     const structuredContent = getStructuredContent(result);
