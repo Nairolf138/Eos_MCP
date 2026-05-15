@@ -11,7 +11,29 @@ import {
   resetConfigCacheForTesting,
   type AppConfig
 } from '../../config/index';
-import { initialiseEnv } from '../env';
+import {
+  DEFAULT_ALLOWED_TOOL_PROFILE_ENV,
+  getDefaultAllowedToolProfile,
+  initialiseEnv
+} from '../env';
+
+describe('tool safety profile environment', () => {
+  it('retourne read_only par defaut', () => {
+    expect(getDefaultAllowedToolProfile({} as NodeJS.ProcessEnv)).toBe('read_only');
+  });
+
+  it('valide le profil autorise par defaut depuis EOS_MCP_ALLOWED_TOOL_PROFILE', () => {
+    expect(
+      getDefaultAllowedToolProfile({ [DEFAULT_ALLOWED_TOOL_PROFILE_ENV]: 'live_playback' } as NodeJS.ProcessEnv)
+    ).toBe('live_playback');
+  });
+
+  it('rejette un profil autorise inconnu', () => {
+    expect(() =>
+      getDefaultAllowedToolProfile({ [DEFAULT_ALLOWED_TOOL_PROFILE_ENV]: 'operator' } as NodeJS.ProcessEnv)
+    ).toThrow(DEFAULT_ALLOWED_TOOL_PROFILE_ENV);
+  });
+});
 
 describe('configuration', () => {
   it('fournit des valeurs par défaut cohérentes lorsque aucune variable est définie', () => {

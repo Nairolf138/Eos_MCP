@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { getOscClient, getOscConnectionStateProvider, type OscJsonResponse } from '../../services/osc/client';
+import { getDefaultAllowedToolProfile } from '../../config/env';
 import { oscMappings } from '../../services/osc/mappings';
 import { getCurrentUserId } from '../session';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
@@ -183,6 +184,7 @@ export const eosCapabilitiesGetTool: ToolDefinition<typeof emptySchema> = {
 
     const safety = {
       default_safety_level: 'strict',
+      default_allowed_tool_profile: getDefaultAllowedToolProfile(),
       require_confirmation_for_sensitive_actions: true,
       active: true
     };

@@ -7,6 +7,27 @@ import { buildToolResult, type ToolExecutionResult } from '../types';
 
 export const safetyLevelSchema = z.enum(['strict', 'standard', 'off']);
 
+export const toolSafetyProfileSchema = z.enum(['read_only', 'programming', 'live_playback', 'admin']);
+export type ToolSafetyProfile = z.infer<typeof toolSafetyProfileSchema>;
+
+const toolSafetyProfileRank: Record<ToolSafetyProfile, number> = {
+  read_only: 0,
+  programming: 1,
+  live_playback: 2,
+  admin: 3
+};
+
+export function compareToolSafetyProfiles(left: ToolSafetyProfile, right: ToolSafetyProfile): number {
+  return toolSafetyProfileRank[left] - toolSafetyProfileRank[right];
+}
+
+export function isToolSafetyProfileAllowed(
+  grantedProfile: ToolSafetyProfile,
+  requiredProfile: ToolSafetyProfile
+): boolean {
+  return compareToolSafetyProfiles(grantedProfile, requiredProfile) >= 0;
+}
+
 export const safetyOptionsSchema = {
   dry_run: z.boolean().optional(),
   require_confirmation: z.boolean().optional(),

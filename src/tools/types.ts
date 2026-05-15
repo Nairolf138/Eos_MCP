@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import type { ZodRawShape } from 'zod';
+import type { ToolSafetyProfile } from './common/safety';
 
 export interface ToolResultContent {
   type: string;
@@ -187,6 +188,7 @@ export interface ToolMetadata {
   riskLevel?: ToolRiskLevel;
   requiresConfirmation?: boolean;
   preferredWorkflow?: string | string[];
+  requiredRole?: ToolSafetyProfile;
 }
 
 export interface ToolDefinition<Args extends ZodRawShape | undefined = ZodRawShape | undefined> {
