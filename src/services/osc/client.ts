@@ -47,6 +47,9 @@ const COMMAND_REQUEST = '/eos/cmd';
 const NEW_COMMAND_REQUEST = '/eos/newcmd';
 const COMMAND_LINE_GET_REQUEST = '/eos/get/cmd_line';
 const COMMAND_LINE_GET_REPLY = '/eos/get/cmd_line';
+const JSON_STATUS_REQUIRED_ENDPOINTS = new Set<string>([
+  '/eos/get/cue'
+]);
 
 const DEFAULT_OPERATION_TIMEOUT_MS = 1500;
 const DEFAULT_HANDSHAKE_TIMEOUT_MS = 2000;
@@ -205,11 +208,33 @@ export interface OscJsonRequestOptions extends TargetOptions {
   timeoutMs?: number;
 }
 
+export type OscPayloadParseType = 'json' | 'plain_text' | 'empty' | 'invalid_json';
+
+export type OscPayloadParseResult =
+  | { type: 'json'; data: unknown; rawPayload: string | null; rawPayloadExcerpt: string }
+  | { type: 'plain_text'; data: string; rawPayload: string; rawPayloadExcerpt: string }
+  | { type: 'empty'; data: null; rawPayload: string | null; rawPayloadExcerpt: string }
+  | { type: 'invalid_json'; data: string; rawPayload: string; rawPayloadExcerpt: string; error: string };
+
+export interface OscJsonDiagnostics {
+  requestAddress: string;
+  responseAddress: string | null;
+  acceptedResponseAddresses: string[];
+  payloadType: OscPayloadParseType;
+  rawPayloadExcerpt: string;
+}
+
 export interface OscJsonResponse {
   status: StepStatus;
   data: unknown;
   payload: unknown;
+  diagnostics?: OscJsonDiagnostics;
   error?: string;
+}
+
+interface InternalOscJsonRequestOptions {
+  strictJsonObjectResponse?: boolean;
+  requireStatusResponse?: boolean;
 }
 
 interface SendQueueOptions extends RequestQueueRunOptions {
@@ -524,6 +549,17 @@ export class OscClient {
   }
 
   public async requestJson(address: string, options: OscJsonRequestOptions = {}): Promise<OscJsonResponse> {
+    return this.requestJsonInternal(address, options, {
+      strictJsonObjectResponse: true,
+      requireStatusResponse: JSON_STATUS_REQUIRED_ENDPOINTS.has(address)
+    });
+  }
+
+  private async requestJsonInternal(
+    address: string,
+    options: OscJsonRequestOptions = {},
+    internalOptions: InternalOscJsonRequestOptions = {}
+  ): Promise<OscJsonResponse> {
     if (!isDocumentedJsonEndpoint(address)) {
       throw new Error(
         `requestJson n'est pas autorise pour l'adresse '${address}'. Utilisez un builder specialise + sendMessage.`
@@ -580,23 +616,40 @@ export class OscClient {
     try {
       const response = await awaiter.promise;
 
-      const data = this.extractPayload(response);
-      const status = this.normaliseStatus(data);
-      if (status === 'error') {
+      const parsed = this.parseOscPayload(response);
+      const diagnostics = this.buildJsonDiagnostics(address, response.address, responseAddresses, parsed);
+
+      if (internalOptions.strictJsonObjectResponse) {
+        const formatError = this.validateStrictJsonObjectPayload(parsed);
+        if (formatError) {
+          return {
+            status: 'error',
+            data: parsed.type === 'json' ? parsed.data : null,
+            payload: response,
+            diagnostics,
+            error: this.withJsonDiagnostics(formatError, diagnostics)
+          };
+        }
+      }
+
+      const data = parsed.data;
+      const statusResult = this.normaliseJsonStatus(data, internalOptions.requireStatusResponse === true);
+      if (statusResult.status === 'error') {
         this.ensureConnectionActive(operation, data, {
           address: response.address,
           acceptedResponseAddresses: responseAddresses,
-          requestAddress: address
+          requestAddress: address,
+          payloadType: diagnostics.payloadType,
+          rawPayloadExcerpt: diagnostics.rawPayloadExcerpt
         });
       }
 
-      const errorMessage = status === 'error' ? this.extractErrorMessage(data) : null;
-
       return {
-        status,
+        status: statusResult.status,
         data,
         payload: response,
-        ...(errorMessage ? { error: errorMessage } : {})
+        diagnostics,
+        ...(statusResult.error ? { error: statusResult.error } : {})
       };
     } catch (error) {
       const timeoutError = this.asAppError(error, ErrorCode.OSC_TIMEOUT);
@@ -605,6 +658,7 @@ export class OscClient {
           status: 'timeout',
           data: null,
           payload: null,
+          diagnostics: this.buildJsonDiagnostics(address, null, responseAddresses, this.emptyPayloadParseResult()),
           error: timeoutError.message
         };
       }
@@ -615,6 +669,7 @@ export class OscClient {
           status: 'error',
           data: null,
           payload: null,
+          diagnostics: this.buildJsonDiagnostics(address, null, responseAddresses, this.emptyPayloadParseResult()),
           error: connectionLostError.message
         };
       }
@@ -1315,6 +1370,153 @@ export class OscClient {
     return trimmed;
   }
 
+  private parseOscPayload(message: OscMessage): OscPayloadParseResult {
+    const firstArg = message.args?.[0]?.value;
+    if (firstArg === undefined || firstArg === null) {
+      return this.emptyPayloadParseResult();
+    }
+
+    if (typeof firstArg !== 'string') {
+      return {
+        type: 'json',
+        data: firstArg,
+        rawPayload: null,
+        rawPayloadExcerpt: this.buildPayloadExcerpt(firstArg)
+      };
+    }
+
+    const rawPayload = firstArg;
+    const rawPayloadExcerpt = this.buildPayloadExcerpt(rawPayload);
+    const trimmed = rawPayload.trim();
+    if (trimmed.length === 0) {
+      return this.emptyPayloadParseResult(rawPayload);
+    }
+
+    try {
+      return {
+        type: 'json',
+        data: JSON.parse(rawPayload) as unknown,
+        rawPayload,
+        rawPayloadExcerpt
+      };
+    } catch (error) {
+      const startsLikeJson = trimmed.startsWith('{') || trimmed.startsWith('[');
+      if (!startsLikeJson) {
+        return {
+          type: 'plain_text',
+          data: rawPayload,
+          rawPayload,
+          rawPayloadExcerpt
+        };
+      }
+
+      return {
+        type: 'invalid_json',
+        data: rawPayload,
+        rawPayload,
+        rawPayloadExcerpt,
+        error: error instanceof Error ? error.message : 'JSON invalide.'
+      };
+    }
+  }
+
+  private emptyPayloadParseResult(rawPayload: string | null = null): OscPayloadParseResult {
+    return {
+      type: 'empty',
+      data: null,
+      rawPayload,
+      rawPayloadExcerpt: rawPayload ? this.buildPayloadExcerpt(rawPayload) : ''
+    };
+  }
+
+  private buildJsonDiagnostics(
+    requestAddress: string,
+    responseAddress: string | null,
+    acceptedResponseAddresses: string[],
+    parsed: OscPayloadParseResult
+  ): OscJsonDiagnostics {
+    return {
+      requestAddress,
+      responseAddress,
+      acceptedResponseAddresses,
+      payloadType: parsed.type,
+      rawPayloadExcerpt: parsed.rawPayloadExcerpt
+    };
+  }
+
+  private buildPayloadExcerpt(payload: unknown): string {
+    const raw = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    if (!raw) {
+      return '';
+    }
+
+    const normalised = raw.replace(/\s+/g, ' ').trim();
+    return normalised.length > 160 ? `${normalised.slice(0, 157)}...` : normalised;
+  }
+
+  private validateStrictJsonObjectPayload(parsed: OscPayloadParseResult): string | null {
+    if (parsed.type === 'invalid_json') {
+      return `Payload JSON invalide: ${parsed.error}`;
+    }
+
+    if (parsed.type === 'empty') {
+      return 'Payload vide: un objet JSON avec un champ status est attendu.';
+    }
+
+    if (parsed.type === 'plain_text') {
+      return 'Payload texte recu: un objet JSON avec un champ status est attendu.';
+    }
+
+    if (!parsed.data || typeof parsed.data !== 'object' || Array.isArray(parsed.data)) {
+      return 'Format de payload invalide: un objet JSON avec un champ status est attendu.';
+    }
+
+    return null;
+  }
+
+  private normaliseJsonStatus(payload: unknown, requireStatus: boolean): { status: StepStatus; error?: string } {
+    if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+      const maybeStatus = (payload as { status?: unknown }).status;
+      if (typeof maybeStatus === 'string') {
+        const status = this.fromStatusString(maybeStatus, true);
+        if (!status) {
+          return {
+            status: 'error',
+            error: `Statut OSC inconnu '${maybeStatus}'.`
+          };
+        }
+
+        const errorMessage = status === 'error' ? this.extractErrorMessage(payload) : null;
+        return {
+          status,
+          ...(errorMessage ? { error: errorMessage } : {})
+        };
+      }
+
+      if (requireStatus) {
+        return {
+          status: 'error',
+          error: 'Payload JSON sans champ status string.'
+        };
+      }
+    }
+
+    if (typeof payload === 'string') {
+      const status = this.fromStatusString(payload);
+      if (status) {
+        return { status };
+      }
+    }
+
+    return { status: requireStatus ? 'error' : 'ok', ...(requireStatus ? { error: 'Payload JSON sans statut exploitable.' } : {}) };
+  }
+
+  private withJsonDiagnostics(message: string, diagnostics: OscJsonDiagnostics): string {
+    const response = diagnostics.responseAddress ?? 'aucune';
+    const excerpt = diagnostics.rawPayloadExcerpt ? `, extrait='${diagnostics.rawPayloadExcerpt}'` : '';
+    return `${message} (requete=${diagnostics.requestAddress}, reponse=${response}, reponses_acceptees=${diagnostics.acceptedResponseAddresses.join('|')}, payload=${diagnostics.payloadType}${excerpt})`;
+  }
+
   private extractPayload(message: OscMessage): unknown {
     const firstArg = message.args?.[0]?.value;
     if (typeof firstArg === 'string') {
@@ -1342,6 +1544,13 @@ export class OscClient {
           const trimmed = value.trim();
           if (trimmed.length > 0) {
             return trimmed;
+          }
+        }
+
+        if (value && typeof value === 'object') {
+          const nested = this.extractErrorMessage(value);
+          if (nested) {
+            return nested;
           }
         }
       }
@@ -1422,32 +1631,56 @@ export class OscClient {
     if (payload && typeof payload === 'object') {
       const maybeStatus = (payload as { status?: unknown }).status;
       if (typeof maybeStatus === 'string') {
-        return this.fromStatusString(maybeStatus);
+        return this.fromStatusString(maybeStatus) ?? 'ok';
       }
     }
 
     if (typeof payload === 'string') {
-      return this.fromStatusString(payload);
+      return this.fromStatusString(payload) ?? 'ok';
     }
 
     return 'ok';
   }
 
-  private fromStatusString(value: string): StepStatus {
+  private fromStatusString(value: string, strict = false): StepStatus | null {
     const normalised = value.trim().toLowerCase();
-    if (normalised.includes('error') || normalised.includes('fail')) {
+    if (!normalised) {
+      return null;
+    }
+
+    if (['ok', 'okay', 'success', 'successful', 'done'].includes(normalised)) {
+      return 'ok';
+    }
+
+    if (['error', 'failed', 'failure', 'fail'].includes(normalised)) {
       return 'error';
     }
 
-    if (normalised.includes('timeout')) {
+    if (normalised === 'timeout' || normalised === 'timed_out') {
       return 'timeout';
     }
 
-    if (normalised.includes('skip')) {
+    if (normalised === 'skip' || normalised === 'skipped') {
       return 'skipped';
     }
 
-    return 'ok';
+    if (!strict) {
+      if (normalised.includes('error') || normalised.includes('fail')) {
+        return 'error';
+      }
+
+      if (normalised.includes('timeout')) {
+        return 'timeout';
+      }
+
+      if (normalised.includes('skip')) {
+        return 'skipped';
+      }
+
+      return 'ok';
+    }
+
+    return null;
   }
 
   private ensureConnectionActive(
