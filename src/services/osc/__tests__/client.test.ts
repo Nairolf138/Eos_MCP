@@ -760,6 +760,139 @@ describe('OscClient', () => {
     expect(result.payload).toMatchObject({ address: '/eos/out/get/cue/list' });
   });
 
+
+  it('normalise une reponse JSON invalide en erreur diagnostiquee', async () => {
+    const service = new FakeOscService();
+    const client = new OscClient(service);
+
+    const responsePromise = client.requestJson('/eos/get/cue');
+    await waitFor(() => service.sentMessages.length >= 1);
+
+    service.emit({
+      address: '/eos/get/cue',
+      args: [{ type: 's', value: '{"status":' }]
+    });
+
+    const result = await responsePromise;
+
+    expect(result).toMatchObject({
+      status: 'error',
+      data: null,
+      diagnostics: {
+        requestAddress: '/eos/get/cue',
+        responseAddress: '/eos/get/cue',
+        acceptedResponseAddresses: ['/eos/get/cue'],
+        payloadType: 'invalid_json',
+        rawPayloadExcerpt: '{"status":'
+      }
+    });
+    expect(result.error).toContain('Payload JSON invalide');
+  });
+
+  it('normalise un payload JSON vide en erreur explicite', async () => {
+    const service = new FakeOscService();
+    const client = new OscClient(service);
+
+    const responsePromise = client.requestJson('/eos/get/cue');
+    await waitFor(() => service.sentMessages.length >= 1);
+
+    service.emit({
+      address: '/eos/get/cue',
+      args: []
+    });
+
+    const result = await responsePromise;
+
+    expect(result.status).toBe('error');
+    expect(result.diagnostics?.payloadType).toBe('empty');
+    expect(result.error).toContain('Payload vide');
+  });
+
+  it('normalise un tableau JSON en erreur de format', async () => {
+    const service = new FakeOscService();
+    const client = new OscClient(service);
+
+    const responsePromise = client.requestJson('/eos/get/cue');
+    await waitFor(() => service.sentMessages.length >= 1);
+
+    service.emit({
+      address: '/eos/get/cue',
+      args: [{ type: 's', value: JSON.stringify([{ status: 'ok' }]) }]
+    });
+
+    const result = await responsePromise;
+
+    expect(result.status).toBe('error');
+    expect(result.data).toEqual([{ status: 'ok' }]);
+    expect(result.diagnostics?.payloadType).toBe('json');
+    expect(result.error).toContain('objet JSON avec un champ status');
+  });
+
+  it('normalise un objet JSON sans status en erreur explicite', async () => {
+    const service = new FakeOscService();
+    const client = new OscClient(service);
+
+    const responsePromise = client.requestJson('/eos/get/cue');
+    await waitFor(() => service.sentMessages.length >= 1);
+
+    service.emit({
+      address: '/eos/get/cue',
+      args: [{ type: 's', value: JSON.stringify({ label: 'Intro' }) }]
+    });
+
+    const result = await responsePromise;
+
+    expect(result.status).toBe('error');
+    expect(result.data).toEqual({ label: 'Intro' });
+    expect(result.error).toContain('sans champ status');
+  });
+
+  it('normalise un statut OSC inconnu en erreur explicite', async () => {
+    const service = new FakeOscService();
+    const client = new OscClient(service);
+
+    const responsePromise = client.requestJson('/eos/get/cue');
+    await waitFor(() => service.sentMessages.length >= 1);
+
+    service.emit({
+      address: '/eos/get/cue',
+      args: [{ type: 's', value: JSON.stringify({ status: 'mystery' }) }]
+    });
+
+    const result = await responsePromise;
+
+    expect(result.status).toBe('error');
+    expect(result.error).toContain("Statut OSC inconnu 'mystery'");
+  });
+
+  it('remonte les messages d erreur imbriques des reponses JSON', async () => {
+    const service = new FakeOscService();
+    const client = new OscClient(service);
+
+    const responsePromise = client.requestJson('/eos/get/cue');
+    await waitFor(() => service.sentMessages.length >= 1);
+
+    service.emit({
+      address: '/eos/get/cue',
+      args: [
+        {
+          type: 's',
+          value: JSON.stringify({ status: 'error', error: { message: 'Cue introuvable' } })
+        }
+      ]
+    });
+
+    const result = await responsePromise;
+
+    expect(result.status).toBe('error');
+    expect(result.error).toContain('Cue introuvable');
+    expect(result.diagnostics).toMatchObject({
+      requestAddress: '/eos/get/cue',
+      responseAddress: '/eos/get/cue',
+      payloadType: 'json'
+    });
+  });
+
   it('respecte la limite de concurrence configuree', async () => {
     const service = new FakeOscService();
     service.delayMs = 10;
