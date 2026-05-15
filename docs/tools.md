@@ -82,6 +82,7 @@ Workflows tolerants recenses :
 - `eos_workflow_create_effect`
 - `eos_workflow_create_look`
 - `eos_workflow_patch_fixture`
+- `eos_workflow_patch_scan`
 - `eos_workflow_rehearsal_go_safe`
 - `eos_workflow_update_cue_look`
 
@@ -4246,6 +4247,42 @@ _CLI_
 
 ```bash
 npx @modelcontextprotocol/cli call --tool eos_workflow_patch_fixture --args '{"channel_number":1,"dmx_address":"exemple","label":"exemple"}'
+```
+
+_OSC_
+
+_Pas de mapping OSC documenté._
+
+<a id="eos-workflow-patch-scan"></a>
+## Scanner le patch de plusieurs canaux (`eos_workflow_patch_scan`)
+
+**Description :** Lit les informations de patch canal par canal avec concurrence basse, pause entre requetes et arret de securite sur taux d echec configurable.
+
+**Arguments :**
+
+| Nom | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `channels` | array<number> | Non | — |
+| `continue_on_error` | boolean | Non | — |
+| `dry_run` | boolean | Non | — |
+| `end_channel` | number | Non | — |
+| `failure_rate_threshold` | number | Non | — |
+| `max_concurrency` | number | Non | — |
+| `part_mode` | enum(all, part_1) | Non | — |
+| `rate_limit_ms` | number | Non | — |
+| `start_channel` | number | Non | — |
+| `targetAddress` | string | Non | — |
+| `targetPort` | number | Non | — |
+| `timeoutMs` | number | Non | — |
+
+**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+
+**Exemples :**
+
+_CLI_
+
+```bash
+npx @modelcontextprotocol/cli call --tool eos_workflow_patch_scan --args '{"start_channel":1}'
 ```
 
 _OSC_

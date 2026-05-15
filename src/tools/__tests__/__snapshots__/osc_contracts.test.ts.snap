@@ -880,6 +880,7 @@ exports[`OSC tool contracts exported from src/tools/index.ts lists every tool ex
   "eos_workflow_create_effect",
   "eos_workflow_create_cue_series",
   "eos_workflow_patch_fixture",
+  "eos_workflow_patch_scan",
   "eos_workflow_autopatch_band",
   "eos_workflow_rehearsal_go_safe",
   "eos_workflow_build_groups_and_palettes",

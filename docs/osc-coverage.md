@@ -17,6 +17,7 @@ Les contrats centralisés sont vérifiés dans `src/tools/__tests__/osc_contract
 | workflows | `eos_workflow_create_effect` | — | — (outil non OSC ou orchestrateur) |
 | workflows | `eos_workflow_create_cue_series` | — | — (outil non OSC ou orchestrateur) |
 | workflows | `eos_workflow_patch_fixture` | — | — (outil non OSC ou orchestrateur) |
+| workflows | `eos_workflow_patch_scan` | — | — (outil non OSC ou orchestrateur) |
 | workflows | `eos_workflow_autopatch_band` | — | — (outil non OSC ou orchestrateur) |
 | workflows | `eos_workflow_rehearsal_go_safe` | — | — (outil non OSC ou orchestrateur) |
 | workflows | `eos_workflow_build_groups_and_palettes` | — | — (outil non OSC ou orchestrateur) |

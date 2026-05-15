@@ -13,6 +13,7 @@ import {
   eosWorkflowCreateCueSeriesTool,
   eosWorkflowAutopatchBandTool,
   eosWorkflowPatchFixtureTool,
+  eosWorkflowPatchScanTool,
   eosWorkflowRehearsalGoSafeTool,
   eosWorkflowBuildGroupsAndPalettesTool,
   eosWorkflowUpdateCueLookTool
@@ -29,6 +30,8 @@ class FakeOscService implements OscGateway {
   public omitRecordedCuesFromVerification = false;
 
   public consoleErrorOnCueList = false;
+
+  public patchReadErrors = new Set<number>();
 
   private readonly recordedCues: Array<{ cuelist: number | null; cue: string }> = [];
 
@@ -57,6 +60,32 @@ class FakeOscService implements OscGateway {
       const reply: OscMessage = {
         address: '/eos/get/cuelist',
         args: [{ type: 's', value: JSON.stringify(payload) }]
+      };
+      queueMicrotask(() => {
+        for (const listener of this.listeners) {
+          listener(reply);
+        }
+      });
+    }
+
+
+    if (message.address === '/eos/get/patch/chan_info') {
+      const rawPayload = message.args?.[0]?.value;
+      const payload = typeof rawPayload === 'string' ? JSON.parse(rawPayload) as { channel?: number; part?: number } : {};
+      const channel = Number(payload.channel ?? 0);
+      const responsePayload = this.patchReadErrors.has(channel)
+        ? { status: 'error', error: `Erreur patch simulee canal ${channel}` }
+        : {
+            channel: {
+              channel_number: channel,
+              label: `Fixture ${channel}`,
+              part_count: 1,
+              parts: [{ part_number: Number(payload.part ?? 0) || 1, label: `Fixture ${channel}`, manufacturer: 'ETC', model: 'Source Four', dmx_address: `1/${channel}` }]
+            }
+          };
+      const reply: OscMessage = {
+        address: '/eos/out/get/patch/chan_info',
+        args: [{ type: 's', value: JSON.stringify(responsePayload) }]
       };
       queueMicrotask(() => {
         for (const listener of this.listeners) {
@@ -151,6 +180,47 @@ describe('workflow tools', () => {
     ]);
     expect(structured?.command_log).toEqual(expect.arrayContaining([
       expect.objectContaining({ step: 'select_channels', status: 'skipped', command: 'Chan 1 Thru 3' })
+    ]));
+  });
+
+  it('scanne le patch en dry_run sans envoyer de requete OSC', async () => {
+    const result = await runTool(eosWorkflowPatchScanTool, {
+      start_channel: 1,
+      end_channel: 3,
+      dry_run: true
+    });
+
+    expect(service.sentMessages).toHaveLength(0);
+    const structured = getStructuredContent(result);
+    expect(structured?.status).toBe('ok');
+    expect(structured?.channels).toEqual([1, 2, 3]);
+    expect(structured?.results).toEqual([
+      expect.objectContaining({ status: 'skipped', channel: { channel_number: 1 }, source: expect.objectContaining({ type: 'dry_run' }) }),
+      expect.objectContaining({ status: 'skipped', channel: { channel_number: 2 }, source: expect.objectContaining({ type: 'dry_run' }) }),
+      expect.objectContaining({ status: 'skipped', channel: { channel_number: 3 }, source: expect.objectContaining({ type: 'dry_run' }) })
+    ]);
+  });
+
+  it('scanne le patch avec garde-fous de concurrence et arret sur taux d echec', async () => {
+    service.patchReadErrors = new Set([2]);
+
+    const result = await runTool(eosWorkflowPatchScanTool, {
+      channels: [1, 2, 3],
+      max_concurrency: 1,
+      rate_limit_ms: 0,
+      failure_rate_threshold: 0.25
+    });
+
+    const structured = getStructuredContent(result);
+    expect(service.sentMessages.map((msg) => msg.address)).toEqual([
+      '/eos/get/patch/chan_info',
+      '/eos/get/patch/chan_info'
+    ]);
+    expect(structured?.status).toBe('partial_failure');
+    expect(structured?.scan).toEqual(expect.objectContaining({ processed: 2, failures: 1, aborted: true }));
+    expect(structured?.results).toEqual(expect.arrayContaining([
+      expect.objectContaining({ status: 'ok', channel: expect.objectContaining({ channel_number: 1 }), error: null }),
+      expect.objectContaining({ status: 'error', channel: expect.objectContaining({ channel_number: 2 }), error: 'Erreur patch simulee canal 2' })
     ]));
   });
 
@@ -373,6 +443,10 @@ describe('workflow tools', () => {
         }
       },
       {
+        tool: eosWorkflowPatchScanTool,
+        args: { channels: [1, 2], dry_run: true, client_trace_id: 'trace-patch-scan' }
+      },
+      {
         tool: eosWorkflowRehearsalGoSafeTool,
         args: { cuelist_number: 1, dry_run: true, client_trace_id: 'trace-rehearsal-go-safe' }
       },
@@ -448,6 +522,7 @@ describe('workflow tools', () => {
       eosWorkflowCreateEffectTool,
       eosWorkflowCreateCueSeriesTool,
       eosWorkflowPatchFixtureTool,
+      eosWorkflowPatchScanTool,
       eosWorkflowAutopatchBandTool,
       eosWorkflowRehearsalGoSafeTool,
       eosWorkflowBuildGroupsAndPalettesTool,
