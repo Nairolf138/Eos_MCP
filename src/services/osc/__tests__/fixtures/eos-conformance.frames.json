@@ -128,5 +128,75 @@
       "text": "Chan 1 @ Full",
       "user": 3
     }
+  },
+  {
+    "id": "system-get-version-2.9.1",
+    "family": "system-version-2x",
+    "tool": "eos_get_version",
+    "toolArgs": {},
+    "requestFrame": {
+      "source": "pcap://eos-lab/session-2026-03-20-v2.pcap#frame-41",
+      "hex": "2f656f732f6765742f76657273696f6e000000002c000000",
+      "decoded": {
+        "address": "/eos/get/version",
+        "args": []
+      }
+    },
+    "responseFrame": {
+      "source": "log://eos-lab/version-2.9.1.log#L12",
+      "hex": "2f656f732f6765742f76657273696f6e000000002c7300007b22737461747573223a226f6b222c2276657273696f6e223a22322e392e31227d000000",
+      "decoded": {
+        "address": "/eos/get/version",
+        "args": [
+          {
+            "type": "s",
+            "value": "{\"status\":\"ok\",\"version\":\"2.9.1\"}"
+          }
+        ]
+      }
+    },
+    "expectedStructuredContent": {
+      "action": "get_version",
+      "status": "ok",
+      "version": "2.9.1",
+      "osc": {
+        "address": "/eos/get/version"
+      }
+    }
+  },
+  {
+    "id": "system-get-version-3.2.1",
+    "family": "system-version-3x",
+    "tool": "eos_get_version",
+    "toolArgs": {},
+    "requestFrame": {
+      "source": "pcap://eos-lab/session-2026-03-20-v3.pcap#frame-88",
+      "hex": "2f656f732f6765742f76657273696f6e000000002c000000",
+      "decoded": {
+        "address": "/eos/get/version",
+        "args": []
+      }
+    },
+    "responseFrame": {
+      "source": "log://eos-lab/version-3.2.1.log#L12",
+      "hex": "2f656f732f6765742f76657273696f6e000000002c7300007b22737461747573223a226f6b222c2276657273696f6e223a22332e322e31227d000000",
+      "decoded": {
+        "address": "/eos/get/version",
+        "args": [
+          {
+            "type": "s",
+            "value": "{\"status\":\"ok\",\"version\":\"3.2.1\"}"
+          }
+        ]
+      }
+    },
+    "expectedStructuredContent": {
+      "action": "get_version",
+      "status": "ok",
+      "version": "3.2.1",
+      "osc": {
+        "address": "/eos/get/version"
+      }
+    }
   }
 ]

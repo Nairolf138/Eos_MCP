@@ -1,0 +1,72 @@
+[
+  {
+    "id": "eos-2.9.1-nomad-windows",
+    "family": "2.x",
+    "eosVersion": "2.9.1",
+    "os": "Windows 10 Pro 22H2",
+    "protocol": "OSC UDP legacy",
+    "role": "Primary",
+    "handshakeReply": {
+      "address": "/eos/out/ping",
+      "args": [
+        {
+          "type": "s",
+          "value": "{\"status\":\"ok\",\"echo\":\"handshake-check\"}"
+        }
+      ]
+    },
+    "versionResponse": {
+      "address": "/eos/get/version",
+      "args": [
+        {
+          "type": "s",
+          "value": "{\"status\":\"ok\",\"version\":\"2.9.1\"}"
+        }
+      ]
+    },
+    "expectedCompatibility": {
+      "eos_cue_go": true,
+      "eos_macro_fire": true,
+      "eos_patch_set_channel": true,
+      "eos_pixmap_get_info": false,
+      "eos_fpe_get_set_count": false,
+      "eos_magic_sheet_send_string": false,
+      "eos_set_dmx": true
+    }
+  },
+  {
+    "id": "eos-3.2.1-console-macos",
+    "family": "3.x",
+    "eosVersion": "3.2.1",
+    "os": "macOS 14 Nomad host",
+    "protocol": "ETCOSC UDP/TCP",
+    "role": "Primary",
+    "handshakeReply": {
+      "address": "/eos/handshake/reply",
+      "args": [
+        {
+          "type": "s",
+          "value": "{\"version\":\"3.2.1\",\"protocols\":[\"ETCOSC\"]}"
+        }
+      ]
+    },
+    "versionResponse": {
+      "address": "/eos/get/version",
+      "args": [
+        {
+          "type": "s",
+          "value": "{\"status\":\"ok\",\"version\":\"3.2.1\"}"
+        }
+      ]
+    },
+    "expectedCompatibility": {
+      "eos_cue_go": true,
+      "eos_macro_fire": true,
+      "eos_patch_get_augment3d_position": true,
+      "eos_pixmap_get_info": true,
+      "eos_fpe_get_set_count": true,
+      "eos_magic_sheet_send_string": true,
+      "eos_set_dmx": true
+    }
+  }
+]
