@@ -88,3 +88,56 @@ Le simulateur est volontairement minimal. Pour un test de laboratoire avec une v
 - Les réponses JSON doivent ressembler à ce qu'une console EOS renvoie réellement, mais rester compactes.
 - Ajoutez seulement les champs dont le mapper ou l'assertion a besoin.
 - Lorsqu'un outil envoie une commande destructive ou sensible, gardez `require_confirmation: true` dans le scénario e2e pour tester le chemin d'exécution réel.
+
+## Capturer de nouvelles trames OSC de conformance
+
+Les tests de conformance EOS (`src/services/osc/__tests__/eos-conformance.integration.test.ts`) rejouent des trames enregistrées dans `src/services/osc/__tests__/fixtures/eos-conformance.frames.json`. Utilisez cette procédure pour enrichir le fixture depuis EOS Nomad ou une console physique sans rendre la CI dépendante d'une console live.
+
+### Préparer EOS Nomad ou la console
+
+1. Chargez un showfile de laboratoire, jamais un show de production. Réservez des objets explicites (`Cue 1`, `Group 7`, `Chan 101`, utilisateur OSC de test).
+2. Activez OSC RX/TX dans EOS et notez :
+   - l'adresse IP de la console/Nomad ;
+   - le port UDP entrant EOS ;
+   - le port UDP local utilisé par le client de capture ;
+   - la version EOS exacte affichée par About/Diagnostics.
+3. Isolez le réseau si vous utilisez une console physique : pas de capture pendant une répétition, pas d'envoi de commande destructive, et validation humaine avant tout test sensible.
+
+### Capturer depuis EOS Nomad
+
+1. Démarrez Nomad avec le showfile de laboratoire et OSC activé.
+2. Lancez une capture réseau sur l'interface loopback ou l'interface du réseau Nomad, par exemple avec Wireshark/tcpdump en filtrant les ports OSC UDP configurés.
+3. Depuis le MCP ou un petit client OSC, envoyez un seul endpoint par capture :
+   - `/eos/get/cue/count` pour `get/count` ;
+   - `/eos/get/group/list` pour `get/list` ;
+   - `/eos/get/patch/chan_info` avec `{ "channel": 101, "part": 1 }` ;
+   - `/eos/get/show/name` ;
+   - `/eos/get/version` ;
+   - `/eos/get/cmd_line` avec `{}` ou `{ "user": 3 }`.
+4. Exportez pour chaque paire requête/réponse : adresse OSC, typetags, arguments décodés, payload JSON et octets bruts hexadécimaux.
+5. Vérifiez si la réponse arrive sur l'adresse directe (`/eos/get/...`) ou sur une variante `/eos/out/...`; notez cette variante dans `docs/osc-coverage.md`.
+
+### Capturer depuis une console physique
+
+1. Branchez la machine de capture sur le même VLAN que la console et synchronisez l'heure système pour corréler pcap et logs.
+2. Utilisez un showfile de test local à la console. Sauvegardez-le avant la session de capture.
+3. Démarrez la capture pcap avant l'envoi de la requête et arrêtez-la immédiatement après la réponse pour limiter les données collectées.
+4. N'envoyez que des requêtes de lecture pour les fixtures de conformance. Pour les commandes (`cmd_line`), préparez la ligne de commande avec une commande non destructive puis capturez uniquement la lecture `/eos/get/cmd_line`.
+5. Anonymisez les noms de show, labels ou notes qui révèlent un client/projet, mais conservez la structure JSON réelle et la version EOS.
+
+### Ajouter la trame au fixture
+
+1. Ajoutez un objet dans `eos-conformance.frames.json` avec :
+   - `id` stable incluant la famille, la variante et la version EOS ;
+   - `family`, `tool`, `toolArgs` ;
+   - `requestFrame.source` et `responseFrame.source` pointant vers le pcap/log de laboratoire ;
+   - `hex` et `decoded` pour la requête et la réponse ;
+   - `expectedStructuredContent` limité aux champs normalisés que l'outil doit garantir.
+2. Rejouez la suite hors ligne :
+
+```bash
+npx jest src/services/osc/__tests__/eos-conformance.integration.test.ts --runInBand
+```
+
+3. Mettez à jour la matrice `docs/osc-coverage.md` si la version EOS, l'adresse de réponse ou le statut supporté change.
+4. Ne committez pas les fichiers `.pcap` bruts sauf décision explicite du mainteneur ; conservez plutôt leurs références stables dans un stockage de laboratoire ou des logs synthétiques approuvés.

@@ -2,6 +2,26 @@
 
 Ce document liste tous les outils exportés par `src/tools/index.ts` et relie chaque outil à sa commande OSC déclarée et au test de contrat associé.
 
+## Matrice de conformité EOS par version
+
+Cette matrice synthétise les trames rejouées hors ligne par `src/services/osc/__tests__/eos-conformance.integration.test.ts` depuis `src/services/osc/__tests__/fixtures/eos-conformance.frames.json`. Elle distingue l'adresse de requête envoyée par l'outil MCP, la forme de réponse attendue et la variante `/eos/out` acceptée par le client quand elle est supportée.
+
+| Version EOS | Endpoint | Outil MCP | Requête OSC | Réponse attendue | Variante `/eos/out` | Statut supporté |
+| --- | --- | --- | --- | --- | --- | --- |
+| 2.9.1 | `version` | `eos_get_version` | `/eos/get/version` sans argument | Objet JSON contenant `status: "ok"` et `version` | Acceptée : `/eos/out/get/version` | Supporté, réponse directe capturée |
+| 3.2.1 | `version` | `eos_get_version` | `/eos/get/version` sans argument | Objet JSON contenant `status: "ok"` et `version` | Acceptée et rejouée : `/eos/out/get/version` | Supporté |
+| 3.2.1 | `get/count` (`cue`) | `eos_get_count` | `/eos/get/cue/count` sans argument | Objet JSON contenant `status: "ok"` et `count` numérique | Acceptée et rejouée : `/eos/out/get/cue/count` | Supporté |
+| 3.2.1 | `get/list` (`group`) | `eos_get_list_all` | `/eos/get/group/list` sans argument | Objet JSON contenant `status: "ok"` et une liste `groups`/`items` | Acceptée et rejouée : `/eos/out/get/group/list` | Supporté |
+| 3.2.1 | `patch/chan_info` | `eos_patch_get_channel_info` | `/eos/get/patch/chan_info` avec JSON `{ "channel": <n>, "part": <n> }` | Objet JSON contenant `status: "ok"` et les champs normalisés de canal/part | Acceptée et rejouée : `/eos/out/get/patch/chan_info` | Supporté |
+| 3.2.1 | `show/name` | `eos_get_show_name` | `/eos/get/show/name` sans argument | Objet JSON contenant `status: "ok"` et `show_name`/`name`/`text` | Documentée côté EOS comme `/eos/out/show/name`, non rejouée par l'outil actuel | Supporté en réponse directe |
+| 3.2.1 | `cmd_line` | `eos_get_command_line` | `/eos/get/cmd_line` avec JSON `{}` ou `{ "user": <id> }` | Objet JSON contenant `status: "ok"`, `text` et `user` | Non acceptée par l'awaiter actuel ; réponse directe `/eos/get/cmd_line` requise | Supporté en réponse directe |
+
+Notes de lecture :
+
+- Les endpoints de requête JSON génériques (`get/count`, `get/list`, `patch/chan_info`) utilisent les variantes directes et `/eos/out/get/...` déclarées dans `oscResponseMappings`.
+- `version` accepte désormais la réponse directe `/eos/get/version` et la variante `/eos/out/get/version`, ce qui aligne l'outil avec le probe de capabilities.
+- `show/name` et `cmd_line` restent volontairement indiqués comme direct-only dans les tests de conformance tant qu'aucune capture rejouée ne prouve une variante `/eos/out` compatible avec les awaiters actuels.
+
 Les contrats centralisés sont vérifiés dans `src/tools/__tests__/osc_contracts.test.ts` : adresse OSC, arguments OSC (snapshots), propagation `targetAddress` / `targetPort`, transformation d'erreur OSC en résultat MCP stable et rejet des paramètres inconnus pour les schémas stricts. Les tests de famille sous `src/tools/**/__tests__` conservent les scénarios métier détaillés.
 
 | Famille | Outil MCP exporté | Commande OSC | Test associé |

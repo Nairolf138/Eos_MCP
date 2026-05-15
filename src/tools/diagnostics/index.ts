@@ -546,7 +546,8 @@ export const eosGetVersionTool: ToolDefinition<typeof systemQueryInputSchema> = 
     const client = getOscClient();
     const response = await client.requestJson(oscMappings.system.getVersion, {
       timeoutMs: options.timeoutMs,
-      ...extractTargetOptions(options)
+      ...extractTargetOptions(options),
+      responseAddresses: [oscMappings.system.getVersion, '/eos/out/get/version']
     });
     const version = normaliseString(response.data);
     const text = response.status === 'ok' && version

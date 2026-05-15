@@ -198,5 +198,261 @@
         "address": "/eos/get/version"
       }
     }
+  },
+  {
+    "id": "queries-get-count-cue-out-v3.2.1",
+    "family": "queries-count",
+    "tool": "eos_get_count",
+    "toolArgs": {
+      "target_type": "cue"
+    },
+    "requestFrame": {
+      "source": "pcap://eos-nomad/nomad-3.2.1-query-cue-count.pcap#frame-104",
+      "hex": "2f656f732f6765742f6375652f636f756e7400002c000000",
+      "decoded": {
+        "address": "/eos/get/cue/count",
+        "args": []
+      }
+    },
+    "responseFrame": {
+      "source": "log://eos-nomad/nomad-3.2.1-query-cue-count.osc#L17",
+      "hex": "2f656f732f6f75742f6765742f6375652f636f756e7400002c7300007b22737461747573223a226f6b222c22636f756e74223a31327d0000",
+      "decoded": {
+        "address": "/eos/out/get/cue/count",
+        "args": [
+          {
+            "type": "s",
+            "value": "{\"status\":\"ok\",\"count\":12}"
+          }
+        ]
+      }
+    },
+    "expectedStructuredContent": {
+      "action": "get_count",
+      "status": "ok",
+      "target_type": "cue",
+      "count": 12,
+      "osc": {
+        "address": "/eos/get/cue/count"
+      }
+    }
+  },
+  {
+    "id": "queries-get-list-group-out-v3.2.1",
+    "family": "queries-list",
+    "tool": "eos_get_list_all",
+    "toolArgs": {
+      "target_type": "group"
+    },
+    "requestFrame": {
+      "source": "pcap://eos-nomad/nomad-3.2.1-query-group-list.pcap#frame-117",
+      "hex": "2f656f732f6765742f67726f75702f6c697374002c000000",
+      "decoded": {
+        "address": "/eos/get/group/list",
+        "args": []
+      }
+    },
+    "responseFrame": {
+      "source": "log://eos-nomad/nomad-3.2.1-query-group-list.osc#L24",
+      "hex": "2f656f732f6f75742f6765742f67726f75702f6c697374002c7300007b22737461747573223a226f6b222c2267726f757073223a5b7b226e756d626572223a312c22756964223a2267726f75702d31222c226c6162656c223a2246726f6e742057617368227d2c7b226e756d626572223a372c22756964223a2267726f75702d37222c226c6162656c223a2242616e64227d5d7d00000000",
+      "decoded": {
+        "address": "/eos/out/get/group/list",
+        "args": [
+          {
+            "type": "s",
+            "value": "{\"status\":\"ok\",\"groups\":[{\"number\":1,\"uid\":\"group-1\",\"label\":\"Front Wash\"},{\"number\":7,\"uid\":\"group-7\",\"label\":\"Band\"}]}"
+          }
+        ]
+      }
+    },
+    "expectedStructuredContent": {
+      "action": "list_all",
+      "status": "ok",
+      "target_type": "group",
+      "items": [
+        {
+          "number": "1",
+          "uid": "group-1",
+          "label": "Front Wash"
+        },
+        {
+          "number": "7",
+          "uid": "group-7",
+          "label": "Band"
+        }
+      ],
+      "osc": {
+        "address": "/eos/get/group/list"
+      }
+    }
+  },
+  {
+    "id": "patch-get-chan-info-out-v3.2.1",
+    "family": "patch",
+    "tool": "eos_patch_get_channel_info",
+    "toolArgs": {
+      "channel_number": 101,
+      "part_number": 1
+    },
+    "requestFrame": {
+      "source": "pcap://eos-nomad/nomad-3.2.1-patch-chan-info.pcap#frame-203",
+      "hex": "2f656f732f6765742f70617463682f6368616e5f696e666f000000002c7300007b226368616e6e656c223a3130312c2270617274223a317d00000000",
+      "decoded": {
+        "address": "/eos/get/patch/chan_info",
+        "args": [
+          {
+            "type": "s",
+            "value": "{\"channel\":101,\"part\":1}"
+          }
+        ]
+      }
+    },
+    "responseFrame": {
+      "source": "log://eos-nomad/nomad-3.2.1-patch-chan-info.osc#L39",
+      "hex": "2f656f732f6f75742f6765742f70617463682f6368616e5f696e666f000000002c7300007b22737461747573223a226f6b222c226368616e6e656c223a7b226368616e6e656c5f6e756d626572223a3130312c226c6162656c223a224b6579204c69676874222c22706172745f636f756e74223a312c226e6f746573223a224e6f6d61642063617074757265222c227061727473223a5b7b22706172745f6e756d626572223a312c226c6162656c223a22536f7572636520466f7572222c226d616e756661637475726572223a22455443222c226d6f64656c223a22536f757263652034203139646567222c22646d785f61646472657373223a22312f313031222c2267656c223a224c323031222c2274657874223a7b227465787431223a22464f48222c227465787432223a6e756c6c7d2c226e6f746573223a2242656e6368227d5d7d7d0000",
+      "decoded": {
+        "address": "/eos/out/get/patch/chan_info",
+        "args": [
+          {
+            "type": "s",
+            "value": "{\"status\":\"ok\",\"channel\":{\"channel_number\":101,\"label\":\"Key Light\",\"part_count\":1,\"notes\":\"Nomad capture\",\"parts\":[{\"part_number\":1,\"label\":\"Source Four\",\"manufacturer\":\"ETC\",\"model\":\"Source 4 19deg\",\"dmx_address\":\"1/101\",\"gel\":\"L201\",\"text\":{\"text1\":\"FOH\",\"text2\":null},\"notes\":\"Bench\"}]}}"
+          }
+        ]
+      }
+    },
+    "expectedStructuredContent": {
+      "status": "ok",
+      "channel": {
+        "channel_number": 101,
+        "label": "Key Light",
+        "part_count": 1,
+        "notes": "Nomad capture",
+        "parts": [
+          {
+            "part_number": 1,
+            "label": "Source Four",
+            "manufacturer": "ETC",
+            "model": "Source 4 19deg",
+            "dmx_address": "1/101",
+            "gel": "L201",
+            "notes": "Bench"
+          }
+        ]
+      },
+      "osc": {
+        "address": "/eos/get/patch/chan_info",
+        "args": {
+          "channel": 101,
+          "part": 1
+        }
+      }
+    }
+  },
+  {
+    "id": "show-get-name-v3.2.1",
+    "family": "show-control",
+    "tool": "eos_get_show_name",
+    "toolArgs": {},
+    "requestFrame": {
+      "source": "pcap://eos-nomad/nomad-3.2.1-show-name.pcap#frame-66",
+      "hex": "2f656f732f6765742f73686f772f6e616d6500002c000000",
+      "decoded": {
+        "address": "/eos/get/show/name",
+        "args": []
+      }
+    },
+    "responseFrame": {
+      "source": "log://eos-nomad/nomad-3.2.1-show-name.osc#L11",
+      "hex": "2f656f732f6765742f73686f772f6e616d6500002c7300007b22737461747573223a226f6b222c2273686f775f6e616d65223a224e6f6d6164204c61622052656772657373696f6e227d0000",
+      "decoded": {
+        "address": "/eos/get/show/name",
+        "args": [
+          {
+            "type": "s",
+            "value": "{\"status\":\"ok\",\"show_name\":\"Nomad Lab Regression\"}"
+          }
+        ]
+      }
+    },
+    "expectedStructuredContent": {
+      "action": "get_show_name",
+      "status": "ok",
+      "show_name": "Nomad Lab Regression",
+      "osc": {
+        "address": "/eos/get/show/name"
+      }
+    }
+  },
+  {
+    "id": "system-get-version-out-3.2.1",
+    "family": "system-version-out",
+    "tool": "eos_get_version",
+    "toolArgs": {},
+    "requestFrame": {
+      "source": "pcap://eos-nomad/nomad-3.2.1-version.pcap#frame-12",
+      "hex": "2f656f732f6765742f76657273696f6e000000002c000000",
+      "decoded": {
+        "address": "/eos/get/version",
+        "args": []
+      }
+    },
+    "responseFrame": {
+      "source": "log://eos-nomad/nomad-3.2.1-version.osc#L4",
+      "hex": "2f656f732f6f75742f6765742f76657273696f6e000000002c7300007b22737461747573223a226f6b222c2276657273696f6e223a22332e322e31227d000000",
+      "decoded": {
+        "address": "/eos/out/get/version",
+        "args": [
+          {
+            "type": "s",
+            "value": "{\"status\":\"ok\",\"version\":\"3.2.1\"}"
+          }
+        ]
+      }
+    },
+    "expectedStructuredContent": {
+      "action": "get_version",
+      "status": "ok",
+      "version": "3.2.1",
+      "osc": {
+        "address": "/eos/get/version"
+      }
+    }
+  },
+  {
+    "id": "commands-get-command-line-global-v3.2.1",
+    "family": "commands",
+    "tool": "eos_get_command_line",
+    "toolArgs": {},
+    "requestFrame": {
+      "source": "pcap://eos-nomad/nomad-3.2.1-command-line.pcap#frame-144",
+      "hex": "2f656f732f6765742f636d645f6c696e650000002c7300007b7d0000",
+      "decoded": {
+        "address": "/eos/get/cmd_line",
+        "args": [
+          {
+            "type": "s",
+            "value": "{}"
+          }
+        ]
+      }
+    },
+    "responseFrame": {
+      "source": "log://eos-nomad/nomad-3.2.1-command-line.osc#L29",
+      "hex": "2f656f732f6765742f636d645f6c696e650000002c7300007b22737461747573223a226f6b222c2274657874223a2247726f75702037204174203535222c2275736572223a307d00",
+      "decoded": {
+        "address": "/eos/get/cmd_line",
+        "args": [
+          {
+            "type": "s",
+            "value": "{\"status\":\"ok\",\"text\":\"Group 7 At 55\",\"user\":0}"
+          }
+        ]
+      }
+    },
+    "expectedStructuredContent": {
+      "status": "ok",
+      "text": "Group 7 At 55",
+      "user": 0
+    }
   }
 ]
