@@ -12,7 +12,7 @@ import {
 import { getOscClient } from '../../services/osc/client';
 import { buildCueJsonMessage } from '../../services/osc/messageBuilders';
 import { oscMappings, oscResponseMappings } from '../../services/osc/mappings';
-import { buildToolResult, type ToolDefinition, type ToolExecutionResult } from '../types';
+import { buildReadConvention, buildToolResult, type ToolDefinition, type ToolExecutionResult } from '../types';
 import {
   buildCueCommandPayload,
   createCueIdentifierFromOptions,
@@ -83,10 +83,13 @@ export const eosCueListAllTool: ToolDefinition<typeof listAllInputSchema> = {
           responseAddresses: oscResponseMappings.cues.list
         });
 
-        const cues = mapCueList(response.data, identifier);
+        const isComplete = response.status === 'ok';
+        const cues = isComplete ? mapCueList(response.data, identifier) : null;
 
         const listLabel = formatCueDescription({ ...identifier, cueNumber: null, cuePart: null });
-        const text = `${listLabel}: ${cues.length} cue(s).`;
+        const text = cues
+          ? `${listLabel}: ${cues.length} cue(s).`
+          : `Lecture de ${listLabel} terminee avec le statut ${response.status}.`;
 
         const result: ToolExecutionResult = buildToolResult({
           text,
@@ -94,9 +97,13 @@ export const eosCueListAllTool: ToolDefinition<typeof listAllInputSchema> = {
           summary: text,
           structuredContent: {
             action: 'cue_list_all',
-            status: response.status,
+            ...buildReadConvention({
+              status: response.status,
+              source: { type: 'eos_osc', address: oscMappings.cues.list, response: response.payload },
+              error: response.error ?? null
+            }),
             request: payload,
-            cues,
+            ...(cues ? { cues } : {}),
             osc: {
               address: oscMappings.cues.list,
               response: response.payload

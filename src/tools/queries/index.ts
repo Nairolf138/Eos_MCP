@@ -11,7 +11,7 @@ import {
 } from '../../services/cache/index';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import { oscMappings, oscResponseMappings } from '../../services/osc/mappings';
-import type { ToolDefinition, ToolExecutionResult } from '../types';
+import { buildReadConvention, buildToolResult, type ToolDefinition, type ToolExecutionResult } from '../types';
 
 interface QueryListItem {
   number: string;
@@ -201,8 +201,13 @@ const listInputSchema = {
 const countOutputSchema = {
   action: z.literal('get_count'),
   status: statusSchema,
+  source: z.record(z.string(), z.unknown()),
+  confidence: z.enum(['high', 'medium', 'low', 'none']),
+  is_complete: z.boolean(),
+  limitations: z.array(z.string()),
+  next_operator_actions: z.array(z.string()),
   target_type: z.string(),
-  count: z.coerce.number().int().min(0),
+  count: z.coerce.number().int().min(0).optional(),
   data: z.unknown(),
   error: z.string().nullable(),
   osc: z.object({
@@ -214,8 +219,13 @@ const countOutputSchema = {
 const listOutputSchema = {
   action: z.literal('list_all'),
   status: statusSchema,
+  source: z.record(z.string(), z.unknown()),
+  confidence: z.enum(['high', 'medium', 'low', 'none']),
+  is_complete: z.boolean(),
+  limitations: z.array(z.string()),
+  next_operator_actions: z.array(z.string()),
   target_type: z.string(),
-  items: z.array(listItemOutputSchema),
+  items: z.array(listItemOutputSchema).optional(),
   data: z.unknown(),
   error: z.string().nullable(),
   osc: z.object({
@@ -274,7 +284,8 @@ export const eosGetCountTool: ToolDefinition<typeof countInputSchema> = {
           responseShape: 'any-json'
         });
 
-        const count = Math.max(0, normaliseCount(response.data));
+        const isComplete = response.status === 'ok';
+        const count = isComplete ? Math.max(0, normaliseCount(response.data)) : undefined;
 
         const baseText =
           response.status === 'ok'
@@ -283,10 +294,14 @@ export const eosGetCountTool: ToolDefinition<typeof countInputSchema> = {
 
         return createResult(appendConsoleCheck(baseText, response), {
           action: 'get_count',
-          status: response.status,
           ...withOscDiagnostics(response),
+          ...buildReadConvention({
+            status: response.status,
+            source: { type: 'eos_osc', address: config.countAddress, args: {} },
+            error: response.error ?? null
+          }),
           target_type: config.key,
-          count,
+          ...(typeof count === 'number' ? { count } : {}),
           data: response.data,
           error: response.error ?? null,
           osc: {
@@ -349,19 +364,24 @@ export const eosGetListAllTool: ToolDefinition<typeof listInputSchema> = {
           responseShape: 'any-json'
         });
 
-        const items = normaliseList(response.data, config);
+        const isComplete = response.status === 'ok';
+        const items = isComplete ? normaliseList(response.data, config) : undefined;
 
         const baseText =
           response.status === 'ok'
-            ? `Elements ${config.label}: ${items.length}.`
+            ? `Elements ${config.label}: ${items?.length ?? 0}.`
             : `Lecture de la liste des ${config.label} terminee avec le statut ${response.status}.`;
 
         return createResult(appendConsoleCheck(baseText, response), {
           action: 'list_all',
-          status: response.status,
           ...withOscDiagnostics(response),
+          ...buildReadConvention({
+            status: response.status,
+            source: { type: 'eos_osc', address: config.listAddress, args: {} },
+            error: response.error ?? null
+          }),
           target_type: config.key,
-          items,
+          ...(items ? { items } : {}),
           data: response.data,
           error: response.error ?? null,
           osc: {
@@ -408,10 +428,12 @@ function withOscDiagnostics(response: OscJsonResponse): Record<string, unknown> 
 }
 
 function createResult(text: string, structuredContent: Record<string, unknown>): ToolExecutionResult {
-  return {
-    content: [{ type: 'text', text }],
+  return buildToolResult({
+    text,
+    summary: typeof structuredContent.summary === 'string' ? structuredContent.summary : text,
+    status: typeof structuredContent.status === 'string' ? structuredContent.status : 'ok',
     structuredContent
-  } as ToolExecutionResult;
+  });
 }
 
 function isQueryTargetType(value: string): value is QueryTargetType {

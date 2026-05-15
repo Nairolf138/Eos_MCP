@@ -13,7 +13,7 @@ import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
 import { buildGroupJsonMessage, buildGroupSelectMessage } from '../../services/osc/messageBuilders';
 import { oscMappings } from '../../services/osc/mappings';
-import type { ToolDefinition, ToolExecutionResult } from '../types';
+import { buildReadConvention, buildToolResult, type ToolDefinition, type ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
@@ -65,10 +65,12 @@ function annotate(osc: string): Record<string, unknown> {
 }
 
 function createResult(text: string, structuredContent: Record<string, unknown>): ToolExecutionResult {
-  return {
-    content: [{ type: 'text', text }],
+  return buildToolResult({
+    text,
+    summary: typeof structuredContent.summary === 'string' ? structuredContent.summary : text,
+    status: typeof structuredContent.status === 'string' ? structuredContent.status : 'ok',
     structuredContent
-  } as ToolExecutionResult;
+  });
 }
 
 function resolveLevelValue(value: number | string): number {
@@ -375,12 +377,15 @@ export const eosGroupGetInfoTool: ToolDefinition<typeof getInfoInputSchema> = {
           targetPort: options.targetPort
         });
 
-        const groupData = normaliseGroup(
-          (response.data as Record<string, unknown> | null)?.group ?? response.data,
-          options.group_number
-        );
+        const isComplete = response.status === 'ok';
+        const groupData = isComplete
+          ? normaliseGroup(
+              (response.data as Record<string, unknown> | null)?.group ?? response.data,
+              options.group_number
+            )
+          : null;
 
-        const exists = groupData != null;
+        const exists = isComplete && groupData != null;
         const groupNumber = groupData?.group_number ?? options.group_number;
 
         const baseText = exists
@@ -391,10 +396,17 @@ export const eosGroupGetInfoTool: ToolDefinition<typeof getInfoInputSchema> = {
 
         return createResult(baseText, {
           action: 'get_info',
-          status: response.status,
+          ...buildReadConvention({
+            status: response.status,
+            source: { type: 'eos_osc', address: oscMappings.groups.info, args: payload },
+            confidence: exists ? 'high' : response.status === 'ok' ? 'low' : 'none',
+            is_complete: isComplete,
+            limitations: isComplete ? [] : undefined,
+            error: response.error ?? null
+          }),
           exists,
           request: payload,
-          group: groupData,
+          ...(isComplete ? { group: groupData } : {}),
           data: response.data,
           error: response.error ?? null,
           osc: {
@@ -454,19 +466,26 @@ export const eosGroupListAllTool: ToolDefinition<typeof listAllInputSchema> = {
           targetPort: options.targetPort
         });
 
-        const groups = normaliseGroupList(
-          (response.data as Record<string, unknown> | null)?.groups ?? response.data
-        );
+        const isComplete = response.status === 'ok';
+        const groups = isComplete
+          ? normaliseGroupList(
+              (response.data as Record<string, unknown> | null)?.groups ?? response.data
+            )
+          : undefined;
 
         const baseText =
           response.status === 'ok'
-            ? `Groupes disponibles: ${groups.length}.`
+            ? `Groupes disponibles: ${groups?.length ?? 0}.`
             : `Lecture des groupes terminee avec le statut ${response.status}.`;
 
         return createResult(baseText, {
           action: 'list_all',
-          status: response.status,
-          groups,
+          ...buildReadConvention({
+            status: response.status,
+            source: { type: 'eos_osc', address: oscMappings.groups.list, args: payload },
+            error: response.error ?? null
+          }),
+          ...(groups ? { groups } : {}),
           data: response.data,
           error: response.error ?? null,
           osc: {
