@@ -1,6 +1,6 @@
 # Cookbook d'automatisation Eos MCP
 
-Ce guide rassemble des scénarios prêts à l'emploi pour piloter la console ETC Eos via la passerelle MCP. Chaque fiche combine un rappel métier, un exemple JSON, la commande OSC correspondante et un encart « Référence Eos » vers des lectures complémentaires du manuel (`docs/eos_serie.pdf`). Consultez également [docs/tools.md](tools.md) pour les schémas complets de chaque outil MCP et [docs/architecture.md](architecture.md) pour comprendre le flux interne MCP → OSC.
+Ce guide rassemble des scénarios prêts à l'emploi pour piloter la console ETC Eos via la passerelle MCP. Chaque fiche combine un rappel métier, un exemple JSON, la commande OSC correspondante et un encart « Référence Eos » vers des lectures complémentaires du manuel (`docs/eos_serie.pdf`). Consultez également [docs/tools.md](tools.md) pour les schémas complets de chaque outil MCP, le [guide agent LLM](llm-agent-guide.md) pour les règles dry-run/confirmation des assistants IA et [docs/architecture.md](architecture.md) pour comprendre le flux interne MCP → OSC.
 
 
 ## Vérifier les capacités avant toute action métier

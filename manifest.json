@@ -99,6 +99,7 @@
     },
     "schemas": {
       "tool_catalog": "/schemas/tools/index.json"
-    }
+    },
+    "agent_guide_url": "https://github.com/Nairolf138/Eos_MCP/blob/main/docs/llm-agent-guide.md"
   }
 }
