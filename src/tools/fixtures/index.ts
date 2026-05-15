@@ -4,6 +4,7 @@
  */
 import { z, type ZodRawShape } from 'zod';
 import { searchFixtures } from '../../fixtures';
+import { createCacheKey, createResourceTag, getResourceCache } from '../../services/cache/index';
 import type { ToolDefinition } from '../types';
 
 const fixtureSearchInputSchema = {
@@ -33,30 +34,42 @@ export const eosFixtureSearchTool: ToolDefinition<typeof fixtureSearchInputSchem
   },
   handler: async (args) => {
     const options = z.object(fixtureSearchInputSchema).strict().parse(args ?? {});
-    const matches = searchFixtures(options);
-    const total = matches.length;
-    const results = matches.map((match) => ({
-      id: match.fixture.id,
-      manufacturer: match.fixture.manufacturer,
-      model: match.fixture.model,
-      name: match.fixture.name,
-      aliases: match.fixture.aliases ?? [],
-      modes: match.matchedModes,
-      score: match.score
-    }));
+    const cacheKey = createCacheKey({
+      address: 'fixture-search',
+      payload: options
+    });
 
-    return {
-      content: [
-        {
-          type: 'text',
-          text: total === 0 ? 'Aucune fixture trouvee.' : `${total} fixture(s) trouvee(s).`
-        }
-      ],
-      structuredContent: {
-        total,
-        results
+    return getResourceCache().fetch({
+      resourceType: 'fixtures',
+      key: cacheKey,
+      tags: [createResourceTag('fixtures')],
+      fetcher: async () => {
+        const matches = searchFixtures(options);
+        const total = matches.length;
+        const results = matches.map((match) => ({
+          id: match.fixture.id,
+          manufacturer: match.fixture.manufacturer,
+          model: match.fixture.model,
+          name: match.fixture.name,
+          aliases: match.fixture.aliases ?? [],
+          modes: match.matchedModes,
+          score: match.score
+        }));
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: total === 0 ? 'Aucune fixture trouvee.' : `${total} fixture(s) trouvee(s).`
+            }
+          ],
+          structuredContent: {
+            total,
+            results
+          }
+        };
       }
-    };
+    });
   }
 };
 

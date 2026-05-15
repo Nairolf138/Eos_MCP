@@ -55,6 +55,18 @@ describe('configuration', () => {
           allowedOrigins: [],
           rateLimit: { windowMs: 60000, max: 60 }
         }
+      },
+      cache: {
+        defaultTtlMs: 1500,
+        resourceTtls: {
+          cues: 1000,
+          cuelists: 1000,
+          patch: 5000,
+          groups: 1500,
+          palettes: 1500,
+          fixtures: 300000,
+          session: 600000
+        }
       }
     };
 
@@ -83,7 +95,14 @@ describe('configuration', () => {
       MCP_HTTP_PUBLIC_URL: 'https://public.example/mcp/',
       MCP_HTTP_RATE_LIMIT_WINDOW: '120000',
       MCP_HTTP_RATE_LIMIT_MAX: '10',
-      MCP_HTTP_TRUST_PROXY: 'true'
+      MCP_HTTP_TRUST_PROXY: 'true',
+      CACHE_TTL_DEFAULT_MS: '2500',
+      CACHE_TTL_CUES_MS: '750',
+      CACHE_TTL_PATCH_MS: '8000',
+      CACHE_TTL_GROUPS_MS: '2000',
+      CACHE_TTL_PALETTES_MS: '2200',
+      CACHE_TTL_FIXTURES_MS: '600000',
+      CACHE_TTL_SESSION_MS: '900000'
     };
 
     const config = loadConfig(env);
@@ -115,6 +134,18 @@ describe('configuration', () => {
     });
     expect(config.httpGateway.publicUrl).toBe('https://public.example/mcp');
     expect(config.httpGateway.trustProxy).toBe(true);
+    expect(config.cache).toEqual({
+      defaultTtlMs: 2500,
+      resourceTtls: {
+        cues: 750,
+        cuelists: 750,
+        patch: 8000,
+        groups: 2000,
+        palettes: 2200,
+        fixtures: 600000,
+        session: 900000
+      }
+    });
   });
 
   it('rejette les ports invalides avec un message explicite', () => {

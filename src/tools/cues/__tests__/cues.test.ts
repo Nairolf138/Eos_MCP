@@ -4,6 +4,7 @@
  */
 import type { OscMessage } from '../../../services/osc/index';
 import { OscClient, setOscClient, type OscGateway, type OscGatewaySendOptions } from '../../../services/osc/client';
+import { createCacheKey, createResourceTag, getResourceCache } from '../../../services/cache/index';
 import { oscMappings } from '../../../services/osc/mappings';
 import {
   eosCueGoTool,
@@ -43,10 +44,12 @@ describe('cue tools', () => {
     service = new FakeOscService();
     const client = new OscClient(service, { defaultTimeoutMs: 50 });
     setOscClient(client);
+    getResourceCache().clearAll();
   });
 
   afterEach(() => {
     setOscClient(null);
+    getResourceCache().clearAll();
   });
 
 
@@ -180,6 +183,47 @@ describe('cue tools', () => {
         remainingSeconds: 30
       }
     });
+  });
+
+
+
+  it('invalide les caches cues et cuelists apres une commande GO', async () => {
+    const cache = getResourceCache();
+    const cueKey = createCacheKey({ address: '/cue/info', payload: { cue: 2 } });
+    const listKey = createCacheKey({ address: '/cue/list', payload: { cuelist: 5 } });
+
+    await cache.fetch({
+      resourceType: 'cues',
+      key: cueKey,
+      tags: [createResourceTag('cues'), createResourceTag('cues', '5:2:0')],
+      fetcher: async () => 'cue-before'
+    });
+    await cache.fetch({
+      resourceType: 'cuelists',
+      key: listKey,
+      tags: [createResourceTag('cuelists'), createResourceTag('cuelists', '5')],
+      fetcher: async () => 'list-before'
+    });
+
+    await runTool(eosCueGoTool, { cuelist_number: 5, cue_number: 2 });
+
+    const cueFetcher = jest.fn(async () => 'cue-after');
+    const listFetcher = jest.fn(async () => 'list-after');
+    await cache.fetch({
+      resourceType: 'cues',
+      key: cueKey,
+      tags: [createResourceTag('cues'), createResourceTag('cues', '5:2:0')],
+      fetcher: cueFetcher
+    });
+    await cache.fetch({
+      resourceType: 'cuelists',
+      key: listKey,
+      tags: [createResourceTag('cuelists'), createResourceTag('cuelists', '5')],
+      fetcher: listFetcher
+    });
+
+    expect(cueFetcher).toHaveBeenCalledTimes(1);
+    expect(listFetcher).toHaveBeenCalledTimes(1);
   });
 
   it('configure un bank de cuelist via un chemin parametre', async () => {

@@ -31,6 +31,7 @@ import { createHttpGateway, type HttpGateway } from './httpGateway';
 import { ToolRegistry } from './toolRegistry';
 import { getPackageVersion } from '../utils/version';
 import { assertTcpPortAvailable, assertUdpPortAvailable } from './startupChecks';
+import { getResourceCache } from '../services/cache/index';
 
 const logger = createLogger('mcp-server');
 
@@ -331,6 +332,9 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
   }
 
   const effectiveConfig = applyBootstrapOverrides(config, options);
+  if (effectiveConfig.cache) {
+    getResourceCache().configureTtls(effectiveConfig.cache.defaultTtlMs, effectiveConfig.cache.resourceTtls);
+  }
 
   const tokenValidation = validateMcpTokenConfiguration(effectiveConfig);
   if (tokenValidation.status !== 'ok') {

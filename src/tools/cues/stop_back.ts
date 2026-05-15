@@ -12,6 +12,7 @@ import {
   createCueIdentifierFromOptions,
   cuelistNumberSchema,
   extractTargetOptions,
+  notifyCueResourceChange,
   formatCueDescription,
   targetOptionsSchema
 } from './common';
@@ -76,6 +77,7 @@ export const eosCueStopBackTool: ToolDefinition<typeof stopBackInputSchema> = {
     }
 
     await client.sendCommand(command, extractTargetOptions(options));
+    notifyCueResourceChange(identifier);
 
     return createCueCommandResult(
       action,

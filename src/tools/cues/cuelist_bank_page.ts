@@ -6,7 +6,7 @@ import { z, type ZodRawShape } from 'zod';
 import { getOscClient } from '../../services/osc/client';
 import { oscMappings } from '../../services/osc/mappings';
 import { buildToolResult, type ToolDefinition, type ToolExecutionResult } from '../types';
-import { extractTargetOptions, targetOptionsSchema } from './common';
+import { extractTargetOptions, notifyCueResourceChange, targetOptionsSchema } from './common';
 
 const bankPageInputSchema = {
   bank_index: z.coerce.number().int().min(0),
@@ -43,6 +43,7 @@ export const eosCuelistBankPageTool: ToolDefinition<typeof bankPageInputSchema> 
     const address = `/eos/cuelist/${options.bank_index}/page/${options.delta}`;
 
     await client.sendMessage(address, [], extractTargetOptions(options));
+    notifyCueResourceChange({ cuelistNumber: null, cueNumber: null, cuePart: null });
 
     const text = `Bank ${options.bank_index}: changement de page (${options.delta >= 0 ? '+' : ''}${options.delta})`;
 

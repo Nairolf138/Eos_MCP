@@ -16,6 +16,7 @@ import {
   cuePartSchema,
   cuelistNumberSchema,
   extractTargetOptions,
+  notifyCueResourceChange,
   formatCueDescription,
   targetOptionsSchema
 } from './common';
@@ -77,6 +78,7 @@ export const eosCueFireTool: ToolDefinition<typeof fireInputSchema> = {
     assertSensitiveActionAllowed(options, 'eos_cue_fire');
 
     await client.sendCommand(command, extractTargetOptions(options));
+    notifyCueResourceChange(identifier);
 
     return createCueCommandResult(
       'cue_fire',

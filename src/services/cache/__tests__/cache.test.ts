@@ -22,6 +22,8 @@ describe('ResourceCache', () => {
     cache.clearAll();
     cache.setDefaultTtl(1500);
     cache.setResourceTtl('groups', null);
+    cache.setResourceTtl('cues', null);
+    cache.setResourceTtl('fixtures', null);
     jest.useRealTimers();
   });
 
@@ -95,6 +97,39 @@ describe('ResourceCache', () => {
     const stats = cache.getStats('groups');
     expect(stats.misses).toBe(2);
     expect(stats.hits).toBe(1);
+  });
+
+
+
+  it('applique une configuration TTL par famille critique', async () => {
+    const cache = getResourceCache();
+    cache.configureTtls(1000, { cues: 50, fixtures: 5000 });
+    const key = createCacheKey({ address: '/cue', payload: {} });
+    const fetcher = jest.fn(async () => Date.now());
+
+    const initial = await cache.fetch({ resourceType: 'cues', key, fetcher });
+    jest.advanceTimersByTime(60);
+    const refreshed = await cache.fetch({ resourceType: 'cues', key, fetcher });
+
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(refreshed).not.toBe(initial);
+  });
+
+  it('expose un instantane des statistiques par ressource avec totaux', async () => {
+    const cache = getResourceCache();
+    const groupKey = createCacheKey({ address: '/group', payload: {} });
+    const fixtureKey = createCacheKey({ address: '/fixture', payload: { q: 'spot' } });
+
+    await cache.fetch({ resourceType: 'groups', key: groupKey, fetcher: async () => 'group' });
+    await cache.fetch({ resourceType: 'groups', key: groupKey, fetcher: async () => 'group' });
+    await cache.fetch({ resourceType: 'fixtures', key: fixtureKey, fetcher: async () => ['fixture'] });
+
+    const snapshot = cache.getStatsSnapshot();
+
+    expect(snapshot.resources.groups).toEqual({ hits: 1, misses: 1, entries: 1 });
+    expect(snapshot.resources.fixtures).toEqual({ hits: 0, misses: 1, entries: 1 });
+    expect(snapshot.totals).toMatchObject({ hits: 1, misses: 2 });
+    expect(snapshot.totals.entries).toBeGreaterThanOrEqual(2);
   });
 
   it('notifie les changements de ressource et invalide les entrees concernees', async () => {

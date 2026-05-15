@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { z, type ZodRawShape } from 'zod';
+import { getResourceCache } from '../../services/cache/index';
 import { cueObjectNumberSchema, cuelistNumberSchema as sharedCuelistNumberSchema, optionalPortSchema } from '../../utils/validators';
 import { buildToolResult, type ToolExecutionResult } from '../types';
 import { safetyOptionsSchema } from '../common/safety';
@@ -165,6 +166,23 @@ export interface CueCommandResultOverrides {
   oscAddress?: string;
   oscArgs?: unknown;
   cli?: { text: string };
+}
+
+export function notifyCueResourceChange(identifier: CueIdentifier): void {
+  const cache = getResourceCache();
+  cache.notifyResourceChange('cues');
+  cache.notifyResourceChange('cuelists');
+
+  if (identifier.cuelistNumber != null) {
+    cache.notifyResourceChange('cuelists', String(identifier.cuelistNumber));
+  }
+
+  if (identifier.cuelistNumber != null && identifier.cueNumber != null) {
+    cache.notifyResourceChange(
+      'cues',
+      `${identifier.cuelistNumber}:${identifier.cueNumber}:${identifier.cuePart ?? 0}`
+    );
+  }
 }
 
 export function createCueCommandResult(

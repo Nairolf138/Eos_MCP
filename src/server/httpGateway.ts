@@ -31,6 +31,7 @@ import type {
 } from '../services/osc/index';
 import { getToolJsonSchema, toolJsonSchemas } from '../schemas/index';
 import type { ToolRegistry } from './toolRegistry';
+import { getResourceCache } from '../services/cache/index';
 
 interface StdioStatusSnapshot {
   status: 'starting' | 'listening' | 'stopped';
@@ -426,7 +427,8 @@ class HttpGateway {
         status,
         uptimeMs,
         toolCount,
-        transportActive: this.started
+        transportActive: this.started,
+        cache: getResourceCache().getStatsSnapshot()
       };
 
       payload.mcp = this.buildMcpStatus(now);

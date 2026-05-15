@@ -20,6 +20,7 @@ export type ResourceType =
   | 'cues'
   | 'cuelists'
   | 'queries'
+  | 'fixtures'
   | 'session';
 
 interface CacheEntry<T> {
@@ -34,6 +35,28 @@ interface CacheStats {
   misses: number;
 }
 
+export type ResourceTtlConfig = Partial<Record<ResourceType, number>>;
+
+export const CACHE_RESOURCE_TYPES = [
+  'channels',
+  'patch',
+  'groups',
+  'palettes',
+  'presets',
+  'macros',
+  'snapshots',
+  'curves',
+  'effects',
+  'pixelMaps',
+  'magicSheets',
+  'submasters',
+  'cues',
+  'cuelists',
+  'queries',
+  'fixtures',
+  'session'
+] as const satisfies readonly ResourceType[];
+
 export interface FetchOptions<T> {
   resourceType: ResourceType;
   key: string;
@@ -45,6 +68,11 @@ export interface FetchOptions<T> {
 
 export interface CacheStatsSnapshot extends CacheStats {
   entries: number;
+}
+
+export interface CacheStatsByResource {
+  readonly resources: Record<ResourceType, CacheStatsSnapshot>;
+  readonly totals: CacheStatsSnapshot;
 }
 
 interface CacheKeyParts {
@@ -259,6 +287,13 @@ class ResourceCache {
     this.stats.clear();
   }
 
+  public configureTtls(defaultTtlMs: number, resourceTtls: ResourceTtlConfig = {}): void {
+    this.setDefaultTtl(defaultTtlMs);
+    for (const [resourceType, ttlMs] of Object.entries(resourceTtls) as Array<[ResourceType, number]>) {
+      this.setResourceTtl(resourceType, ttlMs);
+    }
+  }
+
   public setDefaultTtl(ttlMs: number): void {
     this.defaultTtlMs = Math.max(0, ttlMs);
   }
@@ -279,6 +314,23 @@ class ResourceCache {
       misses: stats.misses,
       entries: cache?.size ?? 0
     };
+  }
+
+  public getStatsSnapshot(): CacheStatsByResource {
+    const resources = Object.fromEntries(
+      CACHE_RESOURCE_TYPES.map((resourceType) => [resourceType, this.getStats(resourceType)])
+    ) as Record<ResourceType, CacheStatsSnapshot>;
+
+    const totals = Object.values(resources).reduce<CacheStatsSnapshot>(
+      (acc, stats) => ({
+        hits: acc.hits + stats.hits,
+        misses: acc.misses + stats.misses,
+        entries: acc.entries + stats.entries
+      }),
+      { hits: 0, misses: 0, entries: 0 }
+    );
+
+    return { resources, totals };
   }
 
   private getCache(resourceType: ResourceType): ResourceCacheMap {

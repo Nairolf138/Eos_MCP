@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { z } from 'zod';
+import { getResourceCache, type CacheStatsByResource } from '../../services/cache/index';
 import { getOscClient } from '../../services/osc/client';
 import type { OscDiagnostics, OscLoggingState } from '../../services/osc/index';
 import { oscMappings } from '../../services/osc/mappings';
@@ -67,7 +68,21 @@ const formatDirectionStats = (label: string, diagnostics: OscDiagnostics, key: '
   return lines.join('\n');
 };
 
-const formatDiagnostics = (diagnostics: OscDiagnostics): string => {
+const formatCacheStats = (cache: CacheStatsByResource): string => {
+  const lines = [
+    `Cache ressources: ${cache.totals.entries} entree(s), ${cache.totals.hits} hit(s), ${cache.totals.misses} miss(es)`
+  ];
+
+  Object.entries(cache.resources)
+    .filter(([, stats]) => stats.entries > 0 || stats.hits > 0 || stats.misses > 0)
+    .forEach(([resource, stats]) => {
+      lines.push(`  • ${resource}: ${stats.entries} entree(s), ${stats.hits} hit(s), ${stats.misses} miss(es)`);
+    });
+
+  return lines.join('\n');
+};
+
+const formatDiagnostics = (diagnostics: OscDiagnostics, cache: CacheStatsByResource): string => {
   const lines = [
     'Configuration OSC:',
     `- Local: ${diagnostics.config.localAddress}:${diagnostics.config.localPort}`,
@@ -80,6 +95,8 @@ const formatDiagnostics = (diagnostics: OscDiagnostics): string => {
     'Statistiques messages:',
     formatDirectionStats('  Entrants', diagnostics, 'incoming'),
     formatDirectionStats('  Sortants', diagnostics, 'outgoing'),
+    '',
+    formatCacheStats(cache),
     '',
     `Auditeurs actifs: ${diagnostics.listeners.active}`,
     `Demarrage service: ${new Date(diagnostics.startedAt).toISOString()}`,
@@ -187,7 +204,8 @@ export const eosGetDiagnosticsTool: ToolDefinition<typeof emptyInputSchema> = {
     schema.parse(args ?? {});
     const client = getOscClient();
     const diagnostics = client.getDiagnostics();
-    const summary = formatDiagnostics(diagnostics);
+    const cache = getResourceCache().getStatsSnapshot();
+    const summary = formatDiagnostics(diagnostics, cache);
 
     return {
       content: [
@@ -196,7 +214,7 @@ export const eosGetDiagnosticsTool: ToolDefinition<typeof emptyInputSchema> = {
           text: summary
         }
       ],
-      structuredContent: diagnostics
+      structuredContent: { ...diagnostics, cache }
     } as unknown as ToolExecutionResult;
   }
 };
