@@ -237,7 +237,7 @@ export class OscConnectionManager extends EventEmitter {
     toolId: string,
     payload: Buffer | string | Uint8Array,
     encoding?: BufferEncoding,
-    overrides?: { targetAddress?: string; targetPort?: number }
+    overrides?: { targetConsole?: string; targetAddress?: string; targetPort?: number }
   ): TransportType {
     const state = this.pickTransport(toolId);
     if (!state) {
@@ -669,7 +669,7 @@ export class OscConnectionManager extends EventEmitter {
   private sendThroughState(
     state: TransportInternals,
     buffer: Buffer,
-    overrides?: { targetAddress?: string; targetPort?: number }
+    overrides?: { targetConsole?: string; targetAddress?: string; targetPort?: number }
   ): void {
     if (!state.socket || state.state !== 'connected') {
       throw new Error(

@@ -757,6 +757,9 @@ function buildDocumentation(tools: ToolDefinition[]): { markdown: string; metada
   lines.push('- `structuredContent.commands_preview` : tableau des commandes prevues/simulees, notamment en `dry_run`.');
   lines.push('- `structuredContent.warnings` : tableau d objets `{ detail, code? }`, vide en absence d avertissement.');
   lines.push('- `structuredContent.next_actions` : tableau d actions recommandees pour l assistant ou l operateur; vide si rien n est requis.');
+  lines.push('- `structuredContent.target_console`, `structuredContent.target_address` et `structuredContent.target_port` : cible console resolue pour l appel courant.');
+  lines.push('');
+  lines.push('Tous les outils enregistres acceptent aussi l argument global optionnel `targetConsole`, resolu depuis `EOS_CONSOLES`, en complement de `targetAddress`/`targetPort` quand ces champs sont exposes par l outil.');
   lines.push('');
   lines.push('Cette convention est appliquee en priorite aux familles `cues`, `commands`, `patch`, `dmx`, `macros`, `pixelMaps` et `showControl`; les nouveaux handlers doivent suivre la meme forme afin que les snapshots de lisibilite restent stables.');
   lines.push('');

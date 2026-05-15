@@ -5,6 +5,7 @@
 import osc from 'osc';
 import { getConfig, type OscConfig as ResolvedOscConfig } from '../../config/index';
 import { createLogger } from '../../server/logger';
+import { resolveConsoleTarget } from '../consoleTargets';
 import type {
   OscDiagnostics,
   OscLoggingOptions,
@@ -151,10 +152,16 @@ export class OscConnectionGateway implements OscGateway {
   public async send(message: OscMessage, options: OscGatewaySendOptions = {}): Promise<TransportType> {
     const toolId = normaliseToolId(options.toolId, message);
     const encoded = this.encodeMessage(message);
-    const overrides =
-      options.targetAddress !== undefined || options.targetPort !== undefined
-        ? { targetAddress: options.targetAddress, targetPort: options.targetPort }
-        : undefined;
+    const resolvedTarget = resolveConsoleTarget({
+      targetConsole: options.targetConsole,
+      targetAddress: options.targetAddress,
+      targetPort: options.targetPort
+    });
+    const overrides = {
+      targetConsole: resolvedTarget.targetConsole ?? undefined,
+      targetAddress: resolvedTarget.targetAddress,
+      targetPort: resolvedTarget.targetPort
+    };
 
     if (options.transportPreference) {
       this.setToolPreference(toolId, options.transportPreference);
@@ -516,7 +523,7 @@ export class OscConnectionGateway implements OscGateway {
     return reconnectTimeout > 0 ? Math.max(connectionTimeout, reconnectTimeout) : connectionTimeout;
   }
 
-  private getTransportStatuses(): TransportStatus[] {
+  public getTransportStatuses(): TransportStatus[] {
     const transportTypes: TransportType[] = ['tcp', 'udp'];
     return transportTypes.map((type) => this.manager.getStatus(type));
   }
