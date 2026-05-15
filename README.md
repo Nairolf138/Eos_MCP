@@ -117,6 +117,8 @@ node --version
 - `npm run tsc` : lance uniquement la compilation TypeScript (utile sous Windows pour isoler les erreurs TS sans copier les artefacts).
 - `npm run lint` : vérifie le style de code avec ESLint.
 - `npm run lint:manifest` : valide la structure du manifest MCP via Ajv.
+- `npm run check:agent-ready` : exécute la chaîne CI recommandée pour préparer une intervention agent (`lint`, `tsc`, `docs:check`, `lint:manifest`, puis `test`).
+- `npm run check:agent-ready:e2e` : exécute la même chaîne puis lance explicitement la suite e2e HTTP/OSC lorsque la validation complète est nécessaire.
 - `npm test` : exécute la suite de tests (Jest).
 - `npm start` : lance le serveur MCP compilé en mode stdio.
 - `npm run start:dev` : lance le serveur MCP directement avec `ts-node`.
@@ -221,7 +223,7 @@ Avant de publier une nouvelle version :
 
 1. Mettre à jour [`CHANGELOG.md`](CHANGELOG.md) avec les évolutions et corrections apportées.
 2. Appliquer `npm version <patch|minor|major>` pour générer le commit et le tag correspondant.
-3. Lancer la suite de tests (`npm test`) et les vérifications (`npm run lint`, `npm run build`) si ce n’est pas déjà fait.
+3. Lancer la chaîne de vérification recommandée (`npm run check:agent-ready`) si ce n’est pas déjà fait; utiliser `npm run check:agent-ready:e2e` pour inclure explicitement la suite e2e HTTP/OSC.
 4. Pousser la branche et le tag associé :
    ```bash
    git push --follow-tags
