@@ -211,12 +211,15 @@ export interface CommandLineState extends Record<string, unknown> {
   error?: string;
 }
 
+export type OscJsonResponseShape = 'object' | 'any-json' | 'scalar' | 'array' | 'text';
+
 export interface OscJsonRequestOptions extends TargetOptions {
   payload?: Record<string, unknown>;
   responseAddress?: string;
   responseAddresses?: readonly string[];
   timeoutMs?: number;
   bypassReadCapabilityCheck?: boolean;
+  responseShape?: OscJsonResponseShape;
 }
 
 export type OscPayloadParseType = 'json' | 'plain_text' | 'empty' | 'invalid_json';
@@ -248,7 +251,7 @@ export interface OscJsonResponse {
 }
 
 interface InternalOscJsonRequestOptions {
-  strictJsonObjectResponse?: boolean;
+  responseShape?: OscJsonResponseShape;
   requireStatusResponse?: boolean;
   bypassReadCapabilityCheck?: boolean;
 }
@@ -308,7 +311,7 @@ export class OscClient {
       responseAddresses: ['/eos/get/version', '/eos/out/get/version'],
       bypassReadCapabilityCheck: true
     }, {
-      strictJsonObjectResponse: false,
+      responseShape: 'any-json',
       bypassReadCapabilityCheck: true
     });
 
@@ -658,7 +661,7 @@ export class OscClient {
 
   public async requestJson(address: string, options: OscJsonRequestOptions = {}): Promise<OscJsonResponse> {
     return this.requestJsonInternal(address, options, {
-      strictJsonObjectResponse: true,
+      responseShape: options.responseShape ?? 'object',
       requireStatusResponse: JSON_STATUS_REQUIRED_ENDPOINTS.has(address)
     });
   }
@@ -737,21 +740,21 @@ export class OscClient {
       const parsed = this.parseOscPayload(response);
       const diagnostics = this.buildJsonDiagnostics(address, response.address, responseAddresses, parsed, timeoutMs, transportType);
 
-      if (internalOptions.strictJsonObjectResponse) {
-        const formatError = this.validateStrictJsonObjectPayload(parsed);
-        if (formatError) {
-          return {
-            status: 'error',
-            data: parsed.type === 'json' ? parsed.data : null,
-            payload: response,
-            diagnostics,
-            error: this.withJsonDiagnostics(formatError, diagnostics)
-          };
-        }
+      const responseShape = internalOptions.responseShape ?? options.responseShape ?? 'object';
+      const requireStatusResponse = internalOptions.requireStatusResponse === true;
+      const formatError = this.validatePayloadShape(parsed, responseShape, requireStatusResponse);
+      if (formatError) {
+        return {
+          status: 'error',
+          data: parsed.type === 'json' ? parsed.data : null,
+          payload: response,
+          diagnostics,
+          error: this.withJsonDiagnostics(formatError, diagnostics)
+        };
       }
 
       const data = parsed.data;
-      const statusResult = this.normaliseJsonStatus(data, internalOptions.requireStatusResponse === true);
+      const statusResult = this.normaliseJsonStatus(data, requireStatusResponse);
       if (statusResult.status === 'error') {
         this.ensureConnectionActive(operation, data, {
           address: response.address,
@@ -1674,24 +1677,80 @@ export class OscClient {
     return normalised.length > 160 ? `${normalised.slice(0, 157)}...` : normalised;
   }
 
-  private validateStrictJsonObjectPayload(parsed: OscPayloadParseResult): string | null {
+  private validatePayloadShape(
+    parsed: OscPayloadParseResult,
+    responseShape: OscJsonResponseShape,
+    requireStatus: boolean
+  ): string | null {
     if (parsed.type === 'invalid_json') {
       return `Payload JSON invalide: ${parsed.error}`;
     }
 
     if (parsed.type === 'empty') {
-      return 'Payload vide: un objet JSON avec un champ status est attendu.';
+      return `Payload vide: ${this.describeExpectedPayload(responseShape, requireStatus)} est attendu.`;
+    }
+
+    if (responseShape === 'text') {
+      if (parsed.type === 'plain_text') {
+        return null;
+      }
+      if (parsed.type === 'json' && typeof parsed.data === 'string') {
+        return null;
+      }
+      return 'Format de payload invalide: un texte est attendu.';
     }
 
     if (parsed.type === 'plain_text') {
-      return 'Payload texte recu: un objet JSON avec un champ status est attendu.';
+      if (responseShape === 'scalar') {
+        return null;
+      }
+      return `Payload texte recu: ${this.describeExpectedPayload(responseShape, requireStatus)} est attendu.`;
+    }
+
+    if (parsed.type !== 'json') {
+      return `Format de payload invalide: ${this.describeExpectedPayload(responseShape, requireStatus)} est attendu.`;
+    }
+
+    if (responseShape === 'any-json') {
+      return null;
+    }
+
+    if (responseShape === 'array') {
+      return Array.isArray(parsed.data) ? null : 'Format de payload invalide: un tableau JSON est attendu.';
+    }
+
+    if (responseShape === 'scalar') {
+      const scalarType = typeof parsed.data;
+      return parsed.data === null || scalarType === 'string' || scalarType === 'number' || scalarType === 'boolean'
+        ? null
+        : 'Format de payload invalide: un scalaire JSON est attendu.';
     }
 
     if (!parsed.data || typeof parsed.data !== 'object' || Array.isArray(parsed.data)) {
-      return 'Format de payload invalide: un objet JSON avec un champ status est attendu.';
+      return `Format de payload invalide: ${this.describeExpectedPayload(responseShape, requireStatus)} est attendu.`;
     }
 
     return null;
+  }
+
+  private describeExpectedPayload(responseShape: OscJsonResponseShape, requireStatus: boolean): string {
+    if (responseShape === 'object') {
+      return requireStatus ? 'un objet JSON avec un champ status' : 'un objet JSON';
+    }
+
+    if (responseShape === 'any-json') {
+      return 'un payload JSON valide';
+    }
+
+    if (responseShape === 'array') {
+      return 'un tableau JSON';
+    }
+
+    if (responseShape === 'scalar') {
+      return 'un scalaire JSON ou texte';
+    }
+
+    return 'un texte';
   }
 
   private normaliseJsonStatus(payload: unknown, requireStatus: boolean): { status: StepStatus; error?: string } {

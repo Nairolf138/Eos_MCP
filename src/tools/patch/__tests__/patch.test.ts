@@ -5,6 +5,7 @@
 import { getResourceCache } from '../../../services/cache/index';
 import type { OscMessage } from '../../../services/osc/index';
 import { OscClient, setOscClient, type OscGateway, type OscGatewaySendOptions } from '../../../services/osc/client';
+import eosPayloadVariants from '../../../services/osc/__tests__/fixtures/eos-query-payload-variants.json';
 import { oscMappings } from '../../../services/osc/mappings';
 import {
   eosPatchGetAugment3dBeamTool,
@@ -172,6 +173,40 @@ describe('patch tools', () => {
               text1: 'Spare blade'
             },
             notes: null
+          }
+        ]
+      }
+    });
+  });
+
+
+  it('accepte les informations de patch EOS sans champ status quand endpoint ne lexige pas', async () => {
+    const promise = runTool(eosPatchGetChannelInfoTool, { channel_number: 101, part_number: 0 });
+
+    queueMicrotask(() => {
+      service.emit({
+        address: oscMappings.patch.channelInfo,
+        args: [{ type: 's', value: JSON.stringify(eosPayloadVariants.patch.channelInfoWithoutStatus) }]
+      });
+    });
+
+    const result = await promise;
+    const structuredContent = extractStructuredContent(result);
+
+    expect(structuredContent).toMatchObject({
+      status: 'ok',
+      channel: {
+        channel_number: 101,
+        label: 'No Status Fixture',
+        part_count: 1,
+        parts: [
+          {
+            part_number: 1,
+            label: 'Main',
+            manufacturer: 'ETC',
+            model: 'Source Four LED',
+            dmx_address: '1/001',
+            gel: 'L201'
           }
         ]
       }
