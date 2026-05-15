@@ -12,6 +12,22 @@ export interface RequestQueueRunOptions {
   timeoutMs?: number;
   timeoutMessage?: string;
   details?: Record<string, unknown>;
+  targetKey?: string;
+  familyKey?: string;
+}
+
+export interface RequestQueueTargetDiagnostics {
+  targetKey: string;
+  pending: number;
+  activeCount: number;
+  activeFamilies: string[];
+}
+
+export interface RequestQueueDiagnostics {
+  pending: number;
+  activeCount: number;
+  concurrency: number;
+  targets: RequestQueueTargetDiagnostics[];
 }
 
 interface QueueTask<T> {
@@ -20,6 +36,15 @@ interface QueueTask<T> {
   readonly resolve: (value: T) => void;
   readonly reject: (reason?: unknown) => void;
   readonly options: RequestQueueRunOptions;
+  readonly targetKey: string;
+  readonly familyKey: string | null;
+}
+
+interface TargetQueueState {
+  readonly targetKey: string;
+  readonly pending: QueueTask<unknown>[];
+  readonly activeFamilies: Set<string>;
+  activeCount: number;
 }
 
 function normaliseConcurrency(value: number | undefined): number {
@@ -29,12 +54,19 @@ function normaliseConcurrency(value: number | undefined): number {
   return Math.max(1, Math.trunc(value));
 }
 
+function normaliseKey(value: string | undefined, fallback: string): string {
+  if (typeof value !== 'string' || value.length === 0) {
+    return fallback;
+  }
+  return value;
+}
+
 export class RequestQueue {
   private readonly concurrency: number;
 
-  private readonly pending: QueueTask<unknown>[] = [];
+  private readonly targets = new Map<string, TargetQueueState>();
 
-  private activeCount = 0;
+  private readonly targetOrder: string[] = [];
 
   constructor(options: RequestQueueOptions = {}) {
     this.concurrency = normaliseConcurrency(options.concurrency);
@@ -46,30 +78,105 @@ export class RequestQueue {
     options: RequestQueueRunOptions = {}
   ): Promise<T> {
     return new Promise<T>((resolve, reject) => {
+      const targetKey = normaliseKey(options.targetKey, 'default');
       const queueTask: QueueTask<T> = {
         operation,
         execute: task,
         resolve,
         reject,
-        options
+        options,
+        targetKey,
+        familyKey: normaliseKey(options.familyKey, '') || null
       };
-      this.pending.push(queueTask as QueueTask<unknown>);
+      this.getTargetState(targetKey).pending.push(queueTask as QueueTask<unknown>);
       this.process();
     });
   }
 
-  private process(): void {
-    while (this.activeCount < this.concurrency) {
-      const next = this.pending.shift();
-      if (!next) {
-        return;
-      }
+  public getDiagnostics(): RequestQueueDiagnostics {
+    const targets = Array.from(this.targets.values()).map((target) => ({
+      targetKey: target.targetKey,
+      pending: target.pending.length,
+      activeCount: target.activeCount,
+      activeFamilies: Array.from(target.activeFamilies).sort()
+    }));
 
-      this.activeCount += 1;
-      void this.execute(next).finally(() => {
-        this.activeCount -= 1;
-        this.process();
-      });
+    return {
+      pending: targets.reduce((total, target) => total + target.pending, 0),
+      activeCount: targets.reduce((total, target) => total + target.activeCount, 0),
+      concurrency: this.concurrency,
+      targets
+    };
+  }
+
+  private getTargetState(targetKey: string): TargetQueueState {
+    const existing = this.targets.get(targetKey);
+    if (existing) {
+      return existing;
+    }
+
+    const created: TargetQueueState = {
+      targetKey,
+      pending: [],
+      activeFamilies: new Set(),
+      activeCount: 0
+    };
+    this.targets.set(targetKey, created);
+    this.targetOrder.push(targetKey);
+    return created;
+  }
+
+  private process(): void {
+    let started = false;
+
+    do {
+      started = false;
+      for (const targetKey of [...this.targetOrder]) {
+        const target = this.targets.get(targetKey);
+        if (!target || target.activeCount >= this.concurrency) {
+          continue;
+        }
+
+        const nextIndex = this.findRunnableTaskIndex(target);
+        if (nextIndex < 0) {
+          this.cleanupTarget(target);
+          continue;
+        }
+
+        const [next] = target.pending.splice(nextIndex, 1);
+        target.activeCount += 1;
+        if (next.familyKey) {
+          target.activeFamilies.add(next.familyKey);
+        }
+        started = true;
+
+        void this.execute(next).finally(() => {
+          target.activeCount -= 1;
+          if (next.familyKey) {
+            target.activeFamilies.delete(next.familyKey);
+          }
+          this.cleanupTarget(target);
+          this.process();
+        });
+      }
+    } while (started);
+  }
+
+  private findRunnableTaskIndex(target: TargetQueueState): number {
+    return target.pending.findIndex((candidate) => (
+      !candidate.familyKey || !target.activeFamilies.has(candidate.familyKey)
+    ));
+  }
+
+  private cleanupTarget(target: TargetQueueState): void {
+    if (target.pending.length > 0 || target.activeCount > 0) {
+      return;
+    }
+
+    this.targets.delete(target.targetKey);
+    const index = this.targetOrder.indexOf(target.targetKey);
+    if (index >= 0) {
+      this.targetOrder.splice(index, 1);
     }
   }
 

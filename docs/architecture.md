@@ -120,6 +120,20 @@ flowchart TB
 7. **Envoi et attente de réponse**  
    `src/services/osc/client.ts` envoie via le gateway OSC. Les opérations passent par `RequestQueue` pour contrôler la concurrence et les timeouts. Pour les appels avec réponse, `createResponseAwaiter()` écoute les messages entrants, matche l'adresse de réponse attendue, puis résout avec le payload ou renvoie un statut `timeout` / `error` normalisé.
 
+### Garanties de concurrence OSC
+
+`src/services/osc/requestQueue.ts` applique la concurrence configurée par cible OSC. Une cible est définie par le triplet `targetAddress` / `targetPort` / `transportPreference`; deux consoles ou deux préférences de transport différentes disposent donc de files indépendantes. Les tâches d'une même cible restent FIFO quand la concurrence effective vaut `1`, et les timeouts ou erreurs d'une tâche libèrent la file sans bloquer les suivantes.
+
+`src/services/osc/client.ts` ajoute des verrous par famille pour les actions qui touchent un état partagé EOS :
+
+- `command-line` : `/eos/cmd`, `/eos/newcmd` et `/eos/get/cmd_line` restent exclusifs par cible, car ils modifient ou lisent la ligne de commande partagée de la console.
+- `session-control` : handshake, sélection de protocole et souscription restent exclusifs par cible pendant la négociation de session ou d'abonnement.
+- `show-control` : reset reste exclusif par cible.
+
+Les requêtes JSON documentées, les pings et les messages OSC génériques sans famille sensible peuvent être parallélisés jusqu'à `requestConcurrency` pour une même cible. Ils restent néanmoins isolés des autres cibles par leur file propre et continuent d'utiliser leurs options de routage (`targetAddress`, `targetPort`, `transportPreference`) lors de l'envoi gateway.
+
+Les diagnostics de queue sont exposés par `OscClient.getQueueDiagnostics()` et inclus dans `OscClient.getDiagnostics().queue` quand le gateway fournit déjà des diagnostics. Ils indiquent `pending`, `activeCount`, la `concurrency` configurée et le détail par cible (`targetKey`, longueur pending, tâches actives et familles verrouillées).
+
 8. **Cache et invalidations**  
    Les lectures de ressources peuvent passer par `getResourceCache().fetch()` avec TTL et tags. Les messages OSC entrants sont aussi transmis au cache pour invalider ou actualiser les entrées concernées.
 
