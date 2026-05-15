@@ -12,7 +12,7 @@ import {
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
 import { oscMappings } from '../../services/osc/mappings';
-import type { ToolDefinition, ToolExecutionResult } from '../types';
+import { buildToolResult, type ToolDefinition, type ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
@@ -78,8 +78,9 @@ function createSimpleResult(
   oscAddress: string,
   oscArgs: OscMessageArgument[]
 ): ToolExecutionResult {
-  return {
-    content: [{ type: 'text', text }],
+  return buildToolResult({
+    text,
+    summary: text,
     structuredContent: {
       action,
       macro_number: macroNumber,
@@ -89,7 +90,7 @@ function createSimpleResult(
         args: oscArgs
       }
     }
-  } as ToolExecutionResult;
+  }) as ToolExecutionResult;
 }
 
 function parseInteger(value: unknown): number | null {
@@ -309,11 +310,13 @@ function buildMacroInfoResult(
     }
   }
 
-  return {
-    content: [{ type: 'text', text }],
+  return buildToolResult({
+    text,
+    status: response.status,
+    summary: text,
+    warnings: response.status === 'ok' && !macroNotFound ? [] : [text],
     structuredContent: {
       action: 'macro_get_info',
-      status: response.status,
       request: payload,
       macro: details,
       error: meaningfulMessage,
@@ -322,7 +325,7 @@ function buildMacroInfoResult(
         response: response.payload
       }
     }
-  } as ToolExecutionResult;
+  }) as ToolExecutionResult;
 }
 
 /**

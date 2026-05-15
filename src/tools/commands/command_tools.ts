@@ -15,7 +15,7 @@ import {
   safetyOptionsSchema,
   type SafetyOptions
 } from '../common/safety';
-import type { ToolDefinition, ToolExecutionResult } from '../types';
+import { buildToolResult, type ToolDefinition, type ToolExecutionResult } from '../types';
 import { buildCueCommandPayload, createCueIdentifierFromOptions, formatCueDescription } from '../cues/common';
 import { mapCueList } from '../cues/mappers';
 import type { CueIdentifier } from '../cues/types';
@@ -391,22 +391,21 @@ function formatSendResult(
       ? ` ${unverifiedWarning}.`
       : ' Acceptation EOS non verifiee.';
 
-  return {
-    content: [
-      {
-        type: 'text',
-        text: `Commande remise au transport OSC sur ${oscAddress}: ${command}.${suffix}`
-      }
-    ],
+  const text = `Commande remise au transport OSC sur ${oscAddress}: ${command}.${suffix}`;
+  return buildToolResult({
+    text,
+    status: isPartialFailure ? 'partial_failure' : 'ok',
+    summary: text,
+    commandsSent: [command],
+    warnings: verification?.warning ? [{ detail: verification.warning }] : [],
+    next_actions: verification?.status === 'not_verified' ? ['Relire l etat EOS avant d enchainer une action destructive.'] : [],
     structuredContent: {
-      status: isPartialFailure ? 'partial_failure' : 'ok',
       command,
       user,
       sent_to_transport: true,
       accepted_by_eos: verification?.accepted_by_eos ?? null,
       verified: verification?.verified ?? false,
       ...(verification ? { verification } : {}),
-      ...(verification?.warning ? { warnings: [{ detail: verification.warning }] } : {}),
       osc: {
         address: oscAddress,
         ...buildOscDescriptor(command, user)
@@ -415,21 +414,20 @@ function formatSendResult(
         text: command
       }
     }
-  };
+  });
 }
 
 function formatCommandLineState(result: CommandLineState): ToolExecutionResult {
-  return {
-    content: [
-      {
-        type: 'text',
-        text: result.status === 'ok'
-          ? `Ligne de commande utilisateur ${result.user ?? 'global'}: ${result.text}`
-          : `Lecture de la ligne de commande indisponible (${result.status})`
-      }
-    ],
+  const text = result.status === 'ok'
+    ? `Ligne de commande utilisateur ${result.user ?? 'global'}: ${result.text}`
+    : `Lecture de la ligne de commande indisponible (${result.status})`;
+  return buildToolResult({
+    text,
+    status: result.status,
+    summary: text,
+    warnings: result.status === 'ok' ? [] : [text],
     structuredContent: { ...result }
-  };
+  });
 }
 
 function resolveUserId(requested?: number | null): number | undefined {

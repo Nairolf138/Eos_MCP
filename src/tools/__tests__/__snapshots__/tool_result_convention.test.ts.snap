@@ -1,0 +1,71 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`tool result convention snapshots standardise les resumes lisibles des familles prioritaires 1`] = `
+{
+  "commands": {
+    "commandsSent": [],
+    "commands_preview": [
+      "Go To Cue 9",
+    ],
+    "next_actions": [],
+    "status": "dry_run",
+    "summary": "[dry_run] Commande simulee: Go To Cue 9",
+    "text": "[dry_run] Commande simulee: Go To Cue 9",
+    "warnings": [],
+  },
+  "cues": {
+    "commandsSent": [],
+    "commands_preview": [],
+    "next_actions": [],
+    "status": "ok",
+    "summary": "GO envoye sur liste 5",
+    "text": "Commande cue_go envoyee pour liste 5.",
+    "warnings": [],
+  },
+  "dmx": {
+    "commandsSent": [],
+    "commands_preview": [],
+    "next_actions": [],
+    "status": "ok",
+    "summary": "Adresse DMX 2/041 selectionnee.",
+    "text": "Adresse DMX 2/041 selectionnee.",
+    "warnings": [],
+  },
+  "macros": {
+    "commandsSent": [],
+    "commands_preview": [],
+    "next_actions": [],
+    "status": "ok",
+    "summary": "Macro 7 declenchee",
+    "text": "Macro 7 declenchee",
+    "warnings": [],
+  },
+  "patch": {
+    "commandsSent": [],
+    "commands_preview": [],
+    "next_actions": [],
+    "status": "dry_run",
+    "summary": "[dry_run] Lecture patch simulee pour canal 12",
+    "text": "[dry_run] Lecture patch simulee pour canal 12",
+    "warnings": [],
+  },
+  "pixelMaps": {
+    "commandsSent": [],
+    "commands_preview": [],
+    "next_actions": [],
+    "status": "ok",
+    "summary": "Pixel map 4 selectionne",
+    "text": "Pixel map 4 selectionne",
+    "warnings": [],
+  },
+  "showControl": {
+    "commandsSent": [],
+    "commands_preview": [],
+    "next_actions": [],
+    "status": "ok",
+    "summary": "Nom du show : "Festival 2026".",
+    "text": "Nom du show : "Festival 2026".",
+    "warnings": [],
+  },
+}
+`;
