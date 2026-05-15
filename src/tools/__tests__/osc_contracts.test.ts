@@ -7,6 +7,7 @@ import { resolve } from 'node:path';
 import { z } from 'zod';
 import type { OscMessage, OscMessageArgument } from '../../services/osc/index';
 import { setOscClient, type OscClient, type OscJsonResponse, type TargetOptions } from '../../services/osc/client';
+import { oscResponseMappings, toEosOutResponseAddress } from '../../services/osc/mappings';
 import type { BuiltOscWireMessage } from '../../services/osc/messageBuilders';
 import toolDefinitions from '../index';
 import type { ToolDefinition } from '../types';
@@ -211,6 +212,19 @@ const FIELD_ALIASES: Record<string, string> = {
   target_type_direct_select: 'target_type'
 };
 
+
+function collectResponseAddressVariants(value: unknown): readonly string[][] {
+  if (Array.isArray(value) && value.every((entry) => typeof entry === 'string')) {
+    return [value];
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.values(value as Record<string, unknown>).flatMap((entry) => collectResponseAddressVariants(entry));
+  }
+
+  return [];
+}
+
 function sampleArgsFor(tool: ToolDefinition): Record<string, unknown> {
   const rawShape = tool.config.inputSchema ?? {};
   const args: Record<string, unknown> = {};
@@ -332,6 +346,23 @@ describe('OSC tool contracts exported from src/tools/index.ts', () => {
 
     for (const tool of toolDefinitions) {
       expect(coverage).toContain(`\`${tool.name}\``);
+    }
+  });
+
+
+  it('accepts /eos/out/get response variants for every centralised /eos/get endpoint', () => {
+    const responseAddressVariants = collectResponseAddressVariants(oscResponseMappings);
+    const getEndpointVariants = responseAddressVariants.filter(([requestAddress]) => requestAddress?.startsWith('/eos/get/'));
+
+    expect(getEndpointVariants.length).toBeGreaterThan(0);
+
+    for (const addresses of getEndpointVariants) {
+      const [requestAddress] = addresses;
+      if (!requestAddress) {
+        throw new Error('Missing request address in OSC response mapping');
+      }
+      expect(addresses).toContain(requestAddress);
+      expect(addresses).toContain(toEosOutResponseAddress(requestAddress));
     }
   });
 

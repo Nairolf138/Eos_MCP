@@ -10,7 +10,7 @@ import {
   getResourceCache
 } from '../../services/cache/index';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
-import { oscMappings } from '../../services/osc/mappings';
+import { oscMappings, oscResponseMappings } from '../../services/osc/mappings';
 import { createDryRunResult, resolveSafetyOptions, safetyOptionsSchema } from '../common/safety';
 import { buildToolResult, withToolMetadata, type ToolDefinition, type ToolExecutionResult } from '../types';
 
@@ -735,7 +735,8 @@ export const eosPatchGetChannelInfoTool: ToolDefinition<typeof channelInfoInputS
           payload,
           timeoutMs: options.timeoutMs,
           targetAddress: options.targetAddress,
-          targetPort: options.targetPort
+          targetPort: options.targetPort,
+          responseAddresses: oscResponseMappings.patch.channelInfo
         });
 
         const responseRecord = response.data && typeof response.data === 'object' && !Array.isArray(response.data)
@@ -827,7 +828,8 @@ export const eosPatchGetAugment3dPositionTool: ToolDefinition<typeof augment3dIn
           payload,
           timeoutMs: options.timeoutMs,
           targetAddress: options.targetAddress,
-          targetPort: options.targetPort
+          targetPort: options.targetPort,
+          responseAddresses: oscResponseMappings.patch.augment3dPosition
         });
 
         const positionData = normaliseAugment3dPosition(
@@ -913,7 +915,8 @@ export const eosPatchGetAugment3dBeamTool: ToolDefinition<typeof augment3dInputS
           payload,
           timeoutMs: options.timeoutMs,
           targetAddress: options.targetAddress,
-          targetPort: options.targetPort
+          targetPort: options.targetPort,
+          responseAddresses: oscResponseMappings.patch.augment3dBeam
         });
 
         const beamData = normaliseAugment3dBeam(
