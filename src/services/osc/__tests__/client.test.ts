@@ -768,6 +768,23 @@ describe('OscClient', () => {
 
 
 
+
+  it('refuse les lectures JSON quand la capacite de lecture reste non confirmee', async () => {
+    const service = new FakeOscService();
+    const client = new OscClient(service, { defaultTimeoutMs: 10 });
+
+    const capability = await client.probeCapabilities({ timeoutMs: 10 });
+    expect(capability.canReadJsonQueries).toBe(false);
+    expect(capability.readJsonQueriesStatus).toBe('read_capability_unconfirmed');
+
+    const sentBeforeRead = service.sentMessages.length;
+    const result = await client.requestJson('/eos/get/cue', { timeoutMs: 10 });
+
+    expect(result.status).toBe('read_capability_unconfirmed');
+    expect(result.error).toContain('Reconfigurez OSC');
+    expect(service.sentMessages).toHaveLength(sentBeforeRead);
+  });
+
   it('expose les diagnostics enrichis pour timeout, payload texte, payload vide et JSON invalide', async () => {
     const timeoutService = new FakeOscService();
     const timeoutClient = new OscClient(timeoutService, { defaultTimeoutMs: 20 });

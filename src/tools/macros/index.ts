@@ -455,7 +455,7 @@ export const eosMacroGetInfoTool: ToolDefinition<typeof getInfoInputSchema> = {
     inputSchema: getInfoInputSchema,
     outputSchema: {
       macro: macroDetailsOutputSchema,
-      status: z.enum(['ok', 'timeout', 'error', 'skipped'])
+      status: z.enum(['ok', 'timeout', 'error', 'skipped', 'unsupported_transport_mode', 'read_capability_unconfirmed'])
     },
     annotations: {
       mapping: {

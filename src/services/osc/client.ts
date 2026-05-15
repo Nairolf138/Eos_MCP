@@ -57,7 +57,15 @@ const DEFAULT_HANDSHAKE_TIMEOUT_MS = 2000;
 
 type PredicateResult<T> = T | null;
 
-export type StepStatus = 'ok' | 'timeout' | 'error' | 'skipped';
+export type StepStatus = 'ok' | 'timeout' | 'error' | 'skipped' | 'unsupported_transport_mode' | 'read_capability_unconfirmed';
+
+export type ReadJsonCapabilityStatus = 'confirmed' | 'unsupported_transport_mode' | 'read_capability_unconfirmed';
+
+export interface OscRuntimeCapabilities {
+  canReadJsonQueries: boolean;
+  readJsonQueriesStatus: ReadJsonCapabilityStatus;
+  reason: string | null;
+}
 
 export interface OscGatewaySendOptions {
   targetAddress?: string;
@@ -208,6 +216,7 @@ export interface OscJsonRequestOptions extends TargetOptions {
   responseAddress?: string;
   responseAddresses?: readonly string[];
   timeoutMs?: number;
+  bypassReadCapabilityCheck?: boolean;
 }
 
 export type OscPayloadParseType = 'json' | 'plain_text' | 'empty' | 'invalid_json';
@@ -241,6 +250,7 @@ export interface OscJsonResponse {
 interface InternalOscJsonRequestOptions {
   strictJsonObjectResponse?: boolean;
   requireStatusResponse?: boolean;
+  bypassReadCapabilityCheck?: boolean;
 }
 
 interface SendQueueOptions extends RequestQueueRunOptions {
@@ -265,10 +275,61 @@ export class OscClient {
 
   private lastProtocolMode: string | null = null;
 
+  private readJsonCapability: OscRuntimeCapabilities = {
+    canReadJsonQueries: false,
+    readJsonQueriesStatus: 'read_capability_unconfirmed',
+    reason: 'Aucun handshake/probe OSC de lecture JSON reussi dans cette session.'
+  };
+
+  private readJsonCapabilityChecked = false;
+
   constructor(private readonly gateway: OscGateway, private readonly config: OscClientConfig = {}) {
     this.requestQueue = new RequestQueue({ concurrency: config.requestConcurrency });
     this.requestQueueTimeoutMs =
       config.queueTimeoutMs ?? config.defaultTimeoutMs ?? DEFAULT_OPERATION_TIMEOUT_MS;
+  }
+
+  public getRuntimeCapabilities(): OscRuntimeCapabilities {
+    return { ...this.readJsonCapability };
+  }
+
+  public get canReadJsonQueries(): boolean {
+    return this.readJsonCapability.canReadJsonQueries;
+  }
+
+  public async probeCapabilities(options: TargetOptions & { timeoutMs?: number } = {}): Promise<OscRuntimeCapabilities> {
+    const timeoutMs = options.timeoutMs ?? Math.min(this.config.defaultTimeoutMs ?? DEFAULT_OPERATION_TIMEOUT_MS, 400);
+    const response = await this.requestJsonInternal('/eos/get/version', {
+      targetAddress: options.targetAddress,
+      targetPort: options.targetPort,
+      toolId: options.toolId,
+      transportPreference: options.transportPreference,
+      timeoutMs,
+      responseAddresses: ['/eos/get/version', '/eos/out/get/version'],
+      bypassReadCapabilityCheck: true
+    }, {
+      strictJsonObjectResponse: false,
+      bypassReadCapabilityCheck: true
+    });
+
+    const capability: OscRuntimeCapabilities = response.status === 'ok'
+      ? {
+        canReadJsonQueries: true,
+        readJsonQueriesStatus: 'confirmed',
+        reason: null
+      }
+      : {
+        canReadJsonQueries: false,
+        readJsonQueriesStatus: 'read_capability_unconfirmed',
+        reason: response.error ?? `Probe JSON EOS termine avec le statut ${response.status}.`
+      };
+
+    this.setReadJsonCapability(
+      capability.canReadJsonQueries,
+      capability.readJsonQueriesStatus,
+      capability.reason
+    );
+    return this.getRuntimeCapabilities();
   }
 
   public async connect(options: ConnectOptions = {}): Promise<ConnectResult> {
@@ -280,6 +341,19 @@ export class OscClient {
     try {
       const handshake = await this.performHandshake(options, handshakeTimeout);
       const protocolResult = await this.selectProtocol(handshake, options, protocolTimeout);
+      const capability = handshake.mode === 'canonical'
+        ? this.setReadJsonCapability(true, 'confirmed', null)
+        : await this.probeCapabilities({
+          targetAddress: options.targetAddress,
+          targetPort: options.targetPort,
+          toolId: options.toolId,
+          transportPreference: options.transportPreference,
+          timeoutMs: Math.min(protocolTimeout, 400)
+        });
+      if (!capability.canReadJsonQueries && handshake.mode === 'legacy') {
+        this.setReadJsonCapability(false, 'unsupported_transport_mode', capability.reason ?? 'Handshake legacy: lecture JSON non confirmee.');
+      }
+      const runtimeCapability = this.getRuntimeCapabilities();
       this.lastHandshakeStatus = 'ok';
       this.lastProtocolMode = protocolResult.selectedProtocol ?? handshake.mode;
 
@@ -291,14 +365,14 @@ export class OscClient {
         protocolStatus: protocolResult.status,
         handshakePayload: handshake.raw,
         can_send_commands: true,
-        can_read_queries: handshake.mode === 'canonical',
+        can_read_queries: runtimeCapability.canReadJsonQueries,
         handshake_mode: handshake.mode,
         limitations: this.buildConnectionLimitations(
           handshake.mode,
           true,
-          handshake.mode === 'canonical',
+          runtimeCapability.canReadJsonQueries,
           protocolResult.status,
-          protocolResult.error
+          protocolResult.error ?? runtimeCapability.reason ?? undefined
         ),
         protocolResponse: protocolResult.payload,
         ...(protocolResult.error ? { error: protocolResult.error } : {})
@@ -313,6 +387,7 @@ export class OscClient {
       if (connectionLostError) {
         this.lastHandshakeStatus = 'error';
         this.lastProtocolMode = 'timeout';
+        this.setReadJsonCapability(false, 'read_capability_unconfirmed', connectionLostError.message);
         return {
           status: 'error',
           version: null,
@@ -330,6 +405,16 @@ export class OscClient {
 
       throw error;
     }
+  }
+
+  private setReadJsonCapability(
+    canReadJsonQueries: boolean,
+    readJsonQueriesStatus: ReadJsonCapabilityStatus,
+    reason: string | null
+  ): OscRuntimeCapabilities {
+    this.readJsonCapabilityChecked = true;
+    this.readJsonCapability = { canReadJsonQueries, readJsonQueriesStatus, reason };
+    return this.getRuntimeCapabilities();
   }
 
   public async ping(options: PingOptions = {}): Promise<PingResult> {
@@ -588,13 +673,21 @@ export class OscClient {
         `requestJson n'est pas autorise pour l'adresse '${address}'. Utilisez un builder specialise + sendMessage.`
       );
     }
+    const timeoutMs = options.timeoutMs ?? this.config.defaultTimeoutMs ?? DEFAULT_OPERATION_TIMEOUT_MS;
+    if (options.bypassReadCapabilityCheck !== true && internalOptions.bypassReadCapabilityCheck !== true && this.readJsonCapabilityChecked && !this.readJsonCapability.canReadJsonQueries) {
+      const responseAddresses = this.normaliseResponseAddresses(
+        address,
+        options.responseAddress,
+        options.responseAddresses
+      );
+      return this.buildReadCapabilityRefusal(address, responseAddresses, timeoutMs);
+    }
     const targetOptions: TargetOptions = {
       targetAddress: options.targetAddress,
       targetPort: options.targetPort,
       toolId: options.toolId,
       transportPreference: options.transportPreference
     };
-    const timeoutMs = options.timeoutMs ?? this.config.defaultTimeoutMs ?? DEFAULT_OPERATION_TIMEOUT_MS;
     const responseAddresses = this.normaliseResponseAddresses(
       address,
       options.responseAddress,
@@ -669,6 +762,16 @@ export class OscClient {
         });
       }
 
+      if (statusResult.status === 'ok') {
+        this.setReadJsonCapability(true, 'confirmed', null);
+      } else if (options.bypassReadCapabilityCheck === true || internalOptions.bypassReadCapabilityCheck === true) {
+        this.setReadJsonCapability(
+          false,
+          'read_capability_unconfirmed',
+          statusResult.error ?? `Probe JSON EOS termine avec le statut ${statusResult.status}.`
+        );
+      }
+
       return {
         status: statusResult.status,
         data,
@@ -679,6 +782,9 @@ export class OscClient {
     } catch (error) {
       const timeoutError = this.asAppError(error, ErrorCode.OSC_TIMEOUT);
       if (timeoutError) {
+        if (options.bypassReadCapabilityCheck === true || internalOptions.bypassReadCapabilityCheck === true) {
+          this.setReadJsonCapability(false, 'read_capability_unconfirmed', timeoutError.message);
+        }
         return {
           status: 'timeout',
           data: null,
@@ -712,6 +818,34 @@ export class OscClient {
       ...options,
       payload: extractJsonPayloadFromMessage(request.message)
     });
+  }
+
+  private buildReadCapabilityRefusal(
+    address: string,
+    responseAddresses: string[],
+    timeoutMs: number
+  ): OscJsonResponse {
+    const capability = this.getRuntimeCapabilities();
+    const status: Extract<StepStatus, 'unsupported_transport_mode' | 'read_capability_unconfirmed'> =
+      capability.readJsonQueriesStatus === 'unsupported_transport_mode'
+        ? 'unsupported_transport_mode'
+        : 'read_capability_unconfirmed';
+    const reason = capability.reason ?? 'Lecture JSON EOS non confirmee par le handshake/probe courant.';
+
+    return {
+      status,
+      data: null,
+      payload: null,
+      diagnostics: this.buildJsonDiagnostics(
+        address,
+        null,
+        responseAddresses,
+        this.emptyPayloadParseResult(),
+        timeoutMs,
+        'unknown'
+      ),
+      error: `${status}: ${reason} Reconfigurez OSC pour confirmer les requetes JSON ou fournissez une source showfile explicite.`
+    };
   }
 
   private normaliseResponseAddresses(
@@ -997,6 +1131,11 @@ export class OscClient {
     }
 
     const handshakeMode: HandshakeMode = canSendCommands ? 'degraded' : 'timeout';
+    this.setReadJsonCapability(
+      canReadQueries,
+      canReadQueries ? 'confirmed' : handshakeMode === 'degraded' ? 'unsupported_transport_mode' : 'read_capability_unconfirmed',
+      canReadQueries ? null : [errorMessage, ...probeErrors].join(' ')
+    );
     const limitations = this.buildConnectionLimitations(
       handshakeMode,
       canSendCommands,

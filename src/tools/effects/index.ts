@@ -458,7 +458,7 @@ function normaliseEffectDetails(data: unknown, fallbackNumber: number): EffectDe
 
 function formatEffectInfoText(
   details: EffectDetails,
-  status: 'ok' | 'timeout' | 'error' | 'skipped',
+  status: OscJsonResponse['status'],
   errorMessage: string | null
 ): string {
   if (status === 'timeout') {
@@ -624,7 +624,7 @@ export const eosEffectGetInfoTool: ToolDefinition<typeof getInfoInputSchema> = {
     inputSchema: getInfoInputSchema,
     outputSchema: {
       effect: effectDetailsOutputSchema,
-      status: z.enum(['ok', 'timeout', 'error', 'skipped'])
+      status: z.enum(['ok', 'timeout', 'error', 'skipped', 'unsupported_transport_mode', 'read_capability_unconfirmed'])
     },
     annotations: {
       mapping: {
