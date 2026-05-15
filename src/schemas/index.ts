@@ -8,7 +8,7 @@ import type { ServerNotification, ServerRequest } from '@modelcontextprotocol/sd
 import { z, type ZodRawShape, type ZodTypeAny } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import toolDefinitions from '../tools/index';
-import type { ToolDefinition } from '../tools/types';
+import type { ToolDefinition, ToolMetadata } from '../tools/types';
 
 export interface ToolJsonSchemaDefinition {
   name: string;
@@ -16,6 +16,7 @@ export interface ToolJsonSchemaDefinition {
   description?: string;
   uri: string;
   schema: Record<string, unknown>;
+  metadata?: ToolMetadata;
 }
 
 type ZodToJsonSchema = (
@@ -45,6 +46,7 @@ function buildSchema(definition: ToolDefinition): ToolJsonSchemaDefinition {
     $schema: 'https://json-schema.org/draft/2020-12/schema',
     title: definition.config.title ?? definition.name,
     description: definition.config.description,
+    ...(definition.metadata ? { 'x-eos-metadata': definition.metadata } : {}),
     ...jsonSchema
   };
 
@@ -53,7 +55,8 @@ function buildSchema(definition: ToolDefinition): ToolJsonSchemaDefinition {
     title: definition.config.title,
     description: definition.config.description,
     uri: `schema://tools/${definition.name}`,
-    schema: enrichedSchema
+    schema: enrichedSchema,
+    metadata: definition.metadata
   };
 }
 

@@ -138,6 +138,57 @@ describe('ToolRegistry schema-less tools', () => {
 
 
 
+  it('expose les metadonnees de decouverte dans les summaries et annotations MCP', () => {
+    const server = createMockServer();
+    const registry = new ToolRegistry(server);
+
+    const tool: ToolDefinition = {
+      name: 'metadata_tool',
+      config: {
+        description: 'Tool with discovery metadata',
+        annotations: { mapping: { osc: '/eos/cmd' } }
+      },
+      metadata: {
+        category: 'commands',
+        synonyms: ['cmd', 'ligne de commande'],
+        riskLevel: 'high',
+        requiresConfirmation: true,
+        preferredWorkflow: 'eos_workflow_create_look'
+      },
+      handler: async () => ({ content: [{ type: 'text', text: 'metadata' }] })
+    };
+
+    registry.register(tool);
+
+    expect(server.registerTool).toHaveBeenCalledWith(
+      'metadata_tool',
+      expect.objectContaining({
+        annotations: expect.objectContaining({
+          mapping: { osc: '/eos/cmd' },
+          category: 'commands',
+          riskLevel: 'high',
+          requiresConfirmation: true
+        })
+      }),
+      expect.any(Function)
+    );
+
+    expect(registry.getRegisteredSummaries()).toEqual([
+      expect.objectContaining({
+        name: 'metadata_tool',
+        config: expect.objectContaining({
+          metadata: expect.objectContaining({
+            category: 'commands',
+            riskLevel: 'high',
+            requiresConfirmation: true,
+            preferredWorkflow: 'eos_workflow_create_look'
+          })
+        })
+      })
+    ]);
+  });
+
+
   it('executes a tool without prior manual or schema consultation', async () => {
     const server = createMockServer();
     const registry = new ToolRegistry(server);

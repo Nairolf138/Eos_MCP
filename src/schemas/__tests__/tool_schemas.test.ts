@@ -45,6 +45,41 @@ describe('tool JSON schemas', () => {
   });
 
 
+  it('expose les metadonnees de decouverte dans les schemas des familles principales', () => {
+    const expectedFamilies = new Map([
+      ['eos_cue_go', 'cues'],
+      ['eos_command', 'commands'],
+      ['eos_key_press', 'keys'],
+      ['eos_macro_fire', 'macros'],
+      ['eos_address_set_dmx', 'dmx'],
+      ['eos_palette_get_info', 'palettes'],
+      ['eos_preset_fire', 'presets'],
+      ['eos_patch_get_channel_info', 'patch'],
+      ['eos_set_cue_send_string', 'showControl']
+    ]);
+
+    for (const [toolName, category] of expectedFamilies) {
+      const schema = toolJsonSchemas.find((candidate) => candidate.name === toolName);
+      expect(schema?.metadata).toEqual(expect.objectContaining({
+        category,
+        synonyms: expect.any(Array),
+        riskLevel: expect.any(String),
+        requiresConfirmation: expect.any(Boolean)
+      }));
+      expect(schema?.schema).toMatchObject({
+        'x-eos-metadata': expect.objectContaining({ category })
+      });
+    }
+
+    const patchSchema = toolJsonSchemas.find((schema) => schema.name === 'eos_patch_get_channel_info');
+    expect(patchSchema?.metadata).toMatchObject({
+      category: 'patch',
+      riskLevel: 'critical',
+      preferredWorkflow: 'eos_workflow_autopatch_band'
+    });
+  });
+
+
   it('publie dry_run sur tous les workflows', () => {
     const workflowSchemas = toolJsonSchemas.filter((schema) => schema.name.startsWith('eos_workflow_'));
 

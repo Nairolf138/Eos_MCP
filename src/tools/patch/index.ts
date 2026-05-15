@@ -12,7 +12,7 @@ import {
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import { oscMappings } from '../../services/osc/mappings';
 import { createDryRunResult, resolveSafetyOptions, safetyOptionsSchema } from '../common/safety';
-import { buildToolResult, type ToolDefinition, type ToolExecutionResult } from '../types';
+import { buildToolResult, withToolMetadata, type ToolDefinition, type ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
@@ -918,10 +918,16 @@ export const eosPatchGetAugment3dBeamTool: ToolDefinition<typeof augment3dInputS
   }
 };
 
-const patchTools = [
+const patchTools = withToolMetadata([
   eosPatchGetChannelInfoTool,
   eosPatchGetAugment3dPositionTool,
   eosPatchGetAugment3dBeamTool
-];
+], {
+  category: 'patch',
+  synonyms: ['patch', 'fixture', 'channel setup', 'augment3d', 'adressage'],
+  riskLevel: 'critical',
+  requiresConfirmation: true,
+  preferredWorkflow: 'eos_workflow_autopatch_band'
+});
 
 export default patchTools;

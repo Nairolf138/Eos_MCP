@@ -19,7 +19,7 @@ import {
   resolveSafetyOptions,
   safetyOptionsSchema
 } from '../common/safety';
-import type { ToolDefinition, ToolExecutionResult } from '../types';
+import { withToolMetadata, type ToolDefinition, type ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
@@ -560,12 +560,18 @@ export const eosPaletteGetInfoTool: ToolDefinition<typeof paletteGetInfoInputSch
   }
 };
 
-const paletteTools = [
+const paletteTools = withToolMetadata([
   eosIntensityPaletteFireTool,
   eosFocusPaletteFireTool,
   eosColorPaletteFireTool,
   eosBeamPaletteFireTool,
   eosPaletteGetInfoTool
-];
+], {
+  category: 'palettes',
+  synonyms: ['palette', 'ip', 'fp', 'cp', 'bp', 'look building'],
+  riskLevel: 'high',
+  requiresConfirmation: true,
+  preferredWorkflow: ['eos_workflow_create_look', 'eos_workflow_create_cue_series']
+});
 
 export default paletteTools;

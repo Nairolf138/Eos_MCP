@@ -12,7 +12,7 @@ import {
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
 import { oscMappings } from '../../services/osc/mappings';
-import { buildToolResult, type ToolDefinition, type ToolExecutionResult } from '../types';
+import { buildToolResult, withToolMetadata, type ToolDefinition, type ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
@@ -500,11 +500,17 @@ export const eosMacroGetInfoTool: ToolDefinition<typeof getInfoInputSchema> = {
   }
 };
 
-export const macroTools = [
+export const macroTools = withToolMetadata([
   eosMacroFireTool,
   eosMacroSelectTool,
   eosMacroGetInfoTool
-];
+], {
+  category: 'macros',
+  synonyms: ['macro', 'macro fire', 'automation', 'sequence'],
+  riskLevel: 'high',
+  requiresConfirmation: true,
+  preferredWorkflow: 'eos_workflow_rehearsal_go'
+});
 
 export const eosMacroTools = macroTools;
 

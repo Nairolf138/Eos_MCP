@@ -4,7 +4,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import type { ToolDefinition } from '../src/tools/types.js';
+import type { ToolDefinition, ToolMetadata as DefinitionToolMetadata } from '../src/tools/types.js';
 import { z, type ZodTypeAny, type ZodOptional, type ZodNullable, type ZodDefault, type ZodEffects } from 'zod';
 import {
   Project,
@@ -437,6 +437,70 @@ function formatOscExample(mappingValue: unknown, args?: Record<string, unknown>)
   ];
 }
 
+
+function formatMetadataValue(value: unknown): string {
+  if (Array.isArray(value)) {
+    return value.map((entry) => `\`${String(entry)}\``).join(', ');
+  }
+  if (typeof value === 'boolean') {
+    return value ? 'Oui' : 'Non';
+  }
+  if (typeof value === 'string') {
+    return `\`${value}\``;
+  }
+  if (value == null) {
+    return '—';
+  }
+  return `\`${JSON.stringify(value)}\``;
+}
+
+function extractToolMetadata(tool: ToolDefinition): DefinitionToolMetadata | undefined {
+  const annotations = tool.config.annotations ?? {};
+  const metadata = tool.metadata ?? {};
+  const merged: DefinitionToolMetadata = {
+    ...metadata,
+    category: metadata.category ?? (typeof annotations.category === 'string' ? annotations.category : undefined),
+    synonyms: metadata.synonyms ?? (Array.isArray(annotations.synonyms) ? annotations.synonyms.filter((entry): entry is string => typeof entry === 'string') : undefined),
+    riskLevel: metadata.riskLevel ?? (typeof annotations.riskLevel === 'string' ? metadata.riskLevel ?? annotations.riskLevel as DefinitionToolMetadata['riskLevel'] : undefined),
+    requiresConfirmation: metadata.requiresConfirmation ?? (typeof annotations.requiresConfirmation === 'boolean' ? annotations.requiresConfirmation : undefined),
+    preferredWorkflow: metadata.preferredWorkflow ?? (
+      typeof annotations.preferredWorkflow === 'string' || Array.isArray(annotations.preferredWorkflow)
+        ? annotations.preferredWorkflow as string | string[]
+        : undefined
+    )
+  };
+
+  return Object.values(merged).some((value) => value !== undefined) ? merged : undefined;
+}
+
+function pushToolMetadata(lines: string[], tool: ToolDefinition): void {
+  const metadata = extractToolMetadata(tool);
+  if (!metadata) {
+    return;
+  }
+
+  lines.push('**Métadonnées :**');
+  lines.push('');
+  lines.push('| Champ | Valeur |');
+  lines.push('| --- | --- |');
+  if (metadata.category) {
+    lines.push(`| Catégorie | ${formatMetadataValue(metadata.category)} |`);
+  }
+  if (metadata.synonyms && metadata.synonyms.length > 0) {
+    lines.push(`| Synonymes | ${formatMetadataValue(metadata.synonyms)} |`);
+  }
+  if (metadata.riskLevel) {
+    lines.push(`| Niveau de risque | ${formatMetadataValue(metadata.riskLevel)} |`);
+  }
+  if (typeof metadata.requiresConfirmation === 'boolean') {
+    lines.push(`| Confirmation requise | ${formatMetadataValue(metadata.requiresConfirmation)} |`);
+  }
+  if (metadata.preferredWorkflow) {
+    lines.push(`| Workflow préféré | ${formatMetadataValue(metadata.preferredWorkflow)} |`);
+  }
+  lines.push('');
+}
+
 function slugify(value: string): string {
   return value
     .toLowerCase()
@@ -785,6 +849,19 @@ function buildDocumentation(tools: ToolDefinition[]): { markdown: string; metada
     lines.push('');
   }
 
+  const documentedMetadata = sortedTools
+    .map((tool) => extractToolMetadata(tool))
+    .filter((metadata): metadata is DefinitionToolMetadata => Boolean(metadata));
+  const documentedCategories = Array.from(new Set(documentedMetadata.map((metadata) => metadata.category).filter((category): category is string => Boolean(category)))).sort();
+  if (documentedCategories.length > 0) {
+    lines.push('## Métadonnées de découverte');
+    lines.push('');
+    lines.push('Les champs `category`, `synonyms`, `riskLevel`, `requiresConfirmation` et `preferredWorkflow` sont publiés dans `config.annotations` pour les clients MCP et repris ci-dessous pour guider le routage LLM.');
+    lines.push('');
+    lines.push(`Catégories documentées : ${documentedCategories.map((category) => `\`${category}\``).join(', ')}.`);
+    lines.push('');
+  }
+
   for (const tool of sortedTools) {
     const data = metadata.get(tool.name)!;
     const title = tool.config.title ?? tool.name;
@@ -796,6 +873,7 @@ function buildDocumentation(tools: ToolDefinition[]): { markdown: string; metada
     lines.push('');
     lines.push(`**Description :** ${description}`);
     lines.push('');
+    pushToolMetadata(lines, tool);
 
     if (data.properties.length === 0) {
       lines.push('**Arguments :** Aucun argument.');

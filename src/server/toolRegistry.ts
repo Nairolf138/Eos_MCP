@@ -10,7 +10,8 @@ import type {
   ToolDefinition,
   ToolExecutionResult,
   ToolMiddleware,
-  ToolContext
+  ToolContext,
+  ToolMetadata
 } from '../tools/types';
 import { setCapabilitiesToolNamesProvider } from '../tools/capabilities/context';
 import {
@@ -130,6 +131,7 @@ interface RegisteredToolConfigSummary {
   title?: string;
   description?: string;
   annotations?: Record<string, unknown>;
+  metadata?: ToolMetadata;
 }
 
 interface RegisteredToolSummary {
@@ -141,6 +143,23 @@ interface RegisteredToolSummary {
     inputSchemaResourceUri?: string;
     hasMiddlewares: boolean;
     middlewareCount: number;
+  };
+}
+
+
+function buildToolConfigForRegistration(tool: ToolDefinition): ToolDefinition['config'] {
+  if (!tool.metadata) {
+    return tool.config;
+  }
+
+  const { annotations: metadataAnnotations, ...metadataFields } = tool.metadata;
+  return {
+    ...tool.config,
+    annotations: {
+      ...(tool.config.annotations ?? {}),
+      ...(metadataAnnotations ?? {}),
+      ...metadataFields
+    }
   };
 }
 
@@ -167,8 +186,11 @@ class ToolRegistry {
       return callback(undefined, extra);
     }) as never;
 
-    this.server.registerTool(tool.name, tool.config as never, handlerForServer);
-    this.registeredTools.set(tool.name, tool);
+    const config = buildToolConfigForRegistration(tool);
+    const registeredTool = { ...tool, config };
+
+    this.server.registerTool(tool.name, config as never, handlerForServer);
+    this.registeredTools.set(tool.name, registeredTool);
     this.registeredCallbacks.set(tool.name, callback);
   }
 
@@ -203,7 +225,8 @@ class ToolRegistry {
         config: {
           title: tool.config.title,
           description: tool.config.description,
-          annotations: tool.config.annotations
+          annotations: tool.config.annotations,
+          metadata: tool.metadata
         },
         metadata: {
           hasInputSchema,

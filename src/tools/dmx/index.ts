@@ -5,7 +5,7 @@
 import { z, type ZodRawShape } from 'zod';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import { oscMappings } from '../../services/osc/mappings';
-import { buildToolResult, type ToolDefinition, type ToolExecutionResult } from '../types';
+import { buildToolResult, withToolMetadata, type ToolDefinition, type ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
@@ -307,6 +307,12 @@ export const eosAddressSetDmxTool: ToolDefinition<typeof addressSetDmxInputSchem
   }
 };
 
-export const dmxTools = [eosAddressSelectTool, eosAddressSetLevelTool, eosAddressSetDmxTool];
+export const dmxTools = withToolMetadata([eosAddressSelectTool, eosAddressSetLevelTool, eosAddressSetDmxTool], {
+  category: 'dmx',
+  synonyms: ['dmx', 'address', 'adresse', 'level', 'sortie directe'],
+  riskLevel: 'high',
+  requiresConfirmation: true,
+  preferredWorkflow: 'eos_workflow_create_look'
+});
 
 export default dmxTools;
