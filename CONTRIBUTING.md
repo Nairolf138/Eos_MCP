@@ -9,6 +9,12 @@ Merci pour votre contribution.
 - Mettre à jour la documentation impactée (`README.md`, `docs/*.md`) dans la même PR.
 - Pour ajouter un outil MCP, suivre le [guide dédié](docs/adding-a-tool.md) avant de modifier les mappings, schémas, tests et la documentation générée.
 
+## Vérifications CI locales
+
+Avant d'ouvrir une PR, lancez `npm run check:agent-ready`. Cette commande enchaîne le lint, la compilation TypeScript, le contrôle de `docs/tools.md`, la validation du manifest MCP et la suite Jest standard.
+
+Si votre changement touche le transport HTTP/OSC, le registre MCP ou un scénario utilisateur complet, lancez aussi `npm run check:agent-ready:e2e` afin d'ajouter la suite e2e dédiée à la vérification de base.
+
 ## Licence
 
 Le projet est publié sous **GNU AGPLv3** (`AGPL-3.0-only`). Toute contribution doit rester cohérente avec cette licence.
