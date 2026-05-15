@@ -1,0 +1,991 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_address_select sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"address":"1/001"}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_address_set_dmx sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"address":"1/001","value":128}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_address_set_level sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"address":"1/001","level":50}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_beam_palette_fire sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "i",
+    "value": 1,
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_channel_get_info sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"channels":[1,2],"fields":["label"]}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_channel_select sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "Chan + 1 Thru 2#",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_channel_set_dmx sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "Chan 1 Thru 2 At 45 DMX#",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_channel_set_level sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "Chan 1 Thru 2 Sneak 50#",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_channel_set_parameter sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"channels":[1,2],"parameter":"pan","value":45}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_color_palette_fire sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "i",
+    "value": 1,
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_command sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "Go To Cue 1#",
+  },
+  {
+    "type": "i",
+    "value": 7,
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_command_with_substitution sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "Chan 1 At 50#",
+  },
+  {
+    "type": "i",
+    "value": 7,
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_cue_fire sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "Cue 2 Part 1 CueList 1 Fire",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_cue_get_info sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"cuelist":1,"list":1,"cuelist_number":1,"cue":"2","cue_number":"2","number":"2","part":1,"cue_part":1,"fields":["label"]}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_cue_go sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "Cue 2 Part 1 CueList 1 Go",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_cue_label_set sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "Cue 1/2 Label "Contract label"#",
+  },
+  {
+    "type": "i",
+    "value": 7,
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_cue_list_all sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"cuelist":1,"list":1,"cuelist_number":1}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_cue_record sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "Record Cue 1/2#",
+  },
+  {
+    "type": "i",
+    "value": 7,
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_cue_select sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "Cue 2 Part 1 CueList 1",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_cue_stop_back sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "Cue 1 Stop#",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_cue_update sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "Update Cue 1/2#",
+  },
+  {
+    "type": "i",
+    "value": 7,
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_cuelist_bank_create sends the documented OSC address, payload, and target endpoint 1`] = `[]`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_cuelist_bank_page sends the documented OSC address, payload, and target endpoint 1`] = `[]`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_cuelist_get_info sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"cuelist":1,"list":1,"cuelist_number":1}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_curve_get_info sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"curve":1,"fields":["label"]}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_curve_select sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"curve":1}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_direct_select_bank_create sends the documented OSC address, payload, and target endpoint 1`] = `[]`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_direct_select_page sends the documented OSC address, payload, and target endpoint 1`] = `[]`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_direct_select_press sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "f",
+    "value": 1,
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_effect_get_info sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"effect":1,"fields":["label"]}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_effect_select sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "Effect 1",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_effect_stop sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "Effect 1 Stop",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_fader_bank_create sends the documented OSC address, payload, and target endpoint 1`] = `[]`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_fader_load sends the documented OSC address, payload, and target endpoint 1`] = `[]`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_fader_page sends the documented OSC address, payload, and target endpoint 1`] = `[]`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_fader_set_level sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "f",
+    "value": 0.5,
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_fader_unload sends the documented OSC address, payload, and target endpoint 1`] = `[]`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_focus_palette_fire sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "i",
+    "value": 1,
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_fpe_get_point_info sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"set":1,"point":1}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_fpe_get_set_count sends the documented OSC address, payload, and target endpoint 1`] = `[]`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_fpe_get_set_info sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"set":1}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_get_active_cue sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"cuelist":1,"list":1,"cuelist_number":1}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_get_active_wheels sends the documented OSC address, payload, and target endpoint 1`] = `[]`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_get_command_line sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"user":7}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_get_count sends the documented OSC address, payload, and target endpoint 1`] = `[]`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_get_list_all sends the documented OSC address, payload, and target endpoint 1`] = `[]`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_get_live_blind_state sends the documented OSC address, payload, and target endpoint 1`] = `[]`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_get_pending_cue sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"cuelist":1,"list":1,"cuelist_number":1}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_get_show_name sends the documented OSC address, payload, and target endpoint 1`] = `[]`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_get_softkey_labels sends the documented OSC address, payload, and target endpoint 1`] = `[]`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_get_user_command_line sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"user":7}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_group_get_info sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"group":1,"group_number":1}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_group_list_all sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_group_select sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "i",
+    "value": 1,
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_group_set_level sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "f",
+    "value": 50,
+  },
+  {
+    "type": "i",
+    "value": 0,
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_intensity_palette_fire sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "i",
+    "value": 1,
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_key_press sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "f",
+    "value": 1,
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_macro_fire sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "i",
+    "value": 1,
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_macro_get_info sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"macro":1}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_macro_select sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "i",
+    "value": 1,
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_magic_sheet_get_info sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"number":1}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_magic_sheet_open sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "i",
+    "value": 1,
+  },
+  {
+    "type": "i",
+    "value": 1,
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_magic_sheet_send_string sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "Magic Sheet 1",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_new_command sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "Go To Cue 1#",
+  },
+  {
+    "type": "i",
+    "value": 7,
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_palette_get_info sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"palette":1,"type":"ip","fields":["label"]}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_palette_label_set sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "IP 1 Label "Contract label"#",
+  },
+  {
+    "type": "i",
+    "value": 7,
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_palette_record sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "IP 1 Record#",
+  },
+  {
+    "type": "i",
+    "value": 7,
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_patch_get_augment3d_beam sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"channel":1,"part":1}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_patch_get_augment3d_position sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"channel":1,"part":1}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_patch_get_channel_info sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"channel":1,"part":1}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_patch_set_channel sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "Patch Chan 1 Part 1 Address 1/001 Type "Source Four LED Series 3 Lustr X8" Label "Contract label"#",
+  },
+  {
+    "type": "i",
+    "value": 7,
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_ping sends the documented OSC address, payload, and target endpoint 1`] = `[]`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_pixmap_get_info sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"pixmap":1}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_pixmap_select sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"pixmap":1}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_preset_fire sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "i",
+    "value": 1,
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_preset_get_info sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"preset":1,"fields":["label"]}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_preset_select sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "i",
+    "value": 1,
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_set_color_hs sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"hue":120,"saturation":75}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_set_color_rgb sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"red":1,"green":1,"blue":0.64}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_set_cue_receive_string sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "Show_Control Cue_Receive_String "Cue %1 -> %2"",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_set_cue_send_string sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "Show_Control Cue_Send_String "Cue %1 -> %2"",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_set_dmx sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "Address 1 At 45#",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_set_pantilt_xy sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"x":0.1,"y":0.2}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_set_xyz_position sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"x":0.1,"y":0.2,"z":0.3}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_snapshot_get_info sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"snapshot":1,"fields":["label"]}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_snapshot_recall sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"snapshot":1}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_softkey_press sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "f",
+    "value": 1,
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_submaster_bump sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "f",
+    "value": 1,
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_submaster_get_info sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"submaster":1,"submaster_number":1}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_submaster_set_level sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "f",
+    "value": 0.5,
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_switch_continuous sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"parameter":"pan","rate":0.5}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_toggle_staging_mode sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "Staging Mode",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts eos_wheel_tick sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "s",
+    "value": "{"parameter":"pan","ticks":3,"mode":"coarse"}",
+  },
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts lists every exported OSC tool with a stable contract fixture 1`] = `
+[
+  "eos_ping",
+  "eos_command",
+  "eos_new_command",
+  "eos_command_with_substitution",
+  "eos_get_command_line",
+  "eos_get_user_command_line",
+  "eos_channel_select",
+  "eos_channel_set_level",
+  "eos_channel_set_dmx",
+  "eos_set_dmx",
+  "eos_channel_set_parameter",
+  "eos_channel_get_info",
+  "eos_group_select",
+  "eos_group_set_level",
+  "eos_group_get_info",
+  "eos_group_list_all",
+  "eos_cue_fire",
+  "eos_cue_go",
+  "eos_cue_stop_back",
+  "eos_cue_select",
+  "eos_cue_get_info",
+  "eos_cue_list_all",
+  "eos_cuelist_get_info",
+  "eos_cuelist_bank_create",
+  "eos_cuelist_bank_page",
+  "eos_get_active_cue",
+  "eos_get_pending_cue",
+  "eos_intensity_palette_fire",
+  "eos_focus_palette_fire",
+  "eos_color_palette_fire",
+  "eos_beam_palette_fire",
+  "eos_palette_get_info",
+  "eos_preset_fire",
+  "eos_preset_select",
+  "eos_preset_get_info",
+  "eos_submaster_set_level",
+  "eos_submaster_bump",
+  "eos_submaster_get_info",
+  "eos_fader_bank_create",
+  "eos_fader_set_level",
+  "eos_fader_load",
+  "eos_fader_unload",
+  "eos_fader_page",
+  "eos_macro_fire",
+  "eos_macro_select",
+  "eos_macro_get_info",
+  "eos_effect_select",
+  "eos_effect_stop",
+  "eos_effect_get_info",
+  "eos_wheel_tick",
+  "eos_switch_continuous",
+  "eos_set_color_hs",
+  "eos_set_color_rgb",
+  "eos_set_pantilt_xy",
+  "eos_set_xyz_position",
+  "eos_get_active_wheels",
+  "eos_key_press",
+  "eos_softkey_press",
+  "eos_get_softkey_labels",
+  "eos_direct_select_bank_create",
+  "eos_direct_select_press",
+  "eos_direct_select_page",
+  "eos_magic_sheet_open",
+  "eos_magic_sheet_send_string",
+  "eos_magic_sheet_get_info",
+  "eos_pixmap_select",
+  "eos_pixmap_get_info",
+  "eos_curve_select",
+  "eos_curve_get_info",
+  "eos_patch_get_channel_info",
+  "eos_patch_get_augment3d_position",
+  "eos_patch_get_augment3d_beam",
+  "eos_snapshot_recall",
+  "eos_snapshot_get_info",
+  "eos_get_show_name",
+  "eos_get_live_blind_state",
+  "eos_toggle_staging_mode",
+  "eos_set_cue_send_string",
+  "eos_set_cue_receive_string",
+  "eos_get_count",
+  "eos_get_list_all",
+  "eos_fpe_get_set_count",
+  "eos_fpe_get_set_info",
+  "eos_fpe_get_point_info",
+  "eos_address_select",
+  "eos_address_set_level",
+  "eos_address_set_dmx",
+  "eos_cue_record",
+  "eos_cue_update",
+  "eos_cue_label_set",
+  "eos_palette_record",
+  "eos_palette_label_set",
+  "eos_patch_set_channel",
+]
+`;
+
+exports[`OSC tool contracts exported from src/tools/index.ts lists every tool exported from src/tools/index.ts with a stable fixture 1`] = `
+[
+  "eos_capabilities_get",
+  "ping",
+  "eos_connect",
+  "eos_configure",
+  "eos_ping",
+  "eos_reset",
+  "eos_subscribe",
+  "eos_workflow_create_look",
+  "eos_workflow_create_effect",
+  "eos_workflow_create_cue_series",
+  "eos_workflow_patch_fixture",
+  "eos_workflow_autopatch_band",
+  "eos_workflow_rehearsal_go_safe",
+  "eos_workflow_build_groups_and_palettes",
+  "eos_workflow_update_cue_look",
+  "eos_command",
+  "eos_new_command",
+  "eos_command_with_substitution",
+  "eos_get_command_line",
+  "eos_get_user_command_line",
+  "eos_channel_select",
+  "eos_channel_set_level",
+  "eos_channel_set_dmx",
+  "eos_set_dmx",
+  "eos_channel_set_parameter",
+  "eos_channel_get_info",
+  "eos_group_select",
+  "eos_group_set_level",
+  "eos_group_get_info",
+  "eos_group_list_all",
+  "eos_enable_logging",
+  "eos_get_diagnostics",
+  "eos_get_version",
+  "eos_get_setup_defaults",
+  "eos_cue_fire",
+  "eos_cue_go",
+  "eos_cue_stop_back",
+  "eos_cue_select",
+  "eos_cue_get_info",
+  "eos_cue_list_all",
+  "eos_cuelist_get_info",
+  "eos_cuelist_bank_create",
+  "eos_cuelist_bank_page",
+  "eos_get_active_cue",
+  "eos_get_pending_cue",
+  "eos_intensity_palette_fire",
+  "eos_focus_palette_fire",
+  "eos_color_palette_fire",
+  "eos_beam_palette_fire",
+  "eos_palette_get_info",
+  "eos_preset_fire",
+  "eos_preset_select",
+  "eos_preset_get_info",
+  "eos_submaster_set_level",
+  "eos_submaster_bump",
+  "eos_submaster_get_info",
+  "eos_fader_bank_create",
+  "eos_fader_set_level",
+  "eos_fader_load",
+  "eos_fader_unload",
+  "eos_fader_page",
+  "eos_macro_fire",
+  "eos_macro_select",
+  "eos_macro_get_info",
+  "eos_effect_select",
+  "eos_effect_stop",
+  "eos_effect_get_info",
+  "eos_wheel_tick",
+  "eos_switch_continuous",
+  "eos_set_color_hs",
+  "eos_set_color_rgb",
+  "eos_set_pantilt_xy",
+  "eos_set_xyz_position",
+  "eos_get_active_wheels",
+  "eos_key_press",
+  "eos_softkey_press",
+  "eos_get_softkey_labels",
+  "eos_direct_select_bank_create",
+  "eos_direct_select_press",
+  "eos_direct_select_page",
+  "eos_magic_sheet_open",
+  "eos_magic_sheet_send_string",
+  "eos_magic_sheet_get_info",
+  "eos_pixmap_select",
+  "eos_pixmap_get_info",
+  "eos_curve_select",
+  "eos_curve_get_info",
+  "eos_fixture_search",
+  "eos_patch_get_channel_info",
+  "eos_patch_get_augment3d_position",
+  "eos_patch_get_augment3d_beam",
+  "eos_snapshot_recall",
+  "eos_snapshot_get_info",
+  "eos_get_show_name",
+  "eos_get_live_blind_state",
+  "eos_toggle_staging_mode",
+  "eos_set_cue_send_string",
+  "eos_set_cue_receive_string",
+  "eos_get_count",
+  "eos_get_list_all",
+  "eos_fpe_get_set_count",
+  "eos_fpe_get_set_info",
+  "eos_fpe_get_point_info",
+  "eos_address_select",
+  "eos_address_set_level",
+  "eos_address_set_dmx",
+  "eos_set_user_id",
+  "session_set_current_user",
+  "session_get_current_user",
+  "session_set_context",
+  "session_get_context",
+  "session_clear_context",
+  "eos_cue_record",
+  "eos_cue_update",
+  "eos_cue_label_set",
+  "eos_palette_record",
+  "eos_palette_label_set",
+  "eos_patch_set_channel",
+]
+`;
