@@ -273,6 +273,88 @@ describe('ToolRegistry schema-less tools', () => {
     clearCurrentUserId();
   });
 
+  it('expose le profil minimal requis dans les annotations MCP', () => {
+    const server = createMockServer();
+    const registry = new ToolRegistry(server);
+
+    registry.register({
+      name: 'eos_new_command',
+      config: { inputSchema: { command: z.string() } },
+      handler: async () => ({ content: [{ type: 'text', text: 'ok' }] })
+    });
+
+    expect(server.registerTool).toHaveBeenCalledWith(
+      'eos_new_command',
+      expect.objectContaining({
+        annotations: expect.objectContaining({ requiredRole: 'admin' })
+      }),
+      expect.any(Function)
+    );
+    expect(registry.getRegisteredSummaries()[0]?.config.metadata).toMatchObject({
+      requiredRole: 'admin'
+    });
+  });
+
+  it('refuse par defaut un outil sensible lorsque le profil accorde est insuffisant', async () => {
+    const server = createMockServer();
+    const registry = new ToolRegistry(server);
+    const handler = jest.fn(async () => ({ content: [{ type: 'text', text: 'ok' }] }));
+
+    registry.register({
+      name: 'eos_new_command',
+      config: { inputSchema: { command: z.string(), require_confirmation: z.boolean().optional() } },
+      handler
+    });
+
+    const [, , registeredHandler] = server.registerTool.mock.calls[0];
+
+    await expect(
+      (registeredHandler as RegisteredTestHandler)(
+        { command: 'Record Cue 1', require_confirmation: true },
+        { requestId: 'role-denied' }
+      )
+    ).rejects.toThrow('profil requis admin');
+
+    expect(handler).not.toHaveBeenCalled();
+    const [payload] = mockLogger.warn.mock.calls[0] as [Record<string, unknown>];
+    expect(payload).toMatchObject({
+      event: 'tool_execution_audit',
+      status: 'error',
+      required_role: 'admin',
+      granted_role: 'read_only',
+      confirmation_state: 'confirmed'
+    });
+  });
+
+  it('autorise un outil sensible lorsque le profil accorde satisfait le profil requis', async () => {
+    const server = createMockServer();
+    const registry = new ToolRegistry(server);
+    const handler = jest.fn(async () => ({ content: [{ type: 'text', text: 'ok' }] }));
+
+    registry.register({
+      name: 'eos_new_command',
+      config: { inputSchema: { command: z.string() } },
+      handler
+    });
+
+    const [, , registeredHandler] = server.registerTool.mock.calls[0];
+
+    await expect(
+      (registeredHandler as RegisteredTestHandler)(
+        { command: 'Record Cue 1' },
+        { requestId: 'role-ok', granted_role: 'admin' }
+      )
+    ).resolves.toBeDefined();
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    const [payload] = mockLogger.info.mock.calls[0] as [Record<string, unknown>];
+    expect(payload).toMatchObject({
+      required_role: 'admin',
+      granted_role: 'admin',
+      confirmation_state: 'missing'
+    });
+  });
+
   it('journalise les champs minimaux d\'audit en succes', async () => {
     const server = createMockServer();
     const registry = new ToolRegistry(server);
@@ -323,6 +405,9 @@ describe('ToolRegistry schema-less tools', () => {
     expect(payload.durationMs).toEqual(expect.any(Number));
     expect(payload.sensitiveAction).toBe(true);
     expect(payload.safetyMode).toBe('off');
+    expect(payload.required_role).toBe('read_only');
+    expect(payload.granted_role).toBe('read_only');
+    expect(payload.confirmation_state).toBe('confirmed');
     expect(payload.targetConsole).toEqual({ address: '10.0.0.2', port: 3032 });
     expect(payload.args).toMatchObject({ apiKey: '[REDACTED]' });
     expect(payload.result).toMatchObject({ structuredContent: { token: '[REDACTED]' } });
@@ -354,6 +439,9 @@ describe('ToolRegistry schema-less tools', () => {
     expect(payload.event).toBe('tool_execution_audit');
     expect(payload.status).toBe('error');
     expect(payload.correlationId).toBe('req-err');
+    expect(payload.required_role).toBe('read_only');
+    expect(payload.granted_role).toBe('read_only');
+    expect(payload.confirmation_state).toBe('not_required');
     expect(payload.result).toMatchObject({ message: 'boom', name: 'Error' });
     expect(payload.durationMs).toEqual(expect.any(Number));
   });

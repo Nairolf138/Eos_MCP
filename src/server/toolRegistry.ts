@@ -6,6 +6,12 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { randomUUID } from 'node:crypto';
 import { createLogger } from './logger';
 import { runWithRequestContext } from './requestContext';
+import { getDefaultAllowedToolProfile } from '../config/env';
+import {
+  isToolSafetyProfileAllowed,
+  toolSafetyProfileSchema,
+  type ToolSafetyProfile
+} from '../tools/common/safety';
 import type {
   ToolDefinition,
   ToolExecutionResult,
@@ -97,6 +103,78 @@ function resolveSafetyMode(args: unknown): 'strict' | 'standard' | 'off' {
   return 'strict';
 }
 
+
+const DEFAULT_TOOL_ROLE: ToolSafetyProfile = 'read_only';
+
+const EXACT_TOOL_ROLES: Readonly<Record<string, ToolSafetyProfile>> = {
+  eos_command: 'admin',
+  eos_new_command: 'admin',
+  eos_command_with_substitution: 'admin',
+  eos_cue_record: 'admin',
+  eos_cue_update: 'admin',
+  eos_cue_label_set: 'admin',
+  eos_cue_fire: 'live_playback',
+  eos_cue_go: 'live_playback',
+  eos_cue_stop_back: 'live_playback',
+  eos_patch_set_channel: 'admin',
+  eos_macro_fire: 'admin',
+  eos_macro_select: 'admin',
+  eos_snapshot_recall: 'admin',
+  eos_connect: 'read_only',
+  eos_configure: 'read_only',
+  eos_reset: 'admin',
+  eos_showfile_import: 'admin',
+  eos_set_cue_receive_string: 'admin',
+  eos_set_cue_send_string: 'admin'
+};
+
+const ROLE_PATTERNS: Array<{ pattern: RegExp; role: ToolSafetyProfile }> = [
+  { pattern: /^eos_workflow_/, role: 'admin' },
+  { pattern: /^eos_patch_.*(?:set|write|update|record|delete)/, role: 'admin' },
+  { pattern: /^eos_.*(?:record|update|delete|label_set)/, role: 'admin' },
+  { pattern: /^eos_.*(?:fire|go|stop_back|bump|set_level|load|unload|press|tick|continuous)/, role: 'live_playback' },
+  { pattern: /^eos_(?:channel|group|address|set_|palette|preset|effect|direct_select|fader|submaster)/, role: 'programming' }
+];
+
+type ConfirmationState = 'confirmed' | 'missing' | 'not_required';
+
+function resolveToolRequiredRole(tool: ToolDefinition): ToolSafetyProfile {
+  const metadataRole = tool.metadata?.requiredRole;
+  if (metadataRole) {
+    return metadataRole;
+  }
+
+  const exactRole = EXACT_TOOL_ROLES[tool.name];
+  if (exactRole) {
+    return exactRole;
+  }
+
+  const matched = ROLE_PATTERNS.find(({ pattern }) => pattern.test(tool.name));
+  return matched?.role ?? DEFAULT_TOOL_ROLE;
+}
+
+function resolveGrantedToolRole(extra: unknown): ToolSafetyProfile {
+  const record = asObject(extra);
+  const candidates = [record.grantedRole, record.granted_role, record.allowedToolProfile, record.allowed_tool_profile];
+  const candidate = candidates.find((value) => typeof value === 'string' && value.trim().length > 0);
+  if (typeof candidate === 'string') {
+    const parsed = toolSafetyProfileSchema.safeParse(candidate.trim());
+    if (parsed.success) {
+      return parsed.data;
+    }
+  }
+
+  return getDefaultAllowedToolProfile();
+}
+
+function resolveConfirmationState(args: unknown, requiredRole: ToolSafetyProfile): ConfirmationState {
+  if (asObject(args).require_confirmation === true) {
+    return 'confirmed';
+  }
+
+  return requiredRole === 'read_only' ? 'not_required' : 'missing';
+}
+
 function isSensitiveAction(args: unknown): boolean {
   const record = asObject(args);
   if (record.require_confirmation === true) {
@@ -148,11 +226,12 @@ interface RegisteredToolSummary {
 
 
 function buildToolConfigForRegistration(tool: ToolDefinition): ToolDefinition['config'] {
-  if (!tool.metadata) {
-    return tool.config;
-  }
-
-  const { annotations: metadataAnnotations, ...metadataFields } = tool.metadata;
+  const requiredRole = resolveToolRequiredRole(tool);
+  const metadata = {
+    ...(tool.metadata ?? {}),
+    requiredRole
+  };
+  const { annotations: metadataAnnotations, ...metadataFields } = metadata;
   return {
     ...tool.config,
     annotations: {
@@ -187,7 +266,15 @@ class ToolRegistry {
     }) as never;
 
     const config = buildToolConfigForRegistration(tool);
-    const registeredTool = { ...tool, config };
+    const requiredRole = resolveToolRequiredRole(tool);
+    const registeredTool = {
+      ...tool,
+      config,
+      metadata: {
+        ...(tool.metadata ?? {}),
+        requiredRole
+      }
+    };
 
     this.server.registerTool(tool.name, config as never, handlerForServer);
     this.registeredTools.set(tool.name, registeredTool);
@@ -273,7 +360,7 @@ class ToolRegistry {
     if (middlewares.length === 0) {
       return async (first: unknown, second?: unknown) => {
         const { args, extra } = normalizeInputs(first, second);
-        return this.executeWithAudit(tool.name, args, extra, () => tool.handler(args, extra));
+        return this.executeWithAudit(tool, args, extra, () => tool.handler(args, extra));
       };
     }
 
@@ -284,22 +371,26 @@ class ToolRegistry {
       const executeHandler = (): Promise<ToolExecutionResult> =>
         Promise.resolve(tool.handler(args, extra));
 
-      return this.executeWithAudit(tool.name, args, extra, () => this.compose(middlewares, executeHandler)(context));
+      return this.executeWithAudit(tool, args, extra, () => this.compose(middlewares, executeHandler)(context));
     };
   }
 
   private async executeWithAudit(
-    toolName: string,
+    tool: ToolDefinition,
     args: unknown,
     extra: unknown,
     execute: () => Promise<ToolExecutionResult>
   ): Promise<ToolExecutionResult> {
+    const toolName = tool.name;
     const correlationId = resolveCorrelationId(extra);
     const sessionId = resolveSessionId(extra);
     const userId = resolveUserId(args, extra);
     const startedAt = Date.now();
     const safetyMode = resolveSafetyMode(args);
     const sensitiveAction = isSensitiveAction(args);
+    const requiredRole = resolveToolRequiredRole(tool);
+    const grantedRole = resolveGrantedToolRole(extra);
+    const confirmationState = resolveConfirmationState(args, requiredRole);
     const argsSanitized = sanitizeValue(args);
     const targetConsole = {
       address: asObject(args).targetAddress,
@@ -309,6 +400,12 @@ class ToolRegistry {
     const compatibilityStatus = evaluateToolCompatibility(toolName, compatibilityContext);
 
     try {
+      if (!isToolSafetyProfileAllowed(grantedRole, requiredRole)) {
+        throw new Error(
+          `Outil ${toolName} refuse: profil requis ${requiredRole}, profil accorde ${grantedRole}.`
+        );
+      }
+
       if (this.shouldEnforceCompatibilityGate(toolName) && !compatibilityStatus.compatible) {
         throw new Error(
           `Outil ${toolName} incompatible avec le contexte EOS courant: ${compatibilityStatus.reasons.join(' ')}`
@@ -335,6 +432,9 @@ class ToolRegistry {
         result: sanitizeValue(result),
         sensitiveAction,
         safetyMode,
+        required_role: requiredRole,
+        granted_role: grantedRole,
+        confirmation_state: confirmationState,
         compatibility: compatibilityStatus,
         durationMs: Date.now() - startedAt,
         status: 'ok'
@@ -353,6 +453,9 @@ class ToolRegistry {
         result: sanitizeValue(error instanceof Error ? { message: error.message, name: error.name } : error),
         sensitiveAction,
         safetyMode,
+        required_role: requiredRole,
+        granted_role: grantedRole,
+        confirmation_state: confirmationState,
         compatibility: compatibilityStatus,
         durationMs: Date.now() - startedAt,
         status: 'error'
