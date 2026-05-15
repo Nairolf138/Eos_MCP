@@ -21,6 +21,16 @@ Le serveur MCP expose sa version directement depuis le `package.json` grâce à 
    - vérifier les impacts de conformité AGPL-3.0-only / canal commercial.
 7. Commiter les autres changements nécessaires (`package.json`, `package-lock.json`, documentation, etc.) et publier la nouvelle version si nécessaire.
 
+## Changements de compatibilité EOS
+
+Les changements qui touchent la compatibilité EOS doivent être évalués avant `npm version` afin que le niveau SemVer reflète l'impact réel pour les clients MCP. Utiliser les règles suivantes :
+
+- **Patch** : fixture de conformance, correction de parsing ou documentation qui ne modifie pas le contrat public d'un outil.
+- **Minor** : support d'une nouvelle version EOS, d'un nouveau chemin OSC/ETCOSC, d'un nouveau champ optionnel ou d'un workflow compatible avec les clients existants.
+- **Major** : retrait d'une version EOS supportée, changement non rétrocompatible de sortie structurée, renommage/suppression d'outil ou durcissement qui bloque une commande auparavant valide.
+
+Chaque release concernée doit ajouter une sous-section `Impacts EOS` dans [`CHANGELOG.md`](../CHANGELOG.md) avec la version EOS, la plateforme testée, les familles MCP impactées, les fixtures/tests ajoutés et le niveau d'impact utilisateur. La procédure complète de maintenance est décrite dans [`docs/eos-maintenance-process.md`](./eos-maintenance-process.md).
+
 ### Revue trimestrielle licence
 
 En plus du checkpoint release, une revue est effectuée **chaque trimestre** sur :
