@@ -23,7 +23,7 @@ import {
   isAppError
 } from '../../server/errors';
 import { getResourceCache } from '../cache/index';
-import { RequestQueue, type RequestQueueRunOptions } from './requestQueue';
+import { RequestQueue, type RequestQueueDiagnostics, type RequestQueueRunOptions } from './requestQueue';
 import { getRequestContext } from '../../server/requestContext';
 import {
   extractJsonPayloadFromMessage,
@@ -240,6 +240,15 @@ interface InternalOscJsonRequestOptions {
 interface SendQueueOptions extends RequestQueueRunOptions {
   operation?: string;
 }
+
+export type OscQueueFamily = 'command-line' | 'session-control' | 'show-control';
+
+export interface OscQueuePolicy {
+  targetKey: string;
+  familyKey?: OscQueueFamily;
+}
+
+export type OscQueueDiagnostics = RequestQueueDiagnostics;
 
 export class OscClient {
   private readonly requestQueue: RequestQueue;
@@ -717,7 +726,14 @@ export class OscClient {
     if (typeof this.gateway.getDiagnostics !== 'function') {
       throw new Error('Le service OSC ne fournit pas de diagnostics.');
     }
-    return this.gateway.getDiagnostics();
+    return {
+      ...this.gateway.getDiagnostics(),
+      queue: this.getQueueDiagnostics()
+    };
+  }
+
+  public getQueueDiagnostics(): OscQueueDiagnostics {
+    return this.requestQueue.getDiagnostics();
   }
 
   public onTransportStatus(listener: (status: TransportStatus) => void): () => void {
@@ -838,15 +854,50 @@ export class OscClient {
       this.gateway.setToolPreference?.(gatewayOptions.toolId, gatewayOptions.transportPreference);
     }
 
+    const queuePolicy = this.buildQueuePolicy(message.address, gatewayOptions);
+
     await this.requestQueue.run(
       operation,
       () => this.gateway.send(message, gatewayOptions),
       {
         timeoutMs,
         timeoutMessage: queueOptions.timeoutMessage,
-        details
+        details,
+        targetKey: queuePolicy.targetKey,
+        familyKey: queueOptions.familyKey ?? queuePolicy.familyKey
       }
     );
+  }
+
+  private buildQueuePolicy(address: string, options: OscGatewaySendOptions): OscQueuePolicy {
+    return {
+      targetKey: this.buildQueueTargetKey(options),
+      ...(this.getSensitiveFamily(address) ? { familyKey: this.getSensitiveFamily(address) } : {})
+    };
+  }
+
+  private buildQueueTargetKey(options: OscGatewaySendOptions): string {
+    return [
+      options.targetAddress ?? 'default-address',
+      typeof options.targetPort === 'number' ? String(options.targetPort) : 'default-port',
+      options.transportPreference ?? 'auto'
+    ].join('|');
+  }
+
+  private getSensitiveFamily(address: string): OscQueueFamily | undefined {
+    if (address === COMMAND_REQUEST || address === NEW_COMMAND_REQUEST || address === COMMAND_LINE_GET_REQUEST) {
+      return 'command-line';
+    }
+
+    if (address === HANDSHAKE_REQUEST || address === PROTOCOL_SELECT_REQUEST || address === SUBSCRIBE_REQUEST) {
+      return 'session-control';
+    }
+
+    if (address === RESET_REQUEST) {
+      return 'show-control';
+    }
+
+    return undefined;
   }
 
   private async dispatchCommand(

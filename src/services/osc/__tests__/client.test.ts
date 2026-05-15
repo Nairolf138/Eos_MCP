@@ -909,6 +909,82 @@ describe('OscClient', () => {
     expect(service.maxActiveSends).toBeLessThanOrEqual(2);
   });
 
+  it('segmente la file par cible et preference de transport', async () => {
+    const service = new FakeOscService();
+    service.delayMs = 20;
+    const client = new OscClient(service, { requestConcurrency: 1, queueTimeoutMs: 100 });
+
+    const first = client.sendMessage('/test/target-a-1', [], {
+      targetAddress: '10.0.0.1',
+      targetPort: 3032,
+      transportPreference: 'reliability'
+    });
+    const second = client.sendMessage('/test/target-a-2', [], {
+      targetAddress: '10.0.0.1',
+      targetPort: 3032,
+      transportPreference: 'reliability'
+    });
+    const third = client.sendMessage('/test/target-b', [], {
+      targetAddress: '10.0.0.2',
+      targetPort: 3033,
+      transportPreference: 'speed'
+    });
+
+    await waitFor(() => service.sentMessages.length >= 2);
+
+    expect(service.sentMessages.map((message) => message.address)).toEqual([
+      '/test/target-a-1',
+      '/test/target-b'
+    ]);
+    expect(service.sendOptions[0]).toMatchObject({
+      targetAddress: '10.0.0.1',
+      targetPort: 3032,
+      transportPreference: 'reliability'
+    });
+    expect(service.sendOptions[1]).toMatchObject({
+      targetAddress: '10.0.0.2',
+      targetPort: 3033,
+      transportPreference: 'speed'
+    });
+    expect(client.getQueueDiagnostics()).toMatchObject({
+      pending: 1,
+      activeCount: 2,
+      concurrency: 1
+    });
+
+    await Promise.all([first, second, third]);
+    expect(service.sentMessages.map((message) => message.address)).toEqual([
+      '/test/target-a-1',
+      '/test/target-b',
+      '/test/target-a-2'
+    ]);
+  });
+
+  it('serialise les commandes sensibles par cible meme avec une concurrence superieure a 1', async () => {
+    const service = new FakeOscService();
+    service.delayMs = 20;
+    const client = new OscClient(service, { requestConcurrency: 2, queueTimeoutMs: 100 });
+
+    const first = client.sendCommand('Chan 1');
+    const second = client.sendNewCommand('Chan 2');
+    const read = client.sendMessage('/eos/get/cue');
+
+    await waitFor(() => service.sentMessages.length >= 2);
+
+    expect(service.sentMessages.map((message) => message.address)).toEqual([
+      '/eos/cmd',
+      '/eos/get/cue'
+    ]);
+    expect(client.getQueueDiagnostics().targets[0]?.activeFamilies).toContain('command-line');
+
+    await Promise.all([first, second, read]);
+    expect(service.sentMessages.map((message) => message.address)).toEqual([
+      '/eos/cmd',
+      '/eos/get/cue',
+      '/eos/newcmd'
+    ]);
+  });
+
   it('declenche un timeout si la console ne repond pas avant la limite', async () => {
     const service = new FakeOscService();
     service.delayMs = 50;
