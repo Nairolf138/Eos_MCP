@@ -14,9 +14,20 @@ import { eosPingTool } from '../../../tools/connection/eos_ping';
 import { eosGroupGetInfoTool } from '../../../tools/groups/index';
 import { eosGetCommandLineTool } from '../../../tools/commands/command_tools';
 import { eosGetVersionTool } from '../../../tools/diagnostics/index';
+import { eosPatchGetChannelInfoTool } from '../../../tools/patch/index';
+import { eosGetCountTool, eosGetListAllTool } from '../../../tools/queries/index';
+import { eosGetShowNameTool } from '../../../tools/showControl/index';
 import { getStructuredContent, runTool } from '../../../tools/__tests__/helpers/runTool';
 
-type ToolName = 'eos_ping' | 'eos_group_get_info' | 'eos_get_command_line' | 'eos_get_version';
+type ToolName =
+  | 'eos_ping'
+  | 'eos_group_get_info'
+  | 'eos_get_command_line'
+  | 'eos_get_version'
+  | 'eos_get_count'
+  | 'eos_get_list_all'
+  | 'eos_patch_get_channel_info'
+  | 'eos_get_show_name';
 
 interface FrameFixture {
   source: string;
@@ -38,7 +49,11 @@ const toolByName = {
   eos_ping: eosPingTool,
   eos_group_get_info: eosGroupGetInfoTool,
   eos_get_command_line: eosGetCommandLineTool,
-  eos_get_version: eosGetVersionTool
+  eos_get_version: eosGetVersionTool,
+  eos_get_count: eosGetCountTool,
+  eos_get_list_all: eosGetListAllTool,
+  eos_patch_get_channel_info: eosPatchGetChannelInfoTool,
+  eos_get_show_name: eosGetShowNameTool
 } as const;
 
 describe('EOS OSC conformance integration (captured frames)', () => {
