@@ -7,7 +7,7 @@ import eosConfigureTool from './connection/eos_configure';
 import eosPingTool from './connection/eos_ping';
 import eosResetTool from './connection/eos_reset';
 import eosSubscribeTool from './connection/eos_subscribe';
-import commandTools from './commands/command_tools';
+import commandTools from './commands/index';
 import channelTools from './channels/index';
 import groupTools from './groups/index';
 import pingTool from './ping';

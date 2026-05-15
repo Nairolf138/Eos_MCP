@@ -306,10 +306,26 @@ Les payloads ci-dessous utilisent le format MCP `tools/call` complet. Les exempl
 | `eos_preset_fire` | Declenchement de preset | [#eos-preset-fire](#eos-preset-fire) |
 | `eos_preset_get_info` | Informations de preset | [#eos-preset-get-info](#eos-preset-get-info) |
 
+## Métadonnées de découverte
+
+Les champs `category`, `synonyms`, `riskLevel`, `requiresConfirmation` et `preferredWorkflow` sont publiés dans `config.annotations` pour les clients MCP et repris ci-dessous pour guider le routage LLM.
+
+Catégories documentées : `commands`, `cues`, `dmx`, `keys`, `macros`, `palettes`, `patch`, `presets`, `showControl`.
+
 <a id="eos-address-select"></a>
 ## Selection d'adresse DMX (`eos_address_select`)
 
 **Description :** Selectionne une adresse DMX specifique sur la console.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `dmx` |
+| Synonymes | `dmx`, `address`, `adresse`, `level`, `sortie directe` |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_create_look` |
 
 **Arguments :**
 
@@ -340,6 +356,16 @@ oscsend 127.0.0.1 8001 /eos/dmx/address/select s:'{"address_number":"exemple"}'
 ## Reglage DMX brut (`eos_address_set_dmx`)
 
 **Description :** Fixe une valeur DMX brute (0-255) pour une adresse DMX.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `dmx` |
+| Synonymes | `dmx`, `address`, `adresse`, `level`, `sortie directe` |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_create_look` |
 
 **Arguments :**
 
@@ -372,6 +398,16 @@ oscsend 127.0.0.1 8001 /eos/dmx/address/dmx s:'{"address_number":"exemple","dmx_
 
 **Description :** Ajuste le niveau (0-100) pour une adresse DMX donnee.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `dmx` |
+| Synonymes | `dmx`, `address`, `adresse`, `level`, `sortie directe` |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_create_look` |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -402,6 +438,16 @@ oscsend 127.0.0.1 8001 /eos/dmx/address/level s:'{"address_number":"exemple","le
 ## Declenchement de palette de beam (`eos_beam_palette_fire`)
 
 **Description :** Declenche une palette de beam sur la console Eos.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `palettes` |
+| Synonymes | `palette`, `ip`, `fp`, `cp`, `bp`, `look building` |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_create_look`, `eos_workflow_create_cue_series` |
 
 **Arguments :**
 
@@ -615,6 +661,16 @@ oscsend 127.0.0.1 8001 /eos/chan/param s:'{"channels":1,"parameter":"exemple","v
 
 **Description :** Declenche une palette de couleur sur la console Eos.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `palettes` |
+| Synonymes | `palette`, `ip`, `fp`, `cp`, `bp`, `look building` |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_create_look`, `eos_workflow_create_cue_series` |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -647,6 +703,16 @@ oscsend 127.0.0.1 8001 /eos/cp/fire s:'{"palette_number":1}'
 ## Commande EOS (`eos_command`)
 
 **Description :** Envoie du texte sur la ligne de commande existante de la console. A n'utiliser que lorsqu'aucun outil dedie n'existe. Pour programmer des cues, preferer eos_new_command avec clearLine=true et terminateWithEnter=true.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `commands` |
+| Synonymes | `command line`, `cmd`, `newcmd`, `texte eos`, `ligne de commande` |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_create_look`, `eos_workflow_update_cue_look` |
 
 **Arguments :**
 
@@ -684,6 +750,16 @@ oscsend 127.0.0.1 8001 /eos/cmd s:'{"command":"exemple"}'
 ## Commande avec substitution (`eos_command_with_substitution`)
 
 **Description :** Applique des substitutions %1, %2, ... puis envoie la commande.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `commands` |
+| Synonymes | `command line`, `cmd`, `newcmd`, `texte eos`, `ligne de commande` |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_create_look`, `eos_workflow_update_cue_look` |
 
 **Arguments :**
 
@@ -782,6 +858,16 @@ _Pas de mapping OSC documenté._
 
 **Description :** Declenche immediatement une cue specifique dans une liste donnee.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `cues` |
+| Synonymes | `cue`, `cuelist`, `playback`, `go`, `record cue` |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_create_cue_series`, `eos_workflow_update_cue_look` |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -816,6 +902,16 @@ oscsend 127.0.0.1 8001 /eos/cmd s:'{"cuelist_number":1,"cue_number":"exemple"}'
 ## Informations de cue (`eos_cue_get_info`)
 
 **Description :** Recupere les informations detaillees d'une cue (timings, flags, notes...).
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `cues` |
+| Synonymes | `cue`, `cuelist`, `playback`, `go`, `record cue` |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_create_cue_series`, `eos_workflow_update_cue_look` |
 
 **Arguments :**
 
@@ -852,6 +948,16 @@ oscsend 127.0.0.1 8001 /eos/get/cue s:'{"cuelist_number":1,"cue_number":"exemple
 ## GO sur liste de cues (`eos_cue_go`)
 
 **Description :** Declenche un GO sur la liste de cues cible, optionnellement vers une cue precise.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `cues` |
+| Synonymes | `cue`, `cuelist`, `playback`, `go`, `record cue` |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_create_cue_series`, `eos_workflow_update_cue_look` |
 
 **Arguments :**
 
@@ -921,6 +1027,16 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Cue 1 Label "exemple"#'
 
 **Description :** Recupere toutes les cues d'une liste avec leurs labels.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `cues` |
+| Synonymes | `cue`, `cuelist`, `playback`, `go`, `record cue` |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_create_cue_series`, `eos_workflow_update_cue_look` |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -986,6 +1102,16 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Record Cue {cuelist_number}/1#'
 
 **Description :** Selectionne une cue dans la liste sans la declencher.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `cues` |
+| Synonymes | `cue`, `cuelist`, `playback`, `go`, `record cue` |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_create_cue_series`, `eos_workflow_update_cue_look` |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -1020,6 +1146,16 @@ oscsend 127.0.0.1 8001 /eos/cmd s:'{"cuelist_number":1,"cue_number":"exemple"}'
 ## Stop ou Back sur liste de cues (`eos_cue_stop_back`)
 
 **Description :** Stoppe la lecture de la liste ou effectue un back selon l'option fournie.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `cues` |
+| Synonymes | `cue`, `cuelist`, `playback`, `go`, `record cue` |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_create_cue_series`, `eos_workflow_update_cue_look` |
 
 **Arguments :**
 
@@ -1087,6 +1223,16 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Update Cue 1#'
 
 **Description :** Configure un bank OSC pour surveiller une liste de cues.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `cues` |
+| Synonymes | `cue`, `cuelist`, `playback`, `go`, `record cue` |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_create_cue_series`, `eos_workflow_update_cue_look` |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -1124,6 +1270,16 @@ oscsend 127.0.0.1 8001 /eos/cuelist/1/config/1/1/1
 
 **Description :** Change de page dans un bank de cues en ajoutant le delta specifie.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `cues` |
+| Synonymes | `cue`, `cuelist`, `playback`, `go`, `record cue` |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_create_cue_series`, `eos_workflow_update_cue_look` |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -1157,6 +1313,16 @@ oscsend 127.0.0.1 8001 /eos/cuelist/1/page/1
 ## Informations de cuelist (`eos_cuelist_get_info`)
 
 **Description :** Recupere les attributs d'une liste de cues (modes, flags...).
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `cues` |
+| Synonymes | `cue`, `cuelist`, `playback`, `go`, `record cue` |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_create_cue_series`, `eos_workflow_update_cue_look` |
 
 **Arguments :**
 
@@ -1655,6 +1821,16 @@ _Pas de mapping OSC documenté._
 
 **Description :** Declenche une palette de focus sur la console Eos.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `palettes` |
+| Synonymes | `palette`, `ip`, `fp`, `cp`, `bp`, `look building` |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_create_look`, `eos_workflow_create_cue_series` |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -1781,6 +1957,16 @@ oscsend 127.0.0.1 8001 /eos/get/fpe/set s:'{"set_number":1}'
 
 **Description :** Recupere la cue actuellement en lecture sur la liste specifiee (ou principale).
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `cues` |
+| Synonymes | `cue`, `cuelist`, `playback`, `go`, `record cue` |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_create_cue_series`, `eos_workflow_update_cue_look` |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -1843,6 +2029,16 @@ oscsend 127.0.0.1 8001 /eos/get/active/wheels s:'{"timeoutMs":1}'
 ## Lecture de la ligne de commande EOS (`eos_get_command_line`)
 
 **Description :** Recupere le contenu courant de la ligne de commande via OSC Get.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `commands` |
+| Synonymes | `command line`, `cmd`, `newcmd`, `texte eos`, `ligne de commande` |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_create_look`, `eos_workflow_update_cue_look` |
 
 **Arguments :**
 
@@ -1957,6 +2153,16 @@ _Pas de mapping OSC documenté._
 
 **Description :** Indique si la console est en mode Live ou Blind.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `showControl` |
+| Synonymes | `show control`, `show name`, `live blind`, `cue string`, `staging mode` |
+| Niveau de risque | `critical` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_rehearsal_go` |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -1986,6 +2192,16 @@ oscsend 127.0.0.1 8001 /eos/get/live/blind s:'{"timeoutMs":1}'
 ## Cue en attente (`eos_get_pending_cue`)
 
 **Description :** Recupere la prochaine cue en attente sur la liste specifiee (ou principale).
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `cues` |
+| Synonymes | `cue`, `cuelist`, `playback`, `go`, `record cue` |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_create_cue_series`, `eos_workflow_update_cue_look` |
 
 **Arguments :**
 
@@ -2047,6 +2263,16 @@ _Pas de mapping OSC documenté._
 
 **Description :** Recupere le nom du show actuellement charge sur la console.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `showControl` |
+| Synonymes | `show control`, `show name`, `live blind`, `cue string`, `staging mode` |
+| Niveau de risque | `critical` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_rehearsal_go` |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -2077,6 +2303,16 @@ oscsend 127.0.0.1 8001 /eos/get/show/name s:'{"timeoutMs":1}'
 
 **Description :** Recupere les libelles affiches des softkeys 1-12.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `keys` |
+| Synonymes | `key`, `button`, `softkey`, `touche`, `facepanel` |
+| Niveau de risque | `medium` |
+| Confirmation requise | Non |
+| Workflow préféré | `eos_workflow_rehearsal_go` |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -2106,6 +2342,16 @@ oscsend 127.0.0.1 8001 /eos/get/softkey_labels s:'{"timeoutMs":1}'
 ## Lecture de la ligne de commande utilisateur (`eos_get_user_command_line`)
 
 **Description :** Recupere la ligne de commande pour un utilisateur specifique.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `commands` |
+| Synonymes | `command line`, `cmd`, `newcmd`, `texte eos`, `ligne de commande` |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_create_look`, `eos_workflow_update_cue_look` |
 
 **Arguments :**
 
@@ -2293,6 +2539,16 @@ oscsend 127.0.0.1 8001 /eos/group/{group}/level s:'{"group_number":1,"level":1}'
 
 **Description :** Declenche une palette d'intensite sur la console Eos.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `palettes` |
+| Synonymes | `palette`, `ip`, `fp`, `cp`, `bp`, `look building` |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_create_look`, `eos_workflow_create_cue_series` |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -2326,6 +2582,16 @@ oscsend 127.0.0.1 8001 /eos/ip/fire s:'{"palette_number":1}'
 
 **Description :** Simule l'appui ou le relachement d'une touche du clavier EOS.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `keys` |
+| Synonymes | `key`, `button`, `softkey`, `touche`, `facepanel` |
+| Niveau de risque | `medium` |
+| Confirmation requise | Non |
+| Workflow préféré | `eos_workflow_rehearsal_go` |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -2357,6 +2623,16 @@ oscsend 127.0.0.1 8001 /eos/key/{key} s:'{"key_name":"exemple"}'
 
 **Description :** Declenche une macro en envoyant son numero a la console.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `macros` |
+| Synonymes | `macro`, `macro fire`, `automation`, `sequence` |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_rehearsal_go` |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -2386,6 +2662,16 @@ oscsend 127.0.0.1 8001 /eos/macro/fire s:'{"macro_number":1}'
 ## Informations de macro (`eos_macro_get_info`)
 
 **Description :** Recupere le libelle et le script d'une macro.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `macros` |
+| Synonymes | `macro`, `macro fire`, `automation`, `sequence` |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_rehearsal_go` |
 
 **Arguments :**
 
@@ -2417,6 +2703,16 @@ oscsend 127.0.0.1 8001 /eos/get/macro s:'{"macro_number":1}'
 ## Selection de macro (`eos_macro_select`)
 
 **Description :** Selectionne une macro sans l'executer.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `macros` |
+| Synonymes | `macro`, `macro fire`, `automation`, `sequence` |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_rehearsal_go` |
 
 **Arguments :**
 
@@ -2540,6 +2836,16 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'{"osc_command":"exemple"}'
 
 **Description :** Efface optionnellement la ligne de commande puis envoie le texte fourni. A n'utiliser que lorsqu'aucun outil dedie n'existe. Outil recommande pour appliquer les bonnes pratiques de programmation de cues du manuel EOS.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `commands` |
+| Synonymes | `command line`, `cmd`, `newcmd`, `texte eos`, `ligne de commande` |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_create_look`, `eos_workflow_update_cue_look` |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -2578,6 +2884,16 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'{"command":"exemple"}'
 ## Informations de palette (`eos_palette_get_info`)
 
 **Description :** Recupere les informations detaillees pour une palette donnee.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `palettes` |
+| Synonymes | `palette`, `ip`, `fp`, `cp`, `bp`, `look building` |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_create_look`, `eos_workflow_create_cue_series` |
 
 **Arguments :**
 
@@ -2680,6 +2996,16 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'IP 1 Record#'
 
 **Description :** Recupere les informations de faisceau Augment3d pour une partie de canal.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `patch` |
+| Synonymes | `patch`, `fixture`, `channel setup`, `augment3d`, `adressage` |
+| Niveau de risque | `critical` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_autopatch_band` |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -2715,6 +3041,16 @@ oscsend 127.0.0.1 8001 /eos/get/patch/chan_beam s:'{"channel_number":1,"part_num
 
 **Description :** Recupere la position Augment3d d'une partie de canal.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `patch` |
+| Synonymes | `patch`, `fixture`, `channel setup`, `augment3d`, `adressage` |
+| Niveau de risque | `critical` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_autopatch_band` |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -2749,6 +3085,16 @@ oscsend 127.0.0.1 8001 /eos/get/patch/chan_pos s:'{"channel_number":1,"part_numb
 ## Informations de patch (`eos_patch_get_channel_info`)
 
 **Description :** Recupere les informations de patch pour un canal donne.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `patch` |
+| Synonymes | `patch`, `fixture`, `channel setup`, `augment3d`, `adressage` |
+| Niveau de risque | `critical` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_autopatch_band` |
 
 **Arguments :**
 
@@ -2913,6 +3259,16 @@ oscsend 127.0.0.1 8001 /eos/pixmap s:'{"pixmap_number":1}'
 
 **Description :** Declenche un preset sur la console Eos.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `presets` |
+| Synonymes | `preset`, `look`, `preset fire`, `preset select` |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_create_look`, `eos_workflow_create_cue_series` |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -2942,6 +3298,16 @@ oscsend 127.0.0.1 8001 /eos/preset/fire s:'{"preset_number":1}'
 ## Informations de preset (`eos_preset_get_info`)
 
 **Description :** Recupere les informations detaillees pour un preset donne.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `presets` |
+| Synonymes | `preset`, `look`, `preset fire`, `preset select` |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_create_look`, `eos_workflow_create_cue_series` |
 
 **Arguments :**
 
@@ -2974,6 +3340,16 @@ oscsend 127.0.0.1 8001 /eos/get/preset s:'{"preset_number":1}'
 ## Selection de preset (`eos_preset_select`)
 
 **Description :** Selectionne un preset sur la console Eos.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `presets` |
+| Synonymes | `preset`, `look`, `preset fire`, `preset select` |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_create_look`, `eos_workflow_create_cue_series` |
 
 **Arguments :**
 
@@ -3097,6 +3473,16 @@ oscsend 127.0.0.1 8001 /eos/param/color/rgb s:'{"red":1,"green":1,"blue":1}'
 
 **Description :** Configure le format de reception OSC des cues (placeholders %1-%2).
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `showControl` |
+| Synonymes | `show control`, `show name`, `live blind`, `cue string`, `staging mode` |
+| Niveau de risque | `critical` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_rehearsal_go` |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -3126,6 +3512,16 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'{"format_string":"exemple"}'
 ## Format d'envoi des cues (`eos_set_cue_send_string`)
 
 **Description :** Configure le format d'envoi OSC des cues (placeholders %1-%5).
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `showControl` |
+| Synonymes | `show control`, `show name`, `live blind`, `cue string`, `staging mode` |
+| Niveau de risque | `critical` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_rehearsal_go` |
 
 **Arguments :**
 
@@ -3340,6 +3736,16 @@ oscsend 127.0.0.1 8001 /eos/snap s:'{"snapshot_number":1}'
 
 **Description :** Simule l'appui ou le relachement d'une softkey (1-12).
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `keys` |
+| Synonymes | `key`, `button`, `softkey`, `touche`, `facepanel` |
+| Niveau de risque | `medium` |
+| Confirmation requise | Non |
+| Workflow préféré | `eos_workflow_rehearsal_go` |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -3525,6 +3931,16 @@ oscsend 127.0.0.1 8001 /eos/param/wheel/rate s:'{"parameter_name":"exemple","rat
 ## Toggle Staging Mode (`eos_toggle_staging_mode`)
 
 **Description :** Active ou desactive le mode Staging de la console.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `showControl` |
+| Synonymes | `show control`, `show name`, `live blind`, `cue string`, `staging mode` |
+| Niveau de risque | `critical` |
+| Confirmation requise | Oui |
+| Workflow préféré | `eos_workflow_rehearsal_go` |
 
 **Arguments :**
 

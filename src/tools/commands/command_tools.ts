@@ -15,7 +15,7 @@ import {
   safetyOptionsSchema,
   type SafetyOptions
 } from '../common/safety';
-import { buildToolResult, type ToolDefinition, type ToolExecutionResult } from '../types';
+import { buildToolResult, withToolMetadata, type ToolDefinition, type ToolExecutionResult } from '../types';
 import { buildCueCommandPayload, createCueIdentifierFromOptions, formatCueDescription } from '../cues/common';
 import { mapCueList } from '../cues/mappers';
 import type { CueIdentifier } from '../cues/types';
@@ -807,12 +807,18 @@ export const eosGetUserCommandLineTool: ToolDefinition<typeof userCommandLineInp
   }
 };
 
-export const commandTools = [
+export const commandTools = withToolMetadata([
   eosCommandTool,
   eosNewCommandTool,
   eosCommandWithSubstitutionTool,
   eosGetCommandLineTool,
   eosGetUserCommandLineTool
-] as ToolDefinition[];
+], {
+  category: 'commands',
+  synonyms: ['command line', 'cmd', 'newcmd', 'texte eos', 'ligne de commande'],
+  riskLevel: 'high',
+  requiresConfirmation: true,
+  preferredWorkflow: ['eos_workflow_create_look', 'eos_workflow_update_cue_look']
+}) as ToolDefinition[];
 
 export default commandTools;

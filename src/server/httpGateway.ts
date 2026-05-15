@@ -384,6 +384,7 @@ class HttpGateway {
         title: schema.title ?? schema.name,
         description: schema.description,
         uri: schema.uri,
+        metadata: schema.metadata,
         schemaUrl: `/schemas/tools/${schema.name}.json`
       }));
 

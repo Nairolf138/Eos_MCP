@@ -13,7 +13,7 @@ import {
 import { getOscClient } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
 import { oscMappings } from '../../services/osc/mappings';
-import type { ToolDefinition, ToolExecutionResult } from '../types';
+import { withToolMetadata, type ToolDefinition, type ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
@@ -654,7 +654,13 @@ export const eosPresetGetInfoTool: ToolDefinition<typeof presetGetInfoInputSchem
   }
 };
 
-export const presetTools = [eosPresetFireTool, eosPresetSelectTool, eosPresetGetInfoTool];
+export const presetTools = withToolMetadata([eosPresetFireTool, eosPresetSelectTool, eosPresetGetInfoTool], {
+  category: 'presets',
+  synonyms: ['preset', 'look', 'preset fire', 'preset select'],
+  riskLevel: 'high',
+  requiresConfirmation: true,
+  preferredWorkflow: ['eos_workflow_create_look', 'eos_workflow_create_cue_series']
+});
 
 export default presetTools;
 

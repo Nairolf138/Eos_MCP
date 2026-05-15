@@ -6,7 +6,7 @@ import { z, type ZodRawShape } from 'zod';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
 import { oscMappings } from '../../services/osc/mappings';
-import type { ToolDefinition, ToolExecutionResult } from '../types';
+import { withToolMetadata, type ToolDefinition, type ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
@@ -318,11 +318,17 @@ export const eosGetSoftkeyLabelsTool: ToolDefinition<typeof softkeyLabelsInputSc
   }
 };
 
-export const keyTools = [
+export const keyTools = withToolMetadata([
   eosKeyPressTool,
   eosSoftkeyPressTool,
   eosGetSoftkeyLabelsTool
-];
+], {
+  category: 'keys',
+  synonyms: ['key', 'button', 'softkey', 'touche', 'facepanel'],
+  riskLevel: 'medium',
+  requiresConfirmation: false,
+  preferredWorkflow: 'eos_workflow_rehearsal_go'
+});
 
 export const eosKeyTools = keyTools;
 

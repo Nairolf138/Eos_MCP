@@ -120,6 +120,17 @@ export type ToolMiddleware = (
   next: () => Promise<ToolExecutionResult>
 ) => Promise<ToolExecutionResult>;
 
+export type ToolRiskLevel = 'low' | 'medium' | 'high' | 'critical';
+
+export interface ToolMetadata {
+  annotations?: Record<string, unknown>;
+  category?: string;
+  synonyms?: string[];
+  riskLevel?: ToolRiskLevel;
+  requiresConfirmation?: boolean;
+  preferredWorkflow?: string | string[];
+}
+
 export interface ToolDefinition<Args extends ZodRawShape | undefined = ZodRawShape | undefined> {
   name: string;
   config: {
@@ -129,6 +140,43 @@ export interface ToolDefinition<Args extends ZodRawShape | undefined = ZodRawSha
     outputSchema?: ZodRawShape;
     annotations?: Record<string, unknown>;
   };
+  metadata?: ToolMetadata;
   handler: (args: unknown, extra: unknown) => Promise<ToolExecutionResult>;
   middlewares?: ToolMiddleware[];
+}
+
+function mergeToolMetadata(base: ToolMetadata | undefined, override: ToolMetadata): ToolMetadata {
+  return {
+    ...base,
+    ...override,
+    annotations: {
+      ...(base?.annotations ?? {}),
+      ...(override.annotations ?? {})
+    },
+    synonyms: override.synonyms ?? base?.synonyms,
+    preferredWorkflow: override.preferredWorkflow ?? base?.preferredWorkflow
+  };
+}
+
+export function withToolMetadata<T extends ToolDefinition>(
+  tools: readonly T[],
+  metadata: ToolMetadata
+): T[] {
+  return tools.map((tool) => {
+    const mergedMetadata = mergeToolMetadata(tool.metadata, metadata);
+    const { annotations: metadataAnnotations, ...annotationMetadata } = mergedMetadata;
+
+    return {
+      ...tool,
+      config: {
+        ...tool.config,
+        annotations: {
+          ...(tool.config.annotations ?? {}),
+          ...metadataAnnotations,
+          ...annotationMetadata
+        }
+      },
+      metadata: mergedMetadata
+    };
+  });
 }

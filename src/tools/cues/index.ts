@@ -13,8 +13,9 @@ import eosCuelistBankCreateTool from './cuelist_bank_create';
 import eosCuelistBankPageTool from './cuelist_bank_page';
 import eosGetActiveCueTool from './get_active_cue';
 import eosGetPendingCueTool from './get_pending_cue';
+import { withToolMetadata } from '../types';
 
-export const cueTools = [
+export const cueTools = withToolMetadata([
   eosCueFireTool,
   eosCueGoTool,
   eosCueStopBackTool,
@@ -26,7 +27,13 @@ export const cueTools = [
   eosCuelistBankPageTool,
   eosGetActiveCueTool,
   eosGetPendingCueTool
-];
+], {
+  category: 'cues',
+  synonyms: ['cue', 'cuelist', 'playback', 'go', 'record cue'],
+  riskLevel: 'high',
+  requiresConfirmation: true,
+  preferredWorkflow: ['eos_workflow_create_cue_series', 'eos_workflow_update_cue_look']
+});
 
 export default cueTools;
 

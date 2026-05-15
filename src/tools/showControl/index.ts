@@ -5,7 +5,7 @@
 import { z, type ZodRawShape } from 'zod';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import { oscMappings } from '../../services/osc/mappings';
-import { buildToolResult, type ToolDefinition, type ToolExecutionResult } from '../types';
+import { buildToolResult, withToolMetadata, type ToolDefinition, type ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
@@ -446,12 +446,18 @@ export const eosSetCueReceiveStringTool: ToolDefinition<typeof setCueReceiveStri
   }
 };
 
-export const showControlTools = [
+export const showControlTools = withToolMetadata([
   eosGetShowNameTool,
   eosGetLiveBlindStateTool,
   eosToggleStagingModeTool,
   eosSetCueSendStringTool,
   eosSetCueReceiveStringTool
-];
+], {
+  category: 'showControl',
+  synonyms: ['show control', 'show name', 'live blind', 'cue string', 'staging mode'],
+  riskLevel: 'critical',
+  requiresConfirmation: true,
+  preferredWorkflow: 'eos_workflow_rehearsal_go'
+});
 
 export default showControlTools;
