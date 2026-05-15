@@ -6,7 +6,7 @@ import { z, type ZodRawShape } from 'zod';
 import { getOscClient } from '../../services/osc/client';
 import { buildCueJsonMessage } from '../../services/osc/messageBuilders';
 import { oscMappings } from '../../services/osc/mappings';
-import { buildToolResult, type ToolDefinition, type ToolExecutionResult } from '../types';
+import { buildReadConvention, buildToolResult, type ToolDefinition, type ToolExecutionResult } from '../types';
 import {
   buildCueCommandPayload,
   createCueIdentifierFromOptions,
@@ -63,17 +63,24 @@ export const eosGetActiveCueTool: ToolDefinition<typeof getActiveCueInputSchema>
     const request = buildCueJsonMessage(oscMappings.cues.active, payload);
     const response = await client.requestBuiltJson(request, extractTargetOptions(options));
 
-    const state = mapCuePlaybackState(response.data, identifier);
-    const text = formatActiveText(state.details.identifier, state.progressPercent);
+    const isComplete = response.status === 'ok';
+    const state = isComplete ? mapCuePlaybackState(response.data, identifier) : null;
+    const text = state
+      ? formatActiveText(state.details.identifier, state.progressPercent)
+      : `Lecture de la cue active ${formatCueDescription(identifier)} terminee avec le statut ${response.status}.`;
 
     const result: ToolExecutionResult = buildToolResult({
       text,
       summary: text,
       structuredContent: {
         action: 'get_active_cue',
-        status: response.status,
+        ...buildReadConvention({
+          status: response.status,
+          source: { type: 'eos_osc', address: oscMappings.cues.active, response: response.payload },
+          error: response.error ?? null
+        }),
         request: payload,
-        cue: state,
+        ...(state ? { cue: state } : {}),
         osc: {
           address: oscMappings.cues.active,
           response: response.payload

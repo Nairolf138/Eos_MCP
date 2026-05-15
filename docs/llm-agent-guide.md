@@ -37,8 +37,10 @@ Les familles prioritaires `cues`, `commands`, `patch`, `dmx`, `macros`, `pixelMa
 4. Distinguer `structuredContent.commandsSent` (commandes effectivement envoyées) de `structuredContent.commands_preview` (commandes simulées ou à confirmer).
 5. Toujours afficher ou résoudre `structuredContent.warnings` avant de poursuivre une action sensible.
 6. Suivre `structuredContent.next_actions` lorsqu'il propose une vérification, une confirmation ou une relance ciblée.
+7. Pour toute lecture EOS, vérifier aussi la convention `structuredContent.source`, `confidence`, `is_complete`, `limitations` et `next_operator_actions` avant d'interpréter les champs métier. Si `is_complete=false` ou `confidence="none"`, considérer les données comme inconnues et demander les actions opérateur listées plutôt que d'afficher des valeurs vides comme si elles étaient valides.
+8. Ne jamais remplacer une lecture EOS échouée par une lecture Windows-MCP non demandée. Un fallback externe (Windows-MCP, showfile, export, capture d'écran, etc.) exige une demande ou une autorisation explicite de l'opérateur et doit être marqué comme source distincte, non-live, sans masquer l'échec de la lecture EOS.
 
-Ces champs sont toujours présents sous forme de tableaux pour `commandsSent`, `commands_preview`, `warnings` et `next_actions`, même lorsqu'ils sont vides. Les autres champs métier (`cue`, `channel`, `macro`, `osc`, etc.) restent disponibles pour les détails techniques.
+Ces champs sont toujours présents sous forme de tableaux pour `commandsSent`, `commands_preview`, `warnings` et `next_actions`, même lorsqu'ils sont vides. Pour les lectures EOS couvertes par la convention, `limitations` et `next_operator_actions` sont également des tableaux. Les autres champs métier (`cue`, `channel`, `macro`, `osc`, etc.) restent disponibles pour les détails techniques uniquement lorsque la lecture est complète.
 
 ## Exemples complets
 

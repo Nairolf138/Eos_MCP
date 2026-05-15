@@ -6,7 +6,7 @@ import { z, type ZodRawShape } from 'zod';
 import { getOscClient } from '../../services/osc/client';
 import { buildCueJsonMessage } from '../../services/osc/messageBuilders';
 import { oscMappings } from '../../services/osc/mappings';
-import { buildToolResult, type ToolDefinition, type ToolExecutionResult } from '../types';
+import { buildReadConvention, buildToolResult, type ToolDefinition, type ToolExecutionResult } from '../types';
 import {
   buildCueCommandPayload,
   createCueIdentifierFromOptions,
@@ -57,17 +57,24 @@ export const eosGetPendingCueTool: ToolDefinition<typeof getPendingCueInputSchem
     const request = buildCueJsonMessage(oscMappings.cues.pending, payload);
     const response = await client.requestBuiltJson(request, extractTargetOptions(options));
 
-    const state = mapCuePlaybackState(response.data, identifier);
-    const text = `Cue en attente ${formatCueDescription(state.details.identifier)} (${state.details.label ?? 'sans label'})`;
+    const isComplete = response.status === 'ok';
+    const state = isComplete ? mapCuePlaybackState(response.data, identifier) : null;
+    const text = state
+      ? `Cue en attente ${formatCueDescription(state.details.identifier)} (${state.details.label ?? 'sans label'})`
+      : `Lecture de la cue en attente ${formatCueDescription(identifier)} terminee avec le statut ${response.status}.`;
 
     const result: ToolExecutionResult = buildToolResult({
       text,
       summary: text,
       structuredContent: {
         action: 'get_pending_cue',
-        status: response.status,
+        ...buildReadConvention({
+          status: response.status,
+          source: { type: 'eos_osc', address: oscMappings.cues.pending, response: response.payload },
+          error: response.error ?? null
+        }),
         request: payload,
-        cue: state,
+        ...(state ? { cue: state } : {}),
         osc: {
           address: oscMappings.cues.pending,
           response: response.payload

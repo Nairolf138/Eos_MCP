@@ -418,13 +418,16 @@ describe('query tools', () => {
       action: 'get_count',
       status: 'timeout',
       target_type: 'group',
-      count: 0,
+      confidence: 'none',
+      is_complete: false,
       data: null,
       osc: {
         address: oscMappings.queries.group.count,
         args: {}
       }
     });
+    expect(structuredContent.count).toBeUndefined();
+    expect(structuredContent.next_operator_actions).toEqual(expect.any(Array));
     expect(typeof structuredContent.error).toBe('string');
   });
 });

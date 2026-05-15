@@ -180,7 +180,7 @@ export const eosWorkflowPatchScanTool: ToolDefinition<typeof patchScanInputSchem
           }
           results.push({
             status: info.status,
-            channel: info.channel,
+            channel: info.channel ?? { channel_number: channelNumber },
             error: info.error ?? null,
             diagnostics: info.diagnostics ?? null,
             source: { type: 'osc', ...info.osc }

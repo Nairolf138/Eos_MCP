@@ -15,6 +15,64 @@ export interface ToolExecutionResult {
   [key: string]: unknown;
 }
 
+
+export type ToolReadConfidence = 'high' | 'medium' | 'low' | 'none';
+
+export interface ToolReadSource {
+  type: string;
+  [key: string]: unknown;
+}
+
+export interface ToolReadConvention {
+  /** High-level transport/tool status for the read. */
+  status: string;
+  /** Explicit origin of the data, e.g. EOS OSC live read or showfile import. */
+  source: ToolReadSource;
+  /** Confidence in returned read data. Failures must use "none". */
+  confidence: ToolReadConfidence;
+  /** True only when the requested EOS read completed and data is safe to interpret. */
+  is_complete: boolean;
+  /** Known limitations that constrain interpretation of the read. */
+  limitations: string[];
+  /** Operator actions required before the agent can rely on this read. */
+  next_operator_actions: string[];
+}
+
+export interface BuildReadConventionOptions {
+  status: string;
+  source: ToolReadSource;
+  confidence?: ToolReadConfidence;
+  is_complete?: boolean;
+  limitations?: string[];
+  next_operator_actions?: string[];
+  error?: string | null;
+}
+
+export const DEFAULT_EOS_READ_FAILURE_ACTIONS = [
+  'Verifier que OSC RX et OSC TX sont actives sur la console Eos.',
+  "Verifier que l'IP TX et les ports OSC de la console pointent vers ce serveur MCP.",
+  "Relancer explicitement la lecture EOS demandee ou fournir une source showfile autorisee par l'operateur."
+] as const;
+
+export function buildReadConvention(options: BuildReadConventionOptions): ToolReadConvention {
+  const isComplete = options.is_complete ?? options.status === 'ok';
+  const failureLimitations = isComplete
+    ? []
+    : [
+        `Lecture EOS incomplete: statut ${options.status}.`,
+        ...(options.error ? [options.error] : [])
+      ];
+
+  return {
+    status: options.status,
+    source: options.source,
+    confidence: options.confidence ?? (isComplete ? 'high' : 'none'),
+    is_complete: isComplete,
+    limitations: options.limitations ?? failureLimitations,
+    next_operator_actions: options.next_operator_actions ?? (isComplete ? [] : [...DEFAULT_EOS_READ_FAILURE_ACTIONS])
+  };
+}
+
 export type ToolResultStatus = 'ok' | 'partial_failure' | 'error' | 'dry_run';
 
 export interface ToolResultWarning {

@@ -12,7 +12,7 @@ import {
 import { getOscClient } from '../../services/osc/client';
 import { buildCueJsonMessage } from '../../services/osc/messageBuilders';
 import { oscMappings } from '../../services/osc/mappings';
-import { buildToolResult, type ToolDefinition, type ToolExecutionResult } from '../types';
+import { buildReadConvention, buildToolResult, type ToolDefinition, type ToolExecutionResult } from '../types';
 import {
   buildCueCommandPayload,
   createCueIdentifierFromOptions,
@@ -80,10 +80,13 @@ export const eosCuelistGetInfoTool: ToolDefinition<typeof cuelistInfoInputSchema
         const request = buildCueJsonMessage(oscMappings.cues.cuelistInfo, payload);
         const response = await client.requestBuiltJson(request, extractTargetOptions(options));
 
-        const info = mapCuelistInfo(response.data, identifier);
+        const isComplete = response.status === 'ok';
+        const info = isComplete ? mapCuelistInfo(response.data, identifier) : null;
 
         const listLabel = formatCueDescription({ ...identifier, cueNumber: null, cuePart: null });
-        const text = `${listLabel}: ${info.label ?? 'sans label'}`;
+        const text = info
+          ? `${listLabel}: ${info.label ?? 'sans label'}`
+          : `Lecture de ${listLabel} terminee avec le statut ${response.status}.`;
 
         const result: ToolExecutionResult = buildToolResult({
           text,
@@ -91,9 +94,13 @@ export const eosCuelistGetInfoTool: ToolDefinition<typeof cuelistInfoInputSchema
           summary: text,
           structuredContent: {
             action: 'cuelist_get_info',
-            status: response.status,
+            ...buildReadConvention({
+              status: response.status,
+              source: { type: 'eos_osc', address: oscMappings.cues.cuelistInfo, response: response.payload },
+              error: response.error ?? null
+            }),
             request: payload,
-            cuelist: info,
+            ...(info ? { cuelist: info } : {}),
             osc: {
               address: oscMappings.cues.cuelistInfo,
               response: response.payload

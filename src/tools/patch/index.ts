@@ -12,7 +12,14 @@ import {
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import { oscMappings, oscResponseMappings } from '../../services/osc/mappings';
 import { createDryRunResult, resolveSafetyOptions, safetyOptionsSchema } from '../common/safety';
-import { buildToolResult, withToolMetadata, type ToolDefinition, type ToolExecutionResult } from '../types';
+import {
+  buildReadConvention,
+  buildToolResult,
+  withToolMetadata,
+  type ToolDefinition,
+  type ToolExecutionResult,
+  type ToolReadConvention
+} from '../types';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
@@ -677,9 +684,9 @@ export interface ReadPatchChannelInfoOptions {
   targetPort?: number;
 }
 
-export interface ReadPatchChannelInfoResult {
+export interface ReadPatchChannelInfoResult extends Omit<ToolReadConvention, 'status'> {
   status: OscJsonResponse['status'];
-  channel: PatchChannelInfo;
+  channel?: PatchChannelInfo;
   error?: string;
   diagnostics?: OscJsonResponse['diagnostics'];
   osc: {
@@ -722,25 +729,33 @@ export async function readPatchChannelInfo(options: ReadPatchChannelInfoOptions)
         responseAddresses: oscResponseMappings.patch.channelInfo
       });
 
+      const isComplete = response.status === 'ok';
       const responseRecord = response.data && typeof response.data === 'object' && !Array.isArray(response.data)
         ? response.data as Record<string, unknown>
         : null;
       const channelPayload = responseRecord?.channel && typeof responseRecord.channel === 'object'
         ? responseRecord.channel
         : response.data;
-      const channelData = normaliseChannelInfo(
-        channelPayload,
-        options.channel_number,
-        options.part_number ?? null
-      );
-
-      const validatedChannel = patchChannelInfoOutputSchema.parse(channelData);
+      const validatedChannel = isComplete
+        ? patchChannelInfoOutputSchema.parse(
+            normaliseChannelInfo(
+              channelPayload,
+              options.channel_number,
+              options.part_number ?? null
+            )
+          )
+        : undefined;
 
       return {
+        ...buildReadConvention({
+          status: response.status,
+          source: { type: 'eos_osc', address: oscMappings.patch.channelInfo, args: payload },
+          error: response.error ?? null
+        }),
         status: response.status,
         ...(response.error ? { error: response.error } : {}),
         ...withOscDiagnostics(response),
-        channel: validatedChannel,
+        ...(validatedChannel ? { channel: validatedChannel } : {}),
         osc: {
           address: oscMappings.patch.channelInfo,
           args: payload
@@ -796,15 +811,20 @@ export const eosPatchGetChannelInfoTool: ToolDefinition<typeof channelInfoInputS
 
     const result = await readPatchChannelInfo(options);
     const baseText =
-      result.status === 'ok'
+      result.status === 'ok' && result.channel
         ? `Informations recues pour le canal ${result.channel.channel_number}.`
-        : `Lecture des informations du canal ${result.channel.channel_number} terminee avec le statut ${result.status}.`;
+        : `Lecture des informations du canal ${options.channel_number} terminee avec le statut ${result.status}.`;
 
     return createResult(appendConsoleCheck(baseText, result), {
       status: result.status,
+      source: result.source,
+      confidence: result.confidence,
+      is_complete: result.is_complete,
+      limitations: result.limitations,
+      next_operator_actions: result.next_operator_actions,
       ...(result.error ? { error: result.error } : {}),
       ...(result.diagnostics ? { diagnostics: result.diagnostics } : {}),
-      channel: result.channel,
+      ...(result.channel ? { channel: result.channel } : {}),
       osc: result.osc
     });
   }
@@ -870,23 +890,28 @@ export const eosPatchGetAugment3dPositionTool: ToolDefinition<typeof augment3dIn
           responseAddresses: oscResponseMappings.patch.augment3dPosition
         });
 
-        const positionData = normaliseAugment3dPosition(
-          (response.data as Record<string, unknown> | null)?.augment3d ?? response.data,
-          options.channel_number,
-          options.part_number
-        );
-
-        const validatedPosition = augment3dPositionOutputSchema.parse(positionData);
+        const isComplete = response.status === 'ok';
+        const validatedPosition = isComplete
+          ? augment3dPositionOutputSchema.parse(normaliseAugment3dPosition(
+              (response.data as Record<string, unknown> | null)?.augment3d ?? response.data,
+              options.channel_number,
+              options.part_number
+            ))
+          : undefined;
 
         const baseText =
-          response.status === 'ok'
+          validatedPosition
             ? `Position Augment3d recue pour le canal ${validatedPosition.channel_number} partie ${validatedPosition.part_number}.`
-            : `Lecture de la position Augment3d du canal ${validatedPosition.channel_number} partie ${validatedPosition.part_number} terminee avec le statut ${response.status}.`;
+            : `Lecture de la position Augment3d du canal ${options.channel_number} partie ${options.part_number} terminee avec le statut ${response.status}.`;
 
         return createResult(appendConsoleCheck(baseText, response), {
-          status: response.status,
+          ...buildReadConvention({
+            status: response.status,
+            source: { type: 'eos_osc', address: oscMappings.patch.augment3dPosition, args: payload },
+            error: response.error ?? null
+          }),
           ...withOscDiagnostics(response),
-          augment3d: validatedPosition,
+          ...(validatedPosition ? { augment3d: validatedPosition } : {}),
           osc: {
             address: oscMappings.patch.augment3dPosition,
             args: payload
@@ -957,23 +982,28 @@ export const eosPatchGetAugment3dBeamTool: ToolDefinition<typeof augment3dInputS
           responseAddresses: oscResponseMappings.patch.augment3dBeam
         });
 
-        const beamData = normaliseAugment3dBeam(
-          (response.data as Record<string, unknown> | null)?.augment3d ?? response.data,
-          options.channel_number,
-          options.part_number
-        );
-
-        const validatedBeam = augment3dBeamOutputSchema.parse(beamData);
+        const isComplete = response.status === 'ok';
+        const validatedBeam = isComplete
+          ? augment3dBeamOutputSchema.parse(normaliseAugment3dBeam(
+              (response.data as Record<string, unknown> | null)?.augment3d ?? response.data,
+              options.channel_number,
+              options.part_number
+            ))
+          : undefined;
 
         const baseText =
-          response.status === 'ok'
+          validatedBeam
             ? `Faisceau Augment3d recu pour le canal ${validatedBeam.channel_number} partie ${validatedBeam.part_number}.`
-            : `Lecture du faisceau Augment3d du canal ${validatedBeam.channel_number} partie ${validatedBeam.part_number} terminee avec le statut ${response.status}.`;
+            : `Lecture du faisceau Augment3d du canal ${options.channel_number} partie ${options.part_number} terminee avec le statut ${response.status}.`;
 
         return createResult(appendConsoleCheck(baseText, response), {
-          status: response.status,
+          ...buildReadConvention({
+            status: response.status,
+            source: { type: 'eos_osc', address: oscMappings.patch.augment3dBeam, args: payload },
+            error: response.error ?? null
+          }),
           ...withOscDiagnostics(response),
-          augment3d: validatedBeam,
+          ...(validatedBeam ? { augment3d: validatedBeam } : {}),
           osc: {
             address: oscMappings.patch.augment3dBeam,
             args: payload

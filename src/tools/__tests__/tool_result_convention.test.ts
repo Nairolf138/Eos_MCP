@@ -48,7 +48,12 @@ function readableEnvelope(result: Awaited<ReturnType<typeof runTool>>): Record<s
     commandsSent: structuredContent.commandsSent,
     commands_preview: structuredContent.commands_preview,
     warnings: structuredContent.warnings,
-    next_actions: structuredContent.next_actions
+    next_actions: structuredContent.next_actions,
+    source: structuredContent.source,
+    confidence: structuredContent.confidence,
+    is_complete: structuredContent.is_complete,
+    limitations: structuredContent.limitations,
+    next_operator_actions: structuredContent.next_operator_actions
   };
 }
 
@@ -81,10 +86,18 @@ describe('tool result convention snapshots', () => {
       });
     });
 
+    const patchPromise = runTool(eosPatchGetChannelInfoTool, { channel_number: 12 });
+    queueMicrotask(() => {
+      service.emit({
+        address: oscMappings.patch.channelInfo,
+        args: [{ type: 's', value: JSON.stringify({ status: 'ok', channel: { channel: 12, parts: [] } }) }]
+      });
+    });
+
     const results = {
       commands: readableEnvelope(await runTool(eosCommandTool, { command: 'Go To Cue 9', dry_run: true, user: 3 })),
       cues: readableEnvelope(await runTool(eosCueGoTool, { cuelist_number: 5 })),
-      patch: readableEnvelope(await runTool(eosPatchGetChannelInfoTool, { channel_number: 12, dry_run: true })),
+      patch: readableEnvelope(await patchPromise),
       dmx: readableEnvelope(await dmxPromise),
       macros: readableEnvelope(await runTool(eosMacroFireTool, { macro_number: 7 })),
       pixelMaps: readableEnvelope(await runTool(eosPixmapSelectTool, { pixmap_number: 4 })),
