@@ -4311,7 +4311,14 @@ _Pas de mapping OSC documenté._
 
 **Description :** Supprime le contexte courant memorise localement.
 
-**Arguments :** Aucun argument.
+**Arguments :**
+
+| Nom | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `agent_id` | string | Non | — |
+| `context_id` | string | Non | — |
+| `mcp_session_id` | string | Non | — |
+| `user_id` | number | Non | — |
 
 **Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
 
@@ -4320,7 +4327,7 @@ _Pas de mapping OSC documenté._
 _CLI_
 
 ```bash
-npx @modelcontextprotocol/cli call --tool session_clear_context --args '{}'
+npx @modelcontextprotocol/cli call --tool session_clear_context --args '{"context_id":"exemple"}'
 ```
 
 _OSC_
@@ -4332,7 +4339,14 @@ _Pas de mapping OSC documenté._
 
 **Description :** Renvoie le contexte courant memorise localement.
 
-**Arguments :** Aucun argument.
+**Arguments :**
+
+| Nom | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `agent_id` | string | Non | — |
+| `context_id` | string | Non | — |
+| `mcp_session_id` | string | Non | — |
+| `user_id` | number | Non | — |
 
 **Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
 
@@ -4341,7 +4355,7 @@ _Pas de mapping OSC documenté._
 _CLI_
 
 ```bash
-npx @modelcontextprotocol/cli call --tool session_get_context --args '{}'
+npx @modelcontextprotocol/cli call --tool session_get_context --args '{"context_id":"exemple"}'
 ```
 
 _OSC_
@@ -4378,8 +4392,12 @@ _Pas de mapping OSC documenté._
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
+| `agent_id` | string | Non | — |
 | `context` | object | Oui | — |
+| `context_id` | string | Non | — |
+| `mcp_session_id` | string | Non | — |
 | `ttl_ms` | number | Non | — |
+| `user_id` | number | Non | — |
 
 **Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
 

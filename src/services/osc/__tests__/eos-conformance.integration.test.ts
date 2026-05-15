@@ -13,9 +13,10 @@ import { OscService, type OscMessage } from '../index';
 import { eosPingTool } from '../../../tools/connection/eos_ping';
 import { eosGroupGetInfoTool } from '../../../tools/groups/index';
 import { eosGetCommandLineTool } from '../../../tools/commands/command_tools';
+import { eosGetVersionTool } from '../../../tools/diagnostics/index';
 import { getStructuredContent, runTool } from '../../../tools/__tests__/helpers/runTool';
 
-type ToolName = 'eos_ping' | 'eos_group_get_info' | 'eos_get_command_line';
+type ToolName = 'eos_ping' | 'eos_group_get_info' | 'eos_get_command_line' | 'eos_get_version';
 
 interface FrameFixture {
   source: string;
@@ -36,7 +37,8 @@ interface ConformanceScenario {
 const toolByName = {
   eos_ping: eosPingTool,
   eos_group_get_info: eosGroupGetInfoTool,
-  eos_get_command_line: eosGetCommandLineTool
+  eos_get_command_line: eosGetCommandLineTool,
+  eos_get_version: eosGetVersionTool
 } as const;
 
 describe('EOS OSC conformance integration (captured frames)', () => {

@@ -77,7 +77,8 @@ describe('eos_capabilities_get', () => {
       expect.arrayContaining([
         expect.objectContaining({
           tool: 'eos_cue_go',
-          min_eos_version: '3.0.0'
+          min_eos_version: '2.0.0',
+          feature: 'cues'
         })
       ])
     );

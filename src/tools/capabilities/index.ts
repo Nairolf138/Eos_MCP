@@ -31,7 +31,7 @@ const FAMILY_MATCHERS: Array<{ family: string; matches: (name: string) => boolea
   { family: 'keys', matches: (name) => name.startsWith('eos_key_') || name.startsWith('eos_softkey_') },
   { family: 'direct_selects', matches: (name) => name.startsWith('eos_direct_select_') },
   { family: 'magic_sheets', matches: (name) => name.startsWith('eos_magic_sheet_') },
-  { family: 'pixel_maps', matches: (name) => name.startsWith('eos_pixel_map_') },
+  { family: 'pixel_maps', matches: (name) => name.startsWith('eos_pixel_map_') || name.startsWith('eos_pixmap_') },
   { family: 'curves', matches: (name) => name.startsWith('eos_curve_') },
   { family: 'patch', matches: (name) => name.startsWith('eos_patch_') },
   { family: 'snapshots', matches: (name) => name.startsWith('eos_snapshot_') },
@@ -196,6 +196,7 @@ export const eosCapabilitiesGetTool: ToolDefinition<typeof emptySchema> = {
       min_eos_version: status.requirements.minEosVersion,
       required_role: status.requirements.requiredRole,
       functional_availability: status.requirements.functionalAvailability,
+      feature: status.requirements.feature,
       rule_id: status.requirements.id,
       notes: status.requirements.notes ?? null
     }));
