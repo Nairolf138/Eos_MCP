@@ -58,6 +58,7 @@ Formats à utiliser selon le langage :
 ## Documentation complémentaire
 
 - [Cookbook d’automatisation](docs/cookbook.md) : scénarios prêts à l’emploi pour déclencher des cues, manipuler les presets et ajuster des niveaux d’intensité.
+- [Architecture technique](docs/architecture.md) : diagrammes du flux MCP → OSC, composants internes et guide “où modifier quoi” pour contribuer.
 - [`docs/tools.md`](docs/tools.md) : référence exhaustive générée automatiquement pour chaque outil MCP.
 - [Guide licensing (community vs commerciale)](docs/licensing/README.md) : vue simple des deux voies, FAQ et cas pratiques.
 
