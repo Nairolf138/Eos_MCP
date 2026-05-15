@@ -4,7 +4,8 @@
  */
 import {
   clearCurrentUserId,
-  clearSessionContext,
+  clearAllSessionContexts,
+  configureSessionContextPersistence,
   getCurrentUserId,
   sessionGetCurrentUserTool,
   sessionSetCurrentUserTool
@@ -12,9 +13,10 @@ import {
 import { getStructuredContent, runTool } from '../../__tests__/helpers/runTool';
 
 describe('session tools', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    configureSessionContextPersistence({ mode: 'memory' });
     clearCurrentUserId();
-    clearSessionContext();
+    await clearAllSessionContexts();
   });
 
   it('stocke le numero utilisateur via le tool de configuration', async () => {
