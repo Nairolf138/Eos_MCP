@@ -10,6 +10,7 @@ import {
   createCueIdentifierFromOptions,
   cuelistNumberSchema,
   extractTargetOptions,
+  notifyCueResourceChange,
   formatCueDescription,
   targetOptionsSchema
 } from './common';
@@ -74,6 +75,7 @@ export const eosCuelistBankCreateTool: ToolDefinition<typeof bankCreateInputSche
     const address = `/${segments.join('/')}`;
 
     await client.sendMessage(address, [], extractTargetOptions(options));
+    notifyCueResourceChange({ ...identifier, cueNumber: null, cuePart: null });
 
     const text = `Bank ${options.bank_index} assigne a ${formatCueDescription({
       ...identifier,

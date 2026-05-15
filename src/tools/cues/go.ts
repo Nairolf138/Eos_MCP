@@ -17,6 +17,7 @@ import {
   cuePartSchema,
   cuelistNumberSchema,
   extractTargetOptions,
+  notifyCueResourceChange,
   formatCueDescription,
   targetOptionsSchema
 } from './common';
@@ -70,6 +71,7 @@ export const eosCueGoTool: ToolDefinition<typeof goInputSchema> = {
     }
 
     await client.sendCommand(command, extractTargetOptions(options));
+    notifyCueResourceChange(identifier);
 
     return createCueCommandResult(
       'cue_go',

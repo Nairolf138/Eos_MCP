@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { z } from 'zod';
-import { getResourceCache } from '../../services/cache';
+import { createResourceTag, getResourceCache } from '../../services/cache';
 import { getOscClient } from '../../services/osc/client';
 import { oscMappings } from '../../services/osc/mappings';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
@@ -52,11 +52,12 @@ export function clearCurrentUserId(): void {
 
 async function setSessionContext(context: SessionContext, ttlMs = DEFAULT_CONTEXT_TTL_MS): Promise<void> {
   const cache = getResourceCache();
-  cache.invalidateEntry('session', SESSION_CONTEXT_CACHE_KEY);
+  cache.notifyResourceChange('session', SESSION_CONTEXT_CACHE_KEY);
   await cache.fetch<SessionContext>({
     resourceType: 'session',
     key: SESSION_CONTEXT_CACHE_KEY,
     ttlMs,
+    tags: [createResourceTag('session'), createResourceTag('session', SESSION_CONTEXT_CACHE_KEY)],
     fetcher: async () => context
   });
 }
@@ -66,12 +67,13 @@ async function getSessionContext(): Promise<SessionContext | null> {
   return cache.fetch<SessionContext | null>({
     resourceType: 'session',
     key: SESSION_CONTEXT_CACHE_KEY,
+    tags: [createResourceTag('session'), createResourceTag('session', SESSION_CONTEXT_CACHE_KEY)],
     fetcher: async () => null
   });
 }
 
 export function clearSessionContext(): void {
-  getResourceCache().invalidateEntry('session', SESSION_CONTEXT_CACHE_KEY);
+  getResourceCache().notifyResourceChange('session', SESSION_CONTEXT_CACHE_KEY);
 }
 
 function buildSuggestedNextActions(hasContext: boolean): Array<Record<string, string>> {

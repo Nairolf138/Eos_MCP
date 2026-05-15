@@ -15,6 +15,7 @@ import {
   cuePartSchema,
   cuelistNumberSchema,
   extractTargetOptions,
+  notifyCueResourceChange,
   formatCueDescription,
   targetOptionsSchema
 } from './common';
@@ -56,6 +57,7 @@ export const eosCueSelectTool: ToolDefinition<typeof selectInputSchema> = {
     const command = buildCueSelectCommand(identifier);
 
     await client.sendCommand(command, extractTargetOptions(options));
+    notifyCueResourceChange(identifier);
 
     return createCueCommandResult(
       'cue_select',

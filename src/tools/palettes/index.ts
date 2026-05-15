@@ -372,6 +372,7 @@ function createPaletteFireTool({ type, name, title, description, mapping }: Pale
         ...extractTargetOptions(options),
         wireContract: request.contract
       });
+      getResourceCache().notifyResourceChange('palettes', `${type}:${options.palette_number}`);
 
       return createResult(`Palette ${paletteTypeLabels[type]} ${options.palette_number} declenchee`, {
         action: 'palette_fire',

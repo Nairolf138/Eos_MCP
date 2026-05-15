@@ -20,6 +20,13 @@ const DEFAULT_LOG_LEVEL = 'info';
 const DEFAULT_HTTP_RATE_LIMIT_WINDOW_MS = 60_000;
 const DEFAULT_HTTP_RATE_LIMIT_MAX_REQUESTS = 60;
 const DEFAULT_HTTP_MCP_TOKEN = 'change-me';
+const DEFAULT_CACHE_TTL_MS = 1500;
+const DEFAULT_CACHE_TTL_CUES_MS = 1000;
+const DEFAULT_CACHE_TTL_PATCH_MS = 5000;
+const DEFAULT_CACHE_TTL_GROUPS_MS = 1500;
+const DEFAULT_CACHE_TTL_PALETTES_MS = 1500;
+const DEFAULT_CACHE_TTL_FIXTURES_MS = 300000;
+const DEFAULT_CACHE_TTL_SESSION_MS = 600000;
 
 const LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'] as const;
 const LOG_DESTINATION_VALUES = ['stdout', 'stderr', 'file', 'transport'] as const;
@@ -113,6 +120,19 @@ export interface HttpGatewayConfig {
   readonly security: HttpGatewaySecurityConfig;
 }
 
+export interface CacheConfig {
+  readonly defaultTtlMs: number;
+  readonly resourceTtls: {
+    readonly cues: number;
+    readonly cuelists: number;
+    readonly patch: number;
+    readonly groups: number;
+    readonly palettes: number;
+    readonly fixtures: number;
+    readonly session: number;
+  };
+}
+
 /**
  * Configuration applicative complète, validée et normalisée.
  */
@@ -121,6 +141,7 @@ export interface AppConfig {
   readonly osc: OscConfig;
   readonly logging: LoggingConfig;
   readonly httpGateway: HttpGatewayConfig;
+  readonly cache: CacheConfig;
 }
 
 interface PortSchemaOptions {
@@ -543,7 +564,14 @@ const configSchema = z
       'MCP_HTTP_RATE_LIMIT_MAX',
       DEFAULT_HTTP_RATE_LIMIT_MAX_REQUESTS
     ),
-    httpTrustProxy: createOptionalBooleanSchema('MCP_HTTP_TRUST_PROXY')
+    httpTrustProxy: createOptionalBooleanSchema('MCP_HTTP_TRUST_PROXY'),
+    cacheDefaultTtlMs: createPositiveIntegerSchema('CACHE_TTL_DEFAULT_MS', DEFAULT_CACHE_TTL_MS),
+    cacheCuesTtlMs: createPositiveIntegerSchema('CACHE_TTL_CUES_MS', DEFAULT_CACHE_TTL_CUES_MS),
+    cachePatchTtlMs: createPositiveIntegerSchema('CACHE_TTL_PATCH_MS', DEFAULT_CACHE_TTL_PATCH_MS),
+    cacheGroupsTtlMs: createPositiveIntegerSchema('CACHE_TTL_GROUPS_MS', DEFAULT_CACHE_TTL_GROUPS_MS),
+    cachePalettesTtlMs: createPositiveIntegerSchema('CACHE_TTL_PALETTES_MS', DEFAULT_CACHE_TTL_PALETTES_MS),
+    cacheFixturesTtlMs: createPositiveIntegerSchema('CACHE_TTL_FIXTURES_MS', DEFAULT_CACHE_TTL_FIXTURES_MS),
+    cacheSessionTtlMs: createPositiveIntegerSchema('CACHE_TTL_SESSION_MS', DEFAULT_CACHE_TTL_SESSION_MS)
   })
   .transform((values, ctx): AppConfig => {
     const prettyEnabled = values.logPretty ?? values.nodeEnv !== 'production';
@@ -635,6 +663,18 @@ const configSchema = z
             max: values.httpRateLimitMax
           }
         }
+      },
+      cache: {
+        defaultTtlMs: values.cacheDefaultTtlMs,
+        resourceTtls: {
+          cues: values.cacheCuesTtlMs,
+          cuelists: values.cacheCuesTtlMs,
+          patch: values.cachePatchTtlMs,
+          groups: values.cacheGroupsTtlMs,
+          palettes: values.cachePalettesTtlMs,
+          fixtures: values.cacheFixturesTtlMs,
+          session: values.cacheSessionTtlMs
+        }
       }
     } satisfies AppConfig;
   });
@@ -671,7 +711,14 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     httpPublicUrl: env.MCP_HTTP_PUBLIC_URL,
     httpRateLimitWindowMs: env.MCP_HTTP_RATE_LIMIT_WINDOW,
     httpRateLimitMax: env.MCP_HTTP_RATE_LIMIT_MAX,
-    httpTrustProxy: env.MCP_HTTP_TRUST_PROXY
+    httpTrustProxy: env.MCP_HTTP_TRUST_PROXY,
+    cacheDefaultTtlMs: env.CACHE_TTL_DEFAULT_MS,
+    cacheCuesTtlMs: env.CACHE_TTL_CUES_MS,
+    cachePatchTtlMs: env.CACHE_TTL_PATCH_MS,
+    cacheGroupsTtlMs: env.CACHE_TTL_GROUPS_MS,
+    cachePalettesTtlMs: env.CACHE_TTL_PALETTES_MS,
+    cacheFixturesTtlMs: env.CACHE_TTL_FIXTURES_MS,
+    cacheSessionTtlMs: env.CACHE_TTL_SESSION_MS
   });
 
   if (!result.success) {
