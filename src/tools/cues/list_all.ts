@@ -12,7 +12,7 @@ import {
 import { getOscClient } from '../../services/osc/client';
 import { buildCueJsonMessage } from '../../services/osc/messageBuilders';
 import { oscMappings, oscResponseMappings } from '../../services/osc/mappings';
-import type { ToolDefinition, ToolExecutionResult } from '../types';
+import { buildToolResult, type ToolDefinition, type ToolExecutionResult } from '../types';
 import {
   buildCueCommandPayload,
   createCueIdentifierFromOptions,
@@ -88,8 +88,10 @@ export const eosCueListAllTool: ToolDefinition<typeof listAllInputSchema> = {
         const listLabel = formatCueDescription({ ...identifier, cueNumber: null, cuePart: null });
         const text = `${listLabel}: ${cues.length} cue(s).`;
 
-        const result: ToolExecutionResult = {
-          content: [{ type: 'text', text }],
+        const result: ToolExecutionResult = buildToolResult({
+          text,
+          status: response.status,
+          summary: text,
           structuredContent: {
             action: 'cue_list_all',
             status: response.status,
@@ -100,7 +102,7 @@ export const eosCueListAllTool: ToolDefinition<typeof listAllInputSchema> = {
               response: response.payload
             }
           }
-        } as ToolExecutionResult;
+        });
 
         return result;
       }

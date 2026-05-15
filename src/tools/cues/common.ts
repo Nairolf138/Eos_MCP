@@ -4,7 +4,7 @@
  */
 import { z, type ZodRawShape } from 'zod';
 import { cueObjectNumberSchema, cuelistNumberSchema as sharedCuelistNumberSchema, optionalPortSchema } from '../../utils/validators';
-import type { ToolExecutionResult } from '../types';
+import { buildToolResult, type ToolExecutionResult } from '../types';
 import { safetyOptionsSchema } from '../common/safety';
 import type { CueIdentifier } from './types';
 
@@ -181,8 +181,10 @@ export function createCueCommandResult(
   const oscArgs = overrides.oscArgs ?? payload;
   const cli = overrides.cli;
 
-  return {
-    content: [{ type: 'text', text }],
+  return buildToolResult({
+    text,
+    summary: typeof extra.summary === 'string' ? extra.summary : text,
+    commandsSent: cli?.text ? [cli.text] : [],
     structuredContent: {
       action,
       identifier,
@@ -194,5 +196,5 @@ export function createCueCommandResult(
       ...(cli ? { cli } : {}),
       ...extra
     }
-  } as ToolExecutionResult;
+  }) as ToolExecutionResult;
 }

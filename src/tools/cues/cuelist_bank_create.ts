@@ -5,7 +5,7 @@
 import { z, type ZodRawShape } from 'zod';
 import { getOscClient } from '../../services/osc/client';
 import { oscMappings } from '../../services/osc/mappings';
-import type { ToolDefinition, ToolExecutionResult } from '../types';
+import { buildToolResult, type ToolDefinition, type ToolExecutionResult } from '../types';
 import {
   createCueIdentifierFromOptions,
   cuelistNumberSchema,
@@ -92,8 +92,9 @@ export const eosCuelistBankCreateTool: ToolDefinition<typeof bankCreateInputSche
       request.offset = offset;
     }
 
-    const result: ToolExecutionResult = {
-      content: [{ type: 'text', text }],
+    const result: ToolExecutionResult = buildToolResult({
+      text,
+      summary: text,
       structuredContent: {
         action: 'cuelist_bank_create',
         request,
@@ -102,7 +103,7 @@ export const eosCuelistBankCreateTool: ToolDefinition<typeof bankCreateInputSche
           args: [] as const
         }
       }
-    } as ToolExecutionResult;
+    });
 
     return result;
   }

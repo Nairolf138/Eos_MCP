@@ -22,6 +22,19 @@ Ce guide décrit le comportement attendu d'un assistant LLM qui pilote une conso
    - Annoncer la cible, les canaux, les numéros de cues/palettes/fixtures, les valeurs d'intensité ou DMX, et le rollback prévu.
    - Ne jamais envoyer une action réelle si l'utilisateur valide seulement une intention vague (« fais-le » après plusieurs propositions ambiguës, par exemple).
 
+## Convention de lecture des résultats d'outils
+
+Les familles prioritaires `cues`, `commands`, `patch`, `dmx`, `macros`, `pixelMaps` et `showControl` retournent une enveloppe commune générée par `buildToolResult` ou un helper équivalent. Pour un agent LLM, la lecture recommandée est :
+
+1. Lire `content[0].text` pour restituer un résumé court à l'opérateur.
+2. Lire `structuredContent.status` pour décider si l'action est réussie (`ok`), simulée (`dry_run`), partiellement vérifiée (`partial_failure`) ou en erreur.
+3. Relire `structuredContent.summary` quand le client MCP affiche seulement les données structurées.
+4. Distinguer `structuredContent.commandsSent` (commandes effectivement envoyées) de `structuredContent.commands_preview` (commandes simulées ou à confirmer).
+5. Toujours afficher ou résoudre `structuredContent.warnings` avant de poursuivre une action sensible.
+6. Suivre `structuredContent.next_actions` lorsqu'il propose une vérification, une confirmation ou une relance ciblée.
+
+Ces champs sont toujours présents sous forme de tableaux pour `commandsSent`, `commands_preview`, `warnings` et `next_actions`, même lorsqu'ils sont vides. Les autres champs métier (`cue`, `channel`, `macro`, `osc`, etc.) restent disponibles pour les détails techniques.
+
 ## Exemples complets
 
 Les exemples ci-dessous suivent le même cycle : audit des capacités, dry-run, lecture de la preview, puis exécution réelle uniquement après confirmation explicite.

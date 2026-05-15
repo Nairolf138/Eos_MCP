@@ -5,6 +5,20 @@
 
 Chaque outil expose son nom MCP, une description, la liste des arguments attendus ainsi qu'un exemple d'appel en CLI et par OSC.
 
+## Convention commune des resultats
+
+Les handlers LLM-facing doivent construire leurs reponses via `buildToolResult` (ou un helper local qui l appelle) afin de conserver une enveloppe stable dans `content[0].text` et `structuredContent`.
+
+- `content[0].text` : resume humain court, directement lisible par un operateur.
+- `structuredContent.status` : statut haut niveau (`ok`, `dry_run`, `partial_failure`, `error` ou statut EOS brut si applicable).
+- `structuredContent.summary` : meme information lisible que le texte, disponible pour les clients qui ne lisent que le contenu structure.
+- `structuredContent.commandsSent` : tableau des commandes effectivement envoyees; vide si aucune commande texte EOS n a ete envoyee.
+- `structuredContent.commands_preview` : tableau des commandes prevues/simulees, notamment en `dry_run`.
+- `structuredContent.warnings` : tableau d objets `{ detail, code? }`, vide en absence d avertissement.
+- `structuredContent.next_actions` : tableau d actions recommandees pour l assistant ou l operateur; vide si rien n est requis.
+
+Cette convention est appliquee en priorite aux familles `cues`, `commands`, `patch`, `dmx`, `macros`, `pixelMaps` et `showControl`; les nouveaux handlers doivent suivre la meme forme afin que les snapshots de lisibilite restent stables.
+
 ## Comportement dry-run des workflows
 
 Tous les workflows `eos_workflow_*` exposent `dry_run` et `require_confirmation` en option. Quand `dry_run` est absent ou vaut `false`, le workflow refuse l execution reelle tant que `require_confirmation` ne vaut pas explicitement `true`; cette confirmation ne doit etre ajoutee qu apres validation utilisateur explicite de `structuredContent.commands_preview`.

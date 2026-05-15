@@ -5,7 +5,7 @@
 import { z, type ZodRawShape } from 'zod';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import { oscMappings } from '../../services/osc/mappings';
-import type { ToolDefinition, ToolExecutionResult } from '../types';
+import { buildToolResult, type ToolDefinition, type ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
@@ -35,10 +35,11 @@ function extractTargetOptions(options: { targetAddress?: string; targetPort?: nu
 }
 
 function createResult(text: string, structuredContent: Record<string, unknown>): ToolExecutionResult {
-  return {
-    content: [{ type: 'text', text }],
+  return buildToolResult({
+    text,
+    summary: typeof structuredContent.summary === 'string' ? structuredContent.summary : text,
     structuredContent
-  } as ToolExecutionResult;
+  });
 }
 
 function normaliseString(value: unknown): string | null {

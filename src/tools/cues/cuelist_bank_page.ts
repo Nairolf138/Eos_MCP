@@ -5,7 +5,7 @@
 import { z, type ZodRawShape } from 'zod';
 import { getOscClient } from '../../services/osc/client';
 import { oscMappings } from '../../services/osc/mappings';
-import type { ToolDefinition, ToolExecutionResult } from '../types';
+import { buildToolResult, type ToolDefinition, type ToolExecutionResult } from '../types';
 import { extractTargetOptions, targetOptionsSchema } from './common';
 
 const bankPageInputSchema = {
@@ -51,8 +51,9 @@ export const eosCuelistBankPageTool: ToolDefinition<typeof bankPageInputSchema> 
       delta: options.delta
     };
 
-    const result: ToolExecutionResult = {
-      content: [{ type: 'text', text }],
+    const result: ToolExecutionResult = buildToolResult({
+      text,
+      summary: text,
       structuredContent: {
         action: 'cuelist_bank_page',
         request,
@@ -61,7 +62,7 @@ export const eosCuelistBankPageTool: ToolDefinition<typeof bankPageInputSchema> 
           args: [] as const
         }
       }
-    } as ToolExecutionResult;
+    });
 
     return result;
   }

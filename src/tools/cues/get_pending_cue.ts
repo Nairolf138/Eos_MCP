@@ -6,7 +6,7 @@ import { z, type ZodRawShape } from 'zod';
 import { getOscClient } from '../../services/osc/client';
 import { buildCueJsonMessage } from '../../services/osc/messageBuilders';
 import { oscMappings } from '../../services/osc/mappings';
-import type { ToolDefinition, ToolExecutionResult } from '../types';
+import { buildToolResult, type ToolDefinition, type ToolExecutionResult } from '../types';
 import {
   buildCueCommandPayload,
   createCueIdentifierFromOptions,
@@ -60,8 +60,9 @@ export const eosGetPendingCueTool: ToolDefinition<typeof getPendingCueInputSchem
     const state = mapCuePlaybackState(response.data, identifier);
     const text = `Cue en attente ${formatCueDescription(state.details.identifier)} (${state.details.label ?? 'sans label'})`;
 
-    const result: ToolExecutionResult = {
-      content: [{ type: 'text', text }],
+    const result: ToolExecutionResult = buildToolResult({
+      text,
+      summary: text,
       structuredContent: {
         action: 'get_pending_cue',
         status: response.status,
@@ -72,7 +73,7 @@ export const eosGetPendingCueTool: ToolDefinition<typeof getPendingCueInputSchem
           response: response.payload
         }
       }
-    } as ToolExecutionResult;
+    });
 
     return result;
   }

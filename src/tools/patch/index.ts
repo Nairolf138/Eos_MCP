@@ -12,7 +12,7 @@ import {
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import { oscMappings } from '../../services/osc/mappings';
 import { createDryRunResult, resolveSafetyOptions, safetyOptionsSchema } from '../common/safety';
-import type { ToolDefinition, ToolExecutionResult } from '../types';
+import { buildToolResult, type ToolDefinition, type ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
@@ -181,10 +181,11 @@ function annotate(osc: string): Record<string, unknown> {
 }
 
 function createResult(text: string, structuredContent: Record<string, unknown>): ToolExecutionResult {
-  return {
-    content: [{ type: 'text', text }],
+  return buildToolResult({
+    text,
+    summary: typeof structuredContent.summary === 'string' ? structuredContent.summary : text,
     structuredContent
-  } as ToolExecutionResult;
+  });
 }
 
 function asFiniteNumber(value: unknown): number | null {

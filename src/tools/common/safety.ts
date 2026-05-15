@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { z, type ZodRawShape } from 'zod';
-import type { ToolExecutionResult } from '../types';
+import { buildToolResult, type ToolExecutionResult } from '../types';
 
 export const safetyLevelSchema = z.enum(['strict', 'standard', 'off']);
 
@@ -49,8 +49,11 @@ export function createDryRunResult(params: {
   cli?: { text: string };
   extra?: Record<string, unknown>;
 }): ToolExecutionResult {
-  return {
-    content: [{ type: 'text', text: `[dry_run] ${params.text}` }],
+  return buildToolResult({
+    text: `[dry_run] ${params.text}`,
+    status: 'dry_run',
+    summary: `[dry_run] ${params.text}`,
+    commands_preview: params.cli?.text ? [params.cli.text] : [],
     structuredContent: {
       action: params.action,
       dry_run: true,
@@ -62,7 +65,7 @@ export function createDryRunResult(params: {
       ...(params.cli ? { cli: params.cli } : {}),
       ...(params.extra ?? {})
     }
-  } as ToolExecutionResult;
+  }) as ToolExecutionResult;
 }
 
 export function isSensitiveCommandText(command: string): boolean {
