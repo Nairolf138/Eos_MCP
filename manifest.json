@@ -93,6 +93,7 @@
           "eos_workflow_create_effect",
           "eos_workflow_create_look",
           "eos_workflow_patch_fixture",
+          "eos_workflow_patch_scan",
           "eos_workflow_rehearsal_go_safe"
         ]
       }

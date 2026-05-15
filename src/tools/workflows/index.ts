@@ -25,6 +25,8 @@ import {
   executePatchSequence,
   extractPatchSequenceError
 } from './patchSequence';
+import { eosWorkflowPatchScanTool } from './patchScan';
+export { eosWorkflowPatchScanTool } from './patchScan';
 
 const primaryWorkflowAnnotations = {
   recommended: true,
@@ -1333,6 +1335,7 @@ export const workflowTools = [
   eosWorkflowCreateEffectTool,
   eosWorkflowCreateCueSeriesTool,
   eosWorkflowPatchFixtureTool,
+  eosWorkflowPatchScanTool,
   eosWorkflowAutopatchBandTool,
   eosWorkflowRehearsalGoSafeTool,
   eosWorkflowBuildGroupsAndPalettesTool,

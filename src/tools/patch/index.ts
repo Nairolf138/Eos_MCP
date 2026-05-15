@@ -43,7 +43,7 @@ const partNumberWithAllSchema = z.coerce
   .max(99)
   .describe('Numero de partie (0 = toutes les parties, 1-99).');
 
-interface PatchChannelTextFields {
+export interface PatchChannelTextFields {
   text1: string | null;
   text2: string | null;
   text3: string | null;
@@ -71,7 +71,7 @@ const TEXT_KEYS = [
 
 type PatchChannelTextKey = (typeof TEXT_KEYS)[number];
 
-interface PatchChannelPartInfo {
+export interface PatchChannelPartInfo {
   part_number: number;
   label: string | null;
   manufacturer: string | null;
@@ -82,7 +82,7 @@ interface PatchChannelPartInfo {
   notes: string | null;
 }
 
-interface PatchChannelInfo {
+export interface PatchChannelInfo {
   channel_number: number;
   label: string | null;
   part_count: number | null;
@@ -182,15 +182,15 @@ function annotate(osc: string): Record<string, unknown> {
 
 const OSC_CONSOLE_CHECK_MESSAGE = 'Vérifiez côté console: OSC RX activé, OSC TX activé, IP TX vers le serveur MCP, ports UDP 8000/8001 ou TCP 3032 cohérents.';
 
-function shouldExposeOscDiagnostics(response: OscJsonResponse): boolean {
+function shouldExposeOscDiagnostics(response: Pick<OscJsonResponse, 'status'>): boolean {
   return response.status === 'timeout' || response.status === 'error';
 }
 
-function appendConsoleCheck(text: string, response: OscJsonResponse): string {
+function appendConsoleCheck(text: string, response: Pick<OscJsonResponse, 'status'>): string {
   return shouldExposeOscDiagnostics(response) ? `${text} ${OSC_CONSOLE_CHECK_MESSAGE}` : text;
 }
 
-function withOscDiagnostics(response: OscJsonResponse): Record<string, unknown> {
+function withOscDiagnostics(response: Pick<OscJsonResponse, 'status' | 'diagnostics'>): Record<string, unknown> {
   return shouldExposeOscDiagnostics(response) && response.diagnostics
     ? { diagnostics: response.diagnostics }
     : {};
@@ -669,6 +669,87 @@ const channelInfoInputSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
+export interface ReadPatchChannelInfoOptions {
+  channel_number: number;
+  part_number?: number;
+  timeoutMs?: number;
+  targetAddress?: string;
+  targetPort?: number;
+}
+
+export interface ReadPatchChannelInfoResult {
+  status: OscJsonResponse['status'];
+  channel: PatchChannelInfo;
+  error?: string;
+  diagnostics?: OscJsonResponse['diagnostics'];
+  osc: {
+    address: string;
+    args: {
+      channel: number;
+      part: number;
+    };
+  };
+}
+
+export async function readPatchChannelInfo(options: ReadPatchChannelInfoOptions): Promise<ReadPatchChannelInfoResult> {
+  const client = getOscClient();
+  const payload = {
+    channel: options.channel_number,
+    part: options.part_number ?? 0
+  };
+  const cacheKey = createCacheKey({
+    address: oscMappings.patch.channelInfo,
+    payload,
+    targetAddress: options.targetAddress,
+    targetPort: options.targetPort
+  });
+  const cache = getResourceCache();
+
+  return cache.fetch<ReadPatchChannelInfoResult>({
+    resourceType: 'patch',
+    key: cacheKey,
+    tags: [
+      createResourceTag('patch'),
+      createResourceTag('patch', `channel:${options.channel_number}`)
+    ],
+    prefixTags: [createOscPrefixTag('/eos/out/')],
+    fetcher: async () => {
+      const response: OscJsonResponse = await client.requestJson(oscMappings.patch.channelInfo, {
+        payload,
+        timeoutMs: options.timeoutMs,
+        targetAddress: options.targetAddress,
+        targetPort: options.targetPort,
+        responseAddresses: oscResponseMappings.patch.channelInfo
+      });
+
+      const responseRecord = response.data && typeof response.data === 'object' && !Array.isArray(response.data)
+        ? response.data as Record<string, unknown>
+        : null;
+      const channelPayload = responseRecord?.channel && typeof responseRecord.channel === 'object'
+        ? responseRecord.channel
+        : response.data;
+      const channelData = normaliseChannelInfo(
+        channelPayload,
+        options.channel_number,
+        options.part_number ?? null
+      );
+
+      const validatedChannel = patchChannelInfoOutputSchema.parse(channelData);
+
+      return {
+        status: response.status,
+        ...(response.error ? { error: response.error } : {}),
+        ...withOscDiagnostics(response),
+        channel: validatedChannel,
+        osc: {
+          address: oscMappings.patch.channelInfo,
+          args: payload
+        }
+      };
+    }
+  });
+}
+
 const augment3dInputSchema = {
   channel_number: channelNumberSchema,
   part_number: partNumberSchema,
@@ -697,7 +778,6 @@ export const eosPatchGetChannelInfoTool: ToolDefinition<typeof channelInfoInputS
   handler: async (args, _extra) => {
     const schema = z.object(channelInfoInputSchema).strict();
     const options = schema.parse(args ?? {});
-    const client = getOscClient();
     const payload = {
       channel: options.channel_number,
       part: options.part_number ?? 0
@@ -714,60 +794,18 @@ export const eosPatchGetChannelInfoTool: ToolDefinition<typeof channelInfoInputS
       });
     }
 
-    const cacheKey = createCacheKey({
-      address: oscMappings.patch.channelInfo,
-      payload,
-      targetAddress: options.targetAddress,
-      targetPort: options.targetPort
-    });
-    const cache = getResourceCache();
+    const result = await readPatchChannelInfo(options);
+    const baseText =
+      result.status === 'ok'
+        ? `Informations recues pour le canal ${result.channel.channel_number}.`
+        : `Lecture des informations du canal ${result.channel.channel_number} terminee avec le statut ${result.status}.`;
 
-    return cache.fetch<ToolExecutionResult>({
-      resourceType: 'patch',
-      key: cacheKey,
-      tags: [
-        createResourceTag('patch'),
-        createResourceTag('patch', `channel:${options.channel_number}`)
-      ],
-      prefixTags: [createOscPrefixTag('/eos/out/')],
-      fetcher: async () => {
-        const response: OscJsonResponse = await client.requestJson(oscMappings.patch.channelInfo, {
-          payload,
-          timeoutMs: options.timeoutMs,
-          targetAddress: options.targetAddress,
-          targetPort: options.targetPort,
-          responseAddresses: oscResponseMappings.patch.channelInfo
-        });
-
-        const responseRecord = response.data && typeof response.data === 'object' && !Array.isArray(response.data)
-          ? response.data as Record<string, unknown>
-          : null;
-        const channelPayload = responseRecord?.channel && typeof responseRecord.channel === 'object'
-          ? responseRecord.channel
-          : response.data;
-        const channelData = normaliseChannelInfo(
-          channelPayload,
-          options.channel_number,
-          options.part_number ?? null
-        );
-
-        const validatedChannel = patchChannelInfoOutputSchema.parse(channelData);
-
-        const baseText =
-          response.status === 'ok'
-            ? `Informations recues pour le canal ${validatedChannel.channel_number}.`
-            : `Lecture des informations du canal ${validatedChannel.channel_number} terminee avec le statut ${response.status}.`;
-
-        return createResult(appendConsoleCheck(baseText, response), {
-          status: response.status,
-          ...withOscDiagnostics(response),
-          channel: validatedChannel,
-          osc: {
-            address: oscMappings.patch.channelInfo,
-            args: payload
-          }
-        });
-      }
+    return createResult(appendConsoleCheck(baseText, result), {
+      status: result.status,
+      ...(result.error ? { error: result.error } : {}),
+      ...(result.diagnostics ? { diagnostics: result.diagnostics } : {}),
+      channel: result.channel,
+      osc: result.osc
     });
   }
 };
