@@ -7,6 +7,7 @@ Merci pour votre contribution.
 - Respecter les conventions de style et d'architecture du dépôt.
 - Ajouter/adapter les tests lorsqu'un comportement est modifié.
 - Mettre à jour la documentation impactée (`README.md`, `docs/*.md`) dans la même PR.
+- Pour ajouter un outil MCP, suivre le [guide dédié](docs/adding-a-tool.md) avant de modifier les mappings, schémas, tests et la documentation générée.
 
 ## Licence
 

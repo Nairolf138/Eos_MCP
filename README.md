@@ -61,6 +61,7 @@ Formats à utiliser selon le langage :
 - [Guide agent LLM](docs/llm-agent-guide.md) : règles de conduite pour assistants IA, exemples dry-run/confirmation et table d’orientation outil par intention utilisateur.
 - [Architecture technique](docs/architecture.md) : diagrammes du flux MCP → OSC, composants internes et guide “où modifier quoi” pour contribuer.
 - [`docs/tools.md`](docs/tools.md) : référence exhaustive générée automatiquement pour chaque outil MCP.
+- [Ajouter un outil MCP](docs/adding-a-tool.md) : procédure contributeur pour créer une famille d’outils, déclarer les mappings OSC, écrire les schémas Zod, tester et régénérer la référence.
 - [Guide licensing (community vs commerciale)](docs/licensing/README.md) : vue simple des deux voies, FAQ et cas pratiques.
 
 ### Outils MCP essentiels
