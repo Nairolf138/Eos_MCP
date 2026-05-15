@@ -4,22 +4,26 @@ Ce guide décrit le comportement attendu d'un assistant LLM qui pilote une conso
 
 ## Règles générales obligatoires
 
-1. **Toujours commencer par `eos_capabilities_get`.**
+1. **Toujours commencer par `eos_readiness_check`.**
+   - C'est la première étape obligatoire de toute session LLM, avant `eos_capabilities_get`, les lectures métier, les dry-runs et toute action réelle.
+   - Lire `structuredContent.overall_status`, `transport_status`, `handshake_mode`, `json_read_supported`, `failed_checks` et `operator_actions`.
+   - Ne poursuivre que si `overall_status=ok` ou si l'opérateur accepte explicitement les limitations signalées. Si `json_read_supported=false`, ne jamais inventer le patch, la cuelist, les cues ou l'état du show : les présenter comme inconnus et demander une reconfiguration OSC, une lecture réussie ou une source showfile explicite.
+   - Fournir `patchChannel` uniquement lorsqu'un canal connu doit valider aussi la lecture patch; sinon cette sous-vérification optionnelle reste `skipped`.
+2. **Enchaîner avec `eos_capabilities_get` pour le contexte métier.**
    - Lire `structuredContent.context` avant de proposer une action métier.
    - Vérifier l'état OSC, l'utilisateur Eos, le mode Live/Blind, les limitations de lecture et les garde-fous de sécurité disponibles.
-   - Si `structuredContent.context.osc_limitations.can_read_queries=false` ou `canReadJsonQueries=false`, ne jamais inventer le patch, la cuelist, les cues ou l'état du show : les présenter comme inconnus et demander une lecture réussie ou une confirmation opérateur.
    - En mode legacy/non confirmé, les outils de lecture peuvent retourner `unsupported_transport_mode` ou `read_capability_unconfirmed` au lieu d'attendre un timeout. Dans ce cas, demander explicitement une reconfiguration OSC qui confirme les requêtes JSON, ou une source showfile fournie par l'opérateur; ne pas reconstruire ou deviner le patch depuis des suppositions.
-2. **Privilégier les workflows `eos_workflow_*`.**
+3. **Privilégier les workflows `eos_workflow_*`.**
    - Utiliser un workflow haut niveau dès qu'il existe pour l'intention utilisateur : cue series, update cue, look, patch fixture, autopatch, rehearsal GO, groupes/palettes, effet.
    - Réserver les outils bas niveau (`eos_cue_*`, `eos_patch_*`, `eos_command`, `eos_new_command`, `*_fire`) aux cas où aucun workflow ne couvre l'action ou lorsque l'intégration sait exactement quelle commande Eos envoyer.
-3. **Utiliser `dry_run=true` avant toute action sensible.**
+4. **Utiliser `dry_run=true` avant toute action sensible.**
    - Sont sensibles : modification de show, patch, record/update/label, commande texte, action live visible, rappel de cue/palette/preset, GO, macro, show control.
    - Lire `structuredContent.commands_preview` à l'utilisateur et attendre une confirmation explicite.
    - Relancer ensuite le même outil avec les mêmes arguments métier, `dry_run=false` ou sans `dry_run`, et `require_confirmation=true` si l'outil l'expose.
-4. **Ne pas concaténer des commandes de programmation complexes dans une seule chaîne libre.**
+5. **Ne pas concaténer des commandes de programmation complexes dans une seule chaîne libre.**
    - Pour une série de cues, utiliser `eos_workflow_create_cue_series` plutôt qu'une commande texte qui mélange `At`, `Record`, `Label` et d'autres actions.
    - Si `eos_new_command` est nécessaire, utiliser `clearLine=true`, `terminateWithEnter=true`, `dry_run=true`, puis confirmation.
-5. **Restituer le plan avant l'appel.**
+6. **Restituer le plan avant l'appel.**
    - Annoncer la cible, les canaux, les numéros de cues/palettes/fixtures, les valeurs d'intensité ou DMX, et le rollback prévu.
    - Ne jamais envoyer une action réelle si l'utilisateur valide seulement une intention vague (« fais-le » après plusieurs propositions ambiguës, par exemple).
 
@@ -38,13 +42,23 @@ Ces champs sont toujours présents sous forme de tableaux pour `commandsSent`, `
 
 ## Exemples complets
 
-Les exemples ci-dessous suivent le même cycle : audit des capacités, dry-run, lecture de la preview, puis exécution réelle uniquement après confirmation explicite.
+Les exemples ci-dessous suivent le même cycle : readiness obligatoire, audit des capacités, dry-run, lecture de la preview, puis exécution réelle uniquement après confirmation explicite.
 
 ### 1. Programmer une cue
 
 **Intention utilisateur :** « Programme trois cues reggae sur la liste 3 : intro ambre, couplet bleu, refrain blanc full. »
 
-**Étape A — audit obligatoire**
+**Étape A — readiness obligatoire**
+
+```json
+{
+  "type": "call_tool",
+  "tool": "eos_readiness_check",
+  "arguments": {}
+}
+```
+
+**Étape B — audit des capacités**
 
 ```json
 {
@@ -54,7 +68,7 @@ Les exemples ci-dessous suivent le même cycle : audit des capacités, dry-run, 
 }
 ```
 
-**Étape B — dry-run du workflow recommandé**
+**Étape C — dry-run du workflow recommandé**
 
 ```json
 {
@@ -94,7 +108,7 @@ Les exemples ci-dessous suivent le même cycle : audit des capacités, dry-run, 
 - `structuredContent.applied_defaults` : signaler les valeurs par défaut appliquées.
 - `structuredContent.warnings` : résoudre tout avertissement avant de poursuivre.
 
-**Étape C — exécution après confirmation explicite**
+**Étape D — exécution après confirmation explicite**
 
 ```json
 {
@@ -132,7 +146,17 @@ Les exemples ci-dessous suivent le même cycle : audit des capacités, dry-run, 
 
 **Intention utilisateur :** « Top GO sur la liste 1, avec rattrapage si problème. »
 
-**Étape A — audit obligatoire**
+**Étape A — readiness obligatoire**
+
+```json
+{
+  "type": "call_tool",
+  "tool": "eos_readiness_check",
+  "arguments": {}
+}
+```
+
+**Étape B — audit des capacités**
 
 ```json
 {
@@ -142,7 +166,7 @@ Les exemples ci-dessous suivent le même cycle : audit des capacités, dry-run, 
 }
 ```
 
-**Étape B — lecture de contexte utile**
+**Étape C — lecture de contexte utile**
 
 ```json
 {
@@ -160,7 +184,7 @@ Les exemples ci-dessous suivent le même cycle : audit des capacités, dry-run, 
 }
 ```
 
-**Étape C — dry-run du GO sécurisé**
+**Étape D — dry-run du GO sécurisé**
 
 ```json
 {
@@ -178,7 +202,7 @@ Les exemples ci-dessous suivent le même cycle : audit des capacités, dry-run, 
 }
 ```
 
-**Étape D — exécution après confirmation de régie**
+**Étape E — exécution après confirmation de régie**
 
 ```json
 {
@@ -215,7 +239,17 @@ Les exemples ci-dessous suivent le même cycle : audit des capacités, dry-run, 
 
 **Intention utilisateur :** « Patche le canal 305 en Lustr3 à l'adresse 2/145, label Face Jardin. »
 
-**Étape A — audit obligatoire**
+**Étape A — readiness obligatoire**
+
+```json
+{
+  "type": "call_tool",
+  "tool": "eos_readiness_check",
+  "arguments": {}
+}
+```
+
+**Étape B — audit des capacités**
 
 ```json
 {
@@ -225,7 +259,7 @@ Les exemples ci-dessous suivent le même cycle : audit des capacités, dry-run, 
 }
 ```
 
-**Étape B — lire l'état actuel pour éviter d'écraser un patch critique**
+**Étape C — lire l'état actuel pour éviter d'écraser un patch critique**
 
 ```json
 {
@@ -237,7 +271,7 @@ Les exemples ci-dessous suivent le même cycle : audit des capacités, dry-run, 
 }
 ```
 
-**Étape C — dry-run du patch fixture**
+**Étape D — dry-run du patch fixture**
 
 ```json
 {
@@ -257,7 +291,7 @@ Les exemples ci-dessous suivent le même cycle : audit des capacités, dry-run, 
 }
 ```
 
-**Étape D — exécution après validation du patch précédent et de la preview**
+**Étape E — exécution après validation du patch précédent et de la preview**
 
 ```json
 {
@@ -277,7 +311,7 @@ Les exemples ci-dessous suivent le même cycle : audit des capacités, dry-run, 
 }
 ```
 
-**Étape E — vérification post-patch**
+**Étape F — vérification post-patch**
 
 ```json
 {
@@ -293,7 +327,17 @@ Les exemples ci-dessous suivent le même cycle : audit des capacités, dry-run, 
 
 **Intention utilisateur :** « Vérifie le show chargé puis sauvegarde si tout est bon. »
 
-**Étape A — audit obligatoire**
+**Étape A — readiness obligatoire**
+
+```json
+{
+  "type": "call_tool",
+  "tool": "eos_readiness_check",
+  "arguments": {}
+}
+```
+
+**Étape B — audit des capacités**
 
 ```json
 {
@@ -303,7 +347,7 @@ Les exemples ci-dessous suivent le même cycle : audit des capacités, dry-run, 
 }
 ```
 
-**Étape B — vérifications non destructives**
+**Étape C — vérifications non destructives**
 
 ```json
 {
@@ -329,7 +373,7 @@ Les exemples ci-dessous suivent le même cycle : audit des capacités, dry-run, 
 }
 ```
 
-**Étape C — dry-run de la sauvegarde par commande texte, seulement si aucun outil dédié n'est disponible**
+**Étape D — dry-run de la sauvegarde par commande texte, seulement si aucun outil dédié n'est disponible**
 
 ```json
 {
@@ -345,7 +389,7 @@ Les exemples ci-dessous suivent le même cycle : audit des capacités, dry-run, 
 }
 ```
 
-**Étape D — exécution après confirmation explicite de l'opérateur**
+**Étape E — exécution après confirmation explicite de l'opérateur**
 
 ```json
 {
@@ -369,7 +413,17 @@ Les exemples ci-dessous suivent le même cycle : audit des capacités, dry-run, 
 
 **Intention utilisateur :** « Dis-moi où est patché le canal 42 et vérifie l'adresse DMX 1/42. »
 
-**Étape A — audit obligatoire**
+**Étape A — readiness obligatoire**
+
+```json
+{
+  "type": "call_tool",
+  "tool": "eos_readiness_check",
+  "arguments": {}
+}
+```
+
+**Étape B — audit des capacités**
 
 ```json
 {
@@ -379,7 +433,7 @@ Les exemples ci-dessous suivent le même cycle : audit des capacités, dry-run, 
 }
 ```
 
-**Étape B — lire le patch du canal**
+**Étape C — lire le patch du canal**
 
 ```json
 {
@@ -391,7 +445,7 @@ Les exemples ci-dessous suivent le même cycle : audit des capacités, dry-run, 
 }
 ```
 
-**Étape C — lire les informations de canal utiles au diagnostic**
+**Étape D — lire les informations de canal utiles au diagnostic**
 
 ```json
 {
@@ -403,7 +457,7 @@ Les exemples ci-dessous suivent le même cycle : audit des capacités, dry-run, 
 }
 ```
 
-**Étape D — sélectionner ou tester une adresse DMX sans changer le show**
+**Étape E — sélectionner ou tester une adresse DMX sans changer le show**
 
 ```json
 {
