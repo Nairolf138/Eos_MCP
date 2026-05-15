@@ -225,8 +225,66 @@ export const oscResponseMappings = {
       list: withEosOutResponseVariant(oscMappings.queries.cue.list)
     },
     cuelist: {
+      count: withEosOutResponseVariant(oscMappings.queries.cuelist.count),
       list: withEosOutResponseVariant(oscMappings.queries.cuelist.list)
+    },
+    group: {
+      count: withEosOutResponseVariant(oscMappings.queries.group.count),
+      list: withEosOutResponseVariant(oscMappings.queries.group.list)
+    },
+    macro: {
+      count: withEosOutResponseVariant(oscMappings.queries.macro.count),
+      list: withEosOutResponseVariant(oscMappings.queries.macro.list)
+    },
+    ms: {
+      count: withEosOutResponseVariant(oscMappings.queries.ms.count),
+      list: withEosOutResponseVariant(oscMappings.queries.ms.list)
+    },
+    ip: {
+      count: withEosOutResponseVariant(oscMappings.queries.ip.count),
+      list: withEosOutResponseVariant(oscMappings.queries.ip.list)
+    },
+    fp: {
+      count: withEosOutResponseVariant(oscMappings.queries.fp.count),
+      list: withEosOutResponseVariant(oscMappings.queries.fp.list)
+    },
+    cp: {
+      count: withEosOutResponseVariant(oscMappings.queries.cp.count),
+      list: withEosOutResponseVariant(oscMappings.queries.cp.list)
+    },
+    bp: {
+      count: withEosOutResponseVariant(oscMappings.queries.bp.count),
+      list: withEosOutResponseVariant(oscMappings.queries.bp.list)
+    },
+    preset: {
+      count: withEosOutResponseVariant(oscMappings.queries.preset.count),
+      list: withEosOutResponseVariant(oscMappings.queries.preset.list)
+    },
+    sub: {
+      count: withEosOutResponseVariant(oscMappings.queries.sub.count),
+      list: withEosOutResponseVariant(oscMappings.queries.sub.list)
+    },
+    fx: {
+      count: withEosOutResponseVariant(oscMappings.queries.fx.count),
+      list: withEosOutResponseVariant(oscMappings.queries.fx.list)
+    },
+    curve: {
+      count: withEosOutResponseVariant(oscMappings.queries.curve.count),
+      list: withEosOutResponseVariant(oscMappings.queries.curve.list)
+    },
+    snap: {
+      count: withEosOutResponseVariant(oscMappings.queries.snap.count),
+      list: withEosOutResponseVariant(oscMappings.queries.snap.list)
+    },
+    pixmap: {
+      count: withEosOutResponseVariant(oscMappings.queries.pixmap.count),
+      list: withEosOutResponseVariant(oscMappings.queries.pixmap.list)
     }
+  },
+  patch: {
+    channelInfo: withEosOutResponseVariant(oscMappings.patch.channelInfo),
+    augment3dPosition: withEosOutResponseVariant(oscMappings.patch.augment3dPosition),
+    augment3dBeam: withEosOutResponseVariant(oscMappings.patch.augment3dBeam)
   },
   cues: {
     info: withEosOutResponseVariant(oscMappings.cues.info),
