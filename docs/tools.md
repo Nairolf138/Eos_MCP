@@ -311,7 +311,7 @@ Les payloads ci-dessous utilisent le format MCP `tools/call` complet. Les exempl
 
 Les champs `category`, `synonyms`, `riskLevel`, `requiresConfirmation` et `preferredWorkflow` sont publiés dans `config.annotations` pour les clients MCP et repris ci-dessous pour guider le routage LLM.
 
-Catégories documentées : `commands`, `cues`, `diagnostics`, `dmx`, `keys`, `macros`, `palettes`, `patch`, `presets`, `showControl`.
+Catégories documentées : `commands`, `cues`, `diagnostics`, `dmx`, `keys`, `macros`, `palettes`, `patch`, `presets`, `showControl`, `showfile`.
 
 <a id="eos-address-select"></a>
 ## Selection d'adresse DMX (`eos_address_select`)
@@ -3711,6 +3711,246 @@ _OSC_
 # Exemple d'envoi OSC via oscsend
 oscsend 127.0.0.1 8001 /eos/param/position/xyz s:'{"x":1,"y":1,"z":1}'
 ```
+
+<a id="eos-showfile-get-patch"></a>
+## Lire le patch du showfile importe (`eos_showfile_get_patch`)
+
+**Description :** Retourne les entrees patch extraites des XML internes disponibles. Donnees issues du fallback showfile uniquement: source=showfile, live=false.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `showfile` |
+| Synonymes | `esf3d`, `showfile offline` |
+| Niveau de risque | `low` |
+
+**Arguments :**
+
+| Nom | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `import_id` | string | Non | Identifiant retourne par eos_showfile_import; omis, utilise le dernier import. |
+
+**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+
+**Exemples :**
+
+_CLI_
+
+```bash
+npx @modelcontextprotocol/cli call --tool eos_showfile_get_patch --args '{"import_id":"exemple"}'
+```
+
+_OSC_
+
+_Pas de mapping OSC documenté._
+
+<a id="eos-showfile-import"></a>
+## Importer un showfile Eos .esf3d hors live (`eos_showfile_import`)
+
+**Description :** Importe un .esf3d autorise comme archive ZIP dans un repertoire temporaire isole, extrait seulement les metadonnees XML utiles et marque la reponse source=showfile/live=false. Ce fallback exige une autorisation operateur explicite et ne remplace pas la lecture OSC live.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `showfile` |
+| Synonymes | `esf3d`, `showfile fallback`, `offline showfile` |
+| Niveau de risque | `medium` |
+| Confirmation requise | Oui |
+
+**Arguments :**
+
+| Nom | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `allowedRoot` | string | Non | Repertoire racine autorise pour localPath. |
+| `localPath` | string | Non | Chemin local .esf3d a importer, obligatoirement inclus dans allowedRoot. |
+| `maxArchiveBytes` | number | Non | Limite de taille de l archive .esf3d en octets. |
+| `maxEntryBytes` | number | Non | Limite par fichier interne extrait en octets. |
+| `maxUncompressedBytes` | number | Non | Limite totale de taille decompressee en octets. |
+| `maxXmlFiles` | number | Non | Nombre maximal de fichiers XML internes analyses. |
+| `operator_authorized` | boolean | Oui | Autorisation operateur explicite pour lire ce showfile hors console live. |
+| `uploadBase64` | string | Non | Contenu .esf3d encode en base64 pour un upload controle. |
+| `uploadFilename` | string | Non | Nom de fichier upload; doit finir par .esf3d. |
+
+**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+
+**Exemples :**
+
+_CLI_
+
+```bash
+npx @modelcontextprotocol/cli call --tool eos_showfile_import --args '{"operator_authorized":true}'
+```
+
+_OSC_
+
+_Pas de mapping OSC documenté._
+
+<a id="eos-showfile-list-cues"></a>
+## Lister les cues du showfile importe (`eos_showfile_list_cues`)
+
+**Description :** Retourne les cues extraites des XML internes disponibles. Donnees issues du fallback showfile uniquement: source=showfile, live=false.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `showfile` |
+| Synonymes | `esf3d`, `showfile offline` |
+| Niveau de risque | `low` |
+
+**Arguments :**
+
+| Nom | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `import_id` | string | Non | Identifiant retourne par eos_showfile_import; omis, utilise le dernier import. |
+
+**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+
+**Exemples :**
+
+_CLI_
+
+```bash
+npx @modelcontextprotocol/cli call --tool eos_showfile_list_cues --args '{"import_id":"exemple"}'
+```
+
+_OSC_
+
+_Pas de mapping OSC documenté._
+
+<a id="eos-showfile-list-fixtures"></a>
+## Lister les fixtures du showfile importe (`eos_showfile_list_fixtures`)
+
+**Description :** Retourne les fixtures extraites des XML internes disponibles. Donnees issues du fallback showfile uniquement: source=showfile, live=false.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `showfile` |
+| Synonymes | `esf3d`, `showfile offline` |
+| Niveau de risque | `low` |
+
+**Arguments :**
+
+| Nom | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `import_id` | string | Non | Identifiant retourne par eos_showfile_import; omis, utilise le dernier import. |
+
+**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+
+**Exemples :**
+
+_CLI_
+
+```bash
+npx @modelcontextprotocol/cli call --tool eos_showfile_list_fixtures --args '{"import_id":"exemple"}'
+```
+
+_OSC_
+
+_Pas de mapping OSC documenté._
+
+<a id="eos-showfile-list-groups"></a>
+## Lister les groupes du showfile importe (`eos_showfile_list_groups`)
+
+**Description :** Retourne les groupes extraits des XML internes disponibles. Donnees issues du fallback showfile uniquement: source=showfile, live=false.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `showfile` |
+| Synonymes | `esf3d`, `showfile offline` |
+| Niveau de risque | `low` |
+
+**Arguments :**
+
+| Nom | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `import_id` | string | Non | Identifiant retourne par eos_showfile_import; omis, utilise le dernier import. |
+
+**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+
+**Exemples :**
+
+_CLI_
+
+```bash
+npx @modelcontextprotocol/cli call --tool eos_showfile_list_groups --args '{"import_id":"exemple"}'
+```
+
+_OSC_
+
+_Pas de mapping OSC documenté._
+
+<a id="eos-showfile-list-labels"></a>
+## Lister les labels du showfile importe (`eos_showfile_list_labels`)
+
+**Description :** Retourne les labels extraits des XML internes disponibles. Donnees issues du fallback showfile uniquement: source=showfile, live=false.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `showfile` |
+| Synonymes | `esf3d`, `showfile offline` |
+| Niveau de risque | `low` |
+
+**Arguments :**
+
+| Nom | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `import_id` | string | Non | Identifiant retourne par eos_showfile_import; omis, utilise le dernier import. |
+
+**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+
+**Exemples :**
+
+_CLI_
+
+```bash
+npx @modelcontextprotocol/cli call --tool eos_showfile_list_labels --args '{"import_id":"exemple"}'
+```
+
+_OSC_
+
+_Pas de mapping OSC documenté._
+
+<a id="eos-showfile-list-palettes"></a>
+## Lister les palettes du showfile importe (`eos_showfile_list_palettes`)
+
+**Description :** Retourne les palettes extraites des XML internes disponibles. Donnees issues du fallback showfile uniquement: source=showfile, live=false.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `showfile` |
+| Synonymes | `esf3d`, `showfile offline` |
+| Niveau de risque | `low` |
+
+**Arguments :**
+
+| Nom | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `import_id` | string | Non | Identifiant retourne par eos_showfile_import; omis, utilise le dernier import. |
+
+**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+
+**Exemples :**
+
+_CLI_
+
+```bash
+npx @modelcontextprotocol/cli call --tool eos_showfile_list_palettes --args '{"import_id":"exemple"}'
+```
+
+_OSC_
+
+_Pas de mapping OSC documenté._
 
 <a id="eos-snapshot-get-info"></a>
 ## Lecture des informations de snapshot (`eos_snapshot_get_info`)

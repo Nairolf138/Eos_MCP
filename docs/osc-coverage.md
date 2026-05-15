@@ -106,6 +106,13 @@ Les contrats centralisés sont vérifiés dans `src/tools/__tests__/osc_contract
 | toggle | `eos_toggle_staging_mode` | `/eos/newcmd` | `src/tools/__tests__/osc_contracts.test.ts` |
 | cues | `eos_set_cue_send_string` | `/eos/newcmd` | `src/tools/__tests__/osc_contracts.test.ts` |
 | cues | `eos_set_cue_receive_string` | `/eos/newcmd` | `src/tools/__tests__/osc_contracts.test.ts` |
+| showfile | `eos_showfile_import` | — | — (outil non OSC ou orchestrateur) |
+| showfile | `eos_showfile_get_patch` | — | — (outil non OSC ou orchestrateur) |
+| showfile | `eos_showfile_list_groups` | — | — (outil non OSC ou orchestrateur) |
+| showfile | `eos_showfile_list_labels` | — | — (outil non OSC ou orchestrateur) |
+| showfile | `eos_showfile_list_cues` | — | — (outil non OSC ou orchestrateur) |
+| showfile | `eos_showfile_list_palettes` | — | — (outil non OSC ou orchestrateur) |
+| showfile | `eos_showfile_list_fixtures` | — | — (outil non OSC ou orchestrateur) |
 | queries | `eos_get_count` | `cue`: `/eos/get/cue/count`<br>`cuelist`: `/eos/get/cuelist/count`<br>`group`: `/eos/get/group/count`<br>`macro`: `/eos/get/macro/count`<br>`ms`: `/eos/get/magic_sheet/count`<br>`ip`: `/eos/get/ip/count`<br>`fp`: `/eos/get/fp/count`<br>`cp`: `/eos/get/cp/count`<br>`bp`: `/eos/get/bp/count`<br>`preset`: `/eos/get/preset/count`<br>`sub`: `/eos/get/submaster/count`<br>`fx`: `/eos/get/effect/count`<br>`curve`: `/eos/get/curve/count`<br>`snap`: `/eos/get/snapshot/count`<br>`pixmap`: `/eos/get/pixmap/count` | `src/tools/__tests__/osc_contracts.test.ts` |
 | queries | `eos_get_list_all` | `cue`: `/eos/get/cue/list`<br>`cuelist`: `/eos/get/cuelist/list`<br>`group`: `/eos/get/group/list`<br>`macro`: `/eos/get/macro/list`<br>`ms`: `/eos/get/magic_sheet/list`<br>`ip`: `/eos/get/ip/list`<br>`fp`: `/eos/get/fp/list`<br>`cp`: `/eos/get/cp/list`<br>`bp`: `/eos/get/bp/list`<br>`preset`: `/eos/get/preset/list`<br>`sub`: `/eos/get/submaster/list`<br>`fx`: `/eos/get/effect/list`<br>`curve`: `/eos/get/curve/list`<br>`snap`: `/eos/get/snapshot/list`<br>`pixmap`: `/eos/get/pixmap/list` | `src/tools/__tests__/osc_contracts.test.ts` |
 | fpe | `eos_fpe_get_set_count` | `/eos/get/fpe/set/count` | `src/tools/__tests__/osc_contracts.test.ts` |

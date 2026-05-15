@@ -135,6 +135,10 @@ Sur Windows, utilisez `npm run tsc` pour exécuter exactement la même compilati
 
 La description détaillée de chaque outil est disponible dans [`docs/tools.md`](docs/tools.md). Le fichier est généré automatiquement à partir des schémas Zod déclarés dans `src/tools/**`.
 
+### Fallback showfile `.esf3d` hors live
+
+Les outils `eos_showfile_*` peuvent importer un showfile `.esf3d` uniquement comme fallback hors live, après autorisation opérateur explicite (`operator_authorized=true`). L'import accepte soit un chemin local limité à un `allowedRoot`, soit un upload base64 contrôlé; dans les deux cas le fichier doit garder l'extension `.esf3d`. Le fichier est traité comme une archive ZIP dans un répertoire temporaire isolé avec limites de taille, contrôle zip-slip et nettoyage systématique. Les réponses portent toujours `source: "showfile"` et `live: false` pour éviter toute confusion avec la console. Ce fallback ne remplace pas la lecture OSC live et ne doit pas être présenté comme état temps réel de la console.
+
 Toutes les modifications publiées sont consignées dans [`CHANGELOG.md`](CHANGELOG.md). La procédure de mise à jour de version du serveur est documentée dans [`docs/versioning.md`](docs/versioning.md). Les instructions de déploiement (systemd, NSSM) sont disponibles dans [`docs/deployment.md`](docs/deployment.md).
 
 ## Options de ligne de commande
