@@ -60,6 +60,7 @@ Les contrats centralisés sont vérifiés dans `src/tools/__tests__/osc_contract
 | diagnostics | `eos_enable_logging` | — | — (outil non OSC ou orchestrateur) |
 | diagnostics | `eos_readiness_check` | — | — (outil non OSC ou orchestrateur) |
 | diagnostics | `eos_get_diagnostics` | — | — (outil non OSC ou orchestrateur) |
+| diagnostics | `eos_console_targets` | — | — (outil non OSC ou orchestrateur) |
 | diagnostics | `eos_get_version` | — | — (outil non OSC ou orchestrateur) |
 | diagnostics | `eos_get_setup_defaults` | — | — (outil non OSC ou orchestrateur) |
 | cues | `eos_cue_fire` | `/eos/cmd` | `src/tools/__tests__/osc_contracts.test.ts` |

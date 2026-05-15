@@ -16,6 +16,9 @@ Les handlers LLM-facing doivent construire leurs reponses via `buildToolResult` 
 - `structuredContent.commands_preview` : tableau des commandes prevues/simulees, notamment en `dry_run`.
 - `structuredContent.warnings` : tableau d objets `{ detail, code? }`, vide en absence d avertissement.
 - `structuredContent.next_actions` : tableau d actions recommandees pour l assistant ou l operateur; vide si rien n est requis.
+- `structuredContent.target_console`, `structuredContent.target_address` et `structuredContent.target_port` : cible console resolue pour l appel courant.
+
+Tous les outils enregistres acceptent aussi l argument global optionnel `targetConsole`, resolu depuis `EOS_CONSOLES`, en complement de `targetAddress`/`targetPort` quand ces champs sont exposes par l outil.
 
 Cette convention est appliquee en priorite aux familles `cues`, `commands`, `patch`, `dmx`, `macros`, `pixelMaps` et `showControl`; les nouveaux handlers doivent suivre la meme forme afin que les snapshots de lisibilite restent stables.
 
@@ -848,6 +851,27 @@ _CLI_
 
 ```bash
 npx @modelcontextprotocol/cli call --tool eos_connect --args '{"targetAddress":"exemple"}'
+```
+
+_OSC_
+
+_Pas de mapping OSC documenté._
+
+<a id="eos-console-targets"></a>
+## Diagnostics des consoles cible (`eos_console_targets`)
+
+**Description :** Liste les cibles EOS configurees via EOS_CONSOLES et indique leur etat par rapport a la connexion OSC courante.
+
+**Arguments :** Aucun argument.
+
+**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+
+**Exemples :**
+
+_CLI_
+
+```bash
+npx @modelcontextprotocol/cli call --tool eos_console_targets --args '{}'
 ```
 
 _OSC_

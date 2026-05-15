@@ -4,6 +4,7 @@
  */
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { randomUUID } from 'node:crypto';
+import { z } from 'zod';
 import { createLogger } from './logger';
 import { runWithRequestContext } from './requestContext';
 import { getDefaultAllowedToolProfile } from '../config/env';
@@ -24,10 +25,79 @@ import {
   evaluateToolCompatibility,
   resolveCompatibilityContext
 } from '../services/osc/compatibilityMatrix';
+import { resolveConsoleTarget, type ConsoleTargetResolution } from '../services/consoleTargets';
 
 const logger = createLogger('tool-registry');
 
 const SENSITIVE_FIELD_PATTERN = /(token|password|secret|authorization|api[-_]?key|cookie)/i;
+
+const globalConsoleTargetSchema = {
+  targetConsole: z.string().min(1).optional()
+};
+
+function withGlobalConsoleTargetInputSchema(tool: ToolDefinition): ToolDefinition['config'] {
+  const inputSchema = tool.config.inputSchema;
+  if (!inputSchema || 'targetConsole' in inputSchema) {
+    return tool.config;
+  }
+
+  return {
+    ...tool.config,
+    inputSchema: {
+      ...inputSchema,
+      ...globalConsoleTargetSchema
+    }
+  };
+}
+
+function resolveArgsConsoleTarget(
+  args: unknown,
+  inputSchema?: ToolDefinition['config']['inputSchema']
+): { args: unknown; target: ConsoleTargetResolution } {
+  const record = asObject(args);
+  const parsedPort = typeof record.targetPort === 'number' && Number.isFinite(record.targetPort)
+    ? Math.trunc(record.targetPort)
+    : undefined;
+  const target = resolveConsoleTarget({
+    targetConsole: typeof record.targetConsole === 'string' ? record.targetConsole : undefined,
+    targetAddress: typeof record.targetAddress === 'string' ? record.targetAddress : undefined,
+    targetPort: parsedPort
+  });
+
+  if (!args || typeof args !== 'object' || Array.isArray(args)) {
+    return { args, target };
+  }
+
+  const nextArgs = Object.fromEntries(Object.entries(record).filter(([key]) => key !== 'targetConsole'));
+  if (inputSchema && 'targetAddress' in inputSchema) {
+    nextArgs.targetAddress = target.targetAddress;
+  }
+  if (inputSchema && 'targetPort' in inputSchema) {
+    nextArgs.targetPort = target.targetPort;
+  }
+
+  return {
+    args: nextArgs,
+    target
+  };
+}
+
+function addConsoleTargetToResult(
+  result: ToolExecutionResult,
+  target: ConsoleTargetResolution
+): ToolExecutionResult {
+  const structuredContent = {
+    ...(result.structuredContent ?? {}),
+    target_console: target.targetConsole,
+    target_address: target.targetAddress,
+    target_port: target.targetPort
+  };
+
+  return {
+    ...result,
+    structuredContent
+  };
+}
 
 function sanitizeValue(value: unknown, depth = 0): unknown {
   if (depth > 4) {
@@ -226,6 +296,7 @@ interface RegisteredToolSummary {
 
 
 function buildToolConfigForRegistration(tool: ToolDefinition): ToolDefinition['config'] {
+  const baseConfig = withGlobalConsoleTargetInputSchema(tool);
   const requiredRole = resolveToolRequiredRole(tool);
   const metadata = {
     ...(tool.metadata ?? {}),
@@ -233,9 +304,9 @@ function buildToolConfigForRegistration(tool: ToolDefinition): ToolDefinition['c
   };
   const { annotations: metadataAnnotations, ...metadataFields } = metadata;
   return {
-    ...tool.config,
+    ...baseConfig,
     annotations: {
-      ...(tool.config.annotations ?? {}),
+      ...(baseConfig.annotations ?? {}),
       ...(metadataAnnotations ?? {}),
       ...metadataFields
     }
@@ -360,18 +431,20 @@ class ToolRegistry {
     if (middlewares.length === 0) {
       return async (first: unknown, second?: unknown) => {
         const { args, extra } = normalizeInputs(first, second);
-        return this.executeWithAudit(tool, args, extra, () => tool.handler(args, extra));
+        const targetContext = hasInputSchema ? resolveArgsConsoleTarget(args, tool.config.inputSchema) : resolveArgsConsoleTarget(undefined, tool.config.inputSchema);
+        return this.executeWithAudit(tool, targetContext.args, extra, targetContext.target, () => tool.handler(targetContext.args, extra));
       };
     }
 
     return async (first: unknown, second?: unknown) => {
       const { args, extra } = normalizeInputs(first, second);
-      const context: ToolContext = { name: tool.name, args, extra };
+      const targetContext = hasInputSchema ? resolveArgsConsoleTarget(args, tool.config.inputSchema) : resolveArgsConsoleTarget(undefined, tool.config.inputSchema);
+      const context: ToolContext = { name: tool.name, args: targetContext.args, extra };
 
       const executeHandler = (): Promise<ToolExecutionResult> =>
-        Promise.resolve(tool.handler(args, extra));
+        Promise.resolve(tool.handler(targetContext.args, extra));
 
-      return this.executeWithAudit(tool, args, extra, () => this.compose(middlewares, executeHandler)(context));
+      return this.executeWithAudit(tool, targetContext.args, extra, targetContext.target, () => this.compose(middlewares, executeHandler)(context));
     };
   }
 
@@ -379,6 +452,7 @@ class ToolRegistry {
     tool: ToolDefinition,
     args: unknown,
     extra: unknown,
+    targetResolution: ConsoleTargetResolution,
     execute: () => Promise<ToolExecutionResult>
   ): Promise<ToolExecutionResult> {
     const toolName = tool.name;
@@ -393,8 +467,9 @@ class ToolRegistry {
     const confirmationState = resolveConfirmationState(args, requiredRole);
     const argsSanitized = sanitizeValue(args);
     const targetConsole = {
-      address: asObject(args).targetAddress,
-      port: asObject(args).targetPort
+      ...(targetResolution.targetConsole ? { name: targetResolution.targetConsole } : {}),
+      address: targetResolution.targetAddress,
+      port: targetResolution.targetPort
     };
     const compatibilityContext = resolveCompatibilityContext(args, extra);
     const compatibilityStatus = evaluateToolCompatibility(toolName, compatibilityContext);
@@ -412,7 +487,7 @@ class ToolRegistry {
         );
       }
 
-      const result = await runWithRequestContext(
+      const executionResult = await runWithRequestContext(
         {
           correlationId,
           ...(sessionId ? { sessionId } : {}),
@@ -420,6 +495,7 @@ class ToolRegistry {
         },
         () => execute()
       );
+      const result = addConsoleTargetToResult(executionResult, targetResolution);
 
       logger.info({
         event: 'tool_execution_audit',

@@ -24,6 +24,7 @@ import {
   isAppError
 } from '../../server/errors';
 import { getResourceCache } from '../cache/index';
+import { resolveConsoleTarget } from '../consoleTargets';
 import { RequestQueue, type RequestQueueDiagnostics, type RequestQueueRunOptions } from './requestQueue';
 import { getRequestContext } from '../../server/requestContext';
 import {
@@ -68,6 +69,7 @@ export interface OscRuntimeCapabilities {
 }
 
 export interface OscGatewaySendOptions {
+  targetConsole?: string;
   targetAddress?: string;
   targetPort?: number;
   toolId?: string;
@@ -86,6 +88,7 @@ export interface OscGateway {
   getActiveTransport?(toolId: string): TransportType | null;
   removeTool?(toolId: string): void;
   onStatus?(listener: (status: TransportStatus) => void): () => void;
+  getTransportStatuses?(): TransportStatus[];
   close?(): void;
 }
 
@@ -98,6 +101,7 @@ export interface OscClientConfig {
 }
 
 export interface TargetOptions {
+  targetConsole?: string;
   targetAddress?: string;
   targetPort?: number;
   toolId?: string;
@@ -686,6 +690,7 @@ export class OscClient {
       return this.buildReadCapabilityRefusal(address, responseAddresses, timeoutMs);
     }
     const targetOptions: TargetOptions = {
+      targetConsole: options.targetConsole,
       targetAddress: options.targetAddress,
       targetPort: options.targetPort,
       toolId: options.toolId,
@@ -889,6 +894,13 @@ export class OscClient {
     return this.requestQueue.getDiagnostics();
   }
 
+  public getTransportStatuses(): TransportStatus[] {
+    if (typeof this.gateway.getTransportStatuses === 'function') {
+      return this.gateway.getTransportStatuses();
+    }
+    return [];
+  }
+
   public onTransportStatus(listener: (status: TransportStatus) => void): () => void {
     if (typeof this.gateway.onStatus !== 'function') {
       throw new Error(
@@ -991,9 +1003,15 @@ export class OscClient {
       ...(queueOptions.details ?? {})
     };
 
-    const gatewayOptions: OscGatewaySendOptions = {
+    const resolvedTarget = resolveConsoleTarget({
+      targetConsole: options.targetConsole,
       targetAddress: options.targetAddress,
-      targetPort: options.targetPort,
+      targetPort: options.targetPort
+    });
+    const gatewayOptions: OscGatewaySendOptions = {
+      targetConsole: resolvedTarget.targetConsole ?? undefined,
+      targetAddress: resolvedTarget.targetAddress,
+      targetPort: resolvedTarget.targetPort,
       toolId: options.toolId ?? message.address,
       correlationId: getRequestContext()?.correlationId,
       transportPreference: options.transportPreference
@@ -1037,6 +1055,7 @@ export class OscClient {
 
   private buildQueueTargetKey(options: OscGatewaySendOptions): string {
     return [
+      options.targetConsole ?? 'default-console',
       options.targetAddress ?? 'default-address',
       typeof options.targetPort === 'number' ? String(options.targetPort) : 'default-port',
       options.transportPreference ?? 'auto'
@@ -1102,6 +1121,7 @@ export class OscClient {
     ));
 
     const targetOptions: TargetOptions = {
+      targetConsole: options.targetConsole,
       targetAddress: options.targetAddress,
       targetPort: options.targetPort,
       toolId: options.toolId,

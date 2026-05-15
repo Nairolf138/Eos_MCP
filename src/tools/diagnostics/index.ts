@@ -5,6 +5,7 @@
 import { z } from 'zod';
 import { getResourceCache, type CacheStatsByResource } from '../../services/cache/index';
 import { getOscClient } from '../../services/osc/client';
+import { listConsoleTargets, resolveConsoleTarget } from '../../services/consoleTargets';
 import type { OscDiagnostics, OscLoggingState } from '../../services/osc/index';
 import { oscMappings, oscResponseMappings, withEosOutResponseVariant } from '../../services/osc/mappings';
 import { optionalPortSchema, optionalTimeoutMsSchema } from '../../utils/validators';
@@ -186,6 +187,18 @@ const formatDiagnostics = (diagnostics: OscDiagnostics, cache: CacheStatsByResou
   ];
 
   return lines.join('\n');
+};
+
+
+const formatConsoleTargets = (targets: Array<Record<string, unknown>>): string => {
+  if (targets.length === 0) {
+    return 'Aucune cible console EOS configuree.';
+  }
+
+  return [
+    'Cibles consoles EOS:',
+    ...targets.map((target) => `- ${target.target_console ?? 'default'}: ${target.target_address}:${target.target_port} (${target.state})`)
+  ].join('\n');
 };
 
 const extractTargetOptions = (options: { targetAddress?: string; targetPort?: number }) => {
@@ -524,6 +537,66 @@ export const eosGetDiagnosticsTool: ToolDefinition<typeof emptyInputSchema> = {
   }
 };
 
+
+/**
+ * @tool eos_console_targets
+ * @summary Diagnostics des consoles cible
+ * @description Liste les cibles EOS configurees via EOS_CONSOLES et indique leur etat par rapport a la connexion OSC courante.
+ * @arguments Voir docs/tools.md#eos-console-targets pour le schema complet.
+ * @returns ToolExecutionResult avec contenu texte et objet.
+ * @example CLI Consultez docs/tools.md#eos-console-targets pour un exemple CLI.
+ * @example OSC Consultez docs/tools.md#eos-console-targets pour un exemple OSC.
+ */
+export const eosConsoleTargetsTool: ToolDefinition<typeof emptyInputSchema> = {
+  name: 'eos_console_targets',
+  config: {
+    title: 'Diagnostics des consoles cible',
+    description: 'Liste les cibles EOS configurees via EOS_CONSOLES et indique leur etat par rapport a la connexion OSC courante.',
+    inputSchema: emptyInputSchema
+  },
+  handler: async (_args, _extra) => {
+    const client = getOscClient();
+    const diagnostics = client.getDiagnostics();
+    const transportStatuses = client.getTransportStatuses();
+    const hasConnectedTransport = transportStatuses.some((status) => status.state === 'connected');
+    const defaultTarget = resolveConsoleTarget();
+    const targets = listConsoleTargets().map((target) => {
+      const isDefault = target.address === defaultTarget.targetAddress && target.port === defaultTarget.targetPort;
+      const isActiveRemote = target.address === diagnostics.config.remoteAddress && target.port === diagnostics.config.remotePort;
+      const state = isActiveRemote && hasConnectedTransport
+        ? 'connected'
+        : isActiveRemote
+          ? 'configured_current'
+          : 'configured_standby';
+
+      return {
+        target_console: target.name === 'default' ? null : target.name,
+        target_address: target.address,
+        target_port: target.port,
+        state,
+        is_default: isDefault,
+        is_active_remote: isActiveRemote,
+        transports: isActiveRemote ? transportStatuses : []
+      };
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: formatConsoleTargets(targets)
+        }
+      ],
+      structuredContent: {
+        action: 'list_console_targets',
+        status: 'ok',
+        targets,
+        transports: transportStatuses
+      }
+    } as unknown as ToolExecutionResult;
+  }
+};
+
 /**
  * @tool eos_get_version
  * @summary Version de la console
@@ -627,6 +700,7 @@ const diagnosticsTools: ToolDefinition[] = [
   eosEnableLoggingTool,
   eosReadinessCheckTool,
   eosGetDiagnosticsTool,
+  eosConsoleTargetsTool,
   eosGetVersionTool,
   eosGetSetupDefaultsTool
 ];
