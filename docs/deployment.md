@@ -69,3 +69,7 @@ Ce guide explique comment executer Eos MCP en tant que service durable sous Linu
    ```
 
 > **Astuce :** ajoutez un planificateur de taches ou une supervision externe pour redemarrer le service si vos conditions d'exploitation l'exigent. NSSM peut gerer la relance automatique et la rotation des fichiers de logs comme illustre dans le script fourni.
+
+## Depannage OSC Eos
+
+Apres installation ou changement reseau, utilisez la [checklist de depannage OSC Eos](troubleshooting-osc-eos.md) pour valider version EOS, OSC RX/TX, IP TX, ports UDP/TCP, firewall, interface reseau et limites Nomad offline/legacy avant de conclure a un incident applicatif.
