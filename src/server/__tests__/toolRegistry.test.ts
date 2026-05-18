@@ -355,6 +355,35 @@ describe('ToolRegistry schema-less tools', () => {
     });
   });
 
+  it('autorise un outil sensible lorsque le profil accorde est fourni dans les metadonnees MCP', async () => {
+    const server = createMockServer();
+    const registry = new ToolRegistry(server);
+    const handler = jest.fn(async () => ({ content: [{ type: 'text', text: 'ok' }] }));
+
+    registry.register({
+      name: 'eos_workflow_create_cue_series',
+      config: { inputSchema: { require_confirmation: z.boolean().optional() } },
+      handler
+    });
+
+    const [, , registeredHandler] = server.registerTool.mock.calls[0];
+
+    await expect(
+      (registeredHandler as RegisteredTestHandler)(
+        { require_confirmation: true },
+        { requestId: 'role-ok-meta', _meta: { grantedRole: 'admin' } }
+      )
+    ).resolves.toBeDefined();
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    const [payload] = mockLogger.info.mock.calls[0] as [Record<string, unknown>];
+    expect(payload).toMatchObject({
+      required_role: 'admin',
+      granted_role: 'admin',
+      confirmation_state: 'confirmed'
+    });
+  });
+
   it('journalise les champs minimaux d\'audit en succes', async () => {
     const server = createMockServer();
     const registry = new ToolRegistry(server);
