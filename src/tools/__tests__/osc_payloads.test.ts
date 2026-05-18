@@ -64,7 +64,7 @@ describe('OSC payload snapshots', () => {
 
   it('captures EOS-native command line payloads', async () => {
     await runTool(eosCommandTool, {
-      command: 'Load Cue 20',
+      command: 'Go To Cue 20',
       terminateWithEnter: true,
       safety_level: 'standard'
     });

@@ -6,7 +6,7 @@ exports[`OSC payload snapshots captures EOS-native command line payloads 1`] = `
   "args": [
     {
       "type": "s",
-      "value": "Load Cue 20#",
+      "value": "Go To Cue 20#",
     },
   ],
   "arguments": "single OSC string containing an EOS command-line command",
