@@ -1,6 +1,7 @@
 # Guide agent LLM pour Eos MCP
 
 Ce guide décrit le comportement attendu d'un assistant LLM qui pilote une console ETC Eos via Eos MCP. Il complète le [cookbook](cookbook.md) et la [référence des outils](tools.md) avec des règles opérationnelles, des exemples complets et une grille de choix d'outils.
+Pour diagnostiquer une liaison OSC/Eos avant toute action métier, consultez aussi le [guide de dépannage OSC Eos](troubleshooting-osc-eos.md).
 
 ## Règles générales obligatoires
 
