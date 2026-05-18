@@ -26,6 +26,7 @@ import { oscMappings } from '../../services/osc/mappings';
 declare const fetch: typeof globalThis.fetch;
 
 type JsonRpcPayload = Record<string, unknown>;
+type ToolCallMetadata = Record<string, unknown>;
 
 interface ToolCallResult {
   content?: Array<{ type?: string; text?: string }>;
@@ -397,14 +398,21 @@ describe('MCP HTTP e2e with a minimal EOS OSC simulator', () => {
   const callTool = async (
     sessionId: string,
     name: string,
-    args: Record<string, unknown> = {}
+    args: Record<string, unknown> = {},
+    metadata?: ToolCallMetadata
   ): Promise<ToolCallResult> => {
+    const params = {
+      name,
+      arguments: args,
+      ...(metadata ? { _meta: metadata } : {})
+    };
+
     const { response, payload } = await postMcp(
       {
         jsonrpc: '2.0',
         id: `call-${name}`,
         method: 'tools/call',
-        params: { name, arguments: args }
+        params
       },
       sessionId
     );
@@ -487,12 +495,14 @@ describe('MCP HTTP e2e with a minimal EOS OSC simulator', () => {
     expect(capabilities.structuredContent?.server).toBeDefined();
     expect(capabilities.structuredContent?.context).toBeDefined();
 
+    const adminToolMetadata = { grantedRole: 'admin' };
+
     const recordCue = await callTool(sessionId, 'eos_workflow_create_cue_series', {
       base_cuelist_number: 1,
       start_cue_number: 1,
       looks: [{ channels: '101', intensity: 50, cue_label: 'E2E 1' }],
       require_confirmation: true
-    });
+    }, adminToolMetadata);
     expect(recordCue.structuredContent?.status).toBe('ok');
     expect(simulator.received.some((message) => thisIsCommand(message, 'Record Cue 1/1'))).toBe(true);
 
@@ -502,14 +512,14 @@ describe('MCP HTTP e2e with a minimal EOS OSC simulator', () => {
       channels: '101',
       intensity_factor: 1,
       require_confirmation: true
-    });
+    }, adminToolMetadata);
     expect(updateCue.structuredContent?.status).toBe('ok');
     expect(simulator.received.some((message) => thisIsCommand(message, 'Update Cue 1/1'))).toBe(true);
 
     const go = await callTool(sessionId, 'eos_cue_go', {
       cuelist_number: 1,
       cue_number: 1
-    });
+    }, adminToolMetadata);
     expect(go.structuredContent).toMatchObject({ action: 'cue_go' });
     expect(simulator.received.some((message) => thisIsCommand(message, 'Cue 1 CueList 1 Go'))).toBe(true);
 
@@ -519,20 +529,20 @@ describe('MCP HTTP e2e with a minimal EOS OSC simulator', () => {
       device_type: 'Source Four LED Series 3 Lustr X8',
       label: 'Key Wash',
       require_confirmation: true
-    });
+    }, adminToolMetadata);
     expect(patchFixture.structuredContent?.status).toBe('ok');
     expect(simulator.received.some((message) => thisIsCommand(message, 'Patch Chan 101 Part 1 Address 1/101'))).toBe(true);
 
     const dmxRead = await callTool(sessionId, 'eos_address_select', {
       address_number: '1/101'
-    });
+    }, adminToolMetadata);
     expect(dmxRead.structuredContent).toMatchObject({
       status: 'ok',
       address: '1/101',
       osc: expect.objectContaining({ address: oscMappings.dmx.addressSelect })
     });
 
-    const macro = await callTool(sessionId, 'eos_macro_fire', { macro_number: 7 });
+    const macro = await callTool(sessionId, 'eos_macro_fire', { macro_number: 7 }, adminToolMetadata);
     expect(macro.structuredContent).toMatchObject({ action: 'macro_fire', macro_number: 7 });
     expect(simulator.count(oscMappings.macros.fire)).toBeGreaterThanOrEqual(1);
 

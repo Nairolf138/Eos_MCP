@@ -225,7 +225,17 @@ function resolveToolRequiredRole(tool: ToolDefinition): ToolSafetyProfile {
 
 function resolveGrantedToolRole(extra: unknown): ToolSafetyProfile {
   const record = asObject(extra);
-  const candidates = [record.grantedRole, record.granted_role, record.allowedToolProfile, record.allowed_tool_profile];
+  const metadata = asObject(record._meta);
+  const candidates = [
+    record.grantedRole,
+    record.granted_role,
+    record.allowedToolProfile,
+    record.allowed_tool_profile,
+    metadata.grantedRole,
+    metadata.granted_role,
+    metadata.allowedToolProfile,
+    metadata.allowed_tool_profile
+  ];
   const candidate = candidates.find((value) => typeof value === 'string' && value.trim().length > 0);
   if (typeof candidate === 'string') {
     const parsed = toolSafetyProfileSchema.safeParse(candidate.trim());
