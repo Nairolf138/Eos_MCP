@@ -208,6 +208,45 @@ export const oscMappings = {
   }
 } as const;
 
+export const oscPayloadAnnotations = {
+  commands: {
+    command: { wireFormat: 'eos-native-command', arguments: 'single OSC string containing an EOS command-line command' },
+    newCommand: { wireFormat: 'eos-native-command', arguments: 'single OSC string containing an EOS command-line command' }
+  },
+  channels: {
+    parameter: { wireFormat: 'json-string', arguments: 'single OSC string containing a JSON object payload' }
+  },
+  dmx: {
+    addressDmx: { wireFormat: 'json-string', arguments: 'single OSC string containing a JSON object payload' }
+  },
+  groups: {
+    level: { wireFormat: 'eos-native-arguments', arguments: 'EOS-native group level float argument' }
+  },
+  keys: {
+    press: { wireFormat: 'eos-native-arguments', arguments: 'EOS-native key press float argument' }
+  },
+  effects: {
+    select: { wireFormat: 'eos-native-command', arguments: 'single OSC string containing `Effect <number>`' },
+    stop: { wireFormat: 'eos-native-command', arguments: 'single OSC string containing `Effect Stop` or `Effect <number> Stop`' }
+  },
+  faders: {
+    bankCreate: { wireFormat: 'eos-native-address', arguments: 'EOS-native address path encodes bank, fader count, and page' }
+  },
+  directSelects: {
+    bankCreate: { wireFormat: 'eos-native-address', arguments: 'EOS-native address path encodes bank, target, buttons, flexi, and page' }
+  },
+  cues: {
+    fire: { wireFormat: 'eos-native-command', arguments: 'single OSC string containing `Cue ... Fire`' }
+  },
+  magicSheets: {
+    open: { wireFormat: 'eos-native-arguments', arguments: 'OSC integer arguments for magic sheet number and optional view number' }
+  },
+  showControl: {
+    setCueSendString: { wireFormat: 'eos-native-command', arguments: 'single OSC string containing `Show_Control Cue_Send_String ...`' },
+    setCueReceiveString: { wireFormat: 'eos-native-command', arguments: 'single OSC string containing `Show_Control Cue_Receive_String ...`' }
+  }
+} as const;
+
 export type OscMappings = typeof oscMappings;
 
 export function toEosOutResponseAddress(address: string): string {

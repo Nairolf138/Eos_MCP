@@ -52,9 +52,10 @@ describe('magic sheet tools', () => {
     expect(service.sentMessages).toHaveLength(1);
     const [message] = service.sentMessages;
     expect(message.address).toBe(oscMappings.magicSheets.open);
-    expect(message.args).toHaveLength(1);
-    const payload = JSON.parse(String(message.args?.[0]?.value ?? '{}'));
-    expect(payload).toMatchObject({ number: 5, view: 2 });
+    expect(message.args).toEqual([
+      { type: 'i', value: 5 },
+      { type: 'i', value: 2 }
+    ]);
   });
 
   it('envoie une commande texte lorsque le role est Primary', async () => {

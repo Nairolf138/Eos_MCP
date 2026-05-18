@@ -180,8 +180,9 @@ describe('show control tools', () => {
 
     const result = await promise;
     expect(service.sentMessages[0]?.address).toBe(oscMappings.showControl.setCueSendString);
-    const payload = JSON.parse(String(service.sentMessages[0]?.args?.[0]?.value ?? '{}'));
-    expect(payload).toEqual({ format: 'Cue %1 -> %2 (%3)' });
+    expect(service.sentMessages[0]?.args).toEqual([
+      { type: 's', value: 'Show_Control Cue_Send_String "Cue %1 -> %2 (%3)"' }
+    ]);
 
     const structuredContent = getStructuredContent(result);
     expect(structuredContent).toBeDefined();
@@ -214,8 +215,9 @@ describe('show control tools', () => {
 
     await promise;
     const lastMessage = service.sentMessages[service.sentMessages.length - 1];
-    const payload = JSON.parse(String(lastMessage?.args?.[0]?.value ?? '{}'));
-    expect(payload).toEqual({ format: 'Receive %1 [%2]' });
+    expect(lastMessage?.args).toEqual([
+      { type: 's', value: 'Show_Control Cue_Receive_String "Receive %1 [%2]"' }
+    ]);
   });
 
   it('refuse les placeholders invalides pour la reception', async () => {

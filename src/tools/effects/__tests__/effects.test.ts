@@ -53,8 +53,9 @@ describe('effect tools', () => {
     expect(service.sentMessages).toHaveLength(1);
     expect(service.sentMessages[0]).toMatchObject({ address: oscMappings.effects.select });
 
-    const payload = JSON.parse(String(service.sentMessages[0]?.args?.[0]?.value ?? '{}'));
-    expect(payload).toMatchObject({ effect: 12 });
+    expect(service.sentMessages[0]?.args).toEqual([
+      { type: 's', value: 'Effect 12' }
+    ]);
   });
 
   it("envoie l'ordre d'arret avec le numero d'effet si fourni", async () => {
@@ -63,8 +64,9 @@ describe('effect tools', () => {
     expect(service.sentMessages).toHaveLength(1);
     expect(service.sentMessages[0]).toMatchObject({ address: oscMappings.effects.stop });
 
-    const payload = JSON.parse(String(service.sentMessages[0]?.args?.[0]?.value ?? '{}'));
-    expect(payload).toMatchObject({ effect: 7 });
+    expect(service.sentMessages[0]?.args).toEqual([
+      { type: 's', value: 'Effect 7 Stop' }
+    ]);
   });
 
   it("envoie un arret generique lorsque aucun numero n'est fourni", async () => {
@@ -73,8 +75,9 @@ describe('effect tools', () => {
     expect(service.sentMessages).toHaveLength(1);
     expect(service.sentMessages[0]).toMatchObject({ address: oscMappings.effects.stop });
 
-    const payload = JSON.parse(String(service.sentMessages[0]?.args?.[0]?.value ?? '{}'));
-    expect(payload).toEqual({});
+    expect(service.sentMessages[0]?.args).toEqual([
+      { type: 's', value: 'Effect Stop' }
+    ]);
   });
 
   it("normalise les informations renvoyees pour un effet dynamique", async () => {
