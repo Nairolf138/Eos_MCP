@@ -33,9 +33,15 @@ class FakeOscService implements OscGateway {
 
   public suppressCommandLineReply = false;
 
+  public suppressEffectInfoReply = false;
+
   public patchReadErrors = new Set<number>();
 
   private readonly recordedCues: Array<{ cuelist: number | null; cue: string }> = [];
+
+  private readonly recordedEffects = new Map<number, { direction: string; speed: number; size: number }>();
+
+  private pendingEffect: { effect: number; direction?: string; speed?: number; size?: number } | null = null;
 
   private readonly listeners = new Set<(message: OscMessage) => void>();
 
@@ -52,6 +58,31 @@ class FakeOscService implements OscGateway {
       const match = /Record\s+Cue\s+(?:(\d+)\s*\/\s*)?([^#\s]+)/i.exec(command);
       if (match) {
         this.recordedCues.push({ cuelist: match[1] == null ? null : Number(match[1]), cue: match[2] ?? '' });
+      }
+
+      const speedMatch = /Effect\s+(\d+)\s+Speed\s+([0-9.]+)/i.exec(command);
+      if (speedMatch) {
+        this.pendingEffect = { ...(this.pendingEffect ?? { effect: Number(speedMatch[1]) }), effect: Number(speedMatch[1]), speed: Number(speedMatch[2]) };
+      }
+
+      const sizeMatch = /Effect\s+(\d+)\s+Size\s+([0-9.]+)/i.exec(command);
+      if (sizeMatch) {
+        this.pendingEffect = { ...(this.pendingEffect ?? { effect: Number(sizeMatch[1]) }), effect: Number(sizeMatch[1]), size: Number(sizeMatch[2]) };
+      }
+
+      const directionMatch = /Effect\s+(\d+)\s+Direction\s+(.+)/i.exec(command);
+      if (directionMatch) {
+        this.pendingEffect = { ...(this.pendingEffect ?? { effect: Number(directionMatch[1]) }), effect: Number(directionMatch[1]), direction: directionMatch[2]?.replace(/#$/, '').trim() };
+      }
+
+      const effectMatch = /Record\s+Effect\s+(\d+)/i.exec(command);
+      if (effectMatch) {
+        const effect = Number(effectMatch[1]);
+        this.recordedEffects.set(effect, {
+          direction: this.pendingEffect?.effect === effect ? this.pendingEffect.direction ?? 'Left To Right' : 'Left To Right',
+          speed: this.pendingEffect?.effect === effect ? this.pendingEffect.speed ?? 1 : 1,
+          size: this.pendingEffect?.effect === effect ? this.pendingEffect.size ?? 100 : 100
+        });
       }
     }
 
@@ -70,6 +101,25 @@ class FakeOscService implements OscGateway {
       });
     }
 
+
+    if (message.address === '/eos/get/effect' && !this.suppressEffectInfoReply) {
+      const rawPayload = message.args?.[0]?.value;
+      const payload = typeof rawPayload === 'string' ? JSON.parse(rawPayload) as { effect?: number } : {};
+      const effect = Number(payload.effect ?? 0);
+      const recorded = this.recordedEffects.get(effect);
+      const responsePayload = recorded == null
+        ? { status: 'error', error: 'Effect not found' }
+        : { effect: { effect_number: effect, direction: recorded.direction, speed: recorded.speed, size: recorded.size } };
+      const reply: OscMessage = {
+        address: '/eos/get/effect',
+        args: [{ type: 's', value: JSON.stringify(responsePayload) }]
+      };
+      queueMicrotask(() => {
+        for (const listener of this.listeners) {
+          listener(reply);
+        }
+      });
+    }
 
     if (message.address === '/eos/get/patch/chan_info') {
       const rawPayload = message.args?.[0]?.value;
@@ -280,6 +330,20 @@ describe('workflow tools', () => {
         size: 75
       }
     });
+    expect(structured?.verification).toEqual(expect.objectContaining({
+      status: 'verified',
+      verified: true,
+      method: 'effect_json',
+      exists: true,
+      parameters: {
+        direction: { expected: 'right_to_left', actual: 'Right To Left', confirmed: true },
+        speed: { expected: 1.5, actual: 1.5, confirmed: true },
+        size: { expected: 75, actual: 75, confirmed: true }
+      }
+    }));
+    expect(structured?.executedSteps).toEqual(expect.arrayContaining([
+      expect.objectContaining({ step: 'record_effect_verify', status: 'ok', detail: 'effect_verified' })
+    ]));
   });
 
   it('applique les valeurs par defaut et dry_run pour create_effect', async () => {
@@ -312,7 +376,8 @@ describe('workflow tools', () => {
   });
 
 
-  it('retourne partial_failure quand Record Effect reste non verifie apres envoi', async () => {
+  it('retourne un warning not_verified quand Record Effect ne peut pas etre confirme apres envoi', async () => {
+    service.suppressEffectInfoReply = true;
     service.suppressCommandLineReply = true;
 
     const result = await runTool(eosWorkflowCreateEffectTool, {
@@ -323,20 +388,28 @@ describe('workflow tools', () => {
     });
 
     const structured = getStructuredContent(result);
-    expect(structured?.status).toBe('partial_failure');
-    expect(result.content[0]?.text).toContain('Workflow creation effet interrompu');
-    expect(structured?.partialErrors).toEqual(expect.arrayContaining([
-      expect.objectContaining({ step: 'record_effect', error: 'commande envoyée mais non vérifiée dans EOS' })
-    ]));
+    expect(structured?.status).toBe('ok');
+    expect(structured?.partialErrors).toEqual([]);
+    expect(structured?.verification).toEqual(expect.objectContaining({
+      status: 'not_verified',
+      verified: false,
+      method: 'command_line',
+      exists: null,
+      warning: 'not_verified'
+    }));
     expect(structured?.warnings).toEqual(expect.arrayContaining([
-      expect.objectContaining({ step: 'record_effect', detail: 'commande envoyée mais non vérifiée dans EOS' })
+      expect.objectContaining({ step: 'record_effect_verify', detail: 'not_verified' })
     ]));
     expect(structured?.executedSteps).toEqual(expect.arrayContaining([
       expect.objectContaining({
         step: 'record_effect',
-        status: 'error',
-        command: 'Record Effect 23',
-        detail: 'verification_after_send_failed'
+        status: 'ok',
+        command: 'Record Effect 23'
+      }),
+      expect.objectContaining({
+        step: 'record_effect_verify',
+        status: 'skipped',
+        detail: 'not_verified'
       })
     ]));
   });

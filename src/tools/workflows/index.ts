@@ -346,6 +346,246 @@ async function runCommandStep(
   }
 }
 
+
+interface EffectWorkflowVerification {
+  status: 'verified' | 'not_verified';
+  verified: boolean;
+  accepted_by_eos: boolean | null;
+  method: 'effect_json' | 'command_line' | 'unavailable';
+  effect_number: number;
+  exists: boolean | null;
+  parameters: {
+    direction: { expected: EffectDirection; actual: string | null; confirmed: boolean | null };
+    speed: { expected: number; actual: number | string | null; confirmed: boolean | null };
+    size: { expected: number; actual: number | string | null; confirmed: boolean | null };
+  };
+  warning?: 'not_verified';
+  detail?: string;
+  command_line?: Record<string, unknown>;
+  osc?: {
+    address: string;
+    response_status?: string;
+    error?: string;
+  };
+}
+
+function isWorkflowRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value != null && !Array.isArray(value);
+}
+
+function normalizeWorkflowToken(value: unknown): string | null {
+  if (typeof value !== 'string' && typeof value !== 'number') {
+    return null;
+  }
+  const normalized = String(value)
+    .trim()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  return normalized.length > 0 ? normalized : null;
+}
+
+function parseWorkflowFiniteNumber(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed.length === 0) {
+      return null;
+    }
+    const parsed = Number.parseFloat(trimmed.replace(',', '.').replace(/[^0-9.+-]/g, ''));
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function extractWorkflowEffectRecord(data: unknown): Record<string, unknown> | null {
+  if (!isWorkflowRecord(data)) {
+    return null;
+  }
+  if (isWorkflowRecord(data.effect)) {
+    return data.effect;
+  }
+  if (Array.isArray(data.effects)) {
+    const firstRecord = data.effects.find((entry): entry is Record<string, unknown> => isWorkflowRecord(entry));
+    if (firstRecord) {
+      return firstRecord;
+    }
+  }
+  return data;
+}
+
+function workflowResponseMentionsEffectNotFound(value: unknown, depth = 0): boolean {
+  if (depth > 5 || value == null) {
+    return false;
+  }
+  if (typeof value === 'string') {
+    const lower = value.toLowerCase();
+    return lower.includes('effect not found') || (lower.includes('not found') && lower.includes('effect'));
+  }
+  if (Array.isArray(value)) {
+    return value.some((item) => workflowResponseMentionsEffectNotFound(item, depth + 1));
+  }
+  if (isWorkflowRecord(value)) {
+    return Object.values(value).some((item) => workflowResponseMentionsEffectNotFound(item, depth + 1));
+  }
+  return false;
+}
+
+function readWorkflowEffectNumber(record: Record<string, unknown>): number | null {
+  for (const candidate of [record.effect_number, record.number, record.effect, record.id, record.index]) {
+    const numeric = parseWorkflowFiniteNumber(candidate);
+    if (numeric != null) {
+      return Math.trunc(numeric);
+    }
+  }
+  return null;
+}
+
+function readFirstRecordValue(record: Record<string, unknown>, keys: string[]): unknown {
+  for (const key of keys) {
+    if (record[key] != null) {
+      return record[key];
+    }
+  }
+  return null;
+}
+
+function numbersClose(actual: number | null, expected: number): boolean | null {
+  if (actual == null) {
+    return null;
+  }
+  return Math.abs(actual - expected) < 0.0001;
+}
+
+function buildUnverifiedEffectVerification(
+  effectNumber: number,
+  expected: { direction: EffectDirection; speed: number; size: number },
+  method: EffectWorkflowVerification['method'],
+  detail: string,
+  extra: Partial<EffectWorkflowVerification> = {}
+): EffectWorkflowVerification {
+  return {
+    status: 'not_verified',
+    verified: false,
+    accepted_by_eos: null,
+    method,
+    effect_number: effectNumber,
+    exists: null,
+    parameters: {
+      direction: { expected: expected.direction, actual: null, confirmed: null },
+      speed: { expected: expected.speed, actual: null, confirmed: null },
+      size: { expected: expected.size, actual: null, confirmed: null }
+    },
+    warning: 'not_verified',
+    detail,
+    ...extra
+  };
+}
+
+async function verifyEffectAfterRecord(
+  effectNumber: number,
+  expected: { direction: EffectDirection; speed: number; size: number },
+  options: { targetAddress?: string; targetPort?: number; user?: number; verification_timeout_ms?: number }
+): Promise<EffectWorkflowVerification> {
+  const client = getOscClient();
+  try {
+    const response = await client.requestJson(oscMappings.effects.info, {
+      payload: { effect: effectNumber },
+      timeoutMs: options.verification_timeout_ms,
+      targetAddress: options.targetAddress,
+      targetPort: options.targetPort
+    });
+    if (workflowResponseMentionsEffectNotFound(response.data)) {
+      return buildUnverifiedEffectVerification(effectNumber, expected, 'effect_json', 'effect_absent_after_record', {
+        accepted_by_eos: false,
+        exists: false,
+        osc: { address: oscMappings.effects.info, response_status: response.status, ...(response.error ? { error: response.error } : {}) }
+      });
+    }
+
+    if (response.status === 'ok') {
+      const record = extractWorkflowEffectRecord(response.data);
+      const actualEffectNumber = record ? readWorkflowEffectNumber(record) : null;
+      const exists = actualEffectNumber == null ? record != null : actualEffectNumber === effectNumber;
+      const directionRaw = record == null ? null : readFirstRecordValue(record, ['direction', 'effect_direction', 'pattern_direction', 'grouping']);
+      const speedRaw = record == null ? null : readFirstRecordValue(record, ['speed', 'rate', 'tempo']);
+      const sizeRaw = record == null ? null : readFirstRecordValue(record, ['size', 'scale', 'effect_scale']);
+      const actualDirection = normalizeWorkflowToken(directionRaw);
+      const actualSpeed = parseWorkflowFiniteNumber(speedRaw);
+      const actualSize = parseWorkflowFiniteNumber(sizeRaw);
+      const parameters = {
+        direction: {
+          expected: expected.direction,
+          actual: directionRaw == null ? null : String(directionRaw),
+          confirmed: actualDirection == null ? null : actualDirection === expected.direction
+        },
+        speed: {
+          expected: expected.speed,
+          actual: actualSpeed ?? (speedRaw == null ? null : String(speedRaw)),
+          confirmed: numbersClose(actualSpeed, expected.speed)
+        },
+        size: {
+          expected: expected.size,
+          actual: actualSize ?? (sizeRaw == null ? null : String(sizeRaw)),
+          confirmed: numbersClose(actualSize, expected.size)
+        }
+      };
+      const parametersConfirmed = parameters.direction.confirmed === true
+        && parameters.speed.confirmed === true
+        && parameters.size.confirmed === true;
+      const verified = exists === true && parametersConfirmed;
+      return {
+        status: verified ? 'verified' : 'not_verified',
+        verified,
+        accepted_by_eos: exists === true ? true : null,
+        method: 'effect_json',
+        effect_number: effectNumber,
+        exists,
+        parameters,
+        ...(verified ? {} : { warning: 'not_verified' as const, detail: 'effect_json_incomplete_or_mismatch' }),
+        osc: {
+          address: oscMappings.effects.info,
+          response_status: response.status,
+          ...(response.error ? { error: response.error } : {})
+        }
+      };
+    }
+
+  } catch {
+    // Fallback below: relire la ligne de commande si la lecture JSON dediee n'est pas exploitable.
+  }
+
+  try {
+    const commandLine = await client.getCommandLine({
+      user: options.user,
+      targetAddress: options.targetAddress,
+      targetPort: options.targetPort,
+      timeoutMs: options.verification_timeout_ms
+    });
+    const text = typeof commandLine.text === 'string' ? commandLine.text : '';
+    const lower = text.toLowerCase();
+    const hasConsoleError = lower.includes('error') || lower.includes('erreur');
+    return buildUnverifiedEffectVerification(effectNumber, expected, 'command_line', hasConsoleError ? 'command_line_reports_error' : 'command_line_reread_did_not_confirm_effect', {
+      accepted_by_eos: hasConsoleError ? false : null,
+      command_line: { ...commandLine }
+    });
+  } catch {
+    return buildUnverifiedEffectVerification(effectNumber, expected, 'unavailable', 'effect_verification_unavailable');
+  }
+}
+
+function logEffectVerificationStep(steps: WorkflowStepLog[], verification: EffectWorkflowVerification): void {
+  steps.push({
+    step: 'record_effect_verify',
+    status: verification.verified ? 'ok' : 'skipped',
+    detail: verification.verified ? 'effect_verified' : 'not_verified'
+  });
+}
+
 const createLookInputSchema = {
   channels: z.string().trim().min(1).max(256),
   cue_number: cueNumberSchema,
@@ -514,6 +754,7 @@ export const eosWorkflowCreateEffectTool: ToolDefinition<typeof createEffectInpu
     const steps: WorkflowStepLog[] = [];
     const partialErrors: Array<{ step: string; error: string }> = [];
     const commandsPreview: string[] = [];
+    let effectVerification: EffectWorkflowVerification | null = null;
     const directionLabel = effectDirectionCommandLabels[options.direction];
 
     const commands = [
@@ -534,7 +775,14 @@ export const eosWorkflowCreateEffectTool: ToolDefinition<typeof createEffectInpu
         continue;
       }
 
-      const ok = await runCommandStep(steps, partialErrors, commandStep.step, commandStep.command, options);
+      const ok = await runCommandStep(
+        steps,
+        partialErrors,
+        commandStep.step,
+        commandStep.command,
+        options,
+        { verify_after_send: commandStep.step === 'record_effect' ? false : undefined }
+      );
       if (!ok) {
         return buildWorkflowResult(
           'eos_workflow_create_effect',
@@ -553,9 +801,19 @@ export const eosWorkflowCreateEffectTool: ToolDefinition<typeof createEffectInpu
                 size: options.size
               }
             },
+            ...(effectVerification ? { verification: effectVerification } : {}),
             ...(dryRun ? { commands_preview: commandsPreview } : {})
           }
         );
+      }
+
+      if (commandStep.step === 'record_effect') {
+        effectVerification = await verifyEffectAfterRecord(
+          options.effect_number,
+          { direction: options.direction, speed: options.speed, size: options.size },
+          options
+        );
+        logEffectVerificationStep(steps, effectVerification);
       }
     }
 
@@ -570,7 +828,13 @@ export const eosWorkflowCreateEffectTool: ToolDefinition<typeof createEffectInpu
             speed: options.speed,
             size: options.size
           }
-        }
+        },
+        verification: buildUnverifiedEffectVerification(
+          options.effect_number,
+          { direction: options.direction, speed: options.speed, size: options.size },
+          'unavailable',
+          previewSkipDetail(dryRun)
+        )
       });
     }
 
@@ -591,6 +855,12 @@ export const eosWorkflowCreateEffectTool: ToolDefinition<typeof createEffectInpu
             size: options.size
           }
         },
+        verification: effectVerification ?? buildUnverifiedEffectVerification(
+          options.effect_number,
+          { direction: options.direction, speed: options.speed, size: options.size },
+          'unavailable',
+          dryRun ? 'dry_run' : 'not_verified'
+        ),
         ...(dryRun ? { commands_preview: commandsPreview } : {})
       }
     );
