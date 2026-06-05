@@ -857,7 +857,7 @@ describe('workflow tools', () => {
 
   it('genere commands_preview en dry run pour build_groups_and_palettes', async () => {
     const result = await runTool(eosWorkflowBuildGroupsAndPalettesTool, {
-      color_palettes: [{ number: 10, label: 'Warm', channels: '5', hue: 'Amber', saturation: 45 }],
+      color_palettes: [{ number: 10, label: 'Warm', channels: '5', hue: 0, saturation: 45 }],
       dry_run: true
     });
 
@@ -865,7 +865,7 @@ describe('workflow tools', () => {
     const structured = getStructuredContent(result);
     expect(structured?.commands_preview).toEqual([
       'Chan 5',
-      'Hue Amber',
+      'Hue 0',
       'Saturation 45',
       'Record CP 10',
       'CP 10 Label "Warm"'
