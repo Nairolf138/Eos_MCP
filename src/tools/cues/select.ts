@@ -15,13 +15,15 @@ import {
   cuePartSchema,
   cuelistNumberSchema,
   extractTargetOptions,
+  buildCueSelectOscRequest,
+  resolveCueOscMode,
   notifyCueResourceChange,
   formatCueDescription,
   targetOptionsSchema
 } from './common';
 
 const selectInputSchema = {
-  cuelist_number: cuelistNumberSchema,
+  cuelist_number: cuelistNumberSchema.optional(),
   cue_number: cueNumberSchema,
   cue_part: cuePartSchema.optional(),
   ...targetOptionsSchema
@@ -48,28 +50,33 @@ export const eosCueSelectTool: ToolDefinition<typeof selectInputSchema> = {
       }
     }
   },
-  handler: async (args) => {
+  handler: async (args, extra) => {
     const schema = z.object(selectInputSchema).strict();
     const options = schema.parse(args ?? {});
     const client = getOscClient();
     const identifier = createCueIdentifierFromOptions(options);
     const payload = buildCueCommandPayload(identifier, { defaultPart: 0 });
     const command = buildCueSelectCommand(identifier);
+    const oscRequest = buildCueSelectOscRequest(identifier, command, resolveCueOscMode(extra));
 
-    await client.sendCommand(command, extractTargetOptions(options));
+    await client.sendMessage(oscRequest.message.address, oscRequest.message.args ?? [], {
+      ...extractTargetOptions(options),
+      wireContract: oscRequest.contract
+    });
     notifyCueResourceChange(identifier);
 
     return createCueCommandResult(
       'cue_select',
       identifier,
       payload,
-      oscMappings.cues.select,
+      oscRequest.message.address,
       {
         summary: `Selection de ${formatCueDescription(identifier)}`
       },
       {
-        oscArgs: [{ type: 's', value: command }],
-        request: { command }
+        oscArgs: oscRequest.message.args ?? [],
+        request: { command, oscMode: oscRequest.mode, fallbackReason: oscRequest.fallbackReason ?? null },
+        cli: oscRequest.command ? { text: oscRequest.command } : undefined
       }
     );
   }

@@ -19,7 +19,9 @@ Les commandes ETC officielles sont les adresses documentees dans le manuel Eos O
 
 ### Commandes envoyees via `/eos/cmd`
 
-Plusieurs outils MCP n'envoient pas l'adresse OSC specialisee equivalente; ils envoient une commande texte EOS via l'adresse officielle `/eos/cmd` ou `/eos/newcmd`. Cela concerne notamment les outils de canaux, cues, effets, patch et workflows qui construisent des chaines comme `Chan ...`, `Address ...`, `Cue ... Fire`, `CueList ... Go`, `Record`, `Update` ou `Label`. Dans ce cas, l'adresse OSC est officielle et autorisee en mode strict; la conformite de l'action depend de la commande texte documentee indiquee dans les tableaux ci-dessous.
+Plusieurs outils MCP n'envoient pas l'adresse OSC specialisee equivalente; ils envoient une commande texte EOS via l'adresse officielle `/eos/cmd` ou `/eos/newcmd`. Cela concerne notamment les outils de canaux, effets, patch et workflows qui construisent des chaines comme `Chan ...`, `Address ...`, `Record`, `Update` ou `Label`. Dans ce cas, l'adresse OSC est officielle et autorisee en mode strict; la conformite de l'action depend de la commande texte documentee indiquee dans les tableaux ci-dessous.
+
+Pour les outils de cues modifies, la strategie interne distingue maintenant deux modes: le mode **strict** privilegie l'adresse native officielle (`/eos/cue/<cue>/fire`, `/eos/cue/<cuelist>/<cue>/fire`, `/eos/cue/<cuelist>/go`, `/eos/cue/<cue>`), tandis que le mode **compatibilite** force `/eos/cmd` avec la commande texte EOS historique. Le mode strict conserve `/eos/cmd` comme fallback seulement lorsque l'adresse native ne peut pas representer la demande, par exemple une cue part non nulle, un GO vers une cue precise ou une selection incluant une cuelist.
 
 ### Extensions MCP
 
@@ -238,9 +240,9 @@ Cet inventaire couvre les occurrences trouvees dans `src/services/osc/`, `src/to
 
 | Outils MCP | Adresse OSC utilisee | Commande OSC officielle (manuel) | Arguments OSC (manuel) | Version | Reference (section/page) | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `eos_cue_fire` | `/eos/cmd` | `/eos/cue/<cuelist>/<cue>/fire` | Numero de cue (option cue list/part) | v3.0.0 | ShowControl > OSC > Cue (p. 611) | Traduction explicite MCP vers commande texte `Cue ... Fire`. |
-| `eos_cue_go` | `/eos/cmd` | `/eos/cue/<cuelist>/go` | Numero de cue list | v3.0.0 | ShowControl > OSC > Cue (p. 611) | Traduction explicite MCP vers commande texte `CueList ... Go`. |
-| `eos_cue_select` | `/eos/cmd` | `/eos/cue/<num>` | Numero de cue | v3.0.0 | ShowControl > OSC > Cue (p. 611) | Traduction explicite MCP vers commande texte `Cue ...`. |
+| `eos_cue_fire` | Strict: `/eos/cue/<cue>/fire` ou `/eos/cue/<cuelist>/<cue>/fire`; compat/fallback: `/eos/cmd` | `/eos/cue/<cue>/fire`, `/eos/cue/<cuelist>/<cue>/fire` | Chemin OSC sans argument; fallback texte pour part non nulle | v3.0.0 | ShowControl > OSC > Cue (p. 611) | Le mode strict choisit l'adresse native officielle quand elle suffit; `/eos/cmd` reste disponible en mode compatibilite ou fallback. |
+| `eos_cue_go` | Strict: `/eos/cue/<cuelist>/go`; compat/fallback: `/eos/cmd` | `/eos/cue/<cuelist>/go` | Chemin OSC sans argument; fallback texte pour GO vers cue/part precise | v3.0.0 | ShowControl > OSC > Cue (p. 611) | Le GO simple sur cuelist utilise l'adresse native officielle; `/eos/cmd` reste necessaire pour les formes textuelles plus precises. |
+| `eos_cue_select` | Strict: `/eos/cue/<cue>` si applicable; compat/fallback: `/eos/cmd` | `/eos/cue/<cue>` | Chemin OSC sans argument; fallback texte pour cuelist/part | v3.0.0 | ShowControl > OSC > Cue (p. 611) | La selection native est limitee a une cue simple; les formes avec cuelist ou part conservent `/eos/cmd`. |
 | `eos_cue_get_info`, `eos_cue_list_all` | `/eos/get/cue`, `/eos/get/cuelist` | `/eos/get/cue/...`, `/eos/get/cuelist/...` | Requetes de synchronisation | v3.0.0 | ShowControl > OSC > Synchronisation (p. 623-624) | — |
 | `eos_cuelist_get_info` | `/eos/get/cuelist/info` | `/eos/get/cuelist/...` | Requetes de synchronisation | v3.0.0 | ShowControl > OSC > Synchronisation (p. 623-624) | — |
 | `eos_cuelist_bank_create`, `eos_cuelist_bank_page` | `/eos/cuelist/{bank_index}/config/...`, `/eos/cuelist/{bank_index}/page/{delta}` | `/eos/cuelist/<index>/config/...` | Config bank + pagination | v3.0.0 | ShowControl > OSC > Banques Cuelist (p. 612) | — |

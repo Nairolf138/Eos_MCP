@@ -12,7 +12,8 @@ import {
   eosCuelistBankCreateTool,
   eosCuelistBankPageTool,
   eosGetActiveCueTool,
-  eosCueFireTool
+  eosCueFireTool,
+  eosCueSelectTool
 } from '../index';
 import { getStructuredContent, runTool } from '../../__tests__/helpers/runTool';
 
@@ -64,7 +65,7 @@ describe('cue tools', () => {
     expect(getStructuredContent(result)).toMatchObject({
       action: 'cue_fire',
       dry_run: true,
-      osc: { address: oscMappings.cues.fire }
+      osc: { address: '/eos/cue/1/10/fire' }
     });
   });
 
@@ -80,13 +81,8 @@ describe('cue tools', () => {
     expect(service.sentMessages).toHaveLength(2);
 
     const goMessage = service.sentMessages[0];
-    expect(goMessage.address).toBe(oscMappings.cues.go);
-    expect(goMessage.args).toEqual([
-      {
-        type: 's',
-        value: 'CueList 5 Go'
-      }
-    ]);
+    expect(goMessage.address).toBe('/eos/cue/5/go');
+    expect(goMessage.args).toBeUndefined();
 
     const stopMessage = service.sentMessages[1];
     expect(stopMessage.address).toBe(oscMappings.cues.stopBackCommand);
@@ -94,6 +90,29 @@ describe('cue tools', () => {
       {
         type: 's',
         value: 'Cue 5 Back#'
+      }
+    ]);
+  });
+
+
+
+  it('utilise /eos/cmd en mode compatibilite interne pour cue_go', async () => {
+    await runTool(eosCueGoTool, { cuelist_number: 5 }, { cueOscMode: 'compatibility' });
+
+    expect(service.sentMessages).toEqual([
+      {
+        address: oscMappings.cues.compatibility.go,
+        args: [{ type: 's', value: 'CueList 5 Go' }]
+      }
+    ]);
+  });
+
+  it('selectionne une cue sans cuelist via adresse native officielle', async () => {
+    await runTool(eosCueSelectTool, { cue_number: 7 });
+
+    expect(service.sentMessages).toEqual([
+      {
+        address: '/eos/cue/7'
       }
     ]);
   });

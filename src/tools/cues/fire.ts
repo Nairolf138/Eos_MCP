@@ -16,6 +16,8 @@ import {
   cuePartSchema,
   cuelistNumberSchema,
   extractTargetOptions,
+  buildCueFireOscRequest,
+  resolveCueOscMode,
   notifyCueResourceChange,
   formatCueDescription,
   targetOptionsSchema
@@ -23,7 +25,7 @@ import {
 import type { CueIdentifier } from './types';
 
 const fireInputSchema = {
-  cuelist_number: cuelistNumberSchema,
+  cuelist_number: cuelistNumberSchema.optional(),
   cue_number: cueNumberSchema,
   cue_part: cuePartSchema.optional(),
   ...targetOptionsSchema
@@ -50,7 +52,7 @@ export const eosCueFireTool: ToolDefinition<typeof fireInputSchema> = {
       }
     }
   },
-  handler: async (args) => {
+  handler: async (args, extra) => {
     const schema = z.object(fireInputSchema).strict();
     const options = schema.parse(args ?? {});
     const client = getOscClient();
@@ -63,6 +65,7 @@ export const eosCueFireTool: ToolDefinition<typeof fireInputSchema> = {
 
     const payload = buildCueCommandPayload(identifier, { defaultPart: 0 });
     const command = buildCueFireCommand(identifier);
+    const oscRequest = buildCueFireOscRequest(identifier, command, resolveCueOscMode(extra));
     const safety = resolveSafetyOptions(options);
 
     if (safety.dryRun) {
@@ -70,27 +73,31 @@ export const eosCueFireTool: ToolDefinition<typeof fireInputSchema> = {
         text: `Declenchement simule de ${formatCueDescription(identifier)}`,
         action: 'cue_fire',
         request: payload,
-        oscAddress: oscMappings.cues.fire,
-        oscArgs: [{ type: 's', value: command }]
+        oscAddress: oscRequest.message.address,
+        oscArgs: oscRequest.message.args ?? []
       });
     }
 
     assertSensitiveActionAllowed(options, 'eos_cue_fire');
 
-    await client.sendCommand(command, extractTargetOptions(options));
+    await client.sendMessage(oscRequest.message.address, oscRequest.message.args ?? [], {
+      ...extractTargetOptions(options),
+      wireContract: oscRequest.contract
+    });
     notifyCueResourceChange(identifier);
 
     return createCueCommandResult(
       'cue_fire',
       identifier,
       payload,
-      oscMappings.cues.fire,
+      oscRequest.message.address,
       {
         summary: `Declenchement de ${formatCueDescription(identifier)}`
       },
       {
-        oscArgs: [{ type: 's', value: command }],
-        request: { command }
+        oscArgs: oscRequest.message.args ?? [],
+        request: { command, oscMode: oscRequest.mode, fallbackReason: oscRequest.fallbackReason ?? null },
+        cli: oscRequest.command ? { text: oscRequest.command } : undefined
       }
     );
   }
