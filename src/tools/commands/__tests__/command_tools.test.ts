@@ -36,10 +36,11 @@ describe('command tools', () => {
   }
 
   let service: FakeOscService;
+  let client: OscClient;
 
   beforeEach(() => {
     service = new FakeOscService();
-    const client = new OscClient(service, { defaultTimeoutMs: 50 });
+    client = new OscClient(service, { defaultTimeoutMs: 50 });
     setOscClient(client);
     clearCurrentUserId();
   });
@@ -107,6 +108,65 @@ describe('command tools', () => {
         warning: 'commande envoyée mais non vérifiée dans EOS'
       }
     });
+  });
+
+  it('active la verification par defaut pour une commande sensible quand la lecture JSON est confirmee', async () => {
+    const probe = client.probeCapabilities({ timeoutMs: 20 });
+    queueMicrotask(() => {
+      service.emit({
+        address: '/eos/get/version',
+        args: [{ type: 's', value: JSON.stringify({ version: '3.2.10' }) }]
+      });
+    });
+    await probe;
+    service.sentMessages.length = 0;
+
+    const result = await runTool(eosCommandTool, {
+      command: 'Record Cue 1',
+      require_confirmation: true,
+      verification_timeout_ms: 10
+    });
+    const structured = getStructuredContent(result);
+
+    expect(service.sentMessages.map((message) => message.address)).toEqual(['/eos/cmd', '/eos/get/cuelist']);
+    expect(structured).toMatchObject({
+      status: 'partial_failure',
+      verification: {
+        status: 'not_verified',
+        method: 'eos_cue_list_all'
+      }
+    });
+  });
+
+  it('ajoute un warning fort et des next_actions quand une commande sensible reste non verifiee en lecture legacy', async () => {
+    const result = await runTool(eosCommandWithSubstitutionTool, {
+      template: 'Delete Cue %1',
+      values: [7],
+      require_confirmation: true,
+      safety_level: 'off'
+    });
+    const structured = getStructuredContent(result);
+
+    expect(service.sentMessages.map((message) => message.address)).toEqual(['/eos/cmd']);
+    expect(structured).toMatchObject({
+      status: 'ok',
+      sent_to_transport: true,
+      accepted_by_eos: null,
+      verified: false,
+      verification: {
+        status: 'skipped',
+        details: {
+          reason: 'json_read_unavailable'
+        }
+      }
+    });
+    expect(structured?.warnings).toEqual([
+      expect.objectContaining({ detail: expect.stringContaining('COMMANDE SENSIBLE ENVOYEE MAIS NON VERIFIEE') })
+    ]);
+    expect(structured?.next_actions).toEqual(expect.arrayContaining([
+      expect.stringContaining('relecture manuelle'),
+      expect.stringContaining('Confirmer explicitement')
+    ]));
   });
 
   it('envoie une commande en respectant le terminateur', async () => {
