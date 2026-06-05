@@ -145,9 +145,8 @@ function registerPdfResource(
           {
             uri,
             mimeType: MANUAL_MIME_TYPE,
-            data: base64Data,
-            encoding: 'base64',
-            metadata
+            blob: base64Data,
+            _meta: metadata
           }
         ]
       };
