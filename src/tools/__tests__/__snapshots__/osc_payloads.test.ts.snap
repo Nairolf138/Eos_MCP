@@ -160,15 +160,10 @@ exports[`OSC payload snapshots captures EOS-native show-control command payloads
 
 exports[`OSC payload snapshots captures cue/magic sheet EOS-native payloads 1`] = `
 {
-  "address": "/eos/cmd",
-  "args": [
-    {
-      "type": "s",
-      "value": "Cue 1 CueList 2 Fire",
-    },
-  ],
-  "arguments": "single OSC string containing \`Cue ... Fire\`",
-  "wireFormat": "eos-native-command",
+  "address": "/eos/cue/2/1/fire",
+  "args": [],
+  "arguments": "EOS-native address path encodes cue/cuelist, no OSC arguments",
+  "wireFormat": "eos-native-address",
 }
 `;
 

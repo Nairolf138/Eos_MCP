@@ -17,6 +17,8 @@ import {
   cuePartSchema,
   cuelistNumberSchema,
   extractTargetOptions,
+  buildCueGoOscRequest,
+  resolveCueOscMode,
   notifyCueResourceChange,
   formatCueDescription,
   targetOptionsSchema
@@ -51,13 +53,14 @@ export const eosCueGoTool: ToolDefinition<typeof goInputSchema> = {
       highlighted: true
     }
   },
-  handler: async (args) => {
+  handler: async (args, extra) => {
     const schema = z.object(goInputSchema).strict().superRefine((value, ctx) => validateCueArgumentsPair(value, ctx));
     const options = schema.parse(args ?? {});
     const client = getOscClient();
     const identifier = createCueIdentifierFromOptions(options);
     const payload = buildCueCommandPayload(identifier);
     const command = buildCueGoCommand(identifier);
+    const oscRequest = buildCueGoOscRequest(identifier, command, resolveCueOscMode(extra));
     const safety = resolveSafetyOptions(options);
 
     if (safety.dryRun) {
@@ -65,25 +68,29 @@ export const eosCueGoTool: ToolDefinition<typeof goInputSchema> = {
         text: `GO simule sur ${formatCueDescription(identifier)}`,
         action: 'cue_go',
         request: payload,
-        oscAddress: oscMappings.cues.go,
-        oscArgs: [{ type: 's', value: command }]
+        oscAddress: oscRequest.message.address,
+        oscArgs: oscRequest.message.args ?? []
       });
     }
 
-    await client.sendCommand(command, extractTargetOptions(options));
+    await client.sendMessage(oscRequest.message.address, oscRequest.message.args ?? [], {
+      ...extractTargetOptions(options),
+      wireContract: oscRequest.contract
+    });
     notifyCueResourceChange(identifier);
 
     return createCueCommandResult(
       'cue_go',
       identifier,
       payload,
-      oscMappings.cues.go,
+      oscRequest.message.address,
       {
         summary: `GO envoye sur ${formatCueDescription(identifier)}`
       },
       {
-        oscArgs: [{ type: 's', value: command }],
-        request: { command }
+        oscArgs: oscRequest.message.args ?? [],
+        request: { command, oscMode: oscRequest.mode, fallbackReason: oscRequest.fallbackReason ?? null },
+        cli: oscRequest.command ? { text: oscRequest.command } : undefined
       }
     );
   }

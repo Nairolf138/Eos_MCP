@@ -246,6 +246,18 @@ function sampleArgsFor(tool: ToolDefinition): Record<string, unknown> {
     }
   }
 
+  if (tool.name === 'eos_cue_fire') {
+    delete args.cue_part;
+  }
+  if (tool.name === 'eos_cue_go') {
+    delete args.cue_number;
+    delete args.cue_part;
+  }
+  if (tool.name === 'eos_cue_select') {
+    delete args.cuelist_number;
+    delete args.cue_part;
+  }
+
   return args;
 }
 
@@ -264,6 +276,7 @@ function expectedAddress(tool: ToolDefinition, args: Record<string, unknown>): s
   if (tool.name === 'eos_cuelist_bank_create') {
     return `/eos/cuelist/${String(args.bank_index)}/config/${String(args.cuelist_number)}/${String(args.num_prev_cues)}/${String(args.num_pending_cues)}/${String(args.offset)}`;
   }
+
   const mapping = tool.config.annotations?.mapping as { osc?: unknown } | undefined;
   const osc = mapping?.osc;
   if (typeof osc === 'string') {
@@ -299,6 +312,8 @@ function resolveTemplate(template: string, args: Record<string, unknown>): strin
     .replace('{button}', String(args.button_index))
     .replace('{flexi}', args.flexi_mode ? '1' : '0')
     .replace('{delta}', String(args.delta))
+    .replace('{cuelist}', String(args.cuelist_number))
+    .replace('{cue}', String(args.cue_number))
     .replace('{cuelist_number}', String(args.cuelist_number))
     .replace('{num_prev_cues}', String(args.num_prev_cues))
     .replace('{num_pending_cues}', String(args.num_pending_cues))

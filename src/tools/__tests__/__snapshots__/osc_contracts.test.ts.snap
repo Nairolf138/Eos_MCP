@@ -116,14 +116,7 @@ exports[`OSC tool contracts exported from src/tools/index.ts eos_command_with_su
 ]
 `;
 
-exports[`OSC tool contracts exported from src/tools/index.ts eos_cue_fire sends the documented OSC address, payload, and target endpoint 1`] = `
-[
-  {
-    "type": "s",
-    "value": "Cue 2 Part 1 CueList 1 Fire",
-  },
-]
-`;
+exports[`OSC tool contracts exported from src/tools/index.ts eos_cue_fire sends the documented OSC address, payload, and target endpoint 1`] = `[]`;
 
 exports[`OSC tool contracts exported from src/tools/index.ts eos_cue_get_info sends the documented OSC address, payload, and target endpoint 1`] = `
 [
@@ -134,14 +127,7 @@ exports[`OSC tool contracts exported from src/tools/index.ts eos_cue_get_info se
 ]
 `;
 
-exports[`OSC tool contracts exported from src/tools/index.ts eos_cue_go sends the documented OSC address, payload, and target endpoint 1`] = `
-[
-  {
-    "type": "s",
-    "value": "Cue 2 Part 1 CueList 1 Go",
-  },
-]
-`;
+exports[`OSC tool contracts exported from src/tools/index.ts eos_cue_go sends the documented OSC address, payload, and target endpoint 1`] = `[]`;
 
 exports[`OSC tool contracts exported from src/tools/index.ts eos_cue_label_set sends the documented OSC address, payload, and target endpoint 1`] = `
 [
@@ -178,14 +164,7 @@ exports[`OSC tool contracts exported from src/tools/index.ts eos_cue_record send
 ]
 `;
 
-exports[`OSC tool contracts exported from src/tools/index.ts eos_cue_select sends the documented OSC address, payload, and target endpoint 1`] = `
-[
-  {
-    "type": "s",
-    "value": "Cue 2 Part 1 CueList 1",
-  },
-]
-`;
+exports[`OSC tool contracts exported from src/tools/index.ts eos_cue_select sends the documented OSC address, payload, and target endpoint 1`] = `[]`;
 
 exports[`OSC tool contracts exported from src/tools/index.ts eos_cue_stop_back sends the documented OSC address, payload, and target endpoint 1`] = `
 [

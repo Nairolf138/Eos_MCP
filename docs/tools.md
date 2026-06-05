@@ -486,6 +486,12 @@ oscsend 127.0.0.1 8001 /eos/bp/fire s:'{"palette_number":1}'
 
 **Description :** Retourne les fonctionnalites disponibles par famille, le contexte de session/connexion et la version serveur.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :** Aucun argument.
 
 **Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
@@ -506,6 +512,12 @@ _Pas de mapping OSC documenté._
 ## Informations de canaux (`eos_channel_get_info`)
 
 **Description :** Recupere des informations sur les canaux depuis la console.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -539,6 +551,12 @@ oscsend 127.0.0.1 8001 /eos/get/channels s:'{"channels":1}'
 
 **Description :** Selectionne un ou plusieurs canaux sur la console.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -569,6 +587,12 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Chan 1'
 ## Reglage DMX des canaux (`eos_channel_set_dmx`)
 
 **Description :** Ajuste la valeur DMX brute (0-255) pour des canaux specifiques.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -601,6 +625,12 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Chan 1 At 1 DMX'
 
 **Description :** Ajuste le niveau intensite de canaux specifiques (0-100).
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -632,6 +662,12 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Chan 1 Sneak 1'
 ## Reglage de parametre (`eos_channel_set_parameter`)
 
 **Description :** Ajuste un parametre de canal sur une echelle de 0 a 100.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -803,6 +839,12 @@ oscsend 127.0.0.1 8001 /eos/cmd s:'{"template":"exemple"}'
 
 **Description :** Met a jour la configuration reseau OSC (ports, adresse) et recree le client partage.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -830,6 +872,12 @@ _Pas de mapping OSC documenté._
 ## Connexion OSC EOS (`eos_connect`)
 
 **Description :** Initie un handshake OSC avec la console EOS, choisit un protocole et retourne la version detectee.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -861,6 +909,12 @@ _Pas de mapping OSC documenté._
 ## Diagnostics des consoles cible (`eos_console_targets`)
 
 **Description :** Liste les cibles EOS configurees via EOS_CONSOLES et indique leur etat par rapport a la connexion OSC courante.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :** Aucun argument.
 
@@ -899,7 +953,7 @@ _Pas de mapping OSC documenté._
 | --- | --- | --- | --- |
 | `cue_number` | string \| number | Oui | — |
 | `cue_part` | number | Non | — |
-| `cuelist_number` | number | Oui | — |
+| `cuelist_number` | number | Non | — |
 | `dry_run` | boolean | Non | — |
 | `require_confirmation` | boolean | Non | — |
 | `safety_level` | enum(strict, standard, off) | Non | — |
@@ -913,14 +967,14 @@ _Pas de mapping OSC documenté._
 _CLI_
 
 ```bash
-npx @modelcontextprotocol/cli call --tool eos_cue_fire --args '{"cuelist_number":1,"cue_number":"exemple"}'
+npx @modelcontextprotocol/cli call --tool eos_cue_fire --args '{"cue_number":"exemple"}'
 ```
 
 _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cmd s:'{"cuelist_number":1,"cue_number":"exemple"}'
+oscsend 127.0.0.1 8001 /eos/cue/{cuelist}/{cue}/fire s:'{"cue_number":"exemple"}'
 ```
 
 <a id="eos-cue-get-info"></a>
@@ -1011,13 +1065,19 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cmd s:'{"cuelist_number":1}'
+oscsend 127.0.0.1 8001 /eos/cue/{cuelist}/go s:'{"cuelist_number":1}'
 ```
 
 <a id="eos-cue-label-set"></a>
 ## Label cue (`eos_cue_label_set`)
 
 **Description :** Applique un label a une cue via une commande EOS deterministe.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -1095,6 +1155,12 @@ oscsend 127.0.0.1 8001 /eos/get/cuelist s:'{"cuelist_number":1}'
 
 **Description :** Enregistre une cue de maniere deterministe via eos_new_command.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -1143,7 +1209,7 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Record Cue {cuelist_number}/1#'
 | --- | --- | --- | --- |
 | `cue_number` | string \| number | Oui | — |
 | `cue_part` | number | Non | — |
-| `cuelist_number` | number | Oui | — |
+| `cuelist_number` | number | Non | — |
 | `dry_run` | boolean | Non | — |
 | `require_confirmation` | boolean | Non | — |
 | `safety_level` | enum(strict, standard, off) | Non | — |
@@ -1157,14 +1223,14 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Record Cue {cuelist_number}/1#'
 _CLI_
 
 ```bash
-npx @modelcontextprotocol/cli call --tool eos_cue_select --args '{"cuelist_number":1,"cue_number":"exemple"}'
+npx @modelcontextprotocol/cli call --tool eos_cue_select --args '{"cue_number":"exemple"}'
 ```
 
 _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cmd s:'{"cuelist_number":1,"cue_number":"exemple"}'
+oscsend 127.0.0.1 8001 /eos/cue/{cue} s:'{"cue_number":"exemple"}'
 ```
 
 <a id="eos-cue-stop-back"></a>
@@ -1215,6 +1281,12 @@ oscsend 127.0.0.1 8001 /eos/cmd s:'Cue 1 Stop#'
 ## Update cue (`eos_cue_update`)
 
 **Description :** Met a jour une cue de maniere deterministe via eos_new_command.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -1382,6 +1454,12 @@ oscsend 127.0.0.1 8001 /eos/get/cuelist/info s:'{"cuelist_number":1}'
 
 **Description :** Recupere les informations d'une courbe, incluant label et points.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -1414,6 +1492,12 @@ oscsend 127.0.0.1 8001 /eos/get/curve s:'{"curve_number":1}'
 
 **Description :** Selectionne une courbe en envoyant son numero a la console.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -1443,6 +1527,12 @@ oscsend 127.0.0.1 8001 /eos/curve/select s:'{"curve_number":1}'
 ## Creation de bank de direct selects (`eos_direct_select_bank_create`)
 
 **Description :** Cree un bank de direct selects OSC avec configuration de cible et pagination.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -1478,6 +1568,12 @@ oscsend 127.0.0.1 8001 /eos/ds/{index}/config/{target}/{buttons}/{flexi}/{page} 
 
 **Description :** Change la page active dans un bank de direct selects.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -1508,6 +1604,12 @@ oscsend 127.0.0.1 8001 /eos/ds/{index}/page/1 s:'{"bank_index":1,"delta":1}'
 ## Appui de direct select (`eos_direct_select_press`)
 
 **Description :** Simule un appui ou relachement sur un bouton de direct select.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -1541,6 +1643,12 @@ oscsend 127.0.0.1 8001 /eos/ds/{index}/button/{page}/{button} f 1
 
 **Description :** Recupere les informations detaillees d'un effet.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -1573,6 +1681,12 @@ oscsend 127.0.0.1 8001 /eos/get/effect s:'{"effect_number":1}'
 
 **Description :** Selectionne un effet sans le lancer.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -1602,6 +1716,12 @@ oscsend 127.0.0.1 8001 /eos/cmd s:'{"effect_number":1}'
 ## Arret d'effet (`eos_effect_stop`)
 
 **Description :** Stoppe un effet actif sur la selection.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -1633,6 +1753,12 @@ oscsend 127.0.0.1 8001 /eos/cmd s:'{"effect_number":1}'
 
 **Description :** Active ou desactive la journalisation des messages OSC entrants et sortants.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -1658,6 +1784,12 @@ _Pas de mapping OSC documenté._
 ## Creation de bank de faders (`eos_fader_bank_create`)
 
 **Description :** Cree un bank de faders OSC avec pagination optionnelle.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -1691,6 +1823,12 @@ oscsend 127.0.0.1 8001 /eos/fader/{index}/config/{faders}/{page} s:'{"bank_index
 
 **Description :** Charge le contenu courant sur le fader specifie.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -1722,6 +1860,12 @@ oscsend 127.0.0.1 8001 /eos/fader/{bank}/{page}/{fader}/load s:'{"bank_index":1,
 
 **Description :** Change de page dans le bank en ajoutant le delta specifie.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -1752,6 +1896,12 @@ oscsend 127.0.0.1 8001 /eos/fader/{index}/page/1 s:'{"bank_index":1,"delta":1}'
 ## Reglage de niveau de fader (`eos_fader_set_level`)
 
 **Description :** Definit le niveau (0-1 ou 0-100%) du fader cible.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -1785,6 +1935,12 @@ oscsend 127.0.0.1 8001 /eos/fader/{bank}/{page}/{fader} s:'{"bank_index":1,"fade
 
 **Description :** Decharge le contenu du fader specifie.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -1815,6 +1971,12 @@ oscsend 127.0.0.1 8001 /eos/fader/{bank}/{page}/{fader}/unload s:'{"bank_index":
 ## Recherche fixture (`eos_fixture_search`)
 
 **Description :** Recherche dans la bibliotheque de fixtures par nom, marque, modele ou mode.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -1889,6 +2051,12 @@ oscsend 127.0.0.1 8001 /eos/fp/fire s:'{"palette_number":1}'
 
 **Description :** Recupere les informations detaillees pour un point Focus Palette Encoder.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -1921,6 +2089,12 @@ oscsend 127.0.0.1 8001 /eos/get/fpe/point s:'{"set_number":1,"point_number":1}'
 
 **Description :** Recupere le nombre total de sets Focus Palette Encoder.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -1950,6 +2124,12 @@ oscsend 127.0.0.1 8001 /eos/get/fpe/set/count s:'{"timeoutMs":1}'
 ## Informations set FPE (`eos_fpe_get_set_info`)
 
 **Description :** Recupere les informations detaillees pour un set Focus Palette Encoder.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -2024,6 +2204,12 @@ oscsend 127.0.0.1 8001 /eos/get/active/cue s:'{"cuelist_number":1}'
 ## Encodeurs actifs (`eos_get_active_wheels`)
 
 **Description :** Recupere et normalise la liste des encodeurs actifs.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -2101,6 +2287,12 @@ oscsend 127.0.0.1 8001 /eos/get/cmd_line s:'{"user":1}'
 
 **Description :** Recupere le nombre total d'elements pour un type donne.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -2129,6 +2321,12 @@ _Pas de mapping OSC documenté._
 
 **Description :** Recupere les informations de diagnostic du service OSC.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :** Aucun argument.
 
 **Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
@@ -2149,6 +2347,12 @@ _Pas de mapping OSC documenté._
 ## Lister tous les elements (`eos_get_list_all`)
 
 **Description :** Recupere la liste complete des elements pour un type donne.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -2260,6 +2464,12 @@ oscsend 127.0.0.1 8001 /eos/get/pending/cue s:'{"cuelist_number":1}'
 ## Defaults de setup (`eos_get_setup_defaults`)
 
 **Description :** Recupere les valeurs par defaut de setup exposees par la console EOS.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -2414,6 +2624,12 @@ oscsend 127.0.0.1 8001 /eos/get/cmd_line s:'{"user":1}'
 
 **Description :** Recupere la version logicielle signalee par la console EOS.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -2440,6 +2656,12 @@ _Pas de mapping OSC documenté._
 ## Informations sur un groupe (`eos_group_get_info`)
 
 **Description :** Recupere les informations detaillees pour un groupe donne.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -2472,6 +2694,12 @@ oscsend 127.0.0.1 8001 /eos/get/group s:'{"group_number":1}'
 
 **Description :** Recupere la liste des groupes disponibles avec leurs membres.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -2502,6 +2730,12 @@ oscsend 127.0.0.1 8001 /eos/get/group/list s:'{"timeoutMs":1}'
 
 **Description :** Selectionne un groupe sur la console Eos.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -2531,6 +2765,12 @@ oscsend 127.0.0.1 8001 /eos/group s:'{"group_number":1}'
 ## Reglage de niveau de groupe (`eos_group_set_level`)
 
 **Description :** Ajuste le niveau d'un groupe sur une echelle de 0 a 100.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -2769,6 +3009,12 @@ oscsend 127.0.0.1 8001 /eos/macro s:'{"macro_number":1}'
 
 **Description :** Recupere le label et l'UID d'un magic sheet.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -2800,6 +3046,12 @@ oscsend 127.0.0.1 8001 /eos/get/magic_sheet s:'{"ms_number":1}'
 
 **Description :** Ouvre un magic sheet specifique sur la console.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -2830,6 +3082,12 @@ oscsend 127.0.0.1 8001 /eos/ms s:'{"ms_number":1}'
 ## Envoi de commande via magic sheet (`eos_magic_sheet_send_string`)
 
 **Description :** Envoie une commande OSC via la fonctionnalite Magic Sheet.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -2956,6 +3214,12 @@ oscsend 127.0.0.1 8001 /eos/get/palette s:'{"palette_type":"ip","palette_number"
 
 **Description :** Applique un label sur une palette avec commande deterministe.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -2988,6 +3252,12 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'IP 1 Label "exemple"#'
 ## Record palette (`eos_palette_record`)
 
 **Description :** Enregistre une palette (ip/fp/cp/bp) avec commande deterministe.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -3156,6 +3426,12 @@ oscsend 127.0.0.1 8001 /eos/get/patch/chan_info s:'{"channel_number":1}'
 
 **Description :** Configure adresse DMX, type appareil, part et label via commande deterministe.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -3191,6 +3467,12 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Patch Chan 1 Part 1 Address exemple Type "
 
 **Description :** Envoie un ping OSC a la console EOS et retourne le statut.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -3223,6 +3505,12 @@ oscsend 127.0.0.1 8001 /eos/ping s:'{"message":"exemple"}'
 
 **Description :** Recupere les informations detaillees pour un pixel map donne.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -3253,6 +3541,12 @@ oscsend 127.0.0.1 8001 /eos/get/pixmap s:'{"pixmap_number":1}'
 ## Selection de pixel map (`eos_pixmap_select`)
 
 **Description :** Selectionne un pixel map sur la console Eos.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -3412,6 +3706,7 @@ oscsend 127.0.0.1 8001 /eos/preset s:'{"preset_number":1}'
 | --- | --- |
 | Catégorie | `diagnostics` |
 | Niveau de risque | `low` |
+| Confirmation requise | Non |
 | Workflow préféré | `first_step` |
 
 **Arguments :**
@@ -3448,6 +3743,12 @@ _Pas de mapping OSC documenté._
 
 **Description :** Envoie une commande de reset a la console EOS.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -3476,6 +3777,12 @@ _Pas de mapping OSC documenté._
 ## Couleur HS (`eos_set_color_hs`)
 
 **Description :** Definit une couleur via Hue/Saturation.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -3507,6 +3814,12 @@ oscsend 127.0.0.1 8001 /eos/param/color/hs s:'{"hue":1,"saturation":1}'
 ## Couleur RGB (`eos_set_color_rgb`)
 
 **Description :** Definit une couleur via valeurs RGB (0-1).
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -3620,6 +3933,12 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'{"format_string":"exemple"}'
 
 **Description :** Fixe une valeur DMX (0-255) sur une ou plusieurs adresses.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -3650,6 +3969,12 @@ oscsend 127.0.0.1 8001 /eos/addr/{address}/DMX s:'{"addresses":1,"value":1}'
 ## Position Pan/Tilt XY (`eos_set_pantilt_xy`)
 
 **Description :** Definit une position normalisee sur le plan XY (0-1).
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -3682,6 +4007,12 @@ oscsend 127.0.0.1 8001 /eos/param/position/xy s:'{"x":1,"y":1}'
 
 **Description :** Definit l'identifiant utilisateur actif sur la console EOS via OSC.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -3711,6 +4042,12 @@ oscsend 127.0.0.1 8001 /eos/user i:1
 ## Position XYZ (`eos_set_xyz_position`)
 
 **Description :** Definit une position XYZ en metres.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -3751,6 +4088,7 @@ oscsend 127.0.0.1 8001 /eos/param/position/xyz s:'{"x":1,"y":1,"z":1}'
 | Catégorie | `showfile` |
 | Synonymes | `esf3d`, `showfile offline` |
 | Niveau de risque | `low` |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -3826,6 +4164,7 @@ _Pas de mapping OSC documenté._
 | Catégorie | `showfile` |
 | Synonymes | `esf3d`, `showfile offline` |
 | Niveau de risque | `low` |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -3859,6 +4198,7 @@ _Pas de mapping OSC documenté._
 | Catégorie | `showfile` |
 | Synonymes | `esf3d`, `showfile offline` |
 | Niveau de risque | `low` |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -3892,6 +4232,7 @@ _Pas de mapping OSC documenté._
 | Catégorie | `showfile` |
 | Synonymes | `esf3d`, `showfile offline` |
 | Niveau de risque | `low` |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -3925,6 +4266,7 @@ _Pas de mapping OSC documenté._
 | Catégorie | `showfile` |
 | Synonymes | `esf3d`, `showfile offline` |
 | Niveau de risque | `low` |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -3958,6 +4300,7 @@ _Pas de mapping OSC documenté._
 | Catégorie | `showfile` |
 | Synonymes | `esf3d`, `showfile offline` |
 | Niveau de risque | `low` |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -3983,6 +4326,12 @@ _Pas de mapping OSC documenté._
 ## Lecture des informations de snapshot (`eos_snapshot_get_info`)
 
 **Description :** Recupere les informations d'un snapshot, incluant label et UID.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -4015,6 +4364,12 @@ oscsend 127.0.0.1 8001 /eos/get/snapshot s:'{"snapshot_number":1}'
 ## Rappel de snapshot (`eos_snapshot_recall`)
 
 **Description :** Rappelle un snapshot en envoyant son numero a la console.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -4087,6 +4442,12 @@ oscsend 127.0.0.1 8001 /eos/softkey/1 s:'{"softkey_number":1}'
 
 **Description :** Active ou desactive le bump d'un submaster.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -4117,6 +4478,12 @@ oscsend 127.0.0.1 8001 /eos/sub/1/bump f 1
 ## Informations sur un submaster (`eos_submaster_get_info`)
 
 **Description :** Recupere et normalise les informations d'un submaster.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -4149,6 +4516,12 @@ oscsend 127.0.0.1 8001 /eos/get/submaster s:'{"submaster_number":1}'
 
 **Description :** Ajuste le niveau d'un submaster sur une echelle de 0.0 a 1.0.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -4180,6 +4553,12 @@ oscsend 127.0.0.1 8001 /eos/sub/1 f 1
 
 **Description :** Active ou desactive une souscription OSC sur la console EOS.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -4210,6 +4589,12 @@ _Pas de mapping OSC documenté._
 ## Mouvement continu (`eos_switch_continuous`)
 
 **Description :** Active un mouvement continu d'encodeur sur un parametre.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -4281,6 +4666,12 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'{"targetAddress":"exemple"}'
 
 **Description :** Simule une rotation d'encodeur pour un parametre donne.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -4312,6 +4703,12 @@ oscsend 127.0.0.1 8001 /eos/param/wheel/tick s:'{"parameter_name":"exemple","tic
 ## Patch complet du groupe sur scene (`eos_workflow_autopatch_band`)
 
 **Description :** Point d entree naturel pour patcher tout un patch band: blocs de fixtures, adresses DMX, labels et option face trad en une seule sequence.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -4349,6 +4746,12 @@ _Pas de mapping OSC documenté._
 
 **Description :** Point d entree naturel pour preparer un show: enregistrer des groupes de canaux puis creer et nommer les color palettes et focus palettes associees.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -4382,6 +4785,12 @@ _Pas de mapping OSC documenté._
 
 **Description :** Point d entree naturel pour generer plusieurs cues musicales ou reggae: looks successifs, palettes couleur/focus/beam et numerotation automatique.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -4414,6 +4823,12 @@ _Pas de mapping OSC documenté._
 ## Creer un effet fly-out (`eos_workflow_create_effect`)
 
 **Description :** Point d entree naturel pour creer un fly-out ou effet de mouvement: assignation aux canaux, groupe optionnel, direction center-out/left-right, speed et size.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -4451,6 +4866,12 @@ _Pas de mapping OSC documenté._
 
 **Description :** Selectionne des canaux, applique des palettes CP/FP/BP puis enregistre une cue.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -4487,6 +4908,12 @@ _Pas de mapping OSC documenté._
 ## Workflow patch fixture (`eos_workflow_patch_fixture`)
 
 **Description :** Patch un canal, applique un label et une position 3D de base.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -4531,6 +4958,12 @@ _Pas de mapping OSC documenté._
 
 **Description :** Lit les informations de patch canal par canal avec concurrence basse, pause entre requetes et arret de securite sur taux d echec configurable.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -4566,6 +4999,12 @@ _Pas de mapping OSC documenté._
 ## Workflow rehearsal go safe (`eos_workflow_rehearsal_go_safe`)
 
 **Description :** Verifie la ligne de commande, envoie GO puis rollback optionnel en cas d echec.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -4604,6 +5043,12 @@ _Pas de mapping OSC documenté._
 
 **Description :** Point d entree naturel pour modifier une cue existante ou courante: aller a la cue, selectionner les canaux, ajuster l intensite puis lancer Update.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -4640,6 +5085,12 @@ _Pas de mapping OSC documenté._
 
 **Description :** Retourne un message de confirmation.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -4664,6 +5115,12 @@ _Pas de mapping OSC documenté._
 ## Effacer contexte courant (`session_clear_context`)
 
 **Description :** Supprime le contexte courant memorise localement.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -4693,6 +5150,12 @@ _Pas de mapping OSC documenté._
 
 **Description :** Renvoie le contexte courant memorise localement.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :**
 
 | Nom | Type | Requis | Description |
@@ -4721,6 +5184,12 @@ _Pas de mapping OSC documenté._
 
 **Description :** Renvoie le numero utilisateur EOS memorise localement.
 
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
+
 **Arguments :** Aucun argument.
 
 **Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
@@ -4741,6 +5210,12 @@ _Pas de mapping OSC documenté._
 ## Definir contexte courant (`session_set_context`)
 
 **Description :** Stocke le contexte courant (show, cuelist active, selections canaux/groupes, palettes recentes) avec un TTL configurable.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -4771,6 +5246,12 @@ _Pas de mapping OSC documenté._
 ## Definir utilisateur courant (`session_set_current_user`)
 
 **Description :** Stocke en local le numero utilisateur EOS a utiliser par defaut.
+
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Confirmation requise | Non |
 
 **Arguments :**
 

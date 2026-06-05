@@ -3,6 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { z, type ZodRawShape } from 'zod';
+import type { OscMessageArgument } from '../../services/osc/index';
+import type { BuiltOscWireMessage } from '../../services/osc/messageBuilders';
+import { buildCueFireAddress, buildCueGoAddress, buildCueSelectAddress, oscMappings } from '../../services/osc/mappings';
 import { getResourceCache } from '../../services/cache/index';
 import { cueObjectNumberSchema, cuelistNumberSchema as sharedCuelistNumberSchema, optionalPortSchema } from '../../utils/validators';
 import { buildToolResult, type ToolExecutionResult } from '../types';
@@ -20,6 +23,101 @@ export const cuelistNumberSchema = sharedCuelistNumberSchema;
 export const cueNumberSchema = z.union([z.string().min(1), cueObjectNumberSchema]);
 
 export const cuePartSchema = z.coerce.number().int().min(0).max(99);
+
+export type CueOscMode = 'strict' | 'compatibility';
+
+export interface CueToolExtraOptions {
+  cueOscMode?: CueOscMode;
+}
+
+export interface CueOscRequest {
+  mode: CueOscMode;
+  message: BuiltOscWireMessage['message'];
+  contract: BuiltOscWireMessage['contract'];
+  command?: string;
+  fallbackReason?: string;
+}
+
+function isCueOscMode(value: unknown): value is CueOscMode {
+  return value === 'strict' || value === 'compatibility';
+}
+
+export function resolveCueOscMode(extra: unknown): CueOscMode {
+  if (extra && typeof extra === 'object' && !Array.isArray(extra)) {
+    const mode = (extra as { cueOscMode?: unknown }).cueOscMode;
+    if (isCueOscMode(mode)) {
+      return mode;
+    }
+  }
+  return 'strict';
+}
+
+function buildCueWireMessage(address: string, args: OscMessageArgument[] = []): BuiltOscWireMessage {
+  return {
+    message: args.length > 0 ? { address, args } : { address },
+    contract: {
+      family: 'cue',
+      address,
+      argumentTypes: args.map((arg) => arg.type)
+    }
+  };
+}
+
+function cueCommandRequest(command: string, fallbackReason?: string): CueOscRequest {
+  return {
+    mode: 'compatibility',
+    ...buildCueWireMessage(oscMappings.cues.compatibility.fire, [{ type: 's', value: command }]),
+    command,
+    fallbackReason
+  };
+}
+
+function canUseNativeCueAddress(identifier: CueIdentifier): boolean {
+  return identifier.cuePart == null || identifier.cuePart === 0;
+}
+
+export function buildCueFireOscRequest(identifier: CueIdentifier, command: string, mode: CueOscMode = 'strict'): CueOscRequest {
+  if (mode === 'compatibility') {
+    return cueCommandRequest(command);
+  }
+  if (identifier.cueNumber == null) {
+    return cueCommandRequest(command, 'cue_number absent: commande texte requise pour Fire.');
+  }
+  if (!canUseNativeCueAddress(identifier)) {
+    return cueCommandRequest(command, 'cue_part non nul: adresse native Fire sans part dediee.');
+  }
+  return {
+    mode: 'strict',
+    ...buildCueWireMessage(buildCueFireAddress(identifier.cueNumber, identifier.cuelistNumber))
+  };
+}
+
+export function buildCueGoOscRequest(identifier: CueIdentifier, command: string, mode: CueOscMode = 'strict'): CueOscRequest {
+  if (mode === 'compatibility') {
+    return cueCommandRequest(command);
+  }
+  if (identifier.cuelistNumber != null && identifier.cueNumber == null && canUseNativeCueAddress(identifier)) {
+    return {
+      mode: 'strict',
+      ...buildCueWireMessage(buildCueGoAddress(identifier.cuelistNumber))
+    };
+  }
+  return cueCommandRequest(command, 'GO vers une cue/part precise: commande texte requise.');
+}
+
+export function buildCueSelectOscRequest(identifier: CueIdentifier, command: string, mode: CueOscMode = 'strict'): CueOscRequest {
+  if (mode === 'compatibility') {
+    return cueCommandRequest(command);
+  }
+  if (identifier.cueNumber != null && identifier.cuelistNumber == null && canUseNativeCueAddress(identifier)) {
+    return {
+      mode: 'strict',
+      ...buildCueWireMessage(buildCueSelectAddress(identifier.cueNumber))
+    };
+  }
+  return cueCommandRequest(command, 'Selection avec cuelist ou part: commande texte requise.');
+}
+
 
 export interface CueCommandOptions {
   cuelist_number?: number | null;

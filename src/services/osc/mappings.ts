@@ -189,10 +189,16 @@ export const oscMappings = {
     info: '/eos/get/submaster'
   },
   cues: {
-    fire: '/eos/cmd',
-    go: '/eos/cmd',
+    fire: '/eos/cue/{cuelist}/{cue}/fire',
+    fireWithoutCuelist: '/eos/cue/{cue}/fire',
+    go: '/eos/cue/{cuelist}/go',
     stopBackCommand: '/eos/cmd',
-    select: '/eos/cmd',
+    select: '/eos/cue/{cue}',
+    compatibility: {
+      fire: '/eos/cmd',
+      go: '/eos/cmd',
+      select: '/eos/cmd'
+    },
     info: '/eos/get/cue',
     list: '/eos/get/cuelist',
     cuelistInfo: '/eos/get/cuelist/info',
@@ -247,7 +253,10 @@ export const oscPayloadAnnotations = {
     bankCreate: { wireFormat: 'eos-native-address', arguments: 'EOS-native address path encodes bank, target, buttons, flexi, and page' }
   },
   cues: {
-    fire: { wireFormat: 'eos-native-command', arguments: 'single OSC string containing `Cue ... Fire`' }
+    fire: { wireFormat: 'eos-native-address', arguments: 'EOS-native address path encodes cue/cuelist, no OSC arguments' },
+    go: { wireFormat: 'eos-native-address', arguments: 'EOS-native address path encodes cuelist, no OSC arguments' },
+    select: { wireFormat: 'eos-native-address', arguments: 'EOS-native address path encodes cue, no OSC arguments' },
+    compatibility: { wireFormat: 'eos-native-command', arguments: 'fallback /eos/cmd with a single EOS command string when native address cannot represent the request' }
   },
   magicSheets: {
     open: { wireFormat: 'eos-native-arguments', arguments: 'OSC integer arguments for magic sheet number and optional view number' }
@@ -353,3 +362,24 @@ export const oscResponseMappings = {
     list: withEosOutResponseVariant(oscMappings.cues.list)
   }
 } as const;
+
+
+function encodeCuePathSegment(value: string | number): string {
+  return encodeURIComponent(String(value).trim());
+}
+
+export function buildCueFireAddress(cueNumber: string | number, cuelistNumber?: number | null): string {
+  const cue = encodeCuePathSegment(cueNumber);
+  if (cuelistNumber != null) {
+    return `/eos/cue/${encodeCuePathSegment(cuelistNumber)}/${cue}/fire`;
+  }
+  return `/eos/cue/${cue}/fire`;
+}
+
+export function buildCueGoAddress(cuelistNumber: number): string {
+  return `/eos/cue/${encodeCuePathSegment(cuelistNumber)}/go`;
+}
+
+export function buildCueSelectAddress(cueNumber: string | number): string {
+  return `/eos/cue/${encodeCuePathSegment(cueNumber)}`;
+}

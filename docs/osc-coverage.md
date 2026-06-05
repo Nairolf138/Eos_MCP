@@ -133,10 +133,10 @@ Les contrats centralisés sont vérifiés dans `src/tools/__tests__/osc_contract
 | diagnostics | `eos_console_targets` | — | — (outil non OSC ou orchestrateur) |
 | diagnostics | `eos_get_version` | — | — (outil non OSC ou orchestrateur) |
 | diagnostics | `eos_get_setup_defaults` | — | — (outil non OSC ou orchestrateur) |
-| cues | `eos_cue_fire` | `/eos/cmd` | `src/tools/__tests__/osc_contracts.test.ts` |
-| cues | `eos_cue_go` | `/eos/cmd` | `src/tools/__tests__/osc_contracts.test.ts` |
+| cues | `eos_cue_fire` | `/eos/cue/{cuelist}/{cue}/fire` (fallback `/eos/cmd`) | `src/tools/__tests__/osc_contracts.test.ts` |
+| cues | `eos_cue_go` | `/eos/cue/{cuelist}/go` (fallback `/eos/cmd`) | `src/tools/__tests__/osc_contracts.test.ts` |
 | cues | `eos_cue_stop_back` | `/eos/cmd` | `src/tools/__tests__/osc_contracts.test.ts` |
-| cues | `eos_cue_select` | `/eos/cmd` | `src/tools/__tests__/osc_contracts.test.ts` |
+| cues | `eos_cue_select` | `/eos/cue/{cue}` (fallback `/eos/cmd`) | `src/tools/__tests__/osc_contracts.test.ts` |
 | cues | `eos_cue_get_info` | `/eos/get/cue` | `src/tools/__tests__/osc_contracts.test.ts` |
 | cues | `eos_cue_list_all` | `/eos/get/cuelist` | `src/tools/__tests__/osc_contracts.test.ts` |
 | cues | `eos_cuelist_get_info` | `/eos/get/cuelist/info` | `src/tools/__tests__/osc_contracts.test.ts` |
