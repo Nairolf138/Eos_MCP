@@ -37,9 +37,10 @@ import dmxTools from './dmx/index';
 import sessionTools from './session/index';
 import programmingTools from './programming/index';
 import workflowTools from './workflows/index';
+import { buildOscToolStrictModePolicy } from '../services/osc/messageBuilders';
 import type { ToolDefinition } from './types';
 
-const definitions = [
+const rawDefinitions = [
   eosCapabilitiesGetTool,
   pingTool,
   eosConnectTool,
@@ -76,6 +77,52 @@ const definitions = [
   ...sessionTools,
   ...programmingTools
 ];
+
+function collectOscAddresses(value: unknown): string[] {
+  if (typeof value === 'string') {
+    return [value];
+  }
+  if (Array.isArray(value)) {
+    return value.flatMap((entry) => collectOscAddresses(entry));
+  }
+  if (value && typeof value === 'object') {
+    return Object.values(value as Record<string, unknown>).flatMap((entry) => collectOscAddresses(entry));
+  }
+  return [];
+}
+
+function withStrictOscPolicy(tool: ToolDefinition): ToolDefinition {
+  const mapping = tool.config.annotations?.mapping as { osc?: unknown } | undefined;
+  const requiresConfirmation = tool.metadata?.requiresConfirmation === true;
+  const policy = buildOscToolStrictModePolicy({
+    oscAddresses: collectOscAddresses(mapping?.osc),
+    requiresConfirmation
+  });
+
+  return {
+    ...tool,
+    config: {
+      ...tool.config,
+      annotations: {
+        ...(tool.config.annotations ?? {}),
+        nativeOscPreferred: policy.nativeOscPreferred,
+        cmdFallbackAllowed: policy.cmdFallbackAllowed,
+        requiresConfirmation: policy.requiresConfirmation,
+        strictModeBehavior: policy.strictModeBehavior,
+        oscStrictModePolicy: policy
+      }
+    },
+    metadata: {
+      ...(tool.metadata ?? {}),
+      nativeOscPreferred: policy.nativeOscPreferred,
+      cmdFallbackAllowed: policy.cmdFallbackAllowed,
+      requiresConfirmation: policy.requiresConfirmation,
+      strictModeBehavior: policy.strictModeBehavior
+    }
+  };
+}
+
+const definitions = rawDefinitions.map((tool) => withStrictOscPolicy(tool as ToolDefinition));
 
 export const toolDefinitions = definitions as ToolDefinition[];
 
