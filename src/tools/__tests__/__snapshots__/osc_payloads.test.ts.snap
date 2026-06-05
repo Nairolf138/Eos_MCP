@@ -16,15 +16,15 @@ exports[`OSC payload snapshots captures EOS-native channel parameter payloads 1`
 
 exports[`OSC payload snapshots captures EOS-native channel parameter payloads 2`] = `
 {
-  "address": "/eos/dmx/address/dmx",
+  "address": "/eos/addr/1%2F101/DMX",
   "args": [
     {
-      "type": "s",
-      "value": "{"address":"1/101","value":255}",
+      "type": "i",
+      "value": 255,
     },
   ],
-  "arguments": "single OSC string containing a JSON object payload",
-  "wireFormat": "json-string",
+  "arguments": "EOS-native DMX raw integer argument",
+  "wireFormat": "eos-native-arguments",
 }
 `;
 

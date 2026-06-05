@@ -50,7 +50,7 @@ Les contrats centralisés sont vérifiés dans `src/tools/__tests__/osc_contract
 | channels | `eos_channel_select` | `/eos/newcmd` | `src/tools/__tests__/osc_contracts.test.ts` |
 | channels | `eos_channel_set_level` | `/eos/newcmd` | `src/tools/__tests__/osc_contracts.test.ts` |
 | channels | `eos_channel_set_dmx` | `/eos/newcmd` | `src/tools/__tests__/osc_contracts.test.ts` |
-| programming | `eos_set_dmx` | `/eos/newcmd` | `src/tools/__tests__/osc_contracts.test.ts` |
+| programming | `eos_set_dmx` | `/eos/addr/{address}/DMX` | `src/tools/__tests__/osc_contracts.test.ts` |
 | channels | `eos_channel_set_parameter` | `/eos/chan/{channel}/param/{parameter}` | `src/tools/__tests__/osc_contracts.test.ts` |
 | channels | `eos_channel_get_info` | `/eos/get/channels` | `src/tools/__tests__/osc_contracts.test.ts` |
 | groups | `eos_group_select` | `/eos/group` | `src/tools/__tests__/osc_contracts.test.ts` |
@@ -139,9 +139,9 @@ Les contrats centralisés sont vérifiés dans `src/tools/__tests__/osc_contract
 | fpe | `eos_fpe_get_set_count` | `/eos/get/fpe/set/count` | `src/tools/__tests__/osc_contracts.test.ts` |
 | fpe | `eos_fpe_get_set_info` | `/eos/get/fpe/set` | `src/tools/__tests__/osc_contracts.test.ts` |
 | fpe | `eos_fpe_get_point_info` | `/eos/get/fpe/point` | `src/tools/__tests__/osc_contracts.test.ts` |
-| dmx | `eos_address_select` | `/eos/dmx/address/select` | `src/tools/__tests__/osc_contracts.test.ts` |
-| dmx | `eos_address_set_level` | `/eos/dmx/address/level` | `src/tools/__tests__/osc_contracts.test.ts` |
-| dmx | `eos_address_set_dmx` | `/eos/dmx/address/dmx` | `src/tools/__tests__/osc_contracts.test.ts` |
+| dmx | `eos_address_select` | `/eos/addr` | `src/tools/__tests__/osc_contracts.test.ts` |
+| dmx | `eos_address_set_level` | `/eos/addr/{address}` | `src/tools/__tests__/osc_contracts.test.ts` |
+| dmx | `eos_address_set_dmx` | `/eos/addr/{address}/DMX` | `src/tools/__tests__/osc_contracts.test.ts` |
 | programming | `eos_set_user_id` | — | — (outil non OSC ou orchestrateur) |
 | session | `session_set_current_user` | — | — (outil non OSC ou orchestrateur) |
 | session | `session_get_current_user` | — | — (outil non OSC ou orchestrateur) |

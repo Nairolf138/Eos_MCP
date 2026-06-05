@@ -128,7 +128,7 @@ class MockOscClient {
 
 const SAMPLE_VALUES: Record<string, unknown> = {
   address_number: '1/001',
-  addresses: '1/001',
+  addresses: 1,
   back: false,
   bank_index: 1,
   blue: 64,
@@ -282,6 +282,7 @@ function resolveTemplate(template: string, args: Record<string, unknown>): strin
   return template
     .replace('{channel}', String(firstChannel))
     .replace('{parameter}', encodeURIComponent(String(args.parameter)))
+    .replace('{address}', encodeURIComponent(String(args.address_number ?? args.addresses)))
     .replace('{bank_index}', String(args.bank_index))
     .replace('{key}', keyIdentifier(args.key_name))
     .replace('softkey{number}', `softkey${String(args.softkey_number)}`)
@@ -428,38 +429,68 @@ describe('OSC tool contracts exported from src/tools/index.ts', () => {
     ]);
   });
 
-  it('returns stable MCP content when OSC reports an error status', async () => {
-    const errorClient = new MockOscClient();
-    jest.spyOn(errorClient, 'requestJson').mockResolvedValue({
-      status: 'error',
-      data: null,
-      payload: { status: 'error', error: 'boom' },
-      error: 'boom'
-    });
-    setOscClient(errorClient as unknown as OscClient);
+  it('selects a DMX address through the native /eos/addr contract', async () => {
+    const tool = toolDefinitions.find((candidate) => candidate.name === 'eos_address_select');
+    if (!tool) {
+      throw new Error('eos_address_select not exported');
+    }
 
+    await runTool(tool, {
+      address_number: '1/001',
+      targetAddress: '192.0.2.10',
+      targetPort: 3032
+    });
+
+    expect(client.calls).toEqual([
+      {
+        address: '/eos/addr',
+        args: [{ type: 's', value: '1/001' }],
+        options: expect.objectContaining({ targetAddress: '192.0.2.10', targetPort: 3032 })
+      }
+    ]);
+  });
+
+  it('sets a DMX address level as a percentage through /eos/addr/<address>', async () => {
+    const tool = toolDefinitions.find((candidate) => candidate.name === 'eos_address_set_level');
+    if (!tool) {
+      throw new Error('eos_address_set_level not exported');
+    }
+
+    await runTool(tool, {
+      address_number: '1/001',
+      level: '37.5%',
+      targetAddress: '192.0.2.10',
+      targetPort: 3032
+    });
+
+    expect(client.calls).toEqual([
+      {
+        address: '/eos/addr/1%2F001',
+        args: [{ type: 'f', value: 37.5 }],
+        options: expect.objectContaining({ targetAddress: '192.0.2.10', targetPort: 3032 })
+      }
+    ]);
+  });
+
+  it('sets a raw DMX value through /eos/addr/<address>/DMX', async () => {
     const tool = toolDefinitions.find((candidate) => candidate.name === 'eos_address_set_dmx');
     if (!tool) {
       throw new Error('eos_address_set_dmx not exported');
     }
 
-    const result = await runTool(tool, {
+    await runTool(tool, {
       address_number: '1/001',
-      dmx_value: 64,
+      dmx_value: 255,
       targetAddress: '192.0.2.10',
       targetPort: 3032
     });
 
-    expect(result).toMatchObject({
-      content: [{ type: 'text' }],
-      structuredContent: {
-        action: 'address_set_dmx',
-        status: 'error',
-        osc: {
-          address: '/eos/dmx/address/dmx',
-          response: { status: 'error', error: 'boom' }
-        }
+    expect(client.calls).toEqual([
+      {
+        address: '/eos/addr/1%2F001/DMX',
+        args: [{ type: 'i', value: 255 }],
+        options: expect.objectContaining({ targetAddress: '192.0.2.10', targetPort: 3032 })
       }
-    });
+    ]);
   });
 });

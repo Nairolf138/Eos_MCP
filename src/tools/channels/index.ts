@@ -13,6 +13,7 @@ import {
 import { getOscClient, type OscJsonResponse, type StepStatus } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
 import { buildChannelParameterAddress, oscMappings } from '../../services/osc/mappings';
+import { buildDmxAddressDmxMessage } from '../../services/osc/messageBuilders';
 import { sendDeterministicCommand } from '../commands/command_tools';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 
@@ -543,33 +544,34 @@ export const eosSetDmxTool: ToolDefinition<typeof setDmxSchema> = {
     title: 'Reglage DMX',
     description: 'Fixe une valeur DMX (0-255) sur une ou plusieurs adresses.',
     inputSchema: setDmxSchema,
-    annotations: annotate(oscMappings.commands.newCommand, 'Address {addresses} At {value}')
+    annotations: annotate(oscMappings.dmx.addressDmx)
   },
   handler: async (args, _extra) => {
     const schema = z.object(setDmxSchema).strict();
     const options = schema.parse(args ?? {});
+    const client = getOscClient();
     const addresses = normaliseChannels(options.addresses);
     const value = resolveDmxValue(options.value);
-    const expression = buildChannelExpression(addresses);
-    const command = `Address ${expression} At ${formatNumeric(value)}`;
-    const commandWithTerminator = `${command}#`;
-    const argsList = createCommandArgs(commandWithTerminator);
+    const targetOptions = extractTargetOptions(options);
+    const requests = addresses.map((address) => buildDmxAddressDmxMessage(String(address), value));
 
-    await sendDeterministicCommand({
-      command,
-      clearLine: true,
-      terminateWithEnter: true,
-      ...extractTargetOptions(options)
-    });
+    for (const request of requests) {
+      await client.sendMessage(request.message.address, request.message.args ?? [], {
+        ...targetOptions,
+        wireContract: request.contract
+      });
+    }
 
     return createResult(`Valeur DMX ${value} envoyee sur les adresses ${addresses.join(', ')}`, {
       action: 'set_dmx',
       addresses,
       value,
-      command: commandWithTerminator,
       osc: {
-        address: oscMappings.commands.newCommand,
-        args: argsList
+        address: requests.length === 1 ? requests[0]?.message.address : oscMappings.dmx.addressDmx,
+        messages: requests.map((request) => ({
+          address: request.message.address,
+          args: request.message.args ?? []
+        }))
       }
     });
   }

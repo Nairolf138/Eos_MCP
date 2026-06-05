@@ -61,12 +61,12 @@ Les endpoints non documentes sont les adresses observees ou introduites pour com
 | `eos_channel_select` | `/eos/cmd` | `/eos/chan` | Numero de circuit (selection) | v3.0.0 | ShowControl > OSC > Circ (p. 596) | MCP traduit en commande `Chan ...`. |
 | `eos_channel_set_level` | `/eos/cmd` | `/eos/chan/<num>/level` ou `/eos/at` | Etat touche/valeur d'intensite | v3.0.0 | ShowControl > OSC > Circ/At (p. 596-598) | MCP envoie `Chan ... Sneak <niveau>`. |
 | `eos_channel_set_dmx` | `/eos/cmd` | `/eos/chan/<num>/param/.../dmx` | Valeur DMX (0-255) | v3.0.0 | ShowControl > OSC > Circ Param/DMX (p. 597) | MCP envoie `Chan ... At <DMX>`. |
-| `eos_set_dmx` | `/eos/cmd` | `/eos/addr/<adresse>/dmx` | Valeur DMX (0-255) | v3.0.0 | ShowControl > OSC > Adresse (p. 607) | MCP envoie `Address ... At <DMX>`. |
+| `eos_set_dmx` | `/eos/addr/<adresse>/DMX` | `/eos/addr/<adresse>/DMX` | Valeur DMX brute (0-255) | v3.0.0 | ShowControl > OSC > Adresse (p. 607) | Envoi natif direct; une trame par adresse. |
 | `eos_channel_set_parameter` | `/eos/chan/<num>/param/<param>` | `/eos/chan/<num>/param/<param>` | Valeur de parametre (float) envoyee comme argument OSC numerique direct; une trame par canal. | v3.0.0 | ShowControl > OSC > Circ Param (p. 597) | Adresse construite par `buildChannelParameterAddress(channel, parameter)`. |
 | `eos_channel_get_info` | `/eos/get/channels` | _Non documente dans le manuel v3.0.0_ | Requete JSON | n/a | n/a | Extension MCP pour lecture des canaux. |
-| `eos_address_select` | `/eos/dmx/address/select` | `/eos/addr` | Adresse a selectionner | v3.0.0 | ShowControl > OSC > Adresse (p. 607) | MCP utilise un alias plus explicite. |
-| `eos_address_set_level` | `/eos/dmx/address/level` | `/eos/addr/<adresse>` | Niveau 0-100 | v3.0.0 | ShowControl > OSC > Adresse (p. 607) | MCP utilise un alias plus explicite. |
-| `eos_address_set_dmx` | `/eos/dmx/address/dmx` | `/eos/addr/<adresse>/dmx` | Valeur DMX (0-255) | v3.0.0 | ShowControl > OSC > Adresse (p. 607) | MCP utilise un alias plus explicite. |
+| `eos_address_select` | `/eos/addr` | `/eos/addr` | Adresse a selectionner | v3.0.0 | ShowControl > OSC > Adresse (p. 607) | Les anciens aliases `/eos/dmx/address/select` sont conserves uniquement en compatibilite non stricte. |
+| `eos_address_set_level` | `/eos/addr/<adresse>` | `/eos/addr/<adresse>` | Niveau 0-100 en argument float | v3.0.0 | ShowControl > OSC > Adresse (p. 607) | Les anciens aliases `/eos/dmx/address/level` sont conserves uniquement en compatibilite non stricte. |
+| `eos_address_set_dmx` | `/eos/addr/<adresse>/DMX` | `/eos/addr/<adresse>/DMX` | Valeur DMX brute (0-255) en argument entier | v3.0.0 | ShowControl > OSC > Adresse (p. 607) | Les anciens aliases `/eos/dmx/address/dmx` sont conserves uniquement en compatibilite non stricte. |
 
 ## Groupes
 

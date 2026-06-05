@@ -100,29 +100,30 @@ describe('channel tools', () => {
     await runTool(eosSetDmxTool, { addresses: [101], value: 'full' });
 
     expect(service.sentMessages).toHaveLength(1);
-    expect(service.sentMessages[0]).toMatchObject({ address: oscMappings.commands.newCommand });
+    expect(service.sentMessages[0]).toMatchObject({ address: '/eos/addr/101/DMX' });
 
     const message = service.sentMessages[0];
-    expect(message?.args?.[0]?.value).toBe('Address 101 At 255#');
+    expect(message?.args).toEqual([{ type: 'i', value: 255 }]);
   });
 
   it('accepte les adresses DMX en chaine', async () => {
     await runTool(eosSetDmxTool, { addresses: ['010', '011'], value: 10 });
 
-    expect(service.sentMessages).toHaveLength(1);
-    expect(service.sentMessages[0]).toMatchObject({ address: oscMappings.commands.newCommand });
-
-    const message = service.sentMessages[0];
-    expect(message?.args?.[0]?.value).toBe('Address 10 Thru 11 At 10#');
+    expect(service.sentMessages).toEqual([
+      { address: '/eos/addr/10/DMX', args: [{ type: 'i', value: 10 }] },
+      { address: '/eos/addr/11/DMX', args: [{ type: 'i', value: 10 }] }
+    ]);
   });
 
 
   it('accepte les plages d adresses DMX en format texte', async () => {
     await runTool(eosSetDmxTool, { addresses: 'Address 101-103', value: 10 });
 
-    expect(service.sentMessages).toHaveLength(1);
-    const message = service.sentMessages[0];
-    expect(message?.args?.[0]?.value).toBe('Address 101 Thru 103 At 10#');
+    expect(service.sentMessages).toEqual([
+      { address: '/eos/addr/101/DMX', args: [{ type: 'i', value: 10 }] },
+      { address: '/eos/addr/102/DMX', args: [{ type: 'i', value: 10 }] },
+      { address: '/eos/addr/103/DMX', args: [{ type: 'i', value: 10 }] }
+    ]);
   });
 
   describe('eos_channel_get_info', () => {

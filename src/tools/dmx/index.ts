@@ -3,8 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { z, type ZodRawShape } from 'zod';
-import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
+import { getOscClient } from '../../services/osc/client';
 import { oscMappings } from '../../services/osc/mappings';
+import {
+  buildDmxAddressDmxMessage,
+  buildDmxAddressLevelMessage,
+  buildDmxAddressSelectMessage
+} from '../../services/osc/messageBuilders';
 import { buildToolResult, withToolMetadata, type ToolDefinition, type ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
@@ -156,10 +161,6 @@ function normaliseAddress(value: number | string): string {
   return normalised;
 }
 
-function parseResponseStatus(response: OscJsonResponse): string {
-  return response.status ?? 'unknown';
-}
-
 const addressSelectInputSchema = {
   address_number: dmxAddressSchema,
   ...targetOptionsSchema
@@ -199,21 +200,19 @@ export const eosAddressSelectTool: ToolDefinition<typeof addressSelectInputSchem
     const options = schema.parse(args ?? {});
     const client = getOscClient();
     const address = normaliseAddress(options.address_number);
-    const payload = { address };
+    const request = buildDmxAddressSelectMessage(address);
 
-    const response: OscJsonResponse = await client.requestJson(oscMappings.dmx.addressSelect, {
-      payload,
-      ...extractTargetOptions(options)
+    await client.sendMessage(request.message.address, request.message.args ?? [], {
+      ...extractTargetOptions(options),
+      wireContract: request.contract
     });
 
     return createResult(`Adresse DMX ${address} selectionnee.`, {
       action: 'address_select',
       address,
-      status: parseResponseStatus(response),
       osc: {
-        address: oscMappings.dmx.addressSelect,
-        request: payload,
-        response: response.payload
+        address: request.message.address,
+        args: request.message.args ?? []
       }
     });
   }
@@ -242,22 +241,20 @@ export const eosAddressSetLevelTool: ToolDefinition<typeof addressSetLevelInputS
     const client = getOscClient();
     const address = normaliseAddress(options.address_number);
     const level = resolveLevelValue(options.level);
-    const payload = { address, level };
+    const request = buildDmxAddressLevelMessage(address, level);
 
-    const response: OscJsonResponse = await client.requestJson(oscMappings.dmx.addressLevel, {
-      payload,
-      ...extractTargetOptions(options)
+    await client.sendMessage(request.message.address, request.message.args ?? [], {
+      ...extractTargetOptions(options),
+      wireContract: request.contract
     });
 
     return createResult(`Niveau ${level}% applique a l'adresse DMX ${address}.`, {
       action: 'address_set_level',
       address,
       level,
-      status: parseResponseStatus(response),
       osc: {
-        address: oscMappings.dmx.addressLevel,
-        request: payload,
-        response: response.payload
+        address: request.message.address,
+        args: request.message.args ?? []
       }
     });
   }
@@ -286,22 +283,20 @@ export const eosAddressSetDmxTool: ToolDefinition<typeof addressSetDmxInputSchem
     const client = getOscClient();
     const address = normaliseAddress(options.address_number);
     const value = resolveDmxValue(options.dmx_value);
-    const payload = { address, value };
+    const request = buildDmxAddressDmxMessage(address, value);
 
-    const response: OscJsonResponse = await client.requestJson(oscMappings.dmx.addressDmx, {
-      payload,
-      ...extractTargetOptions(options)
+    await client.sendMessage(request.message.address, request.message.args ?? [], {
+      ...extractTargetOptions(options),
+      wireContract: request.contract
     });
 
     return createResult(`Valeur DMX ${value} appliquee a l'adresse ${address}.`, {
       action: 'address_set_dmx',
       address,
       value,
-      status: parseResponseStatus(response),
       osc: {
-        address: oscMappings.dmx.addressDmx,
-        request: payload,
-        response: response.payload
+        address: request.message.address,
+        args: request.message.args ?? []
       }
     });
   }

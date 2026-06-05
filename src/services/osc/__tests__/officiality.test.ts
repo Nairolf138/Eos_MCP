@@ -40,6 +40,13 @@ describe('OSC address officiality classification', () => {
     expect(() => assertOscAddressStrictModeAllowed('/eos/handshake', strictEnv)).not.toThrow();
   });
 
+  it('autorise les chemins DMX /eos/addr et bloque les aliases legacy en mode strict', () => {
+    expect(() => assertOscAddressStrictModeAllowed('/eos/addr', strictEnv)).not.toThrow();
+    expect(() => assertOscAddressStrictModeAllowed('/eos/addr/1%2F001', strictEnv)).not.toThrow();
+    expect(() => assertOscAddressStrictModeAllowed('/eos/addr/1%2F001/DMX', strictEnv)).not.toThrow();
+    expect(() => assertOscAddressStrictModeAllowed('/eos/dmx/address/dmx', strictEnv)).toThrow(/EOS_STRICT_MODE bloque/);
+  });
+
   it('parse EOS_STRICT_MODE comme un booleen opt-in', () => {
     expect(isEosStrictModeEnabled({ EOS_STRICT_MODE: 'true' } as NodeJS.ProcessEnv)).toBe(true);
     expect(isEosStrictModeEnabled({ EOS_STRICT_MODE: '1' } as NodeJS.ProcessEnv)).toBe(true);
