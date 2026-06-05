@@ -27,12 +27,19 @@ describe('OSC address officiality classification', () => {
     expect(getOscAddressOfficiality('/eos/fader/1/2/3')?.strictModeAllowed).toBe(true);
     expect(getOscAddressOfficiality('/eos/group/4/level')?.official).toBe(true);
     expect(getOscAddressOfficiality('/eos/key/go_0')?.official).toBe(true);
+    expect(getOscAddressOfficiality('/eos/out/user/3/cmd')).toMatchObject({ official: true, strictModeAllowed: true });
   });
 
   it('identifie les extensions MCP bloquees en mode strict', () => {
     const extension = getOscAddressOfficiality('/eos/get/patch/chan_pos');
     expect(extension).toMatchObject({ official: false, strictModeAllowed: false, source: 'MCP extension' });
+    expect(getOscAddressOfficiality('/eos/get/cmd_line')).toMatchObject({
+      official: false,
+      strictModeAllowed: false,
+      source: 'MCP extension'
+    });
     expect(() => assertOscAddressStrictModeAllowed('/eos/get/patch/chan_pos', strictEnv)).toThrow(/EOS_STRICT_MODE bloque/);
+    expect(() => assertOscAddressStrictModeAllowed('/eos/get/cmd_line', strictEnv)).toThrow(/EOS_STRICT_MODE bloque/);
   });
 
   it('autorise /eos/cmd et les commandes runtime necessaires en mode strict', () => {

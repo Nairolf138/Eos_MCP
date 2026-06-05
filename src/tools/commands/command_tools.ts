@@ -502,15 +502,20 @@ function formatSendResult(
 }
 
 function formatCommandLineState(result: CommandLineState): ToolExecutionResult {
+  const sourceLabel = result.source === 'official_osc_out'
+    ? 'source officielle /eos/out/cmd ou /eos/out/user/<number>/cmd'
+    : result.source === 'mcp_extension_get_cmd_line'
+      ? 'source extension MCP/simulateur /eos/get/cmd_line'
+      : 'source inconnue';
   const text = result.status === 'ok'
-    ? `Ligne de commande utilisateur ${result.user ?? 'global'}: ${result.text}`
-    : `Lecture de la ligne de commande indisponible (${result.status})`;
+    ? `Ligne de commande utilisateur ${result.user ?? 'global'} (${sourceLabel}): ${result.text}`
+    : `Lecture de la ligne de commande indisponible (${result.status}, ${sourceLabel})`;
   return buildToolResult({
     text,
     status: result.status,
     summary: text,
     warnings: result.status === 'ok' ? [] : [text],
-    structuredContent: { ...result }
+    structuredContent: { ...result, source_description: sourceLabel }
   });
 }
 
@@ -803,7 +808,7 @@ const userCommandLineInputSchema = {
 /**
  * @tool eos_get_command_line
  * @summary Lecture de la ligne de commande EOS
- * @description Recupere le contenu courant de la ligne de commande via OSC Get.
+ * @description Recupere le contenu courant depuis les messages officiels /eos/out/... memorises, avec repli extension MCP /eos/get/cmd_line.
  * @arguments Voir docs/tools.md#eos-get-command-line pour le schema complet.
  * @returns ToolExecutionResult avec contenu texte et objet.
  * @example CLI Consultez docs/tools.md#eos-get-command-line pour un exemple CLI.
@@ -813,7 +818,7 @@ export const eosGetCommandLineTool: ToolDefinition<typeof commandLineInputSchema
   name: 'eos_get_command_line',
   config: {
     title: 'Lecture de la ligne de commande EOS',
-    description: 'Recupere le contenu courant de la ligne de commande via OSC Get.',
+    description: 'Recupere le contenu courant depuis les messages officiels /eos/out/... memorises, avec repli extension MCP /eos/get/cmd_line.',
     inputSchema: commandLineInputSchema,
     annotations: mappingAnnotations(oscMappings.commands.getCommandLine, 'command_line_query')
   },
@@ -846,7 +851,7 @@ export const eosGetCommandLineTool: ToolDefinition<typeof commandLineInputSchema
 /**
  * @tool eos_get_user_command_line
  * @summary Lecture de la ligne de commande utilisateur
- * @description Recupere la ligne de commande pour un utilisateur specifique.
+ * @description Recupere la ligne de commande utilisateur depuis /eos/out/user/<number>/cmd memorise, avec repli extension MCP /eos/get/cmd_line.
  * @arguments Voir docs/tools.md#eos-get-user-command-line pour le schema complet.
  * @returns ToolExecutionResult avec contenu texte et objet.
  * @example CLI Consultez docs/tools.md#eos-get-user-command-line pour un exemple CLI.
@@ -856,7 +861,7 @@ export const eosGetUserCommandLineTool: ToolDefinition<typeof userCommandLineInp
   name: 'eos_get_user_command_line',
   config: {
     title: 'Lecture de la ligne de commande utilisateur',
-    description: 'Recupere la ligne de commande pour un utilisateur specifique.',
+    description: 'Recupere la ligne de commande utilisateur depuis /eos/out/user/<number>/cmd memorise, avec repli extension MCP /eos/get/cmd_line.',
     inputSchema: userCommandLineInputSchema,
     annotations: mappingAnnotations(oscMappings.commands.getCommandLine, 'user_command_line_query')
   },

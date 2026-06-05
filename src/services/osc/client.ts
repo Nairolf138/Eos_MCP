@@ -51,6 +51,8 @@ const NEW_COMMAND_REQUEST = '/eos/newcmd';
 const USER_REQUEST = '/eos/user';
 const COMMAND_LINE_GET_REQUEST = '/eos/get/cmd_line';
 const COMMAND_LINE_GET_REPLY = '/eos/get/cmd_line';
+const COMMAND_LINE_OUT_GLOBAL = '/eos/out/cmd';
+const COMMAND_LINE_OUT_USER_PATTERN = /^\/eos\/out\/user\/(-?\d+)\/cmd$/;
 const JSON_STATUS_REQUIRED_ENDPOINTS = new Set<string>([
   '/eos/get/cue'
 ]);
@@ -209,11 +211,14 @@ export interface CommandLineRequestOptions extends TargetOptions {
   timeoutMs?: number;
 }
 
+export type CommandLineSource = 'official_osc_out' | 'mcp_extension_get_cmd_line';
+
 export interface CommandLineState extends Record<string, unknown> {
   status: StepStatus;
   text: string;
   user: number | null;
   payload: unknown;
+  source: CommandLineSource | null;
   error?: string;
 }
 
@@ -292,10 +297,17 @@ export class OscClient {
 
   private readJsonCapabilityChecked = false;
 
+  private readonly commandLineState = new Map<string, CommandLineState>();
+
+  private readonly disposeCommandLineStateListener: () => void;
+
   constructor(private readonly gateway: OscGateway, private readonly config: OscClientConfig = {}) {
     this.requestQueue = new RequestQueue({ concurrency: config.requestConcurrency });
     this.requestQueueTimeoutMs =
       config.queueTimeoutMs ?? config.defaultTimeoutMs ?? DEFAULT_OPERATION_TIMEOUT_MS;
+    this.disposeCommandLineStateListener = this.gateway.onMessage((message) => {
+      this.rememberCommandLineMessage(message);
+    });
   }
 
   public getRuntimeCapabilities(): OscRuntimeCapabilities {
@@ -913,11 +925,19 @@ export class OscClient {
   }
 
   public async getCommandLine(options: CommandLineRequestOptions = {}): Promise<CommandLineState> {
+    const requestedUser = typeof options.user === 'number' && Number.isFinite(options.user)
+      ? Math.trunc(options.user)
+      : null;
+    const cached = this.getRememberedCommandLine(requestedUser);
+    if (cached) {
+      return cached;
+    }
+
     const timeoutMs = options.timeoutMs ?? this.config.defaultTimeoutMs ?? DEFAULT_OPERATION_TIMEOUT_MS;
     const requestPayload: Record<string, unknown> = {};
 
-    if (typeof options.user === 'number' && Number.isFinite(options.user)) {
-      requestPayload.user = Math.trunc(options.user);
+    if (requestedUser !== null) {
+      requestPayload.user = requestedUser;
     }
 
     const operation = 'la lecture de la ligne de commande OSC';
@@ -964,7 +984,8 @@ export class OscClient {
         status: 'ok',
         text: decoded.text,
         user: decoded.user,
-        payload
+        payload,
+        source: 'mcp_extension_get_cmd_line'
       };
     } catch (error) {
       const timeoutError = this.asAppError(error, ErrorCode.OSC_TIMEOUT);
@@ -974,6 +995,7 @@ export class OscClient {
           text: '',
           user: null,
           payload: null,
+          source: null,
           error: timeoutError.message
         };
       }
@@ -985,12 +1007,65 @@ export class OscClient {
           text: '',
           user: null,
           payload: null,
+          source: null,
           error: connectionLostError.message
         };
       }
 
       throw error;
     }
+  }
+
+  private rememberCommandLineMessage(message: OscMessage): void {
+    const decoded = this.decodeCommandLineOutMessage(message);
+    if (!decoded) {
+      return;
+    }
+
+    const state: CommandLineState = {
+      status: 'ok',
+      text: decoded.text,
+      user: decoded.user,
+      payload: message,
+      source: 'official_osc_out'
+    };
+
+    this.commandLineState.set(this.commandLineStateKey(decoded.user), state);
+    this.commandLineState.set(this.commandLineStateKey(null), state);
+  }
+
+  private getRememberedCommandLine(user: number | null): CommandLineState | null {
+    const state = this.commandLineState.get(this.commandLineStateKey(user));
+    return state ? { ...state } : null;
+  }
+
+  private commandLineStateKey(user: number | null): string {
+    return user === null ? 'global' : `user:${user}`;
+  }
+
+  private decodeCommandLineOutMessage(message: OscMessage): { text: string; user: number | null } | null {
+    if (message.address === COMMAND_LINE_OUT_GLOBAL) {
+      const first = message.args?.[0]?.value;
+      const second = message.args?.[1]?.value;
+      if (typeof first === 'number' && second !== undefined) {
+        return { text: String(second ?? ''), user: Math.trunc(first) };
+      }
+      if (typeof first === 'string' && second !== undefined) {
+        const decodedUser = this.decodeUser(first);
+        return decodedUser !== null
+          ? { text: String(second ?? ''), user: decodedUser }
+          : { text: [first, second].map((value) => String(value ?? '')).join(' '), user: null };
+      }
+      return { text: first == null ? '' : String(first), user: null };
+    }
+
+    const userMatch = message.address.match(COMMAND_LINE_OUT_USER_PATTERN);
+    if (userMatch) {
+      const first = message.args?.[0]?.value;
+      return { text: first == null ? '' : String(first), user: Number.parseInt(userMatch[1] ?? '', 10) };
+    }
+
+    return null;
   }
 
   private async send(
