@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import type { ZodRawShape } from 'zod';
+import type { StrictModeBehavior } from '../services/osc/messageBuilders';
 import type { ToolSafetyProfile } from './common/safety';
 
 export interface ToolResultContent {
@@ -187,6 +188,9 @@ export interface ToolMetadata {
   synonyms?: string[];
   riskLevel?: ToolRiskLevel;
   requiresConfirmation?: boolean;
+  nativeOscPreferred?: boolean;
+  cmdFallbackAllowed?: boolean;
+  strictModeBehavior?: StrictModeBehavior;
   preferredWorkflow?: string | string[];
   requiredRole?: ToolSafetyProfile;
 }

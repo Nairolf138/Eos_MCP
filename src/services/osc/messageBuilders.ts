@@ -5,6 +5,7 @@
 import { z } from 'zod';
 import { buildDmxAddressDmxAddress, buildDmxAddressLevelAddress, oscMappings } from './mappings';
 import type { OscMessage, OscMessageArgument } from './index';
+import { getOscAddressOfficiality } from './officiality';
 
 const jsonArgumentSchema = z.object({
   type: z.literal('s'),
@@ -20,6 +21,71 @@ const intArgumentSchema = z.object({
   type: z.literal('i'),
   value: z.number().int()
 });
+
+export type StrictModeBehavior =
+  | 'native_official_required'
+  | 'validated_cmd_fallback'
+  | 'blocked_without_validated_cmd_fallback'
+  | 'no_osc_transport';
+
+export interface OscToolStrictModePolicy {
+  nativeOscPreferred: boolean;
+  cmdFallbackAllowed: boolean;
+  requiresConfirmation: boolean;
+  strictModeBehavior: StrictModeBehavior;
+  officialOscAddresses: string[];
+  blockedOscAddresses: string[];
+}
+
+export interface BuildOscToolStrictModePolicyOptions {
+  oscAddresses?: readonly string[];
+  requiresConfirmation?: boolean;
+}
+
+const VALIDATED_COMMAND_FALLBACK_ADDRESSES = new Set<string>([
+  oscMappings.commands.command,
+  oscMappings.commands.newCommand
+]);
+
+function uniqueStrings(values: readonly string[]): string[] {
+  return Array.from(new Set(values.filter((value) => value.length > 0)));
+}
+
+/**
+ * Central policy used by MCP tools to expose how strict OSC mode must handle
+ * native ETC OSC endpoints versus validated Eos command-line text.
+ */
+export function buildOscToolStrictModePolicy(
+  options: BuildOscToolStrictModePolicyOptions = {}
+): OscToolStrictModePolicy {
+  const addresses = uniqueStrings(options.oscAddresses ?? []);
+  const officialOscAddresses = addresses.filter((address) => getOscAddressOfficiality(address)?.strictModeAllowed === true);
+  const blockedOscAddresses = addresses.filter((address) => getOscAddressOfficiality(address)?.strictModeAllowed !== true);
+  const hasNativeOfficialAddress = officialOscAddresses.some((address) => !VALIDATED_COMMAND_FALLBACK_ADDRESSES.has(address));
+  const hasCommandFallback = addresses.some((address) => VALIDATED_COMMAND_FALLBACK_ADDRESSES.has(address));
+
+  let strictModeBehavior: StrictModeBehavior = 'no_osc_transport';
+  if (hasNativeOfficialAddress) {
+    strictModeBehavior = blockedOscAddresses.length > 0
+      ? 'blocked_without_validated_cmd_fallback'
+      : 'native_official_required';
+  } else if (hasCommandFallback) {
+    strictModeBehavior = blockedOscAddresses.length > 0
+      ? 'blocked_without_validated_cmd_fallback'
+      : 'validated_cmd_fallback';
+  } else if (blockedOscAddresses.length > 0) {
+    strictModeBehavior = 'blocked_without_validated_cmd_fallback';
+  }
+
+  return {
+    nativeOscPreferred: blockedOscAddresses.length === 0 && hasNativeOfficialAddress,
+    cmdFallbackAllowed: blockedOscAddresses.length === 0 && !hasNativeOfficialAddress && hasCommandFallback,
+    requiresConfirmation: options.requiresConfirmation === true,
+    strictModeBehavior,
+    officialOscAddresses,
+    blockedOscAddresses
+  };
+}
 
 export interface OscWireContract {
   address: string;

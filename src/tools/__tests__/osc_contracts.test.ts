@@ -8,6 +8,7 @@ import { z } from 'zod';
 import type { OscMessage, OscMessageArgument } from '../../services/osc/index';
 import { setOscClient, type OscClient, type OscJsonResponse, type TargetOptions } from '../../services/osc/client';
 import { oscResponseMappings, toEosOutResponseAddress } from '../../services/osc/mappings';
+import { getOscAddressOfficiality } from '../../services/osc/officiality';
 import type { BuiltOscWireMessage } from '../../services/osc/messageBuilders';
 import toolDefinitions from '../index';
 import type { ToolDefinition } from '../types';
@@ -367,6 +368,46 @@ describe('OSC tool contracts exported from src/tools/index.ts', () => {
       }
       expect(addresses).toContain(requestAddress);
       expect(addresses).toContain(toEosOutResponseAddress(requestAddress));
+    }
+  });
+
+
+  it('defines strict OSC routing policy metadata for every tool', () => {
+    for (const tool of toolDefinitions) {
+      expect(typeof tool.metadata?.nativeOscPreferred).toBe('boolean');
+      expect(typeof tool.metadata?.cmdFallbackAllowed).toBe('boolean');
+      expect(typeof tool.metadata?.requiresConfirmation).toBe('boolean');
+      expect(tool.metadata?.strictModeBehavior).toMatch(/^(native_official_required|validated_cmd_fallback|blocked_without_validated_cmd_fallback|no_osc_transport)$/);
+      expect(tool.config.annotations).toMatchObject({
+        nativeOscPreferred: tool.metadata?.nativeOscPreferred,
+        cmdFallbackAllowed: tool.metadata?.cmdFallbackAllowed,
+        requiresConfirmation: tool.metadata?.requiresConfirmation,
+        strictModeBehavior: tool.metadata?.strictModeBehavior
+      });
+    }
+  });
+
+  it('does not mark unofficial OSC aliases as native strict-mode targets', () => {
+    for (const tool of oscTools) {
+      const policy = tool.config.annotations?.oscStrictModePolicy as {
+        nativeOscPreferred: boolean;
+        cmdFallbackAllowed: boolean;
+        strictModeBehavior: string;
+        officialOscAddresses: string[];
+        blockedOscAddresses: string[];
+      };
+      expect(policy).toBeDefined();
+      for (const address of policy.officialOscAddresses) {
+        expect(getOscAddressOfficiality(address)?.strictModeAllowed).toBe(true);
+      }
+      for (const address of policy.blockedOscAddresses) {
+        expect(getOscAddressOfficiality(address)?.strictModeAllowed).not.toBe(true);
+      }
+      if (policy.blockedOscAddresses.length > 0) {
+        expect(policy.strictModeBehavior).toBe('blocked_without_validated_cmd_fallback');
+        expect(policy.nativeOscPreferred).toBe(false);
+        expect(policy.cmdFallbackAllowed).toBe(false);
+      }
     }
   });
 
