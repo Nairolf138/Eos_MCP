@@ -4325,6 +4325,7 @@ oscsend 127.0.0.1 8001 /eos/param/wheel/tick s:'{"parameter_name":"exemple","tic
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 | `user` | number | Non | — |
+| `verification_timeout_ms` | number | Non | Timeout en millisecondes pour verifier apres envoi les commandes EOS sensibles. |
 
 **Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
 
@@ -4357,6 +4358,7 @@ _Pas de mapping OSC documenté._
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 | `user` | number | Non | — |
+| `verification_timeout_ms` | number | Non | Timeout en millisecondes pour verifier apres envoi les commandes EOS sensibles. |
 
 **Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
 
@@ -4389,6 +4391,7 @@ _Pas de mapping OSC documenté._
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 | `user` | number | Non | — |
+| `verification_timeout_ms` | number | Non | Timeout en millisecondes pour verifier apres envoi les commandes EOS sensibles. |
 
 **Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
 
@@ -4424,6 +4427,7 @@ _Pas de mapping OSC documenté._
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 | `user` | number | Non | — |
+| `verification_timeout_ms` | number | Non | Timeout en millisecondes pour verifier apres envoi les commandes EOS sensibles. |
 
 **Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
 
@@ -4460,6 +4464,7 @@ _Pas de mapping OSC documenté._
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 | `user` | number | Non | — |
+| `verification_timeout_ms` | number | Non | Timeout en millisecondes pour verifier apres envoi les commandes EOS sensibles. |
 
 **Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
 
@@ -4502,6 +4507,7 @@ _Pas de mapping OSC documenté._
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 | `user` | number | Non | — |
+| `verification_timeout_ms` | number | Non | Timeout en millisecondes pour verifier apres envoi les commandes EOS sensibles. |
 
 **Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
 
@@ -4574,6 +4580,7 @@ _Pas de mapping OSC documenté._
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 | `user` | number | Non | — |
+| `verification_timeout_ms` | number | Non | Timeout en millisecondes pour verifier apres envoi les commandes EOS sensibles. |
 
 **Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
 
@@ -4608,6 +4615,7 @@ _Pas de mapping OSC documenté._
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 | `user` | number | Non | — |
+| `verification_timeout_ms` | number | Non | Timeout en millisecondes pour verifier apres envoi les commandes EOS sensibles. |
 | `warmify` | boolean | Non | — |
 
 **Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.

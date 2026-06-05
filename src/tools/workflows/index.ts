@@ -7,6 +7,7 @@ import { validateCueArgumentsPair, optionalTimeoutMsSchema } from '../../utils/v
 import { getOscClient } from '../../services/osc/client';
 import { buildCueJsonMessage } from '../../services/osc/messageBuilders';
 import { oscMappings } from '../../services/osc/mappings';
+import { isSensitiveCommandText } from '../common/safety';
 import { sendDeterministicCommand } from '../commands/command_tools';
 import {
   buildCueCommandPayload,
@@ -36,7 +37,10 @@ const primaryWorkflowAnnotations = {
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
   targetPort: z.coerce.number().int().min(1).max(65535).optional(),
-  user: z.coerce.number().int().min(0).optional()
+  user: z.coerce.number().int().min(0).optional(),
+  verification_timeout_ms: z.coerce.number().int().positive().max(10000).optional().describe(
+    'Timeout en millisecondes pour verifier apres envoi les commandes EOS sensibles.'
+  )
 } satisfies ZodRawShape;
 
 const workflowDryRunSchema = z.boolean().optional().describe(
@@ -261,23 +265,77 @@ async function verifyRecordCueStep(
   }
 }
 
+interface WorkflowCommandStepOptions {
+  user?: number;
+  targetAddress?: string;
+  targetPort?: number;
+  verification_timeout_ms?: number;
+}
+
+interface WorkflowRunCommandStepOptions {
+  verify_after_send?: boolean;
+}
+
+function commandStepRequiresVerification(command: string, options: WorkflowRunCommandStepOptions = {}): boolean {
+  return options.verify_after_send ?? isSensitiveCommandText(command);
+}
+
+function getWorkflowCommandVerificationError(result: ToolExecutionResult, requireVerification: boolean): string | null {
+  if (!requireVerification) {
+    return null;
+  }
+
+  const structuredContent = result.structuredContent ?? {};
+  if (structuredContent.verified === true && structuredContent.accepted_by_eos === true) {
+    return null;
+  }
+
+  const verification = structuredContent.verification;
+  const warning = Array.isArray(structuredContent.warnings)
+    ? structuredContent.warnings.find((entry): entry is { detail: string } => (
+        typeof entry === 'object' && entry !== null && typeof (entry as { detail?: unknown }).detail === 'string'
+      ))?.detail
+    : undefined;
+
+  if (verification && typeof verification === 'object' && !Array.isArray(verification)) {
+    const verificationWarning = (verification as { warning?: unknown }).warning;
+    if (typeof verificationWarning === 'string' && verificationWarning.length > 0) {
+      return verificationWarning;
+    }
+  }
+
+  return warning ?? 'commande envoyée mais non vérifiée dans EOS';
+}
+
 async function runCommandStep(
   steps: WorkflowStepLog[],
   partialErrors: Array<{ step: string; error: string }>,
   step: string,
   command: string,
-  options: { user?: number; targetAddress?: string; targetPort?: number }
+  options: WorkflowCommandStepOptions,
+  stepOptions: WorkflowRunCommandStepOptions = {}
 ): Promise<boolean> {
+  const verifyAfterSend = commandStepRequiresVerification(command, stepOptions);
+
   try {
-    await sendDeterministicCommand({
+    const result = await sendDeterministicCommand({
       command,
       clearLine: true,
       terminateWithEnter: true,
       user: options.user,
       targetAddress: options.targetAddress,
       targetPort: options.targetPort,
+      verification_timeout_ms: options.verification_timeout_ms,
+      verify_after_send: verifyAfterSend,
       safety_level: 'off'
     });
+    const verificationError = getWorkflowCommandVerificationError(result, verifyAfterSend);
+    if (verificationError != null) {
+      steps.push({ step, status: 'error', command, detail: 'verification_after_send_failed', error: verificationError });
+      partialErrors.push({ step, error: verificationError });
+      return false;
+    }
+
     steps.push({ step, status: 'ok', command });
     return true;
   } catch (error) {
@@ -378,7 +436,14 @@ export const eosWorkflowCreateLookTool: ToolDefinition<typeof createLookInputSch
         continue;
       }
 
-      const ok = await runCommandStep(steps, partialErrors, commandStep.step, commandStep.command, options);
+      const ok = await runCommandStep(
+        steps,
+        partialErrors,
+        commandStep.step,
+        commandStep.command,
+        options,
+        { verify_after_send: ('verifyCue' in commandStep && commandStep.verifyCue != null) ? false : undefined }
+      );
       if (!ok) {
         return buildWorkflowResult(
           'eos_workflow_create_look',
@@ -650,7 +715,14 @@ export const eosWorkflowCreateCueSeriesTool: ToolDefinition<typeof createCueSeri
           continue;
         }
 
-        const ok = await runCommandStep(steps, partialErrors, commandStep.step, commandStep.command, options);
+        const ok = await runCommandStep(
+          steps,
+          partialErrors,
+          commandStep.step,
+          commandStep.command,
+          options,
+          { verify_after_send: ('verifyCue' in commandStep && commandStep.verifyCue != null) ? false : undefined }
+        );
         if (!ok) {
           return buildWorkflowResult(
             'eos_workflow_create_cue_series',

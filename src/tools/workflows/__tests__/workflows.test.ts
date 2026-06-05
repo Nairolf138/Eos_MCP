@@ -31,6 +31,8 @@ class FakeOscService implements OscGateway {
 
   public consoleErrorOnCueList = false;
 
+  public suppressCommandLineReply = false;
+
   public patchReadErrors = new Set<number>();
 
   private readonly recordedCues: Array<{ cuelist: number | null; cue: string }> = [];
@@ -94,7 +96,7 @@ class FakeOscService implements OscGateway {
       });
     }
 
-    if (message.address === '/eos/get/cmd_line') {
+    if (message.address === '/eos/get/cmd_line' && !this.suppressCommandLineReply) {
       const reply: OscMessage = {
         address: '/eos/get/cmd_line',
         args: [{ type: 's', value: JSON.stringify({ text: this.commandLineText, user: 0 }) }]
@@ -139,7 +141,7 @@ describe('workflow tools', () => {
       require_confirmation: true
     });
 
-    expect(service.sentMessages).toHaveLength(7);
+    expect(service.sentMessages).toHaveLength(8);
     expect(service.sentMessages.map((msg) => msg.address)).toEqual([
       '/eos/newcmd',
       '/eos/newcmd',
@@ -147,7 +149,8 @@ describe('workflow tools', () => {
       '/eos/newcmd',
       '/eos/newcmd',
       '/eos/get/cuelist',
-      '/eos/newcmd'
+      '/eos/newcmd',
+      '/eos/get/cmd_line'
     ]);
 
     const structured = getStructuredContent(result);
@@ -306,6 +309,36 @@ describe('workflow tools', () => {
         size: 100
       }
     });
+  });
+
+
+  it('retourne partial_failure quand Record Effect reste non verifie apres envoi', async () => {
+    service.suppressCommandLineReply = true;
+
+    const result = await runTool(eosWorkflowCreateEffectTool, {
+      channels: '10',
+      effect_number: 23,
+      require_confirmation: true,
+      verification_timeout_ms: 10
+    });
+
+    const structured = getStructuredContent(result);
+    expect(structured?.status).toBe('partial_failure');
+    expect(result.content[0]?.text).toContain('Workflow creation effet interrompu');
+    expect(structured?.partialErrors).toEqual(expect.arrayContaining([
+      expect.objectContaining({ step: 'record_effect', error: 'commande envoyée mais non vérifiée dans EOS' })
+    ]));
+    expect(structured?.warnings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ step: 'record_effect', detail: 'commande envoyée mais non vérifiée dans EOS' })
+    ]));
+    expect(structured?.executedSteps).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        step: 'record_effect',
+        status: 'error',
+        command: 'Record Effect 23',
+        detail: 'verification_after_send_failed'
+      })
+    ]));
   });
 
   it('retourne un echec partiel sur erreur intermediaire de workflow create_look', async () => {
@@ -665,7 +698,7 @@ describe('workflow tools', () => {
       require_confirmation: true
     });
 
-    expect(service.sentMessages).toHaveLength(3);
+    expect(service.sentMessages).toHaveLength(4);
     const structured = getStructuredContent(result);
     expect(structured?.status).toBe('ok');
     expect(structured?.commandsSent).toEqual([
@@ -792,6 +825,34 @@ describe('workflow tools', () => {
       'Record FP 2',
       'FP 2 Label "Down"'
     ]);
+  });
+
+
+  it('retourne partial_failure pour build_groups_and_palettes si Record CP est non verifie', async () => {
+    service.suppressCommandLineReply = true;
+
+    const result = await runTool(eosWorkflowBuildGroupsAndPalettesTool, {
+      color_palettes: [{ number: 10, label: 'Warm', channels: '5', hue: 'Amber' }],
+      require_confirmation: true,
+      verification_timeout_ms: 10
+    });
+
+    const structured = getStructuredContent(result);
+    expect(structured?.status).toBe('partial_failure');
+    expect(structured?.partialErrors).toEqual(expect.arrayContaining([
+      expect.objectContaining({ step: 'cp_10_record', error: 'commande envoyée mais non vérifiée dans EOS' })
+    ]));
+    expect(structured?.warnings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ step: 'cp_10_record', detail: 'commande envoyée mais non vérifiée dans EOS' })
+    ]));
+    expect(structured?.executedSteps).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        step: 'cp_10_record',
+        status: 'error',
+        command: 'Record CP 10',
+        detail: 'verification_after_send_failed'
+      })
+    ]));
   });
 
   it('genere commands_preview en dry run pour build_groups_and_palettes', async () => {
