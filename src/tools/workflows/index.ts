@@ -1060,7 +1060,7 @@ const buildGroupsAndPalettesInputSchema = {
     number: z.coerce.number().int().min(1).max(99999),
     label: z.string().trim().min(1).max(128),
     channels: z.string().trim().min(1).max(256),
-    hue: z.string().trim().min(1).max(128).optional(),
+    hue: z.coerce.string().trim().min(1).max(128).optional(),
     saturation: z.coerce.number().finite().optional()
   })).optional(),
   focus_palettes: z.array(workflowObject({
@@ -1278,7 +1278,7 @@ export const eosWorkflowBuildGroupsAndPalettesTool: ToolDefinition<typeof buildG
 
     for (const palette of options.color_palettes ?? []) {
       await queueCommand(`cp_${palette.number}_select_channels`, `Chan ${palette.channels}`);
-      if (palette.hue) await queueCommand(`cp_${palette.number}_set_hue`, `Hue ${palette.hue}`);
+      if (palette.hue != null && palette.hue !== '') await queueCommand(`cp_${palette.number}_set_hue`, `Hue ${palette.hue}`);
       if (palette.saturation != null) await queueCommand(`cp_${palette.number}_set_saturation`, `Saturation ${palette.saturation}`);
       await queueCommand(`cp_${palette.number}_record`, `Record CP ${palette.number}`);
       await queueCommand(`cp_${palette.number}_label`, `CP ${palette.number} Label "${palette.label.replace(/"/g, '\\"')}"`);
