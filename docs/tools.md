@@ -3702,7 +3702,10 @@ npx @modelcontextprotocol/cli call --tool eos_set_user_id --args '{"user_id":1}'
 
 _OSC_
 
-_Pas de mapping OSC documenté._
+```bash
+# Exemple d'envoi OSC via oscsend
+oscsend 127.0.0.1 8001 /eos/user i:1
+```
 
 <a id="eos-set-xyz-position"></a>
 ## Position XYZ (`eos_set_xyz_position`)

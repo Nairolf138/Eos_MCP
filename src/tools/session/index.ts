@@ -228,13 +228,6 @@ const extractTargetOptions = (options: { targetAddress?: string; targetPort?: nu
   return target;
 };
 
-const buildJsonArgs = (payload: Record<string, unknown>) => [
-  {
-    type: 's' as const,
-    value: JSON.stringify(payload)
-  }
-];
-
 /**
  * @tool session_set_current_user
  * @summary Definir utilisateur courant
@@ -319,16 +312,22 @@ export const eosSetUserIdTool: ToolDefinition<typeof setUserIdInputSchema> = {
   config: {
     title: 'Definir identifiant utilisateur EOS',
     description: "Definit l'identifiant utilisateur actif sur la console EOS via OSC.",
-    inputSchema: setUserIdInputSchema
+    inputSchema: setUserIdInputSchema,
+    annotations: {
+      mapping: {
+        osc: oscMappings.system.setUserId,
+        cli: 'user_id',
+        args: ['i:{user_id}']
+      }
+    }
   },
   handler: async (args) => {
     const schema = z.object(setUserIdInputSchema).strict();
     const options = schema.parse(args ?? {});
     const client = getOscClient();
-    const payload = { user_id: options.user_id };
-    const argsList = buildJsonArgs(payload);
+    const oscArgs = [{ type: 'i' as const, value: options.user_id }];
 
-    await client.sendMessage(oscMappings.system.setUserId, argsList, extractTargetOptions(options));
+    await client.sendMessage(oscMappings.system.setUserId, oscArgs, extractTargetOptions(options));
     setCurrentUserId(options.user_id);
 
     return {
@@ -344,7 +343,7 @@ export const eosSetUserIdTool: ToolDefinition<typeof setUserIdInputSchema> = {
         session_user: options.user_id,
         osc: {
           address: oscMappings.system.setUserId,
-          args: payload
+          args: oscArgs
         }
       }
     } as ToolExecutionResult;

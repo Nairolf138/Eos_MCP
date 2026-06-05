@@ -140,7 +140,7 @@ export const OSC_ADDRESS_OFFICIALITY: readonly OscAddressOfficiality[] = [
   official('/eos/cuelist/{bank_index}/config/{cuelist_number}/{num_prev_cues}/{num_pending_cues}'),
   official('/eos/cuelist/{bank_index}/page/{delta}'),
   official('/eos/get/version'),
-  official('/eos/set/user_id', 'Equivalent MCP explicite de la commande officielle /eos/user.'),
+  official('/eos/user'),
   official('/eos/ping'),
   official('/eos/reset'),
   official('/eos/subscribe'),

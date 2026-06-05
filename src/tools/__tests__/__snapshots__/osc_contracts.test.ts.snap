@@ -679,6 +679,15 @@ exports[`OSC tool contracts exported from src/tools/index.ts eos_set_pantilt_xy 
 ]
 `;
 
+exports[`OSC tool contracts exported from src/tools/index.ts eos_set_user_id sends the documented OSC address, payload, and target endpoint 1`] = `
+[
+  {
+    "type": "i",
+    "value": 7,
+  },
+]
+`;
+
 exports[`OSC tool contracts exported from src/tools/index.ts eos_set_xyz_position sends the documented OSC address, payload, and target endpoint 1`] = `
 [
   {
@@ -858,6 +867,7 @@ exports[`OSC tool contracts exported from src/tools/index.ts lists every exporte
   "eos_address_select",
   "eos_address_set_level",
   "eos_address_set_dmx",
+  "eos_set_user_id",
   "eos_cue_record",
   "eos_cue_update",
   "eos_cue_label_set",

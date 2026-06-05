@@ -198,6 +198,7 @@ const SAMPLE_VALUES: Record<string, unknown> = {
   ticks: 3,
   timeoutMs: 50,
   user: 7,
+  user_id: 7,
   value: 45,
   values: [1, 50],
   verification_timeout_ms: 50,

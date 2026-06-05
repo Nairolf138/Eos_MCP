@@ -184,13 +184,14 @@ describe('command tools', () => {
   it('envoie une commande en respectant le terminateur', async () => {
     const result = await runTool(eosCommandTool, { command: 'Go To Cue 1', terminateWithEnter: true, user: 2 });
 
-    expect(service.sentMessages).toHaveLength(1);
+    expect(service.sentMessages).toHaveLength(2);
     expect(service.sentMessages[0]).toMatchObject({
+      address: '/eos/user',
+      args: [{ type: 'i', value: 2 }]
+    });
+    expect(service.sentMessages[1]).toMatchObject({
       address: '/eos/cmd',
-      args: [
-        { type: 's', value: 'Go To Cue 1#' },
-        { type: 'i', value: 2 }
-      ]
+      args: [{ type: 's', value: 'Go To Cue 1#' }]
     });
 
     expect(getStructuredContent(result)).toBeDefined();
@@ -316,13 +317,14 @@ describe('command tools', () => {
 
     await runTool(eosCommandTool, { command: 'Go', terminateWithEnter: true });
 
-    expect(service.sentMessages).toHaveLength(1);
+    expect(service.sentMessages).toHaveLength(2);
     expect(service.sentMessages[0]).toMatchObject({
+      address: '/eos/user',
+      args: [{ type: 'i', value: 6 }]
+    });
+    expect(service.sentMessages[1]).toMatchObject({
       address: '/eos/cmd',
-      args: [
-        { type: 's', value: 'Go#' },
-        { type: 'i', value: 6 }
-      ]
+      args: [{ type: 's', value: 'Go#' }]
     });
   });
 

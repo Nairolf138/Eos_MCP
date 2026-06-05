@@ -142,7 +142,7 @@ Les contrats centralisés sont vérifiés dans `src/tools/__tests__/osc_contract
 | dmx | `eos_address_select` | `/eos/addr` | `src/tools/__tests__/osc_contracts.test.ts` |
 | dmx | `eos_address_set_level` | `/eos/addr/{address}` | `src/tools/__tests__/osc_contracts.test.ts` |
 | dmx | `eos_address_set_dmx` | `/eos/addr/{address}/DMX` | `src/tools/__tests__/osc_contracts.test.ts` |
-| programming | `eos_set_user_id` | — | — (outil non OSC ou orchestrateur) |
+| programming | `eos_set_user_id` | `/eos/user` | `src/tools/session/__tests__/session.test.ts` |
 | session | `session_set_current_user` | — | — (outil non OSC ou orchestrateur) |
 | session | `session_get_current_user` | — | — (outil non OSC ou orchestrateur) |
 | session | `session_set_context` | — | — (outil non OSC ou orchestrateur) |

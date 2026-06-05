@@ -211,7 +211,7 @@ export const oscMappings = {
   system: {
     getVersion: '/eos/get/version',
     getSetupDefaults: '/eos/get/setup_defaults',
-    setUserId: '/eos/set/user_id'
+    setUserId: '/eos/user'
   }
 } as const;
 

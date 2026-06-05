@@ -180,13 +180,17 @@ Les endpoints non documentes sont les adresses observees ou introduites pour com
 | `eos_toggle_staging_mode` | `/eos/newcmd` | `/eos/newcmd` | Commande texte `Staging Mode` | v3.0.0 | ShowControl > OSC > Ligne de commande (p. 614) | Remplacement de l'extension par une commande officielle. |
 | `eos_set_cue_send_string`, `eos_set_cue_receive_string` | `/eos/newcmd`, `/eos/newcmd` | `/eos/newcmd` | Commande texte de configuration ShowControl | v3.0.0 | ShowControl > OSC > Ligne de commande (p. 614) | Remplacement de l'extension par une commande officielle. |
 
+## Strategie utilisateur OSC
+
+La strategie retenue est unique: le serveur selectionne l'utilisateur courant de la console avec `/eos/user` et un argument OSC entier avant les commandes qui precisent explicitement `user`. Les commandes `/eos/cmd` et `/eos/newcmd` restent envoyees avec leur seul argument texte EOS; l'identifiant utilisateur n'est pas ajoute comme second argument a ces commandes. Les prefixes `/eos/user/<number>/...` ne sont pas utilises dans les mappings MCP actuels, et les arguments utilisateur JSON restent limites aux lectures qui documentent explicitement ce contrat MCP, par exemple `/eos/get/cmd_line`.
+
 ## Systeme & diagnostics
 
 | Outils MCP | Adresse OSC utilisee | Commande OSC officielle (manuel) | Arguments OSC (manuel) | Version | Reference (section/page) | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | `eos_get_version` | `/eos/get/version` | `/eos/get/version` | Aucun | v3.0.0 | ShowControl > OSC > Implementer votre application (p. 622) | — |
 | `eos_get_setup_defaults` | `/eos/get/setup_defaults` | _Non documente dans le manuel v3.0.0_ | Requete JSON | n/a | n/a | Extension MCP. |
-| `eos_set_user_id` | `/eos/set/user_id` | `/eos/user` | Numero d'utilisateur OSC | v3.0.0 | ShowControl > OSC > User (p. 613) | MCP utilise un endpoint explicite. |
+| `eos_set_user_id` | `/eos/user` | `/eos/user` | Numero d'utilisateur OSC (argument entier OSC) | v3.0.0 | ShowControl > OSC > User (p. 613) | Strategie unique: selection explicite de l'utilisateur courant via `/eos/user`. |
 | `eos_enable_logging`, `eos_get_diagnostics` | — | _Hors OSC console_ | — | n/a | n/a | Outils serveur MCP. |
 
 ## Outils serveur MCP (hors OSC officiel)
