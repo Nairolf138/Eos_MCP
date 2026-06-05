@@ -78,8 +78,12 @@ describe('OSC payload snapshots', () => {
     snapshotLastMessage(service, oscPayloadAnnotations.commands.newCommand);
   });
 
-  it('captures JSON parameter payloads', async () => {
+  it('captures EOS-native channel parameter payloads', async () => {
     await runTool(eosChannelSetParameterTool, { channels: [1, 2], parameter: 'pan', value: 45 });
+    expect(service.sentMessages).toMatchObject([
+      { address: '/eos/chan/1/param/pan', args: [{ type: 'f', value: 45 }] },
+      { address: '/eos/chan/2/param/pan', args: [{ type: 'f', value: 45 }] }
+    ]);
     snapshotLastMessage(service, oscPayloadAnnotations.channels.parameter);
 
     await runTool(eosAddressSetDmxTool, { address_number: '1/101', dmx_value: 255 });

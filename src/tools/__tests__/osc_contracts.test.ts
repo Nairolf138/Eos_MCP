@@ -278,7 +278,10 @@ function expectedAddress(tool: ToolDefinition, args: Record<string, unknown>): s
 }
 
 function resolveTemplate(template: string, args: Record<string, unknown>): string {
+  const firstChannel = Array.isArray(args.channels) ? args.channels[0] : args.channels;
   return template
+    .replace('{channel}', String(firstChannel))
+    .replace('{parameter}', encodeURIComponent(String(args.parameter)))
     .replace('{bank_index}', String(args.bank_index))
     .replace('{key}', keyIdentifier(args.key_name))
     .replace('softkey{number}', `softkey${String(args.softkey_number)}`)
@@ -384,7 +387,7 @@ describe('OSC tool contracts exported from src/tools/index.ts', () => {
       const extra = tool.name === 'eos_magic_sheet_send_string' ? { role: 'Primary' } : {};
       await runTool(tool, args, extra);
 
-      expect(client.calls).toHaveLength(1);
+      expect(client.calls).toHaveLength(tool.name === 'eos_channel_set_parameter' ? 2 : 1);
       const [call] = client.calls;
       expect(call).toMatchObject({
         address: expectedAddress(tool, args),
@@ -396,6 +399,34 @@ describe('OSC tool contracts exported from src/tools/index.ts', () => {
       expect(call?.args ?? []).toMatchSnapshot();
     }
   );
+
+  it('sends channel parameter changes as one native OSC frame per channel', async () => {
+    const tool = toolDefinitions.find((candidate) => candidate.name === 'eos_channel_set_parameter');
+    if (!tool) {
+      throw new Error('eos_channel_set_parameter not exported');
+    }
+
+    await runTool(tool, {
+      channels: [1, 2],
+      parameter: 'pan',
+      value: 45,
+      targetAddress: '192.0.2.10',
+      targetPort: 3032
+    });
+
+    expect(client.calls).toEqual([
+      {
+        address: '/eos/chan/1/param/pan',
+        args: [{ type: 'f', value: 45 }],
+        options: { targetAddress: '192.0.2.10', targetPort: 3032 }
+      },
+      {
+        address: '/eos/chan/2/param/pan',
+        args: [{ type: 'f', value: 45 }],
+        options: { targetAddress: '192.0.2.10', targetPort: 3032 }
+      }
+    ]);
+  });
 
   it('returns stable MCP content when OSC reports an error status', async () => {
     const errorClient = new MockOscClient();

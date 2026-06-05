@@ -12,7 +12,7 @@ import {
 } from '../../services/cache/index';
 import { getOscClient, type OscJsonResponse, type StepStatus } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
-import { oscMappings } from '../../services/osc/mappings';
+import { buildChannelParameterAddress, oscMappings } from '../../services/osc/mappings';
 import { sendDeterministicCommand } from '../commands/command_tools';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 
@@ -119,14 +119,6 @@ function resolveParameterValue(value: number | string): number {
   return resolveNumericValue(value, LEVEL_KEYWORDS, 0, 100, 'de parametre', false);
 }
 
-function buildJsonArgs(payload: Record<string, unknown>): OscMessageArgument[] {
-  return [
-    {
-      type: 's' as const,
-      value: JSON.stringify(payload)
-    }
-  ];
-}
 
 function createCommandArgs(command: string): OscMessageArgument[] {
   return [
@@ -327,10 +319,13 @@ function formatChannelSummary(status: StepStatus, found: number, missing: number
   return base;
 }
 
-function annotate(osc: string, commandExample?: string): Record<string, unknown> {
+function annotate(osc: string, commandExample?: string, args?: string[]): Record<string, unknown> {
   const mapping: Record<string, unknown> = { osc };
   if (commandExample) {
     mapping.commandExample = commandExample;
+  }
+  if (args) {
+    mapping.args = args;
   }
   return { mapping };
 }
@@ -595,7 +590,7 @@ export const eosChannelSetParameterTool: ToolDefinition<typeof setParameterSchem
     title: 'Reglage de parametre',
     description: 'Ajuste un parametre de canal sur une echelle de 0 a 100.',
     inputSchema: setParameterSchema,
-    annotations: annotate(oscMappings.channels.parameter)
+    annotations: annotate('/eos/chan/{channel}/param/{parameter}', undefined, ['f:{value}'])
   },
   handler: async (args, _extra) => {
     const schema = z.object(setParameterSchema).strict();
@@ -603,13 +598,17 @@ export const eosChannelSetParameterTool: ToolDefinition<typeof setParameterSchem
     const client = getOscClient();
     const channels = normaliseChannels(options.channels);
     const value = resolveParameterValue(options.value);
-    const payload: Record<string, unknown> = {
-      channels,
-      parameter: options.parameter,
-      value
-    };
+    const oscArgs: OscMessageArgument[] = [{ type: 'f', value }];
+    const targetOptions = extractTargetOptions(options);
+    const frames = channels.map((channel) => ({
+      channel,
+      address: buildChannelParameterAddress(channel, options.parameter),
+      args: oscArgs
+    }));
 
-    await client.sendMessage(oscMappings.channels.parameter, buildJsonArgs(payload), extractTargetOptions(options));
+    for (const frame of frames) {
+      await client.sendMessage(frame.address, frame.args, targetOptions);
+    }
 
     return createResult(`Parametre ${options.parameter} regle a ${value} pour les canaux ${channels.join(', ')}`, {
       action: 'set_parameter',
@@ -617,8 +616,9 @@ export const eosChannelSetParameterTool: ToolDefinition<typeof setParameterSchem
       parameter: options.parameter,
       value,
       osc: {
-        address: oscMappings.channels.parameter,
-        args: payload
+        address: frames[0]?.address,
+        args: oscArgs,
+        frames
       }
     });
   }

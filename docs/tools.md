@@ -657,7 +657,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/chan/param s:'{"channels":1,"parameter":"exemple","value":1}'
+oscsend 127.0.0.1 8001 /eos/chan/1/param/exemple f:1
 ```
 
 <a id="eos-color-palette-fire"></a>
