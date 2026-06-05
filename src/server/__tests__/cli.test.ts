@@ -6,7 +6,12 @@ import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
 import { resolve } from 'node:path';
 import { getPackageVersion } from '../../utils/version';
 import type { AppConfig } from '../../config/index';
-import { parseCliArguments, applyBootstrapOverrides } from '../index';
+import {
+  parseCliArguments,
+  applyBootstrapOverrides,
+  buildOscHandshakeStartupNotice,
+  writeStartupNoticeIfNeeded
+} from '../index';
 
 type CliResult = SpawnSyncReturns<string>;
 
@@ -192,5 +197,74 @@ describe('override de configuration', () => {
     const overridden = applyBootstrapOverrides(baseConfig, { forceJsonLogs: true });
 
     expect(overridden.logging.destinations).toEqual([{ type: 'stderr' }]);
+  });
+});
+
+describe('notifications de demarrage', () => {
+  const baseConfig: AppConfig = {
+    mcp: { tcpPort: undefined },
+    osc: {
+      remoteAddress: '127.0.0.1',
+      tcpPort: 3032,
+      udpOutPort: 8001,
+      udpInPort: 8000,
+      localAddress: '0.0.0.0',
+      tcpNoDelay: true,
+      tcpKeepAliveMs: 5000,
+      udpRecvBufferSize: 262144,
+      udpSendBufferSize: 524288
+    },
+    logging: {
+      level: 'info',
+      format: 'json',
+      destinations: [{ type: 'file', path: '/var/log/eos/mcp.log' }]
+    },
+    httpGateway: {
+      trustProxy: false,
+      security: {
+        apiKeys: [],
+        mcpTokens: [],
+        ipAllowlist: [],
+        allowedOrigins: [],
+        rateLimit: { windowMs: 60000, max: 60 }
+      }
+    }
+  };
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test('formate le statut du handshake OSC pour les notifications visibles', () => {
+    const message = buildOscHandshakeStartupNotice({
+      status: 'ok',
+      version: '3.2.0',
+      selectedProtocol: 'udp'
+    });
+
+    expect(message).toBe('Handshake OSC etabli (statut ok, version 3.2.0, protocole udp).');
+  });
+
+  test('ecrit sur stderr lorsque les logs sont uniquement envoyes vers un fichier', () => {
+    const stderrWrite = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
+
+    writeStartupNoticeIfNeeded(baseConfig, 'Serveur MCP demarre.');
+
+    expect(stderrWrite).toHaveBeenCalledWith('[eos-mcp] Serveur MCP demarre.\n');
+  });
+
+  test('n duplique pas la notification lorsque stderr est deja configure', () => {
+    const stderrWrite = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    const configWithStderr: AppConfig = {
+      ...baseConfig,
+      logging: {
+        ...baseConfig.logging,
+        destinations: [{ type: 'stderr' }]
+      }
+    };
+
+    writeStartupNoticeIfNeeded(configWithStderr, 'Serveur MCP demarre.');
+
+    expect(stderrWrite).not.toHaveBeenCalled();
   });
 });

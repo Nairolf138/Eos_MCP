@@ -255,6 +255,38 @@ type McpTokenValidationResult =
 
 const DEFAULT_MCP_HTTP_TOKEN_PLACEHOLDER = 'change-me';
 
+function hasConsoleLogDestination(config: AppConfig): boolean {
+  return config.logging.destinations.some(
+    (destination) => destination.type === 'stderr' || destination.type === 'stdout'
+  );
+}
+
+function writeStartupNoticeIfNeeded(config: AppConfig, message: string): void {
+  if (hasConsoleLogDestination(config)) {
+    return;
+  }
+
+  process.stderr.write(`[eos-mcp] ${message}\n`);
+}
+
+function formatOptionalStartupValue(value: unknown, fallback = 'inconnu'): string {
+  if (value === undefined || value === null || value === '') {
+    return fallback;
+  }
+
+  return String(value);
+}
+
+function buildOscHandshakeStartupNotice(handshakeResult: {
+  status: string;
+  version?: unknown;
+  selectedProtocol?: unknown;
+}): string {
+  const version = formatOptionalStartupValue(handshakeResult.version);
+  const selectedProtocol = formatOptionalStartupValue(handshakeResult.selectedProtocol);
+  return `Handshake OSC etabli (statut ${handshakeResult.status}, version ${version}, protocole ${selectedProtocol}).`;
+}
+
 function validateMcpTokenConfiguration(
   config: AppConfig,
   env: NodeJS.ProcessEnv = process.env
@@ -433,6 +465,10 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
       { reason },
       'Verification initiale de la connexion OSC ignoree (utilisation reservee au developpement/tests).'
     );
+    writeStartupNoticeIfNeeded(
+      effectiveConfig,
+      `Handshake OSC ignore (${reason}).`
+    );
   } else {
     const client = getOscClient();
     try {
@@ -469,6 +505,10 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
           }
         },
         'Connexion OSC initiale etablie.'
+      );
+      writeStartupNoticeIfNeeded(
+        effectiveConfig,
+        buildOscHandshakeStartupNotice(handshakeResult)
       );
     } catch (error: unknown) {
       const appError = toAppError(error, {
@@ -514,20 +554,20 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
     status: 'starting',
     clients: 0
   };
-  const connections: Array<Promise<void>> = [
-    server
-      .connect(transport)
-      .then(() => {
-        stdioStatus.status = 'listening';
-        stdioStatus.clients = 1;
-        stdioStatus.startedAt = Date.now();
-      })
-      .catch((error: unknown) => {
-        stdioStatus.status = 'stopped';
-        stdioStatus.clients = 0;
-        throw error;
-      })
-  ];
+  const stdioConnection = server.connect(transport);
+  stdioStatus.status = 'listening';
+  stdioStatus.clients = 1;
+  stdioStatus.startedAt = Date.now();
+  stdioConnection.catch((error: unknown) => {
+    stdioStatus.status = 'stopped';
+    stdioStatus.clients = 0;
+    const appError = toAppError(error, {
+      code: ErrorCode.MCP_STARTUP_FAILURE,
+      message: 'Erreur du transport STDIO MCP.'
+    });
+    logger.fatal({ error: describeError(appError) }, appError.message);
+    process.exit(1);
+  });
 
   let gateway: HttpGateway | undefined;
   if (tcpPort) {
@@ -549,10 +589,8 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
       },
       stdioStatusProvider: () => ({ ...stdioStatus })
     });
-    connections.push(gateway.start());
+    await gateway.start();
   }
-
-  await Promise.all(connections);
 
   let statsReporter: NodeJS.Timeout | undefined;
   if (options.statsIntervalMs && options.statsIntervalMs > 0) {
@@ -605,6 +643,10 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
       },
       `Serveur MCP demarre : ${toolCount} outil(s) disponibles. Accessible sur ${accessUrl} (Passerelle HTTP/WS active). Transport STDIO en ecoute.`
     );
+    writeStartupNoticeIfNeeded(
+      effectiveConfig,
+      `Serveur MCP demarre : ${toolCount} outil(s) disponibles. Accessible sur ${accessUrl}. Transport STDIO en ecoute.`
+    );
   } else {
     logger.info(
       {
@@ -613,6 +655,10 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
         stdioTransport: 'listening'
       },
       `Serveur MCP demarre : ${toolCount} outil(s) disponibles. Mode STDIO uniquement : la passerelle HTTP/WS est desactivee.`
+    );
+    writeStartupNoticeIfNeeded(
+      effectiveConfig,
+      `Serveur MCP demarre : ${toolCount} outil(s) disponibles. Mode STDIO uniquement.`
     );
   }
 
@@ -763,5 +809,7 @@ export {
   ToolRegistry,
   parseCliArguments,
   applyBootstrapOverrides,
-  validateMcpTokenConfiguration
+  validateMcpTokenConfiguration,
+  writeStartupNoticeIfNeeded,
+  buildOscHandshakeStartupNotice
 };
