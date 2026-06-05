@@ -468,7 +468,7 @@ Déclencher un appui virtuel sur une touche matérielle ou une softkey avec reto
 ### Commande OSC commentée
 ```bash
 # Appui sur la softkey 5
-oscsend 127.0.0.1 8001 /eos/key/softkey5 f:1
+oscsend 127.0.0.1 8001 /eos/softkey/5 f:1
 ```
 
 ### Astuces d'intégration

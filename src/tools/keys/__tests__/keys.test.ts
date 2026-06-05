@@ -61,12 +61,27 @@ describe('key tools', () => {
 
     expect(service.sentMessages).toHaveLength(2);
     expect(service.sentMessages[0]).toMatchObject({
-      address: '/eos/key/softkey5',
+      address: '/eos/softkey/5',
       args: [{ type: 'f', value: 1 }]
     });
     expect(service.sentMessages[1]).toMatchObject({
-      address: '/eos/key/softkey5',
+      address: '/eos/softkey/5',
       args: [{ type: 'f', value: 0 }]
+    });
+  });
+
+  it('accepte les bornes de softkey 1 et 12', async () => {
+    await runTool(eosSoftkeyPressTool, { softkey_number: 1 });
+    await runTool(eosSoftkeyPressTool, { softkey_number: 12 });
+
+    expect(service.sentMessages).toHaveLength(2);
+    expect(service.sentMessages[0]).toMatchObject({
+      address: '/eos/softkey/1',
+      args: [{ type: 'f', value: 1 }]
+    });
+    expect(service.sentMessages[1]).toMatchObject({
+      address: '/eos/softkey/12',
+      args: [{ type: 'f', value: 1 }]
     });
   });
 

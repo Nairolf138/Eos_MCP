@@ -104,7 +104,7 @@ Les contrats centralisés sont vérifiés dans `src/tools/__tests__/osc_contract
 | programming | `eos_set_xyz_position` | `/eos/param/position/xyz` | `src/tools/__tests__/osc_contracts.test.ts` |
 | queries | `eos_get_active_wheels` | `/eos/get/active/wheels` | `src/tools/__tests__/osc_contracts.test.ts` |
 | keys | `eos_key_press` | `/eos/key/{key}` | `src/tools/__tests__/osc_contracts.test.ts` |
-| keys | `eos_softkey_press` | `/eos/key/softkey{number}` | `src/tools/__tests__/osc_contracts.test.ts` |
+| keys | `eos_softkey_press` | `/eos/softkey/{index}` | `src/tools/__tests__/osc_contracts.test.ts` |
 | keys | `eos_get_softkey_labels` | `/eos/get/softkey_labels` | `src/tools/__tests__/osc_contracts.test.ts` |
 | directSelects | `eos_direct_select_bank_create` | `/eos/ds/{index}/config/{target}/{buttons}/{flexi}/{page}` | `src/tools/__tests__/osc_contracts.test.ts` |
 | directSelects | `eos_direct_select_press` | `/eos/ds/{index}/button/{page}/{button}` | `src/tools/__tests__/osc_contracts.test.ts` |

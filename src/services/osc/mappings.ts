@@ -14,7 +14,7 @@ export const oscMappings = {
   keys: {
     base: '/eos/key',
     press: '/eos/key/{key}',
-    softkey: '/eos/key/softkey{number}',
+    softkey: '/eos/softkey/{index}',
     softkeyLabels: '/eos/get/softkey_labels'
   },
   channels: {
@@ -214,6 +214,10 @@ export const oscMappings = {
     setUserId: '/eos/set/user_id'
   }
 } as const;
+
+export function buildSoftkeyAddress(index: number): string {
+  return `/eos/softkey/${index}`;
+}
 
 export const oscPayloadAnnotations = {
   commands: {
