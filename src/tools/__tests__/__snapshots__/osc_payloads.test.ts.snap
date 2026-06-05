@@ -1,5 +1,33 @@
 // Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
+exports[`OSC payload snapshots captures EOS-native channel parameter payloads 1`] = `
+{
+  "address": "/eos/chan/2/param/pan",
+  "args": [
+    {
+      "type": "f",
+      "value": 45,
+    },
+  ],
+  "arguments": "EOS-native channel parameter float argument",
+  "wireFormat": "eos-native-arguments",
+}
+`;
+
+exports[`OSC payload snapshots captures EOS-native channel parameter payloads 2`] = `
+{
+  "address": "/eos/dmx/address/dmx",
+  "args": [
+    {
+      "type": "s",
+      "value": "{"address":"1/101","value":255}",
+    },
+  ],
+  "arguments": "single OSC string containing a JSON object payload",
+  "wireFormat": "json-string",
+}
+`;
+
 exports[`OSC payload snapshots captures EOS-native command line payloads 1`] = `
 {
   "address": "/eos/cmd",
@@ -127,34 +155,6 @@ exports[`OSC payload snapshots captures EOS-native show-control command payloads
   ],
   "arguments": "single OSC string containing \`Show_Control Cue_Receive_String ...\`",
   "wireFormat": "eos-native-command",
-}
-`;
-
-exports[`OSC payload snapshots captures JSON parameter payloads 1`] = `
-{
-  "address": "/eos/chan/param",
-  "args": [
-    {
-      "type": "s",
-      "value": "{"channels":[1,2],"parameter":"pan","value":45}",
-    },
-  ],
-  "arguments": "single OSC string containing a JSON object payload",
-  "wireFormat": "json-string",
-}
-`;
-
-exports[`OSC payload snapshots captures JSON parameter payloads 2`] = `
-{
-  "address": "/eos/dmx/address/dmx",
-  "args": [
-    {
-      "type": "s",
-      "value": "{"address":"1/101","value":255}",
-    },
-  ],
-  "arguments": "single OSC string containing a JSON object payload",
-  "wireFormat": "json-string",
 }
 `;
 

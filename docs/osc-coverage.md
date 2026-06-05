@@ -51,7 +51,7 @@ Les contrats centralisés sont vérifiés dans `src/tools/__tests__/osc_contract
 | channels | `eos_channel_set_level` | `/eos/newcmd` | `src/tools/__tests__/osc_contracts.test.ts` |
 | channels | `eos_channel_set_dmx` | `/eos/newcmd` | `src/tools/__tests__/osc_contracts.test.ts` |
 | programming | `eos_set_dmx` | `/eos/newcmd` | `src/tools/__tests__/osc_contracts.test.ts` |
-| channels | `eos_channel_set_parameter` | `/eos/chan/param` | `src/tools/__tests__/osc_contracts.test.ts` |
+| channels | `eos_channel_set_parameter` | `/eos/chan/{channel}/param/{parameter}` | `src/tools/__tests__/osc_contracts.test.ts` |
 | channels | `eos_channel_get_info` | `/eos/get/channels` | `src/tools/__tests__/osc_contracts.test.ts` |
 | groups | `eos_group_select` | `/eos/group` | `src/tools/__tests__/osc_contracts.test.ts` |
 | groups | `eos_group_set_level` | `/eos/group/{group}/level` | `src/tools/__tests__/osc_contracts.test.ts` |

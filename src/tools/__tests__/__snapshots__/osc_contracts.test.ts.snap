@@ -75,8 +75,8 @@ exports[`OSC tool contracts exported from src/tools/index.ts eos_channel_set_lev
 exports[`OSC tool contracts exported from src/tools/index.ts eos_channel_set_parameter sends the documented OSC address, payload, and target endpoint 1`] = `
 [
   {
-    "type": "s",
-    "value": "{"channels":[1,2],"parameter":"pan","value":45}",
+    "type": "f",
+    "value": 45,
   },
 ]
 `;

@@ -363,7 +363,9 @@ function applyCommandTemplate(template: string, args?: Record<string, unknown>):
   }
 
   return template.replace(/\{([^}]+)\}/g, (match, key) => {
-    const value = args[key];
+    const value = key === 'channel' && args.channels != null
+      ? (Array.isArray(args.channels) ? args.channels[0] : args.channels)
+      : args[key];
     if (value == null) {
       return match;
     }

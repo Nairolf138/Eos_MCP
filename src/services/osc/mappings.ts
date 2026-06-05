@@ -20,7 +20,6 @@ export const oscMappings = {
   channels: {
     command: '/eos/cmd',
     base: '/eos/chan',
-    parameter: '/eos/chan/param',
     info: '/eos/get/channels'
   },
   dmx: {
@@ -214,7 +213,7 @@ export const oscPayloadAnnotations = {
     newCommand: { wireFormat: 'eos-native-command', arguments: 'single OSC string containing an EOS command-line command' }
   },
   channels: {
-    parameter: { wireFormat: 'json-string', arguments: 'single OSC string containing a JSON object payload' }
+    parameter: { wireFormat: 'eos-native-arguments', arguments: 'EOS-native channel parameter float argument' }
   },
   dmx: {
     addressDmx: { wireFormat: 'json-string', arguments: 'single OSC string containing a JSON object payload' }
@@ -248,6 +247,10 @@ export const oscPayloadAnnotations = {
 } as const;
 
 export type OscMappings = typeof oscMappings;
+
+export function buildChannelParameterAddress(channel: number | string, parameter: number | string): string {
+  return `/eos/chan/${encodeURIComponent(String(channel))}/param/${encodeURIComponent(String(parameter))}`;
+}
 
 export function toEosOutResponseAddress(address: string): string {
   return address.startsWith('/eos/out/') ? address : address.replace(/^\/eos\//, '/eos/out/');
