@@ -306,10 +306,33 @@ describe('command tools', () => {
     expect(structuredContent).toMatchObject({
       status: 'ok',
       text: 'Chan 1 At 50',
-      user: 4
+      user: 4,
+      source: 'mcp_extension_get_cmd_line',
+      source_description: 'source extension MCP/simulateur /eos/get/cmd_line'
     });
 
+    expect(result.content?.[0]?.text).toContain('source extension MCP/simulateur /eos/get/cmd_line');
     expect(service.sentMessages[0]).toMatchObject({ address: '/eos/get/cmd_line' });
+  });
+
+  it('indique la source officielle lorsque la ligne de commande vient de /eos/out/user/<number>/cmd', async () => {
+    service.emit({
+      address: '/eos/out/user/4/cmd',
+      args: [{ type: 's', value: 'Chan 4 At 80' }]
+    });
+
+    const result = await runTool(eosGetCommandLineTool, { user: 4 });
+    const structuredContent = getStructuredContent(result);
+
+    expect(structuredContent).toMatchObject({
+      status: 'ok',
+      text: 'Chan 4 At 80',
+      user: 4,
+      source: 'official_osc_out',
+      source_description: 'source officielle /eos/out/cmd ou /eos/out/user/<number>/cmd'
+    });
+    expect(result.content?.[0]?.text).toContain('source officielle /eos/out/cmd ou /eos/out/user/<number>/cmd');
+    expect(service.sentMessages).toHaveLength(0);
   });
 
   it('utilise le numero utilisateur stocke lorsquaucun identifiant nest fourni', async () => {

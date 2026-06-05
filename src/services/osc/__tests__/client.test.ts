@@ -507,6 +507,56 @@ describe('OscClient', () => {
     });
   });
 
+  it('memorise les lignes de commande officielles /eos/out et evite le repli extension', async () => {
+    const service = new FakeOscService();
+    const client = new OscClient(service);
+
+    service.emit({
+      address: '/eos/out/user/3/cmd',
+      args: [{ type: 's', value: 'Chan 3 At 70' }]
+    });
+
+    const result = await client.getCommandLine({ user: 3 });
+
+    expect(result).toMatchObject({
+      status: 'ok',
+      text: 'Chan 3 At 70',
+      user: 3,
+      source: 'official_osc_out'
+    });
+    expect(service.sentMessages).toHaveLength(0);
+  });
+
+  it('decode les messages globaux /eos/out/cmd avec utilisateur et texte', async () => {
+    const service = new FakeOscService();
+    const client = new OscClient(service);
+
+    service.emit({
+      address: '/eos/out/cmd',
+      args: [
+        { type: 's', value: 'User 4' },
+        { type: 's', value: 'Chan 4 At Full' }
+      ]
+    });
+
+    const result = await client.getCommandLine({ user: 4 });
+    const latestResult = await client.getCommandLine();
+
+    expect(result).toMatchObject({
+      status: 'ok',
+      text: 'Chan 4 At Full',
+      user: 4,
+      source: 'official_osc_out'
+    });
+    expect(latestResult).toMatchObject({
+      status: 'ok',
+      text: 'Chan 4 At Full',
+      user: 4,
+      source: 'official_osc_out'
+    });
+    expect(service.sentMessages).toHaveLength(0);
+  });
+
   it('retourne un mode degrade lorsque le handshake expire mais que le ping repond et la lecture timeout', async () => {
     const service = new FakeOscService();
     const client = new OscClient(service);

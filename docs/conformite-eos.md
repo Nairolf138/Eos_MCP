@@ -23,7 +23,7 @@ Plusieurs outils MCP n'envoient pas l'adresse OSC specialisee equivalente; ils e
 
 ### Extensions MCP
 
-Les extensions MCP sont des endpoints crees pour offrir une lecture ou une ergonomie non exposee comme adresse OSC ETC documentee. Elles sont marquees `official=false`; lorsqu'elles pilotent une adresse non documentee, elles sont marquees `strictModeAllowed=false`. Exemples: `/eos/get/patch/chan_pos`, `/eos/get/patch/chan_beam` et certains endpoints JSON de diagnostic/setup.
+Les extensions MCP sont des endpoints crees pour offrir une lecture ou une ergonomie non exposee comme adresse OSC ETC documentee. Elles sont marquees `official=false`; lorsqu'elles pilotent une adresse non documentee, elles sont marquees `strictModeAllowed=false`. Exemples: `/eos/get/cmd_line` (repli MCP/compatibilite simulateur de la ligne de commande), `/eos/get/patch/chan_pos`, `/eos/get/patch/chan_beam` et certains endpoints JSON de diagnostic/setup.
 
 Les adresses de runtime MCP (`/eos/handshake`, `/eos/protocol/select` et replies associees) ne sont pas des commandes pupitre ETC, mais restent `strictModeAllowed=true` car elles sont necessaires a la negociation du transport MCP et ne modifient pas le show.
 
@@ -37,7 +37,7 @@ Les endpoints non documentes sont les adresses observees ou introduites pour com
 | --- | --- | --- | --- | --- | --- | --- |
 | `eos_command`, `eos_command_with_substitution`, `eos_channel_select`, `eos_channel_set_level`, `eos_channel_set_dmx`, `eos_set_dmx`, `eos_cue_stop_back` | `/eos/cmd` | `/eos/cmd` | Chaine de commande (optionnellement terminee par `#`, substitutions `%1..%n`) | v3.0.0 | ShowControl > OSC > Ligne de commande (p. 614) | Utilise pour envoyer des commandes type `Chan`, `Address`, `Cue Stop/Back`. |
 | `eos_new_command`, `eos_cue_record`, `eos_cue_update`, `eos_cue_label_set`, `eos_palette_record`, `eos_palette_label_set`, `eos_patch_set_channel`, `eos_workflow_create_look`, `eos_workflow_patch_fixture`, `eos_workflow_rehearsal_go_safe` | `/eos/newcmd` | `/eos/newcmd` | Chaine de commande (efface la ligne avant l'envoi) | v3.0.0 | ShowControl > OSC > Ligne de commande (p. 614) | Utilise pour les commandes deterministes avec reset de ligne. |
-| `eos_get_command_line`, `eos_get_user_command_line`, `eos_workflow_rehearsal_go_safe` (precheck) | `/eos/get/cmd_line` | _Non documente dans le manuel v3.0.0_ | Requete sans argument, reponse texte ligne de commande | n/a | n/a | Extension MCP pour lecture de ligne de commande. |
+| `eos_get_command_line`, `eos_get_user_command_line`, `eos_workflow_rehearsal_go_safe` (precheck) | Reception memorisee de `/eos/out/cmd` et `/eos/out/user/<number>/cmd`; repli `/eos/get/cmd_line` | `/eos/out/cmd`, `/eos/out/user/<number>/cmd` pour le mode officiel; `/eos/get/cmd_line` est _non documente dans le manuel v3.0.0_ | Sortie OSC implicite de la ligne de commande; repli MCP JSON `{}` ou `{ "user": <id> }` | v3.0.0 pour `/eos/out/...`; n/a pour `/eos/get/cmd_line` | ShowControl > OSC > Sortie OSC implicite (p. 616-617) | Le client OSC memorise la derniere ligne recue depuis `/eos/out/...` et les outils indiquent `source=official_osc_out`. `/eos/get/cmd_line` reste uniquement une extension MCP/compatibilite simulateur (`strictModeAllowed=false`) et donne `source=mcp_extension_get_cmd_line`. |
 
 ## Connexion & ping
 
@@ -182,7 +182,7 @@ Les endpoints non documentes sont les adresses observees ou introduites pour com
 
 ## Strategie utilisateur OSC
 
-La strategie retenue est unique: le serveur selectionne l'utilisateur courant de la console avec `/eos/user` et un argument OSC entier avant les commandes qui precisent explicitement `user`. Les commandes `/eos/cmd` et `/eos/newcmd` restent envoyees avec leur seul argument texte EOS; l'identifiant utilisateur n'est pas ajoute comme second argument a ces commandes. Les prefixes `/eos/user/<number>/...` ne sont pas utilises dans les mappings MCP actuels, et les arguments utilisateur JSON restent limites aux lectures qui documentent explicitement ce contrat MCP, par exemple `/eos/get/cmd_line`.
+La strategie retenue est unique: le serveur selectionne l'utilisateur courant de la console avec `/eos/user` et un argument OSC entier avant les commandes qui precisent explicitement `user`. Les commandes `/eos/cmd` et `/eos/newcmd` restent envoyees avec leur seul argument texte EOS; l'identifiant utilisateur n'est pas ajoute comme second argument a ces commandes. Les prefixes d'envoi `/eos/user/<number>/...` ne sont pas utilises dans les mappings MCP actuels. En reception, `/eos/out/user/<number>/cmd` est en revanche la source officielle memorisee pour la ligne de commande utilisateur. Les arguments utilisateur JSON restent limites au repli d'extension MCP `/eos/get/cmd_line`, bloque en mode strict.
 
 ## Systeme & diagnostics
 

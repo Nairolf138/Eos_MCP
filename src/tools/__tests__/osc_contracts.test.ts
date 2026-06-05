@@ -87,7 +87,7 @@ class MockOscClient {
       args: [{ type: 's', value: JSON.stringify(payload) }],
       options
     });
-    return { status: 'ok', text: 'Chan 1', user: options.user ?? null, payload };
+    return { status: 'ok', text: 'Chan 1', user: options.user ?? null, payload, source: 'mcp_extension_get_cmd_line' };
   }
 
   private captureCommand(address: string, command: string, options: TargetOptions & { user?: number }): void {

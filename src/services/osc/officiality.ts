@@ -48,7 +48,9 @@ function undocumented(address: string): OscAddressOfficiality {
 export const OSC_ADDRESS_OFFICIALITY: readonly OscAddressOfficiality[] = [
   command('/eos/cmd'),
   command('/eos/newcmd'),
-  official('/eos/get/cmd_line'),
+  extension('/eos/get/cmd_line'),
+  official('/eos/out/cmd'),
+  official('/eos/out/user/{number}/cmd'),
   official('/eos/key'),
   official('/eos/key/{key}'),
   official('/eos/softkey/{index}'),
