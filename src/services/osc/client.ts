@@ -27,6 +27,7 @@ import { getResourceCache } from '../cache/index';
 import { resolveConsoleTarget } from '../consoleTargets';
 import { RequestQueue, type RequestQueueDiagnostics, type RequestQueueRunOptions } from './requestQueue';
 import { getRequestContext } from '../../server/requestContext';
+import { assertOscAddressStrictModeAllowed } from './officiality';
 import {
   extractJsonPayloadFromMessage,
   isDocumentedJsonEndpoint,
@@ -996,6 +997,7 @@ export class OscClient {
     options: TargetOptions,
     queueOptions: SendQueueOptions = {}
   ): Promise<TransportType | null> {
+    assertOscAddressStrictModeAllowed(message.address);
     const operation = queueOptions.operation ?? `l'envoi du message OSC ${message.address}`;
     const timeoutMs = queueOptions.timeoutMs ?? this.requestQueueTimeoutMs;
     const details = {
@@ -1003,15 +1005,18 @@ export class OscClient {
       ...(queueOptions.details ?? {})
     };
 
-    const resolvedTarget = resolveConsoleTarget({
-      targetConsole: options.targetConsole,
-      targetAddress: options.targetAddress,
-      targetPort: options.targetPort
-    });
+    const hasExplicitTarget = Boolean(options.targetConsole ?? options.targetAddress ?? options.targetPort);
+    const resolvedTarget = hasExplicitTarget
+      ? resolveConsoleTarget({
+        targetConsole: options.targetConsole,
+        targetAddress: options.targetAddress,
+        targetPort: options.targetPort
+      })
+      : null;
     const gatewayOptions: OscGatewaySendOptions = {
-      targetConsole: resolvedTarget.targetConsole ?? undefined,
-      targetAddress: resolvedTarget.targetAddress,
-      targetPort: resolvedTarget.targetPort,
+      targetConsole: resolvedTarget?.targetConsole ?? undefined,
+      targetAddress: resolvedTarget?.targetAddress,
+      targetPort: resolvedTarget?.targetPort,
       toolId: options.toolId ?? message.address,
       correlationId: getRequestContext()?.correlationId,
       transportPreference: options.transportPreference
