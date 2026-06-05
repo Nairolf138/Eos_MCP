@@ -4076,7 +4076,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/key/softkey{number} s:'{"softkey_number":1}'
+oscsend 127.0.0.1 8001 /eos/softkey/1 s:'{"softkey_number":1}'
 ```
 
 <a id="eos-submaster-bump"></a>

@@ -51,7 +51,7 @@ export const OSC_ADDRESS_OFFICIALITY: readonly OscAddressOfficiality[] = [
   official('/eos/get/cmd_line'),
   official('/eos/key'),
   official('/eos/key/{key}'),
-  official('/eos/key/softkey{number}'),
+  official('/eos/softkey/{index}'),
   official('/eos/get/softkey_labels'),
   official('/eos/chan'),
   official('/eos/chan/{channel}/param/{parameter}'),

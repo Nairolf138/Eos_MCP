@@ -51,7 +51,7 @@ Les endpoints non documentes sont les adresses observees ou introduites pour com
 | Outils MCP | Adresse OSC utilisee | Commande OSC officielle (manuel) | Arguments OSC (manuel) | Version | Reference (section/page) | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | `eos_key_press` | `/eos/key/{key}` | `/eos/key/<nom>` | Etat de touche `1.0` (press) / `0.0` (release) | v3.0.0 | ShowControl > OSC > Touche (p. 607) | Exemple manuel: `/eos/key/go`. |
-| `eos_softkey_press` | `/eos/key/softkey{number}` | `/eos/softkey/<index>` | Etat de touche `1.0` / `0.0` | v3.0.0 | ShowControl > OSC > Softkey (p. 613) | MCP utilise un alias `/eos/key/softkey{n}`. |
+| `eos_softkey_press` | `/eos/softkey/{index}` | `/eos/softkey/<index>` | Etat de touche `1.0` / `0.0` | v3.0.0 | ShowControl > OSC > Softkey (p. 613) | MCP utilise le chemin officiel `/eos/softkey/<index>`. |
 | `eos_get_softkey_labels` | `/eos/get/softkey_labels` | _Non documente dans le manuel v3.0.0_ | Requete JSON | n/a | n/a | Extension MCP pour recuperer les libelles. |
 
 ## Canaux & DMX

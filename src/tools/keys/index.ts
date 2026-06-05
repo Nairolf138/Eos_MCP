@@ -5,7 +5,7 @@
 import { z, type ZodRawShape } from 'zod';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
-import { oscMappings } from '../../services/osc/mappings';
+import { buildSoftkeyAddress, oscMappings } from '../../services/osc/mappings';
 import { withToolMetadata, type ToolDefinition, type ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
@@ -260,7 +260,7 @@ export const eosSoftkeyPressTool: ToolDefinition<typeof softkeyPressInputSchema>
     const options = schema.parse(args ?? {});
     const state = normaliseButtonState(options.state);
     const softkeyNumber = options.softkey_number;
-    const address = `${oscMappings.keys.base}/softkey${softkeyNumber}`;
+    const address = buildSoftkeyAddress(softkeyNumber);
     const client = getOscClient();
 
     await client.sendMessage(address, createOscArgs(state), {
