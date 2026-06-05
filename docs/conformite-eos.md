@@ -31,6 +31,76 @@ Les adresses de runtime MCP (`/eos/handshake`, `/eos/protocol/select` et replies
 
 Les endpoints non documentes sont les adresses observees ou introduites pour compatibilite qui ne correspondent pas directement a une commande OSC du manuel: `/eos/get/cmd_line`, `/eos/get/softkey_labels`, `/eos/get/channels`, `/eos/get/fpe/*`, `/eos/get/patch/chan_info`, `/eos/get/cuelist/info`, `/eos/get/active/cue`, `/eos/get/pending/cue`, `/eos/get/show/name`, `/eos/get/live/blind` et `/eos/get/setup_defaults`. En mode strict, les endpoints classes `strictModeAllowed=false` sont bloques avant l'appel a la passerelle OSC.
 
+## Inventaire officiel/non officiel des endpoints `/eos/get/`
+
+Cet inventaire couvre les occurrences trouvees dans `src/services/osc/`, `src/tools/`, `docs/` et les tests de contrat. La colonne strict reprend la classification technique `strictModeAllowed` de `src/services/osc/officiality.ts`.
+
+| Endpoint | Usage MCP | Statut | Alternative officielle si elle existe | Mode strict |
+| --- | --- | --- | --- | --- |
+| `/eos/get/cmd_line` | eos_get_command_line, eos_get_user_command_line; precheck de workflow | Non officiel (MCP extension) | /eos/out/cmd et /eos/out/user/{number}/cmd memorises | Bloque |
+| `/eos/get/softkey_labels` | eos_get_softkey_labels | Non officiel (non confirme dans le manuel v3.0.0) | Aucune alternative de lecture confirmee; /eos/softkey/{index} couvre seulement l'appui | Bloque |
+| `/eos/get/channels` | eos_channel_get_info | Non officiel (non confirme dans le manuel v3.0.0) | /eos/chan et /eos/chan/{channel}/param/{parameter} pour piloter; pas de lecture globale confirmee | Bloque |
+| `/eos/get/group` | eos_group_get_info | Officiel | Famille officielle /eos/get/group/... | Autorise |
+| `/eos/get/group/count` | eos_get_count(type=group) | Officiel | n/a | Autorise |
+| `/eos/get/group/list` | eos_group_list_all, eos_get_list_all(type=group) | Officiel | n/a | Autorise |
+| `/eos/get/palette` | eos_palette_get_info (type palette generique) | Officiel | Familles IP/FP/CP/BP selon le type | Autorise |
+| `/eos/get/ip` | eos_intensity_palette_get_info | Officiel | n/a | Autorise |
+| `/eos/get/fp` | eos_focus_palette_get_info | Officiel | n/a | Autorise |
+| `/eos/get/cp` | eos_color_palette_get_info | Officiel | n/a | Autorise |
+| `/eos/get/bp` | eos_beam_palette_get_info | Officiel | n/a | Autorise |
+| `/eos/get/ip/count` | eos_get_count(type=ip) | Officiel | n/a | Autorise |
+| `/eos/get/fp/count` | eos_get_count(type=fp) | Officiel | n/a | Autorise |
+| `/eos/get/cp/count` | eos_get_count(type=cp) | Officiel | n/a | Autorise |
+| `/eos/get/bp/count` | eos_get_count(type=bp) | Officiel | n/a | Autorise |
+| `/eos/get/ip/list` | eos_get_list_all(type=ip) | Officiel | n/a | Autorise |
+| `/eos/get/fp/list` | eos_get_list_all(type=fp) | Officiel | n/a | Autorise |
+| `/eos/get/cp/list` | eos_get_list_all(type=cp) | Officiel | n/a | Autorise |
+| `/eos/get/bp/list` | eos_get_list_all(type=bp) | Officiel | n/a | Autorise |
+| `/eos/get/preset` | eos_preset_get_info | Officiel | n/a | Autorise |
+| `/eos/get/preset/count` | eos_get_count(type=preset) | Officiel | n/a | Autorise |
+| `/eos/get/preset/list` | eos_get_list_all(type=preset) | Officiel | n/a | Autorise |
+| `/eos/get/macro` | eos_macro_get_info | Officiel | n/a | Autorise |
+| `/eos/get/macro/count` | eos_get_count(type=macro) | Officiel | n/a | Autorise |
+| `/eos/get/macro/list` | eos_get_list_all(type=macro) | Officiel | n/a | Autorise |
+| `/eos/get/snapshot` | eos_snapshot_get_info | Officiel | /eos/get/snap/... est la forme abregee citee dans le tableau de conformite | Autorise |
+| `/eos/get/snapshot/count` | eos_get_count(type=snap) | Officiel | n/a | Autorise |
+| `/eos/get/snapshot/list` | eos_get_list_all(type=snap) | Officiel | n/a | Autorise |
+| `/eos/get/curve` | eos_curve_get_info | Officiel | n/a | Autorise |
+| `/eos/get/curve/count` | eos_get_count(type=curve) | Officiel | n/a | Autorise |
+| `/eos/get/curve/list` | eos_get_list_all(type=curve) | Officiel | n/a | Autorise |
+| `/eos/get/effect` | eos_effect_get_info | Officiel | /eos/get/fx/... est l alias manuel pour la famille effet | Autorise |
+| `/eos/get/effect/count` | eos_get_count(type=fx) | Officiel | n/a | Autorise |
+| `/eos/get/effect/list` | eos_get_list_all(type=fx) | Officiel | n/a | Autorise |
+| `/eos/get/active/wheels` | eos_get_active_wheels | Officiel | /eos/out/active/wheel/{number} comme sortie implicite observee/documentee | Autorise |
+| `/eos/get/fpe/set/count` | eos_fpe_get_set_count | Non officiel (endpoint FPE non confirme) | Aucune alternative OSC officielle confirmee | Bloque |
+| `/eos/get/fpe/set` | eos_fpe_get_set_info | Non officiel (endpoint FPE non confirme) | Aucune alternative OSC officielle confirmee | Bloque |
+| `/eos/get/fpe/point` | eos_fpe_get_point_info | Non officiel (endpoint FPE non confirme) | Aucune alternative OSC officielle confirmee | Bloque |
+| `/eos/get/pixmap` | eos_pixmap_get_info | Officiel | n/a | Autorise |
+| `/eos/get/pixmap/count` | eos_get_count(type=pixmap) | Officiel | n/a | Autorise |
+| `/eos/get/pixmap/list` | eos_get_list_all(type=pixmap) | Officiel | n/a | Autorise |
+| `/eos/get/magic_sheet` | eos_magic_sheet_get_info | Officiel | /eos/get/ms/... est la forme abregee citee dans le tableau de conformite | Autorise |
+| `/eos/get/magic_sheet/count` | eos_get_count(type=ms) | Officiel | n/a | Autorise |
+| `/eos/get/magic_sheet/list` | eos_get_list_all(type=ms) | Officiel | n/a | Autorise |
+| `/eos/get/submaster` | eos_submaster_get_info | Officiel | /eos/get/sub/... est la forme abregee citee dans le tableau de conformite | Autorise |
+| `/eos/get/submaster/count` | eos_get_count(type=sub) | Officiel | n/a | Autorise |
+| `/eos/get/submaster/list` | eos_get_list_all(type=sub) | Officiel | n/a | Autorise |
+| `/eos/get/cue` | eos_cue_get_info | Officiel | n/a | Autorise |
+| `/eos/get/cue/count` | eos_get_count(type=cue) | Officiel | n/a | Autorise |
+| `/eos/get/cue/list` | eos_get_list_all(type=cue) | Officiel | n/a | Autorise |
+| `/eos/get/cuelist` | eos_cue_list_all | Officiel | n/a | Autorise |
+| `/eos/get/cuelist/count` | eos_get_count(type=cuelist) | Officiel | n/a | Autorise |
+| `/eos/get/cuelist/list` | eos_get_list_all(type=cuelist) | Officiel | n/a | Autorise |
+| `/eos/get/cuelist/info` | eos_cuelist_get_info | Non officiel (endpoint info dedie non confirme) | /eos/get/cuelist, /eos/get/cuelist/count et /eos/get/cuelist/list | Bloque |
+| `/eos/get/active/cue` | eos_get_active_cue | Non officiel (requete explicite MCP) | /eos/out/active/cue en sortie implicite | Bloque |
+| `/eos/get/pending/cue` | eos_get_pending_cue | Non officiel (requete explicite MCP) | /eos/out/pending/cue en sortie implicite | Bloque |
+| `/eos/get/show/name` | eos_get_show_name | Non officiel (requete explicite MCP) | /eos/out/show/name en sortie implicite | Bloque |
+| `/eos/get/live/blind` | eos_get_live_blind_state | Non officiel (requete explicite MCP) | /eos/out/event/state | Bloque |
+| `/eos/get/patch/chan_info` | eos_patch_get_channel_info | Non officiel (endpoint JSON non confirme) | /eos/get/patch/{channel} | Bloque |
+| `/eos/get/patch/chan_pos` | eos_patch_get_augment3d_position | Non officiel (extension Augment3d non confirmee) | Aucune alternative OSC officielle confirmee | Bloque |
+| `/eos/get/patch/chan_beam` | eos_patch_get_augment3d_beam | Non officiel (extension Augment3d non confirmee) | Aucune alternative OSC officielle confirmee | Bloque |
+| `/eos/get/version` | eos_get_version | Officiel | n/a | Autorise |
+| `/eos/get/setup_defaults` | eos_get_setup_defaults | Non officiel (diagnostic/setup non confirme) | Aucune alternative OSC officielle confirmee | Bloque |
+
 ## Commandes texte & ligne de commande
 
 | Outils MCP | Adresse OSC utilisee | Commande OSC officielle (manuel) | Arguments OSC (manuel) | Version | Reference (section/page) | Notes |

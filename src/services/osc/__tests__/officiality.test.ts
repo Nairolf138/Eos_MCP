@@ -8,8 +8,26 @@ import {
   getOscAddressOfficiality,
   isEosStrictModeEnabled
 } from '../officiality';
+import { oscMappings } from '../mappings';
 
 const strictEnv = { EOS_STRICT_MODE: 'true' } as NodeJS.ProcessEnv;
+
+function collectOscGetAddresses(value: unknown, acc = new Set<string>()): Set<string> {
+  if (typeof value === 'string') {
+    if (value.startsWith('/eos/get/')) {
+      acc.add(value);
+    }
+    return acc;
+  }
+
+  if (value && typeof value === 'object') {
+    for (const nested of Object.values(value as Record<string, unknown>)) {
+      collectOscGetAddresses(nested, acc);
+    }
+  }
+
+  return acc;
+}
 
 describe('OSC address officiality classification', () => {
   it('classe les adresses OSC avec les champs requis', () => {
@@ -40,6 +58,34 @@ describe('OSC address officiality classification', () => {
     });
     expect(() => assertOscAddressStrictModeAllowed('/eos/get/patch/chan_pos', strictEnv)).toThrow(/EOS_STRICT_MODE bloque/);
     expect(() => assertOscAddressStrictModeAllowed('/eos/get/cmd_line', strictEnv)).toThrow(/EOS_STRICT_MODE bloque/);
+  });
+
+  it('classe toutes les adresses /eos/get declarees dans les mappings MCP', () => {
+    const getAddresses = collectOscGetAddresses(oscMappings);
+    expect(getAddresses.size).toBeGreaterThan(0);
+
+    for (const address of getAddresses) {
+      expect(getOscAddressOfficiality(address)).toBeDefined();
+    }
+  });
+
+  it('bloque en mode strict les endpoints /eos/get non confirmes officiellement', () => {
+    const nonOfficialGetEndpoints = [
+      '/eos/get/channels',
+      '/eos/get/softkey_labels',
+      '/eos/get/setup_defaults',
+      '/eos/get/patch/chan_info',
+      '/eos/get/patch/chan_pos',
+      '/eos/get/patch/chan_beam',
+      '/eos/get/fpe/set/count',
+      '/eos/get/fpe/set',
+      '/eos/get/fpe/point'
+    ];
+
+    for (const address of nonOfficialGetEndpoints) {
+      expect(getOscAddressOfficiality(address)).toMatchObject({ official: false, strictModeAllowed: false });
+      expect(() => assertOscAddressStrictModeAllowed(address, strictEnv)).toThrow(/EOS_STRICT_MODE bloque/);
+    }
   });
 
   it('autorise /eos/cmd et les commandes runtime necessaires en mode strict', () => {
