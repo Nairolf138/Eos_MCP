@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { z } from 'zod';
-import { oscMappings } from './mappings';
+import { buildDmxAddressDmxAddress, buildDmxAddressLevelAddress, oscMappings } from './mappings';
 import type { OscMessage, OscMessageArgument } from './index';
 
 const jsonArgumentSchema = z.object({
@@ -24,7 +24,7 @@ const intArgumentSchema = z.object({
 export interface OscWireContract {
   address: string;
   argumentTypes: OscMessageArgument['type'][];
-  family: 'cue' | 'fader' | 'group' | 'palette' | 'generic';
+  family: 'cue' | 'dmx' | 'fader' | 'group' | 'palette' | 'generic';
 }
 
 export interface BuiltOscWireMessage {
@@ -112,6 +112,18 @@ export function buildGroupJsonMessage(
   return withContract('group', address, [serialiseJsonPayload(payload)]);
 }
 
+export function buildDmxAddressSelectMessage(address: string): BuiltOscWireMessage {
+  return withContract('dmx', oscMappings.dmx.addressSelect, [{ type: 's', value: address }]);
+}
+
+export function buildDmxAddressLevelMessage(address: string, level: number): BuiltOscWireMessage {
+  return withContract('dmx', buildDmxAddressLevelAddress(address), [{ type: 'f', value: level }]);
+}
+
+export function buildDmxAddressDmxMessage(address: string, value: number): BuiltOscWireMessage {
+  return withContract('dmx', buildDmxAddressDmxAddress(address), [{ type: 'i', value }]);
+}
+
 export function buildFaderBankCreateMessage(
   bankIndex: number,
   faderCount: number,
@@ -179,9 +191,6 @@ const DOCUMENTED_JSON_ENDPOINTS = new Set<string>([
   oscMappings.palettes.beam.info,
   oscMappings.keys.softkeyLabels,
   oscMappings.channels.info,
-  oscMappings.dmx.addressSelect,
-  oscMappings.dmx.addressLevel,
-  oscMappings.dmx.addressDmx,
   oscMappings.presets.info,
   oscMappings.macros.info,
   oscMappings.snapshots.info,

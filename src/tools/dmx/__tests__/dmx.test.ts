@@ -46,28 +46,13 @@ describe('dmx address tools', () => {
     setOscClient(null);
   });
 
-  it('selectionne une adresse DMX et attend une confirmation', async () => {
-    const promise = runTool(eosAddressSelectTool, { address_number: '2/041' });
-
-    queueMicrotask(() => {
-      service.emit({
-        address: oscMappings.dmx.addressSelect,
-        args: [
-          {
-            type: 's',
-            value: JSON.stringify({ status: 'ok' })
-          }
-        ]
-      });
-    });
-
-    const result = await promise;
+  it('selectionne une adresse DMX en OSC natif', async () => {
+    const result = await runTool(eosAddressSelectTool, { address_number: '2/041' });
 
     expect(service.sentMessages).toHaveLength(1);
     expect(service.sentMessages[0]?.address).toBe(oscMappings.dmx.addressSelect);
 
-    const payload = JSON.parse(String(service.sentMessages[0]?.args?.[0]?.value ?? '{}'));
-    expect(payload).toEqual({ address: '2/041' });
+    expect(service.sentMessages[0]?.args).toEqual([{ type: 's', value: '2/041' }]);
 
     const structuredContent = getStructuredContent(result);
     expect(structuredContent).toBeDefined();
@@ -78,48 +63,20 @@ describe('dmx address tools', () => {
   });
 
   it('convertit full en 100% pour le niveau', async () => {
-    const promise = runTool(eosAddressSetLevelTool, { address_number: '1/001', level: 'full' });
+    await runTool(eosAddressSetLevelTool, { address_number: '1/001', level: 'full' });
 
-    queueMicrotask(() => {
-      service.emit({
-        address: oscMappings.dmx.addressLevel,
-        args: [
-          {
-            type: 's',
-            value: JSON.stringify({ status: 'ok' })
-          }
-        ]
-      });
-    });
-
-    await promise;
-
-    const payload = JSON.parse(String(service.sentMessages[0]?.args?.[0]?.value ?? '{}'));
-    expect(payload).toMatchObject({ level: 100 });
+    expect(service.sentMessages[0]?.address).toBe('/eos/addr/1%2F001');
+    expect(service.sentMessages[0]?.args).toEqual([{ type: 'f', value: 100 }]);
   });
 
   it('transforme full en 255 pour la valeur DMX brute', async () => {
-    const promise = runTool(eosAddressSetDmxTool, {
+    await runTool(eosAddressSetDmxTool, {
       address_number: '1/120',
       dmx_value: 'full'
     });
 
-    queueMicrotask(() => {
-      service.emit({
-        address: oscMappings.dmx.addressDmx,
-        args: [
-          {
-            type: 's',
-            value: JSON.stringify({ status: 'ok' })
-          }
-        ]
-      });
-    });
-
-    await promise;
-
-    const payload = JSON.parse(String(service.sentMessages[0]?.args?.[0]?.value ?? '{}'));
-    expect(payload).toMatchObject({ value: 255 });
+    expect(service.sentMessages[0]?.address).toBe('/eos/addr/1%2F120/DMX');
+    expect(service.sentMessages[0]?.args).toEqual([{ type: 'i', value: 255 }]);
   });
 
   it('refuse une valeur DMX hors plage', async () => {

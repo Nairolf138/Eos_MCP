@@ -4,7 +4,7 @@ exports[`OSC tool contracts exported from src/tools/index.ts eos_address_select 
 [
   {
     "type": "s",
-    "value": "{"address":"1/001"}",
+    "value": "1/001",
   },
 ]
 `;
@@ -12,8 +12,8 @@ exports[`OSC tool contracts exported from src/tools/index.ts eos_address_select 
 exports[`OSC tool contracts exported from src/tools/index.ts eos_address_set_dmx sends the documented OSC address, payload, and target endpoint 1`] = `
 [
   {
-    "type": "s",
-    "value": "{"address":"1/001","value":128}",
+    "type": "i",
+    "value": 128,
   },
 ]
 `;
@@ -21,8 +21,8 @@ exports[`OSC tool contracts exported from src/tools/index.ts eos_address_set_dmx
 exports[`OSC tool contracts exported from src/tools/index.ts eos_address_set_level sends the documented OSC address, payload, and target endpoint 1`] = `
 [
   {
-    "type": "s",
-    "value": "{"address":"1/001","level":50}",
+    "type": "f",
+    "value": 50,
   },
 ]
 `;
@@ -664,8 +664,8 @@ exports[`OSC tool contracts exported from src/tools/index.ts eos_set_cue_send_st
 exports[`OSC tool contracts exported from src/tools/index.ts eos_set_dmx sends the documented OSC address, payload, and target endpoint 1`] = `
 [
   {
-    "type": "s",
-    "value": "Address 1 At 45#",
+    "type": "i",
+    "value": 45,
   },
 ]
 `;

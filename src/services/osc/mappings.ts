@@ -24,9 +24,17 @@ export const oscMappings = {
   },
   dmx: {
     command: '/eos/cmd',
-    addressSelect: '/eos/dmx/address/select',
-    addressLevel: '/eos/dmx/address/level',
-    addressDmx: '/eos/dmx/address/dmx'
+    base: '/eos/addr',
+    addressSelect: '/eos/addr',
+    addressLevel: '/eos/addr/{address}',
+    addressDmx: '/eos/addr/{address}/DMX',
+    compatibility: {
+      nonStrictLegacy: {
+        addressSelect: '/eos/dmx/address/select',
+        addressLevel: '/eos/dmx/address/level',
+        addressDmx: '/eos/dmx/address/dmx'
+      }
+    }
   },
   groups: {
     select: '/eos/group',
@@ -216,7 +224,7 @@ export const oscPayloadAnnotations = {
     parameter: { wireFormat: 'eos-native-arguments', arguments: 'EOS-native channel parameter float argument' }
   },
   dmx: {
-    addressDmx: { wireFormat: 'json-string', arguments: 'single OSC string containing a JSON object payload' }
+    addressDmx: { wireFormat: 'eos-native-arguments', arguments: 'EOS-native DMX raw integer argument' }
   },
   groups: {
     level: { wireFormat: 'eos-native-arguments', arguments: 'EOS-native group level float argument' }
@@ -250,6 +258,14 @@ export type OscMappings = typeof oscMappings;
 
 export function buildChannelParameterAddress(channel: number | string, parameter: number | string): string {
   return `/eos/chan/${encodeURIComponent(String(channel))}/param/${encodeURIComponent(String(parameter))}`;
+}
+
+export function buildDmxAddressLevelAddress(address: number | string): string {
+  return `${oscMappings.dmx.base}/${encodeURIComponent(String(address))}`;
+}
+
+export function buildDmxAddressDmxAddress(address: number | string): string {
+  return `${buildDmxAddressLevelAddress(address)}/DMX`;
 }
 
 export function toEosOutResponseAddress(address: string): string {

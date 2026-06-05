@@ -353,7 +353,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/dmx/address/select s:'{"address_number":"exemple"}'
+oscsend 127.0.0.1 8001 /eos/addr s:'{"address_number":"exemple"}'
 ```
 
 <a id="eos-address-set-dmx"></a>
@@ -394,7 +394,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/dmx/address/dmx s:'{"address_number":"exemple","dmx_value":1}'
+oscsend 127.0.0.1 8001 /eos/addr/{address}/DMX s:'{"address_number":"exemple","dmx_value":1}'
 ```
 
 <a id="eos-address-set-level"></a>
@@ -435,7 +435,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/dmx/address/level s:'{"address_number":"exemple","level":1}'
+oscsend 127.0.0.1 8001 /eos/addr/{address} s:'{"address_number":"exemple","level":1}'
 ```
 
 <a id="eos-beam-palette-fire"></a>
@@ -3643,7 +3643,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/newcmd s:'Address 1 At 1'
+oscsend 127.0.0.1 8001 /eos/addr/{address}/DMX s:'{"addresses":1,"value":1}'
 ```
 
 <a id="eos-set-pantilt-xy"></a>
