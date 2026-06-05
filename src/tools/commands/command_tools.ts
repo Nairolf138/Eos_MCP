@@ -244,11 +244,18 @@ function applySubstitutions(template: string, values: SubstitutionValue[] = []):
 }
 
 function buildOscDescriptor(command: string, user?: number | null): Record<string, unknown> {
-  const args: Array<{ type: string; value: string | number }> = [{ type: 's', value: command }];
+  const descriptor: Record<string, unknown> = {
+    args: [{ type: 's', value: command }]
+  };
+
   if (typeof user === 'number' && Number.isFinite(user)) {
-    args.push({ type: 'i', value: Math.trunc(user) });
+    descriptor.user_selection = {
+      address: oscMappings.system.setUserId,
+      args: [{ type: 'i', value: Math.trunc(user) }]
+    };
   }
-  return { args };
+
+  return descriptor;
 }
 
 interface CommandVerificationResult {

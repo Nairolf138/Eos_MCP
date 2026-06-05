@@ -1351,6 +1351,24 @@ describe('OscClient', () => {
     expect(service.sentMessages[0]?.address).toBe('/eos/cmd');
   });
 
+  it('selectionne l utilisateur via /eos/user avant /eos/cmd sans argument utilisateur sur la commande', async () => {
+    const service = new FakeOscService();
+    const client = new OscClient(service);
+
+    await client.sendCommand('Chan 1 At 50', { user: 3 });
+
+    expect(service.sentMessages).toEqual([
+      {
+        address: '/eos/user',
+        args: [{ type: 'i', value: 3 }]
+      },
+      {
+        address: '/eos/cmd',
+        args: [{ type: 's', value: 'Chan 1 At 50' }]
+      }
+    ]);
+  });
+
   it('propage le correlationId du contexte vers les envois OSC', async () => {
     const service = new FakeOscService();
     const client = new OscClient(service);

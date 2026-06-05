@@ -48,6 +48,7 @@ const SUBSCRIBE_REQUEST = '/eos/subscribe';
 const SUBSCRIBE_REPLY = '/eos/subscribe/reply';
 const COMMAND_REQUEST = '/eos/cmd';
 const NEW_COMMAND_REQUEST = '/eos/newcmd';
+const USER_REQUEST = '/eos/user';
 const COMMAND_LINE_GET_REQUEST = '/eos/get/cmd_line';
 const COMMAND_LINE_GET_REPLY = '/eos/get/cmd_line';
 const JSON_STATUS_REQUIRED_ENDPOINTS = new Set<string>([
@@ -1068,7 +1069,12 @@ export class OscClient {
   }
 
   private getSensitiveFamily(address: string): OscQueueFamily | undefined {
-    if (address === COMMAND_REQUEST || address === NEW_COMMAND_REQUEST || address === COMMAND_LINE_GET_REQUEST) {
+    if (
+      address === COMMAND_REQUEST ||
+      address === NEW_COMMAND_REQUEST ||
+      address === USER_REQUEST ||
+      address === COMMAND_LINE_GET_REQUEST
+    ) {
       return 'command-line';
     }
 
@@ -1089,7 +1095,22 @@ export class OscClient {
     options: CommandSendOptions
   ): Promise<void> {
     const address = mode === 'replace' ? NEW_COMMAND_REQUEST : COMMAND_REQUEST;
-    const args = this.buildCommandArgs(command, options.user);
+
+    if (typeof options.user === 'number' && Number.isFinite(options.user)) {
+      await this.send(
+        {
+          address: USER_REQUEST,
+          args: [{ type: 'i', value: Math.trunc(options.user) }]
+        },
+        options,
+        {
+          operation: `la selection de l'utilisateur OSC ${USER_REQUEST}`,
+          details: { user: Math.trunc(options.user) }
+        }
+      );
+    }
+
+    const args = this.buildCommandArgs(command);
 
     await this.send(
       {
@@ -1104,16 +1125,10 @@ export class OscClient {
     );
   }
 
-  private buildCommandArgs(command: string, user?: number): OscMessageArgument[] {
-    const args: OscMessageArgument[] = [
+  private buildCommandArgs(command: string): OscMessageArgument[] {
+    return [
       { type: 's', value: command }
     ];
-
-    if (typeof user === 'number' && Number.isFinite(user)) {
-      args.push({ type: 'i', value: Math.trunc(user) });
-    }
-
-    return args;
   }
 
   private async buildTimeoutConnectResult(options: ConnectOptions, errorMessage: string): Promise<ConnectResult> {
