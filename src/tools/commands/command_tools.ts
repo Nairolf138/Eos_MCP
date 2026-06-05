@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { z } from 'zod';
-import { getOscClient, type CommandLineState } from '../../services/osc/client';
+import { getOscClient, type CommandLineState, type OscRuntimeCapabilities } from '../../services/osc/client';
 import { buildCueJsonMessage } from '../../services/osc/messageBuilders';
 import { oscMappings } from '../../services/osc/mappings';
 import { getCurrentUserId } from '../session/index';
@@ -256,10 +256,18 @@ interface CommandVerificationResult {
   verified: boolean;
   method: string | null;
   warning?: string;
+  warnings?: string[];
+  next_actions?: string[];
   details?: unknown;
 }
 
 const unverifiedWarning = 'commande envoyée mais non vérifiée dans EOS';
+const sensitiveUnverifiedWarning =
+  'COMMANDE SENSIBLE ENVOYEE MAIS NON VERIFIEE DANS EOS: ne pas enchainer d operation destructive avant relecture explicite.';
+const manualRereadNextAction =
+  'Effectuer une relecture manuelle de la console EOS ou relancer eos_readiness_check/eos_connect avant toute operation destructive.';
+const confirmStateNextAction =
+  'Confirmer explicitement l etat EOS attendu avec un operateur avant d enchainer record/update/delete/patch.';
 
 function parseRecordCueIdentifier(command: string): CueIdentifier | null {
   const normalized = command.replace(/#/g, ' ').replace(/\s+/g, ' ').trim();
@@ -378,6 +386,69 @@ async function safelyVerifySensitiveCommandAfterSend(
   }
 }
 
+function getRuntimeCapabilitiesSafe(): OscRuntimeCapabilities {
+  const client = getOscClient() as { getRuntimeCapabilities?: () => OscRuntimeCapabilities };
+  return client.getRuntimeCapabilities?.() ?? {
+    canReadJsonQueries: false,
+    readJsonQueriesStatus: 'read_capability_unconfirmed',
+    reason: 'Client OSC de test ou legacy sans API de capacites de lecture JSON.'
+  };
+}
+
+function buildSensitiveSkippedVerification(command: string, requestedVerifyAfterSend?: boolean): CommandVerificationResult {
+  const capability = getRuntimeCapabilitiesSafe();
+  const readUnavailable = !capability.canReadJsonQueries;
+  const warning = requestedVerifyAfterSend === false
+    ? `${sensitiveUnverifiedWarning} Verification desactivee explicitement par verify_after_send=false.`
+    : `${sensitiveUnverifiedWarning} Lecture JSON EOS non disponible (${capability.readJsonQueriesStatus}).`;
+  const nextActions = readUnavailable
+    ? [manualRereadNextAction, confirmStateNextAction]
+    : [confirmStateNextAction];
+
+  return {
+    status: 'skipped',
+    accepted_by_eos: null,
+    verified: false,
+    method: null,
+    warning,
+    warnings: [warning],
+    next_actions: nextActions,
+    details: {
+      reason: requestedVerifyAfterSend === false ? 'verify_after_send_disabled' : 'json_read_unavailable',
+      command,
+      runtime_capabilities: capability
+    }
+  };
+}
+
+async function resolveSensitiveCommandVerification(
+  command: string,
+  options: {
+    user?: number;
+    targetAddress?: string;
+    targetPort?: number;
+    timeoutMs?: number;
+    verifyAfterSend?: boolean;
+  }
+): Promise<CommandVerificationResult | undefined> {
+  if (!isSensitiveCommandText(command)) {
+    return undefined;
+  }
+
+  const capability = getRuntimeCapabilitiesSafe();
+  const shouldVerify = options.verifyAfterSend ?? capability.canReadJsonQueries;
+  if (!shouldVerify) {
+    return buildSensitiveSkippedVerification(command, options.verifyAfterSend);
+  }
+
+  return safelyVerifySensitiveCommandAfterSend(command, {
+    user: options.user,
+    targetAddress: options.targetAddress,
+    targetPort: options.targetPort,
+    timeoutMs: options.timeoutMs
+  });
+}
+
 function formatSendResult(
   command: string,
   user: number | null,
@@ -385,10 +456,11 @@ function formatSendResult(
   verification?: CommandVerificationResult
 ): ToolExecutionResult {
   const isPartialFailure = verification?.status === 'not_verified';
+  const isSensitiveUnverified = verification?.status === 'not_verified' || verification?.status === 'skipped';
   const suffix = verification?.verified === true
     ? ' Verification EOS reussie.'
-    : verification?.status === 'not_verified'
-      ? ` ${unverifiedWarning}.`
+    : isSensitiveUnverified
+      ? ` ${verification.warning ?? unverifiedWarning}.`
       : ' Acceptation EOS non verifiee.';
 
   const text = `Commande remise au transport OSC sur ${oscAddress}: ${command}.${suffix}`;
@@ -397,8 +469,12 @@ function formatSendResult(
     status: isPartialFailure ? 'partial_failure' : 'ok',
     summary: text,
     commandsSent: [command],
-    warnings: verification?.warning ? [{ detail: verification.warning }] : [],
-    next_actions: verification?.status === 'not_verified' ? ['Relire l etat EOS avant d enchainer une action destructive.'] : [],
+    warnings: verification?.warnings?.length
+      ? verification.warnings.map((warning) => ({ detail: warning }))
+      : verification?.warning
+        ? [{ detail: verification.warning }]
+        : [],
+    next_actions: verification?.next_actions ?? (verification?.status === 'not_verified' ? [manualRereadNextAction] : []),
     structuredContent: {
       command,
       user,
@@ -481,14 +557,13 @@ export async function sendDeterministicCommand(options: DeterministicCommandOpti
       targetAddress: options.targetAddress,
       targetPort: options.targetPort
     });
-    const verification = options.verify_after_send && isSensitiveCommandText(command)
-      ? await safelyVerifySensitiveCommandAfterSend(command, {
-          user,
-          targetAddress: options.targetAddress,
-          targetPort: options.targetPort,
-          timeoutMs: options.verification_timeout_ms
-        })
-      : undefined;
+    const verification = await resolveSensitiveCommandVerification(command, {
+      user,
+      targetAddress: options.targetAddress,
+      targetPort: options.targetPort,
+      timeoutMs: options.verification_timeout_ms,
+      verifyAfterSend: options.verify_after_send
+    });
     return formatSendResult(command, user ?? null, oscMappings.commands.newCommand, verification);
   }
 
@@ -498,14 +573,13 @@ export async function sendDeterministicCommand(options: DeterministicCommandOpti
     targetPort: options.targetPort
   });
 
-  const verification = options.verify_after_send && isSensitiveCommandText(command)
-    ? await safelyVerifySensitiveCommandAfterSend(command, {
-        user,
-        targetAddress: options.targetAddress,
-        targetPort: options.targetPort,
-        timeoutMs: options.verification_timeout_ms
-      })
-    : undefined;
+  const verification = await resolveSensitiveCommandVerification(command, {
+    user,
+    targetAddress: options.targetAddress,
+    targetPort: options.targetPort,
+    timeoutMs: options.verification_timeout_ms,
+    verifyAfterSend: options.verify_after_send
+  });
 
   return formatSendResult(command, user ?? null, oscMappings.commands.command, verification);
 }
@@ -569,14 +643,13 @@ export const eosCommandTool: ToolDefinition<typeof commandInputSchema> = {
       targetPort: options.targetPort
     });
 
-    const verification = options.verify_after_send && isSensitiveCommandText(command)
-      ? await safelyVerifySensitiveCommandAfterSend(command, {
-          user,
-          targetAddress: options.targetAddress,
-          targetPort: options.targetPort,
-          timeoutMs: options.verification_timeout_ms
-        })
-      : undefined;
+    const verification = await resolveSensitiveCommandVerification(command, {
+      user,
+      targetAddress: options.targetAddress,
+      targetPort: options.targetPort,
+      timeoutMs: options.verification_timeout_ms,
+      verifyAfterSend: options.verify_after_send
+    });
 
     return formatSendResult(command, user ?? null, oscMappings.commands.command, verification);
   }
@@ -695,14 +768,13 @@ export const eosCommandWithSubstitutionTool: ToolDefinition<typeof substitutionC
       targetPort: options.targetPort
     });
 
-    const verification = options.verify_after_send && isSensitiveCommandText(command)
-      ? await safelyVerifySensitiveCommandAfterSend(command, {
-          user,
-          targetAddress: options.targetAddress,
-          targetPort: options.targetPort,
-          timeoutMs: options.verification_timeout_ms
-        })
-      : undefined;
+    const verification = await resolveSensitiveCommandVerification(command, {
+      user,
+      targetAddress: options.targetAddress,
+      targetPort: options.targetPort,
+      timeoutMs: options.verification_timeout_ms,
+      verifyAfterSend: options.verify_after_send
+    });
 
     return formatSendResult(command, user ?? null, oscMappings.commands.command, verification);
   }
