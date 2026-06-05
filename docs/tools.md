@@ -2053,7 +2053,7 @@ oscsend 127.0.0.1 8001 /eos/get/active/wheels s:'{"timeoutMs":1}'
 <a id="eos-get-command-line"></a>
 ## Lecture de la ligne de commande EOS (`eos_get_command_line`)
 
-**Description :** Recupere le contenu courant de la ligne de commande via OSC Get.
+**Description :** Recupere le contenu courant depuis les messages officiels /eos/out/... memorises, avec repli extension MCP /eos/get/cmd_line.
 
 **Métadonnées :**
 
@@ -2366,7 +2366,7 @@ oscsend 127.0.0.1 8001 /eos/get/softkey_labels s:'{"timeoutMs":1}'
 <a id="eos-get-user-command-line"></a>
 ## Lecture de la ligne de commande utilisateur (`eos_get_user_command_line`)
 
-**Description :** Recupere la ligne de commande pour un utilisateur specifique.
+**Description :** Recupere la ligne de commande utilisateur depuis /eos/out/user/<number>/cmd memorise, avec repli extension MCP /eos/get/cmd_line.
 
 **Métadonnées :**
 
