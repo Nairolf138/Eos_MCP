@@ -217,12 +217,13 @@ function assertCommandSyntaxAllowed(command: string, safetyLevel: SafetyLevel): 
   }
 }
 
-function ensureTerminator(command: string, terminate?: boolean): string {
+export function ensureTerminator(command: string, terminate?: boolean): string {
   if (!terminate) {
     return command;
   }
 
-  return command.endsWith('#') ? command : `${command}#`;
+  const normalizedCommand = command.trimEnd();
+  return /(?:#|\bEnter)$/i.test(normalizedCommand) ? normalizedCommand : `${normalizedCommand}#`;
 }
 
 function applySubstitutions(template: string, values: SubstitutionValue[] = []): string {

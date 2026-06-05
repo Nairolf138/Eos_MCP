@@ -8,10 +8,22 @@ import {
   eosCommandTool,
   eosNewCommandTool,
   eosCommandWithSubstitutionTool,
-  eosGetCommandLineTool
+  eosGetCommandLineTool,
+  ensureTerminator
 } from '../command_tools';
 import { clearCurrentUserId, setCurrentUserId } from '../../session';
 import { getStructuredContent, runTool } from '../../__tests__/helpers/runTool';
+
+describe('ensureTerminator', () => {
+  it.each([
+    ['Record Cue 2', 'Record Cue 2#'],
+    ['Record Cue 2#', 'Record Cue 2#'],
+    ['Delete Cue 2 Enter', 'Delete Cue 2 Enter'],
+    ['Step 1 Thru 8 Enter Enter', 'Step 1 Thru 8 Enter Enter']
+  ])('normalise le terminateur de %s', (command, expectedCommand) => {
+    expect(ensureTerminator(command, true)).toBe(expectedCommand);
+  });
+});
 
 describe('command tools', () => {
   class FakeOscService implements OscGateway {
