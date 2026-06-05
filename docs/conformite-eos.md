@@ -4,6 +4,33 @@ Ce document mappe chaque outil MCP aux commandes OSC officielles de la documenta
 
 > **Version de reference :** Eos v3.0.0 (manuel FR, ShowControl p. 594-626).
 
+
+## Mode strict EOS
+
+La variable d'environnement `EOS_STRICT_MODE=true|false` active un garde-fou d'envoi OSC. Par defaut, le mode strict est desactive. Quand `EOS_STRICT_MODE=true` (ou `1`, `yes`, `on`), le client OSC refuse toute adresse dont la classification `strictModeAllowed=false` dans `src/services/osc/officiality.ts`.
+
+Le fichier `src/services/osc/officiality.ts` est la source technique de reference pour chaque adresse OSC utilisee par le projet. Chaque entree declare au minimum `address`, `official`, `strictModeAllowed`, `source` et `notes`.
+
+## Classification claire des familles OSC
+
+### Commandes ETC officielles
+
+Les commandes ETC officielles sont les adresses documentees dans le manuel Eos OSC v3.0.0, par exemple `/eos/key/{key}`, `/eos/group`, `/eos/preset/fire`, `/eos/fader/{index}/{page}/{fader}`, `/eos/ds/{index}/button/{page}/{button}`, `/eos/get/<type>/count`, `/eos/get/<type>/list`, `/eos/get/version`, `/eos/ping`, `/eos/reset` et `/eos/subscribe`. Elles sont marquees `official=true` et `strictModeAllowed=true` lorsqu'elles sont envoyables par MCP.
+
+### Commandes envoyees via `/eos/cmd`
+
+Plusieurs outils MCP n'envoient pas l'adresse OSC specialisee equivalente; ils envoient une commande texte EOS via l'adresse officielle `/eos/cmd` ou `/eos/newcmd`. Cela concerne notamment les outils de canaux, cues, effets, patch et workflows qui construisent des chaines comme `Chan ...`, `Address ...`, `Cue ... Fire`, `CueList ... Go`, `Record`, `Update` ou `Label`. Dans ce cas, l'adresse OSC est officielle et autorisee en mode strict; la conformite de l'action depend de la commande texte documentee indiquee dans les tableaux ci-dessous.
+
+### Extensions MCP
+
+Les extensions MCP sont des endpoints crees pour offrir une lecture ou une ergonomie non exposee comme adresse OSC ETC documentee. Elles sont marquees `official=false`; lorsqu'elles pilotent une adresse non documentee, elles sont marquees `strictModeAllowed=false`. Exemples: `/eos/get/patch/chan_pos`, `/eos/get/patch/chan_beam` et certains endpoints JSON de diagnostic/setup.
+
+Les adresses de runtime MCP (`/eos/handshake`, `/eos/protocol/select` et replies associees) ne sont pas des commandes pupitre ETC, mais restent `strictModeAllowed=true` car elles sont necessaires a la negociation du transport MCP et ne modifient pas le show.
+
+### Endpoints non documentes
+
+Les endpoints non documentes sont les adresses observees ou introduites pour compatibilite qui ne correspondent pas directement a une commande OSC du manuel: `/eos/get/cmd_line`, `/eos/get/softkey_labels`, `/eos/get/channels`, `/eos/get/fpe/*`, `/eos/get/patch/chan_info`, `/eos/get/cuelist/info`, `/eos/get/active/cue`, `/eos/get/pending/cue`, `/eos/get/show/name`, `/eos/get/live/blind` et `/eos/get/setup_defaults`. En mode strict, les endpoints classes `strictModeAllowed=false` sont bloques avant l'appel a la passerelle OSC.
+
 ## Commandes texte & ligne de commande
 
 | Outils MCP | Adresse OSC utilisee | Commande OSC officielle (manuel) | Arguments OSC (manuel) | Version | Reference (section/page) | Notes |

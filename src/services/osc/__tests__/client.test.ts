@@ -213,6 +213,7 @@ describe('OscClient', () => {
   afterEach(() => {
     jest.useRealTimers();
     gatewayManagers.splice(0, gatewayManagers.length);
+    delete process.env.EOS_STRICT_MODE;
   });
 
   it('realise un handshake et selectionne le protocole prefere', async () => {
@@ -1327,6 +1328,27 @@ describe('OscClient', () => {
     expect(received.map((message) => message.address)).toContain('/eos/handshake/reply');
 
     gateway.close?.();
+  });
+
+
+  it('bloque les endpoints non autorises lorsque EOS_STRICT_MODE est actif', async () => {
+    process.env.EOS_STRICT_MODE = 'true';
+    const service = new FakeOscService();
+    const client = new OscClient(service);
+
+    await expect(client.sendMessage('/eos/get/patch/chan_pos')).rejects.toThrow(/EOS_STRICT_MODE bloque/);
+    expect(service.sentMessages).toHaveLength(0);
+  });
+
+  it("continue d'autoriser les commandes officielles lorsque EOS_STRICT_MODE est actif", async () => {
+    process.env.EOS_STRICT_MODE = 'true';
+    const service = new FakeOscService();
+    const client = new OscClient(service);
+
+    await client.sendCommand('Chan 1 At 50');
+
+    expect(service.sentMessages).toHaveLength(1);
+    expect(service.sentMessages[0]?.address).toBe('/eos/cmd');
   });
 
   it('propage le correlationId du contexte vers les envois OSC', async () => {

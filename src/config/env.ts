@@ -23,6 +23,8 @@ const DEFAULT_ALLOWED_TOOL_PROFILE: ToolSafetyProfile = 'read_only';
 
 export const EOS_CONSOLES_ENV = 'EOS_CONSOLES';
 
+export const EOS_STRICT_MODE_ENV = 'EOS_STRICT_MODE';
+
 export const DEFAULT_ALLOWED_TOOL_PROFILE_ENV = 'EOS_MCP_ALLOWED_TOOL_PROFILE';
 
 export function getDefaultAllowedToolProfile(
