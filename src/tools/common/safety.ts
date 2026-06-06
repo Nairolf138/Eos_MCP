@@ -30,12 +30,14 @@ export function isToolSafetyProfileAllowed(
 
 export const safetyOptionsSchema = {
   dry_run: z.boolean().optional(),
+  confirm: z.boolean().optional(),
   require_confirmation: z.boolean().optional(),
   safety_level: safetyLevelSchema.optional()
 } satisfies ZodRawShape;
 
 export interface SafetyOptions {
   dry_run?: boolean;
+  confirm?: boolean;
   require_confirmation?: boolean;
   safety_level?: z.infer<typeof safetyLevelSchema>;
 }
@@ -47,7 +49,7 @@ export function resolveSafetyOptions(options: SafetyOptions): {
 } {
   return {
     dryRun: options.dry_run === true,
-    requireConfirmation: options.require_confirmation === true,
+    requireConfirmation: options.require_confirmation === true || options.confirm === true || options.safety_level !== undefined,
     safetyLevel: options.safety_level ?? 'strict'
   };
 }
@@ -56,7 +58,7 @@ export function assertSensitiveActionAllowed(options: SafetyOptions, action: str
   const safety = resolveSafetyOptions(options);
   if (safety.safetyLevel !== 'off' && !safety.requireConfirmation) {
     throw new Error(
-      `Action sensible bloquee (${action}). Ajoutez require_confirmation=true pour confirmer explicitement.`
+      `Action sensible bloquee (${action}). Ajoutez confirm=true ou require_confirmation=true pour confirmer explicitement (dry_run=true reste recommande pour preparer l'execution).`
     );
   }
 }
@@ -95,9 +97,16 @@ export function isSensitiveCommandText(command: string): boolean {
     /\brecord\b/,
     /\bupdate\b/,
     /\bdelete\b/,
+    /\bpatch\b/,
+    /\bgo\b/,
+    /\bfire\b/,
+    /\bmacro\s+fire\b/,
+    /\bsubmaster\b/,
+    /\bpark\b/,
+    /\baddress\s+\d+.*\b(at|level|full|out)\b/,
+    /\bchan(?:nel)?\s+\d+.*\b(at|level|full|out)\b/,
     /\blabel\b/,
-    /\blive\s+fire\b/,
-    /\bfire\b/
+    /\blive\s+fire\b/
   ];
   return patterns.some((pattern) => pattern.test(normalized));
 }

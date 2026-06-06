@@ -11,6 +11,18 @@ La variable d'environnement `EOS_STRICT_MODE=true|false` active un garde-fou d'e
 
 Le fichier `src/services/osc/officiality.ts` est la source technique de reference pour chaque adresse OSC utilisee par le projet. Chaque entree declare au minimum `address`, `official`, `strictModeAllowed`, `source` et `notes`.
 
+## Politique de confirmation des outils mutateurs
+
+Tout outil MCP capable de declencher ou modifier directement l'etat d'une console Eos est classe comme outil a confirmation obligatoire et publie `requiresConfirmation: true` dans ses annotations d'enregistrement. La classification inclut explicitement :
+
+- les commandes de programmation `record`, `update`, `delete` et `patch`;
+- les declenchements live `go`, `fire` et `macro fire`;
+- les actions de submaster et de park;
+- les reglages directs de niveau d'adresse et de niveau de canal;
+- les commandes texte libres envoyees via `/eos/cmd` ou `/eos/newcmd`, y compris quand elles sont utilisees comme fallback OSC valide.
+
+Pour une execution reelle (`dry_run` absent ou `false`), le registre MCP refuse ces outils si l'appel ne contient pas une confirmation explicite : `confirm: true`, `require_confirmation: true` ou un `safety_level` fourni deliberement par l'integration. `dry_run=true` ne requiert pas cette confirmation et demeure le mode recommande pour les workflows composes : l'assistant doit presenter `structuredContent.commands_preview`, attendre une validation operateur non ambigue, puis relancer le meme appel avec confirmation. Les lectures pures (`get`, `list`, `info`, `capabilities`, `ping`, etc.) restent `read_only` et ne doivent pas modifier l'etat de la console.
+
 ## Classification claire des familles OSC
 
 ### Commandes ETC officielles

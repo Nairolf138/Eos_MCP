@@ -192,7 +192,7 @@ describe('command tools', () => {
   });
 
   it('envoie une commande en respectant le terminateur', async () => {
-    const result = await runTool(eosCommandTool, { command: 'Go To Cue 1', terminateWithEnter: true, user: 2 });
+    const result = await runTool(eosCommandTool, { command: 'Go To Cue 1', terminateWithEnter: true, user: 2, confirm: true });
 
     expect(service.sentMessages).toHaveLength(2);
     expect(service.sentMessages[0]).toMatchObject({
@@ -268,7 +268,8 @@ describe('command tools', () => {
     await runTool(eosNewCommandTool, {
       command: 'Go To Cue %1',
       substitutions: [1],
-      clearLine: false
+      clearLine: false,
+      confirm: true
     });
 
     expect(service.sentMessages).toHaveLength(1);
@@ -279,7 +280,8 @@ describe('command tools', () => {
     await runTool(eosCommandWithSubstitutionTool, {
       template: 'Go To Cue %1/%2',
       values: [1, 2],
-      terminateWithEnter: true
+      terminateWithEnter: true,
+      confirm: true
     });
 
     expect(service.sentMessages).toHaveLength(1);
@@ -348,7 +350,7 @@ describe('command tools', () => {
   it('utilise le numero utilisateur stocke lorsquaucun identifiant nest fourni', async () => {
     setCurrentUserId(6);
 
-    await runTool(eosCommandTool, { command: 'Go', terminateWithEnter: true });
+    await runTool(eosCommandTool, { command: 'Go', terminateWithEnter: true, confirm: true });
 
     expect(service.sentMessages).toHaveLength(2);
     expect(service.sentMessages[0]).toMatchObject({

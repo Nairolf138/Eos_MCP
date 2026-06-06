@@ -771,7 +771,7 @@ describe('workflow tools', () => {
       require_confirmation: true
     });
 
-    expect(service.sentMessages).toHaveLength(4);
+    expect(service.sentMessages).toHaveLength(5);
     const structured = getStructuredContent(result);
     expect(structured?.status).toBe('ok');
     expect(structured?.commandsSent).toEqual([
