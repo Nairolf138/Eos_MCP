@@ -26,6 +26,7 @@ import {
   resolveCompatibilityContext
 } from '../services/osc/compatibilityMatrix';
 import { resolveConsoleTarget, type ConsoleTargetResolution } from '../services/consoleTargets';
+import { resolveAuditMode, writeCommandAudit } from '../services/audit';
 
 const logger = createLogger('tool-registry');
 
@@ -322,6 +323,65 @@ function normalizeConfirmationArgsForTool(args: unknown, inputSchema?: ToolDefin
   return record;
 }
 
+
+function extractOscAuditEntries(result: ToolExecutionResult, args: unknown): Array<{ address: string | null; args: unknown }> {
+  const structured = asObject(result.structuredContent);
+  const osc = asObject(structured.osc);
+  const entries: Array<{ address: string | null; args: unknown }> = [];
+
+  if (typeof osc.address === 'string') {
+    entries.push({ address: osc.address, args: osc.args ?? [] });
+  }
+
+  const previews = Array.isArray(structured.commands_preview) ? structured.commands_preview : [];
+  for (const preview of previews) {
+    if (typeof preview === 'string') {
+      entries.push({ address: '/eos/cmd', args: [{ type: 's', value: preview }] });
+    }
+  }
+
+  if (entries.length === 0) {
+    entries.push({ address: null, args });
+  }
+
+  return entries;
+}
+
+function auditDryRunToolResult(params: {
+  toolName: string;
+  args: unknown;
+  result: ToolExecutionResult;
+  correlationId: string;
+  sessionId?: string;
+  userId?: number;
+  targetConsole: { name?: string; address: string; port: number };
+}): void {
+  const structured = asObject(params.result.structuredContent);
+  if (structured.dry_run !== true) {
+    return;
+  }
+
+  for (const entry of extractOscAuditEntries(params.result, params.args)) {
+    writeCommandAudit({
+      toolName: params.toolName,
+      oscAddress: entry.address,
+      args: entry.args,
+      eosUser: typeof params.userId === 'number' ? params.userId : null,
+      mode: resolveAuditMode(),
+      delivery: 'dry_run',
+      status: 'ok',
+      result: params.result,
+      correlationId: params.correlationId,
+      sessionId: params.sessionId,
+      target: {
+        ...(params.targetConsole.name ? { console: params.targetConsole.name } : {}),
+        address: params.targetConsole.address,
+        port: params.targetConsole.port
+      }
+    });
+  }
+}
+
 function isSensitiveAction(args: unknown): boolean {
   const record = asObject(args);
   if (hasExplicitConfirmation(args)) {
@@ -580,11 +640,22 @@ class ToolRegistry {
         {
           correlationId,
           ...(sessionId ? { sessionId } : {}),
-          ...(typeof userId === 'number' ? { userId } : {})
+          ...(typeof userId === 'number' ? { userId } : {}),
+          toolName
         },
         () => execute(executionArgs)
       );
       const result = addConsoleTargetToResult(executionResult, targetResolution);
+
+      auditDryRunToolResult({
+        toolName,
+        args,
+        result,
+        correlationId,
+        sessionId,
+        userId,
+        targetConsole
+      });
 
       logger.info({
         event: 'tool_execution_audit',
@@ -607,6 +678,26 @@ class ToolRegistry {
 
       return result;
     } catch (error) {
+      if (asObject(args).dry_run === true) {
+        writeCommandAudit({
+          toolName,
+          oscAddress: null,
+          args,
+          eosUser: typeof userId === 'number' ? userId : null,
+          mode: resolveAuditMode(),
+          delivery: 'dry_run',
+          status: 'error',
+          error: error instanceof Error ? { name: error.name, message: error.message } : error,
+          correlationId,
+          sessionId,
+          target: {
+            ...(targetConsole.name ? { console: targetConsole.name } : {}),
+            address: targetConsole.address,
+            port: targetConsole.port
+          }
+        });
+      }
+
       logger.warn({
         event: 'tool_execution_audit',
         toolName,

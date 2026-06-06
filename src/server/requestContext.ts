@@ -8,6 +8,7 @@ export interface RequestContext {
   correlationId: string;
   sessionId?: string;
   userId?: number;
+  toolName?: string;
 }
 
 const requestContextStorage = new AsyncLocalStorage<RequestContext>();

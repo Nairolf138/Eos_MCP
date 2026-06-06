@@ -6,6 +6,7 @@ import { resolve } from 'node:path';
 import { z } from 'zod';
 
 const DEFAULT_LOG_FILE = 'logs/mcp-server.log';
+const DEFAULT_AUDIT_LOG_FILE = 'logs/audit.log';
 const DEFAULT_LOG_DESTINATIONS = ['file'] as const;
 const DEFAULT_OSC_REMOTE_ADDRESS = '127.0.0.1';
 const DEFAULT_OSC_LOCAL_ADDRESS = '0.0.0.0';
@@ -120,6 +121,11 @@ export interface HttpGatewayConfig {
   readonly security: HttpGatewaySecurityConfig;
 }
 
+export interface AuditConfig {
+  readonly enabled: boolean;
+  readonly logFile: string;
+}
+
 export interface CacheConfig {
   readonly defaultTtlMs: number;
   readonly resourceTtls: {
@@ -140,6 +146,7 @@ export interface AppConfig {
   readonly mcp: McpConfig;
   readonly osc: OscConfig;
   readonly logging: LoggingConfig;
+  readonly audit: AuditConfig;
   readonly httpGateway: HttpGatewayConfig;
   readonly cache: CacheConfig;
 }
@@ -549,6 +556,8 @@ const configSchema = z
     logTransportTarget: createTransportTargetSchema('LOG_TRANSPORT_TARGET'),
     logTransportOptions: createTransportOptionsSchema('LOG_TRANSPORT_OPTIONS'),
     logPretty: createOptionalBooleanSchema('LOG_PRETTY'),
+    auditEnabled: createBooleanSchema('EOS_AUDIT_ENABLED', false),
+    auditLogFile: createLogFileSchema('EOS_AUDIT_LOG_FILE', DEFAULT_AUDIT_LOG_FILE),
     httpApiKeys: createStringArraySchema('MCP_HTTP_API_KEYS', { defaultValue: [] }),
     httpMcpTokens: createStringArraySchema('MCP_HTTP_MCP_TOKENS', {
       defaultValue: [DEFAULT_HTTP_MCP_TOKEN]
@@ -650,6 +659,10 @@ const configSchema = z
         format: prettyEnabled ? 'pretty' : 'json',
         destinations
       },
+      audit: {
+        enabled: values.auditEnabled,
+        logFile: values.auditLogFile
+      },
       httpGateway: {
         publicUrl: values.httpPublicUrl,
         trustProxy: values.httpTrustProxy ?? false,
@@ -704,6 +717,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     logTransportTarget: env.LOG_TRANSPORT_TARGET,
     logTransportOptions: env.LOG_TRANSPORT_OPTIONS,
     logPretty: env.LOG_PRETTY,
+    auditEnabled: env.EOS_AUDIT_ENABLED,
+    auditLogFile: env.EOS_AUDIT_LOG_FILE,
     httpApiKeys: env.MCP_HTTP_API_KEYS,
     httpMcpTokens: env.MCP_HTTP_MCP_TOKENS,
     httpIpAllowlist: env.MCP_HTTP_IP_ALLOWLIST,
