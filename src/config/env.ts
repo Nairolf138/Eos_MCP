@@ -27,6 +27,8 @@ export const EOS_STRICT_MODE_ENV = 'EOS_STRICT_MODE';
 
 export const DEFAULT_ALLOWED_TOOL_PROFILE_ENV = 'EOS_MCP_ALLOWED_TOOL_PROFILE';
 
+export const EOS_READ_ONLY_ENV = 'EOS_READ_ONLY';
+
 export function getDefaultAllowedToolProfile(
   env: NodeJS.ProcessEnv = process.env
 ): ToolSafetyProfile {
@@ -43,4 +45,22 @@ export function getDefaultAllowedToolProfile(
   }
 
   return parsed.data;
+}
+
+
+export function isEosReadOnlyModeEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  const raw = env[EOS_READ_ONLY_ENV];
+  if (raw === undefined || raw === null || raw.trim().length === 0) {
+    return false;
+  }
+
+  const normalized = raw.trim().toLowerCase();
+  if (['true', '1', 'yes'].includes(normalized)) {
+    return true;
+  }
+  if (['false', '0', 'no'].includes(normalized)) {
+    return false;
+  }
+
+  throw new Error(`Configuration invalide: ${EOS_READ_ONLY_ENV} doit être un booléen (true/false).`);
 }

@@ -55,9 +55,20 @@ const createMockServer = (): McpServer & {
 };
 
 describe('ToolRegistry schema-less tools', () => {
+  const originalReadOnly = process.env.EOS_READ_ONLY;
+
   beforeEach(() => {
     mockLogger.info.mockClear();
     mockLogger.warn.mockClear();
+    delete process.env.EOS_READ_ONLY;
+  });
+
+  afterEach(() => {
+    if (originalReadOnly === undefined) {
+      delete process.env.EOS_READ_ONLY;
+    } else {
+      process.env.EOS_READ_ONLY = originalReadOnly;
+    }
   });
 
   it('invokes handlers with undefined args while preserving extra', async () => {
@@ -292,6 +303,66 @@ describe('ToolRegistry schema-less tools', () => {
     );
     expect(registry.getRegisteredSummaries()[0]?.config.metadata).toMatchObject({
       requiredRole: 'admin'
+    });
+  });
+
+
+
+  it('refuse les outils dangereux en mode EOS_READ_ONLY meme avec un role admin confirme', async () => {
+    process.env.EOS_READ_ONLY = 'true';
+    const server = createMockServer();
+    const registry = new ToolRegistry(server);
+    const handler = jest.fn(async () => ({ content: [{ type: 'text', text: 'ok' }] }));
+
+    registry.register({
+      name: 'eos_new_command',
+      config: { inputSchema: { command: z.string(), confirm: z.boolean().optional() } },
+      metadata: { readOnly: false, riskLevel: 'high', requiresConfirmation: true },
+      handler
+    });
+
+    const [, , registeredHandler] = server.registerTool.mock.calls[0];
+
+    await expect(
+      (registeredHandler as RegisteredTestHandler)(
+        { command: 'Record Cue 1', confirm: true },
+        { requestId: 'read-only-denied', granted_role: 'admin' }
+      )
+    ).rejects.toThrow('EOS_READ_ONLY=true');
+
+    expect(handler).not.toHaveBeenCalled();
+    const [payload] = mockLogger.warn.mock.calls[0] as [Record<string, unknown>];
+    expect(payload).toMatchObject({
+      status: 'error',
+      read_only_mode: true,
+      tool_read_only: false
+    });
+  });
+
+  it('autorise les outils de diagnostic en mode EOS_READ_ONLY', async () => {
+    process.env.EOS_READ_ONLY = 'true';
+    const server = createMockServer();
+    const registry = new ToolRegistry(server);
+    const handler = jest.fn(async () => ({ content: [{ type: 'text', text: 'diagnostic ok' }] }));
+
+    registry.register({
+      name: 'eos_ping',
+      config: {},
+      metadata: { readOnly: true, riskLevel: 'low', requiresConfirmation: false },
+      handler
+    });
+
+    const [, , registeredHandler] = server.registerTool.mock.calls[0];
+    await expect(
+      (registeredHandler as RegisteredTestHandler)({ requestId: 'read-only-allowed' })
+    ).resolves.toBeDefined();
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    const [payload] = mockLogger.info.mock.calls[0] as [Record<string, unknown>];
+    expect(payload).toMatchObject({
+      status: 'ok',
+      read_only_mode: true,
+      tool_read_only: true
     });
   });
 

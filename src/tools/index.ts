@@ -38,6 +38,7 @@ import sessionTools from './session/index';
 import programmingTools from './programming/index';
 import workflowTools from './workflows/index';
 import { buildOscToolStrictModePolicy } from '../services/osc/messageBuilders';
+import { classifyToolMetadata } from './common/classification';
 import type { ToolDefinition } from './types';
 
 const rawDefinitions = [
@@ -91,13 +92,23 @@ function collectOscAddresses(value: unknown): string[] {
   return [];
 }
 
-function withStrictOscPolicy(tool: ToolDefinition): ToolDefinition {
+function withCatalogMetadata(tool: ToolDefinition): ToolDefinition {
+  const classification = classifyToolMetadata(tool);
   const mapping = tool.config.annotations?.mapping as { osc?: unknown } | undefined;
-  const requiresConfirmation = tool.metadata?.requiresConfirmation === true;
+  const requiresConfirmation = classification.requiresConfirmation;
   const policy = buildOscToolStrictModePolicy({
     oscAddresses: collectOscAddresses(mapping?.osc),
     requiresConfirmation
   });
+  const metadata = {
+    ...(tool.metadata ?? {}),
+    ...classification,
+    nativeOscPreferred: policy.nativeOscPreferred,
+    cmdFallbackAllowed: policy.cmdFallbackAllowed,
+    requiresConfirmation: policy.requiresConfirmation,
+    strictModeBehavior: policy.strictModeBehavior
+  };
+  const { annotations: metadataAnnotations, ...annotationMetadata } = metadata;
 
   return {
     ...tool,
@@ -105,24 +116,16 @@ function withStrictOscPolicy(tool: ToolDefinition): ToolDefinition {
       ...tool.config,
       annotations: {
         ...(tool.config.annotations ?? {}),
-        nativeOscPreferred: policy.nativeOscPreferred,
-        cmdFallbackAllowed: policy.cmdFallbackAllowed,
-        requiresConfirmation: policy.requiresConfirmation,
-        strictModeBehavior: policy.strictModeBehavior,
+        ...(metadataAnnotations ?? {}),
+        ...annotationMetadata,
         oscStrictModePolicy: policy
       }
     },
-    metadata: {
-      ...(tool.metadata ?? {}),
-      nativeOscPreferred: policy.nativeOscPreferred,
-      cmdFallbackAllowed: policy.cmdFallbackAllowed,
-      requiresConfirmation: policy.requiresConfirmation,
-      strictModeBehavior: policy.strictModeBehavior
-    }
+    metadata
   };
 }
 
-const definitions = rawDefinitions.map((tool) => withStrictOscPolicy(tool as ToolDefinition));
+const definitions = rawDefinitions.map((tool) => withCatalogMetadata(tool as ToolDefinition));
 
 export const toolDefinitions = definitions as ToolDefinition[];
 

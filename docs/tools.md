@@ -503,6 +503,7 @@ oscsend 127.0.0.1 8001 /eos/bp/fire s:'{"palette_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :** Aucun argument.
@@ -530,6 +531,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -568,7 +570,8 @@ oscsend 127.0.0.1 8001 /eos/get/channels s:'{"channels":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `medium` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -605,7 +608,8 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Chan 1'
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `medium` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -642,7 +646,8 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Chan 1 At 1 DMX'
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -680,7 +685,8 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Chan 1 Sneak 1'
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `medium` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -863,6 +869,7 @@ oscsend 127.0.0.1 8001 /eos/cmd s:'{"template":"exemple"}'
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -897,6 +904,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -934,6 +942,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :** Aucun argument.
@@ -1100,7 +1109,8 @@ oscsend 127.0.0.1 8001 /eos/cue/{cuelist}/go s:'{"cuelist_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -1183,7 +1193,8 @@ oscsend 127.0.0.1 8001 /eos/get/cuelist s:'{"cuelist_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -1312,7 +1323,8 @@ oscsend 127.0.0.1 8001 /eos/cmd s:'Cue 1 Stop#'
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -1487,6 +1499,7 @@ oscsend 127.0.0.1 8001 /eos/get/cuelist/info s:'{"cuelist_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -1525,6 +1538,7 @@ oscsend 127.0.0.1 8001 /eos/get/curve s:'{"curve_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -1561,7 +1575,8 @@ oscsend 127.0.0.1 8001 /eos/curve/select s:'{"curve_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `medium` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -1601,7 +1616,8 @@ oscsend 127.0.0.1 8001 /eos/ds/{index}/config/{target}/{buttons}/{flexi}/{page} 
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `medium` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -1638,7 +1654,8 @@ oscsend 127.0.0.1 8001 /eos/ds/{index}/page/1 s:'{"bank_index":1,"delta":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -1676,6 +1693,7 @@ oscsend 127.0.0.1 8001 /eos/ds/{index}/button/{page}/{button} f 1
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -1714,7 +1732,8 @@ oscsend 127.0.0.1 8001 /eos/get/effect s:'{"effect_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `medium` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -1750,7 +1769,8 @@ oscsend 127.0.0.1 8001 /eos/cmd s:'{"effect_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `medium` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -1786,6 +1806,7 @@ oscsend 127.0.0.1 8001 /eos/cmd s:'{"effect_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -1818,7 +1839,8 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `medium` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -1856,7 +1878,8 @@ oscsend 127.0.0.1 8001 /eos/fader/{index}/config/{faders}/{page} s:'{"bank_index
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -1893,7 +1916,8 @@ oscsend 127.0.0.1 8001 /eos/fader/{bank}/{page}/{fader}/load s:'{"bank_index":1,
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `medium` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -1930,7 +1954,8 @@ oscsend 127.0.0.1 8001 /eos/fader/{index}/page/1 s:'{"bank_index":1,"delta":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -1968,7 +1993,8 @@ oscsend 127.0.0.1 8001 /eos/fader/{bank}/{page}/{fader} s:'{"bank_index":1,"fade
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -2005,6 +2031,7 @@ oscsend 127.0.0.1 8001 /eos/fader/{bank}/{page}/{fader}/unload s:'{"bank_index":
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -2085,6 +2112,7 @@ oscsend 127.0.0.1 8001 /eos/fp/fire s:'{"palette_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -2123,6 +2151,7 @@ oscsend 127.0.0.1 8001 /eos/get/fpe/point s:'{"set_number":1,"point_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -2159,6 +2188,7 @@ oscsend 127.0.0.1 8001 /eos/get/fpe/set/count s:'{"timeoutMs":1}'
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -2240,6 +2270,7 @@ oscsend 127.0.0.1 8001 /eos/get/active/cue s:'{"cuelist_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -2323,6 +2354,7 @@ oscsend 127.0.0.1 8001 /eos/get/cmd_line s:'{"user":1}'
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -2357,6 +2389,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :** Aucun argument.
@@ -2384,6 +2417,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -2502,6 +2536,7 @@ oscsend 127.0.0.1 8001 /eos/get/pending/cue s:'{"cuelist_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -2662,6 +2697,7 @@ oscsend 127.0.0.1 8001 /eos/get/cmd_line s:'{"user":1}'
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -2695,6 +2731,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -2732,6 +2769,7 @@ oscsend 127.0.0.1 8001 /eos/get/group s:'{"group_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -2768,7 +2806,8 @@ oscsend 127.0.0.1 8001 /eos/get/group/list s:'{"timeoutMs":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `medium` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -2804,7 +2843,8 @@ oscsend 127.0.0.1 8001 /eos/group s:'{"group_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -3052,6 +3092,7 @@ oscsend 127.0.0.1 8001 /eos/macro s:'{"macro_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -3089,6 +3130,7 @@ oscsend 127.0.0.1 8001 /eos/get/magic_sheet s:'{"ms_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -3126,6 +3168,7 @@ oscsend 127.0.0.1 8001 /eos/ms s:'{"ms_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -3259,7 +3302,8 @@ oscsend 127.0.0.1 8001 /eos/get/palette s:'{"palette_type":"ip","palette_number"
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -3298,7 +3342,8 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'IP 1 Label "exemple"#'
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -3474,7 +3519,8 @@ oscsend 127.0.0.1 8001 /eos/get/patch/chan_info s:'{"channel_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -3515,6 +3561,7 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Patch Chan 1 Part 1 Address 1 Type "exempl
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -3553,6 +3600,7 @@ oscsend 127.0.0.1 8001 /eos/ping s:'{"message":"exemple"}'
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -3590,6 +3638,7 @@ oscsend 127.0.0.1 8001 /eos/get/pixmap s:'{"pixmap_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -3791,7 +3840,8 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -3826,7 +3876,8 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `medium` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -3863,7 +3914,8 @@ oscsend 127.0.0.1 8001 /eos/param/color/hs s:'{"hue":1,"saturation":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `medium` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -3981,7 +4033,8 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'{"format_string":"exemple"}'
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `medium` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -4018,7 +4071,8 @@ oscsend 127.0.0.1 8001 /eos/addr/{address}/DMX s:'{"addresses":1,"value":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `medium` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -4055,7 +4109,8 @@ oscsend 127.0.0.1 8001 /eos/param/position/xy s:'{"x":1,"y":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `medium` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -4095,7 +4150,8 @@ oscsend 127.0.0.1 8001 /eos/user i:1
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `medium` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -4379,6 +4435,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -4417,7 +4474,8 @@ oscsend 127.0.0.1 8001 /eos/get/snapshot s:'{"snapshot_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -4498,7 +4556,8 @@ oscsend 127.0.0.1 8001 /eos/softkey/1 s:'{"softkey_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -4535,6 +4594,7 @@ oscsend 127.0.0.1 8001 /eos/sub/1/bump f 1
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -4572,7 +4632,8 @@ oscsend 127.0.0.1 8001 /eos/get/submaster s:'{"submaster_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -4609,6 +4670,7 @@ oscsend 127.0.0.1 8001 /eos/sub/1 f 1
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -4646,7 +4708,8 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -4722,7 +4785,8 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'{"targetAddress":"exemple"}'
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -4760,7 +4824,8 @@ oscsend 127.0.0.1 8001 /eos/param/wheel/tick s:'{"parameter_name":"exemple","tic
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -4802,7 +4867,8 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -4841,7 +4907,8 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -4880,7 +4947,8 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -4922,7 +4990,8 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -4965,7 +5034,8 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -5014,7 +5084,8 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -5056,7 +5127,8 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -5099,7 +5171,8 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Confirmation requise | Non |
+| Niveau de risque | `high` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -5141,6 +5214,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -5172,6 +5246,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -5206,6 +5281,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -5240,6 +5316,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :** Aucun argument.
@@ -5267,6 +5344,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -5303,6 +5381,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
+| Niveau de risque | `low` |
 | Confirmation requise | Non |
 
 **Arguments :**

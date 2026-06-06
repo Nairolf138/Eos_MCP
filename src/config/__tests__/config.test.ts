@@ -13,8 +13,10 @@ import {
 } from '../../config/index';
 import {
   DEFAULT_ALLOWED_TOOL_PROFILE_ENV,
+  EOS_READ_ONLY_ENV,
   getDefaultAllowedToolProfile,
-  initialiseEnv
+  initialiseEnv,
+  isEosReadOnlyModeEnabled
 } from '../env';
 
 describe('tool safety profile environment', () => {
@@ -32,6 +34,22 @@ describe('tool safety profile environment', () => {
     expect(() =>
       getDefaultAllowedToolProfile({ [DEFAULT_ALLOWED_TOOL_PROFILE_ENV]: 'operator' } as NodeJS.ProcessEnv)
     ).toThrow(DEFAULT_ALLOWED_TOOL_PROFILE_ENV);
+  });
+});
+
+
+
+describe('EOS_READ_ONLY environment', () => {
+  it('desactive le mode lecture seule par defaut', () => {
+    expect(isEosReadOnlyModeEnabled({} as NodeJS.ProcessEnv)).toBe(false);
+  });
+
+  it('active le mode lecture seule depuis EOS_READ_ONLY=true', () => {
+    expect(isEosReadOnlyModeEnabled({ [EOS_READ_ONLY_ENV]: 'true' } as NodeJS.ProcessEnv)).toBe(true);
+  });
+
+  it('rejette une valeur EOS_READ_ONLY invalide', () => {
+    expect(() => isEosReadOnlyModeEnabled({ [EOS_READ_ONLY_ENV]: 'maybe' } as NodeJS.ProcessEnv)).toThrow(EOS_READ_ONLY_ENV);
   });
 });
 
@@ -82,6 +100,9 @@ describe('configuration', () => {
           rateLimit: { windowMs: 60000, max: 60 }
         }
       },
+      runtime: {
+        readOnly: false
+      },
       cache: {
         defaultTtlMs: 1500,
         resourceTtls: {
@@ -130,7 +151,8 @@ describe('configuration', () => {
       CACHE_TTL_FIXTURES_MS: '600000',
       CACHE_TTL_SESSION_MS: '900000',
       EOS_AUDIT_ENABLED: 'true',
-      EOS_AUDIT_LOG_FILE: 'var/log/eos-audit.jsonl'
+      EOS_AUDIT_LOG_FILE: 'var/log/eos-audit.jsonl',
+      EOS_READ_ONLY: 'true'
     };
 
     const config = loadConfig(env);
@@ -166,6 +188,9 @@ describe('configuration', () => {
     });
     expect(config.httpGateway.publicUrl).toBe('https://public.example/mcp');
     expect(config.httpGateway.trustProxy).toBe(true);
+    expect(config.runtime).toEqual({
+      readOnly: true
+    });
     expect(config.cache).toEqual({
       defaultTtlMs: 2500,
       resourceTtls: {

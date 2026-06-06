@@ -7,12 +7,13 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { createLogger } from './logger';
 import { runWithRequestContext } from './requestContext';
-import { getDefaultAllowedToolProfile } from '../config/env';
+import { getDefaultAllowedToolProfile, isEosReadOnlyModeEnabled } from '../config/env';
 import {
   isToolSafetyProfileAllowed,
   toolSafetyProfileSchema,
   type ToolSafetyProfile
 } from '../tools/common/safety';
+import { classifyToolMetadata, resolveToolRequiredRole } from '../tools/common/classification';
 import type {
   ToolDefinition,
   ToolExecutionResult,
@@ -200,67 +201,9 @@ function resolveSafetyMode(args: unknown): 'strict' | 'standard' | 'off' {
 }
 
 
-const DEFAULT_TOOL_ROLE: ToolSafetyProfile = 'read_only';
-
-const EXACT_TOOL_ROLES: Readonly<Record<string, ToolSafetyProfile>> = {
-  eos_command: 'admin',
-  eos_new_command: 'admin',
-  eos_command_with_substitution: 'admin',
-  eos_cue_record: 'admin',
-  eos_cue_update: 'admin',
-  eos_cue_label_set: 'admin',
-  eos_cue_fire: 'live_playback',
-  eos_cue_go: 'live_playback',
-  eos_cue_stop_back: 'live_playback',
-  eos_patch_set_channel: 'admin',
-  eos_macro_fire: 'admin',
-  eos_macro_select: 'admin',
-  eos_snapshot_recall: 'admin',
-  eos_connect: 'read_only',
-  eos_configure: 'read_only',
-  eos_reset: 'admin',
-  eos_showfile_import: 'admin',
-  eos_set_cue_receive_string: 'admin',
-  eos_set_cue_send_string: 'admin'
-};
-
-const ROLE_PATTERNS: Array<{ pattern: RegExp; role: ToolSafetyProfile }> = [
-  { pattern: /^eos_workflow_/, role: 'admin' },
-  { pattern: /^eos_patch_.*(?:set|write|update|record|delete)/, role: 'admin' },
-  { pattern: /^eos_.*(?:record|update|delete|label_set)/, role: 'admin' },
-  { pattern: /^eos_.*(?:fire|go|stop_back|bump|set_level|load|unload|press|tick|continuous)/, role: 'live_playback' },
-  { pattern: /^eos_(?:channel|group|address|set_|palette|preset|effect|direct_select|fader|submaster)/, role: 'programming' }
-];
-
-const READ_ONLY_TOOL_PATTERNS = [
-  /^eos_.*(?:get|list|info|labels|name|state|active|pending|capabilities|ping)/,
-  /^eos_patch_get_/,
-  /^eos_get_/,
-  /^eos_readiness_check$/
-];
-
 const CONFIRMATION_ARGUMENT_KEYS = ['confirm', 'require_confirmation', 'safety_level'] as const;
 
 type ConfirmationState = 'confirmed' | 'missing' | 'not_required';
-
-function resolveToolRequiredRole(tool: ToolDefinition): ToolSafetyProfile {
-  const metadataRole = tool.metadata?.requiredRole;
-  if (metadataRole) {
-    return metadataRole;
-  }
-
-  const exactRole = EXACT_TOOL_ROLES[tool.name];
-  if (exactRole) {
-    return exactRole;
-  }
-
-  if (READ_ONLY_TOOL_PATTERNS.some((pattern) => pattern.test(tool.name))) {
-    return 'read_only';
-  }
-
-  const matched = ROLE_PATTERNS.find(({ pattern }) => pattern.test(tool.name));
-  return matched?.role ?? DEFAULT_TOOL_ROLE;
-}
 
 function resolveGrantedToolRole(extra: unknown): ToolSafetyProfile {
   const record = asObject(extra);
@@ -433,13 +376,12 @@ interface RegisteredToolSummary {
 
 
 function buildToolConfigForRegistration(tool: ToolDefinition): ToolDefinition['config'] {
-  const requiredRole = resolveToolRequiredRole(tool);
-  const requiresConfirmation = tool.metadata?.requiresConfirmation === true || requiredRole !== 'read_only';
+  const classification = classifyToolMetadata(tool);
+  const requiresConfirmation = classification.requiresConfirmation;
   const baseConfig = withConfirmationInputSchema(withGlobalConsoleTargetInputSchema(tool), requiresConfirmation);
   const metadata = {
     ...(tool.metadata ?? {}),
-    requiredRole,
-    requiresConfirmation
+    ...classification
   };
   const { annotations: metadataAnnotations, ...metadataFields } = metadata;
   return {
@@ -476,14 +418,13 @@ class ToolRegistry {
     }) as never;
 
     const config = buildToolConfigForRegistration(tool);
-    const requiredRole = resolveToolRequiredRole(tool);
+    const classification = classifyToolMetadata(tool);
     const registeredTool = {
       ...tool,
       config,
       metadata: {
         ...(tool.metadata ?? {}),
-        requiredRole,
-        requiresConfirmation: tool.metadata?.requiresConfirmation === true || requiredRole !== 'read_only'
+        ...classification
       }
     };
 
@@ -617,6 +558,15 @@ class ToolRegistry {
     const compatibilityStatus = evaluateToolCompatibility(toolName, compatibilityContext);
 
     try {
+      const classification = classifyToolMetadata(tool);
+      const readOnlyMode = isEosReadOnlyModeEnabled();
+
+      if (readOnlyMode && !classification.readOnly) {
+        throw new Error(
+          `Outil ${toolName} refuse: EOS_READ_ONLY=true autorise uniquement les outils de lecture ou de diagnostic.`
+        );
+      }
+
       if (!isToolSafetyProfileAllowed(grantedRole, requiredRole)) {
         throw new Error(
           `Outil ${toolName} refuse: profil requis ${requiredRole}, profil accorde ${grantedRole}.`
@@ -671,6 +621,8 @@ class ToolRegistry {
         required_role: requiredRole,
         granted_role: grantedRole,
         confirmation_state: confirmationState,
+        read_only_mode: isEosReadOnlyModeEnabled(),
+        tool_read_only: classifyToolMetadata(tool).readOnly,
         compatibility: compatibilityStatus,
         durationMs: Date.now() - startedAt,
         status: 'ok'
@@ -712,6 +664,8 @@ class ToolRegistry {
         required_role: requiredRole,
         granted_role: grantedRole,
         confirmation_state: confirmationState,
+        read_only_mode: isEosReadOnlyModeEnabled(),
+        tool_read_only: classifyToolMetadata(tool).readOnly,
         compatibility: compatibilityStatus,
         durationMs: Date.now() - startedAt,
         status: 'error'

@@ -126,6 +126,10 @@ export interface AuditConfig {
   readonly logFile: string;
 }
 
+export interface RuntimeConfig {
+  readonly readOnly: boolean;
+}
+
 export interface CacheConfig {
   readonly defaultTtlMs: number;
   readonly resourceTtls: {
@@ -149,6 +153,7 @@ export interface AppConfig {
   readonly audit: AuditConfig;
   readonly httpGateway: HttpGatewayConfig;
   readonly cache: CacheConfig;
+  readonly runtime: RuntimeConfig;
 }
 
 interface PortSchemaOptions {
@@ -558,6 +563,7 @@ const configSchema = z
     logPretty: createOptionalBooleanSchema('LOG_PRETTY'),
     auditEnabled: createBooleanSchema('EOS_AUDIT_ENABLED', false),
     auditLogFile: createLogFileSchema('EOS_AUDIT_LOG_FILE', DEFAULT_AUDIT_LOG_FILE),
+    eosReadOnly: createBooleanSchema('EOS_READ_ONLY', false),
     httpApiKeys: createStringArraySchema('MCP_HTTP_API_KEYS', { defaultValue: [] }),
     httpMcpTokens: createStringArraySchema('MCP_HTTP_MCP_TOKENS', {
       defaultValue: [DEFAULT_HTTP_MCP_TOKEN]
@@ -677,6 +683,9 @@ const configSchema = z
           }
         }
       },
+      runtime: {
+        readOnly: values.eosReadOnly
+      },
       cache: {
         defaultTtlMs: values.cacheDefaultTtlMs,
         resourceTtls: {
@@ -719,6 +728,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     logPretty: env.LOG_PRETTY,
     auditEnabled: env.EOS_AUDIT_ENABLED,
     auditLogFile: env.EOS_AUDIT_LOG_FILE,
+    eosReadOnly: env.EOS_READ_ONLY,
     httpApiKeys: env.MCP_HTTP_API_KEYS,
     httpMcpTokens: env.MCP_HTTP_MCP_TOKENS,
     httpIpAllowlist: env.MCP_HTTP_IP_ALLOWLIST,
