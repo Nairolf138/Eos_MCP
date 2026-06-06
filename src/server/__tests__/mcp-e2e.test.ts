@@ -518,7 +518,8 @@ describe('MCP HTTP e2e with a minimal EOS OSC simulator', () => {
 
     const go = await callTool(sessionId, 'eos_cue_go', {
       cuelist_number: 1,
-      cue_number: 1
+      cue_number: 1,
+      confirm: true
     }, adminToolMetadata);
     expect(go.structuredContent).toMatchObject({ action: 'cue_go' });
     expect(simulator.received.some((message) => thisIsCommand(message, 'Cue 1 CueList 1 Go'))).toBe(true);
@@ -534,7 +535,8 @@ describe('MCP HTTP e2e with a minimal EOS OSC simulator', () => {
     expect(simulator.received.some((message) => thisIsCommand(message, 'Patch Chan 101 Part 1 Address 1/101'))).toBe(true);
 
     const dmxRead = await callTool(sessionId, 'eos_address_select', {
-      address_number: '1/101'
+      address_number: '1/101',
+      confirm: true
     }, adminToolMetadata);
     expect(dmxRead.structuredContent).toMatchObject({
       status: 'ok',
@@ -542,7 +544,7 @@ describe('MCP HTTP e2e with a minimal EOS OSC simulator', () => {
       osc: expect.objectContaining({ address: oscMappings.dmx.addressSelect })
     });
 
-    const macro = await callTool(sessionId, 'eos_macro_fire', { macro_number: 7 }, adminToolMetadata);
+    const macro = await callTool(sessionId, 'eos_macro_fire', { macro_number: 7, confirm: true }, adminToolMetadata);
     expect(macro.structuredContent).toMatchObject({ action: 'macro_fire', macro_number: 7 });
     expect(simulator.count(oscMappings.macros.fire)).toBeGreaterThanOrEqual(1);
 

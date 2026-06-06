@@ -335,7 +335,7 @@ Catégories documentées : `commands`, `cues`, `diagnostics`, `dmx`, `keys`, `ma
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
-| `address_number` | string \| number | Oui | Adresse DMX au format 'univers/adresse' ou numero absolu. |
+| `address_number` | number \| string | Oui | Adresse DMX au format 'univers/adresse' ou numero absolu. |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
@@ -346,14 +346,14 @@ Catégories documentées : `commands`, `cues`, `diagnostics`, `dmx`, `keys`, `ma
 _CLI_
 
 ```bash
-npx @modelcontextprotocol/cli call --tool eos_address_select --args '{"address_number":"exemple"}'
+npx @modelcontextprotocol/cli call --tool eos_address_select --args '{"address_number":1}'
 ```
 
 _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/addr s:'{"address_number":"exemple"}'
+oscsend 127.0.0.1 8001 /eos/addr s:'{"address_number":1}'
 ```
 
 <a id="eos-address-set-dmx"></a>
@@ -375,8 +375,8 @@ oscsend 127.0.0.1 8001 /eos/addr s:'{"address_number":"exemple"}'
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
-| `address_number` | string \| number | Oui | Adresse DMX au format 'univers/adresse' ou numero absolu. |
-| `dmx_value` | number \| string | Oui | — |
+| `address_number` | number \| string | Oui | Adresse DMX au format 'univers/adresse' ou numero absolu. |
+| `dmx_value` | number \| enum(full, Full, FULL, out, Out, OUT) \| string | Oui | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
@@ -387,14 +387,14 @@ oscsend 127.0.0.1 8001 /eos/addr s:'{"address_number":"exemple"}'
 _CLI_
 
 ```bash
-npx @modelcontextprotocol/cli call --tool eos_address_set_dmx --args '{"address_number":"exemple","dmx_value":1}'
+npx @modelcontextprotocol/cli call --tool eos_address_set_dmx --args '{"address_number":1,"dmx_value":1}'
 ```
 
 _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/addr/{address}/DMX s:'{"address_number":"exemple","dmx_value":1}'
+oscsend 127.0.0.1 8001 /eos/addr/{address}/DMX s:'{"address_number":1,"dmx_value":1}'
 ```
 
 <a id="eos-address-set-level"></a>
@@ -416,8 +416,8 @@ oscsend 127.0.0.1 8001 /eos/addr/{address}/DMX s:'{"address_number":"exemple","d
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
-| `address_number` | string \| number | Oui | Adresse DMX au format 'univers/adresse' ou numero absolu. |
-| `level` | number \| string | Oui | — |
+| `address_number` | number \| string | Oui | Adresse DMX au format 'univers/adresse' ou numero absolu. |
+| `level` | number \| enum(full, Full, FULL, out, Out, OUT) \| string | Oui | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
@@ -428,14 +428,14 @@ oscsend 127.0.0.1 8001 /eos/addr/{address}/DMX s:'{"address_number":"exemple","d
 _CLI_
 
 ```bash
-npx @modelcontextprotocol/cli call --tool eos_address_set_level --args '{"address_number":"exemple","level":1}'
+npx @modelcontextprotocol/cli call --tool eos_address_set_level --args '{"address_number":1,"level":1}'
 ```
 
 _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/addr/{address} s:'{"address_number":"exemple","level":1}'
+oscsend 127.0.0.1 8001 /eos/addr/{address} s:'{"address_number":1,"level":1}'
 ```
 
 <a id="eos-beam-palette-fire"></a>
@@ -457,6 +457,7 @@ oscsend 127.0.0.1 8001 /eos/addr/{address} s:'{"address_number":"exemple","level
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
+| `confirm` | boolean | Non | — |
 | `dry_run` | boolean | Non | — |
 | `palette_number` | number | Oui | Numero de palette (1-99999) |
 | `require_confirmation` | boolean | Non | — |
@@ -601,7 +602,7 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Chan 1'
 | `channels` | number \| array<number> \| string | Oui | Un numero de canal ou une liste de canaux |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
-| `value` | number \| string | Oui | — |
+| `value` | number \| enum(full, Full, FULL, out, Out, OUT) \| string | Oui | — |
 
 **Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
 
@@ -636,7 +637,7 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Chan 1 At 1 DMX'
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
 | `channels` | number \| array<number> \| string | Oui | Un numero de canal ou une liste de canaux |
-| `level` | number \| string | Oui | — |
+| `level` | number \| enum(full, Full, FULL, out, Out, OUT) \| string | Oui | — |
 | `snap` | boolean | Non | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
@@ -715,6 +716,7 @@ oscsend 127.0.0.1 8001 /eos/chan/1/param/exemple f:1
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
+| `confirm` | boolean | Non | — |
 | `dry_run` | boolean | Non | — |
 | `palette_number` | number | Oui | Numero de palette (1-99999) |
 | `require_confirmation` | boolean | Non | — |
@@ -759,6 +761,7 @@ oscsend 127.0.0.1 8001 /eos/cp/fire s:'{"palette_number":1}'
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
 | `command` | string | Oui | — |
+| `confirm` | boolean | Non | — |
 | `dry_run` | boolean | Non | — |
 | `require_confirmation` | boolean | Non | — |
 | `safety_level` | enum(strict, standard, off) | Non | — |
@@ -805,6 +808,7 @@ oscsend 127.0.0.1 8001 /eos/cmd s:'{"command":"exemple"}'
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
+| `confirm` | boolean | Non | — |
 | `dry_run` | boolean | Non | — |
 | `require_confirmation` | boolean | Non | — |
 | `safety_level` | enum(strict, standard, off) | Non | — |
@@ -951,7 +955,8 @@ _Pas de mapping OSC documenté._
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
-| `cue_number` | string \| number | Oui | — |
+| `confirm` | boolean | Non | — |
+| `cue_number` | number \| string | Oui | — |
 | `cue_part` | number | Non | — |
 | `cuelist_number` | number | Non | — |
 | `dry_run` | boolean | Non | — |
@@ -967,14 +972,14 @@ _Pas de mapping OSC documenté._
 _CLI_
 
 ```bash
-npx @modelcontextprotocol/cli call --tool eos_cue_fire --args '{"cue_number":"exemple"}'
+npx @modelcontextprotocol/cli call --tool eos_cue_fire --args '{"cue_number":1}'
 ```
 
 _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cue/{cuelist}/{cue}/fire s:'{"cue_number":"exemple"}'
+oscsend 127.0.0.1 8001 /eos/cue/{cuelist}/{cue}/fire s:'{"cue_number":1}'
 ```
 
 <a id="eos-cue-get-info"></a>
@@ -996,7 +1001,8 @@ oscsend 127.0.0.1 8001 /eos/cue/{cuelist}/{cue}/fire s:'{"cue_number":"exemple"}
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
-| `cue_number` | string \| number | Oui | — |
+| `confirm` | boolean | Non | — |
+| `cue_number` | number \| string | Oui | — |
 | `cue_part` | number | Non | — |
 | `cuelist_number` | number | Oui | — |
 | `dry_run` | boolean | Non | — |
@@ -1013,14 +1019,14 @@ oscsend 127.0.0.1 8001 /eos/cue/{cuelist}/{cue}/fire s:'{"cue_number":"exemple"}
 _CLI_
 
 ```bash
-npx @modelcontextprotocol/cli call --tool eos_cue_get_info --args '{"cuelist_number":1,"cue_number":"exemple"}'
+npx @modelcontextprotocol/cli call --tool eos_cue_get_info --args '{"cuelist_number":1,"cue_number":1}'
 ```
 
 _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/get/cue s:'{"cuelist_number":1,"cue_number":"exemple"}'
+oscsend 127.0.0.1 8001 /eos/get/cue s:'{"cuelist_number":1,"cue_number":1}'
 ```
 
 <a id="eos-cue-go"></a>
@@ -1042,7 +1048,8 @@ oscsend 127.0.0.1 8001 /eos/get/cue s:'{"cuelist_number":1,"cue_number":"exemple
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
-| `cue_number` | string \| number | Non | — |
+| `confirm` | boolean | Non | — |
+| `cue_number` | number \| string | Non | — |
 | `cue_part` | number | Non | — |
 | `cuelist_number` | number | Oui | — |
 | `dry_run` | boolean | Non | — |
@@ -1126,6 +1133,7 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Cue 1 Label "exemple"#'
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
+| `confirm` | boolean | Non | — |
 | `cuelist_number` | number | Oui | — |
 | `dry_run` | boolean | Non | — |
 | `require_confirmation` | boolean | Non | — |
@@ -1207,7 +1215,8 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Record Cue {cuelist_number}/1#'
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
-| `cue_number` | string \| number | Oui | — |
+| `confirm` | boolean | Non | — |
+| `cue_number` | number \| string | Oui | — |
 | `cue_part` | number | Non | — |
 | `cuelist_number` | number | Non | — |
 | `dry_run` | boolean | Non | — |
@@ -1223,14 +1232,14 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Record Cue {cuelist_number}/1#'
 _CLI_
 
 ```bash
-npx @modelcontextprotocol/cli call --tool eos_cue_select --args '{"cue_number":"exemple"}'
+npx @modelcontextprotocol/cli call --tool eos_cue_select --args '{"cue_number":1}'
 ```
 
 _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cue/{cue} s:'{"cue_number":"exemple"}'
+oscsend 127.0.0.1 8001 /eos/cue/{cue} s:'{"cue_number":1}'
 ```
 
 <a id="eos-cue-stop-back"></a>
@@ -1253,6 +1262,7 @@ oscsend 127.0.0.1 8001 /eos/cue/{cue} s:'{"cue_number":"exemple"}'
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
 | `back` | boolean | Non | — |
+| `confirm` | boolean | Non | — |
 | `cuelist_number` | number | Oui | — |
 | `dry_run` | boolean | Non | — |
 | `require_confirmation` | boolean | Non | — |
@@ -1335,6 +1345,7 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Update Cue 1#'
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
 | `bank_index` | number | Oui | — |
+| `confirm` | boolean | Non | — |
 | `cuelist_number` | number | Oui | — |
 | `dry_run` | boolean | Non | — |
 | `num_pending_cues` | number | Oui | — |
@@ -1382,6 +1393,7 @@ oscsend 127.0.0.1 8001 /eos/cuelist/1/config/1/1/1
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
 | `bank_index` | number | Oui | — |
+| `confirm` | boolean | Non | — |
 | `delta` | number | Oui | — |
 | `dry_run` | boolean | Non | — |
 | `require_confirmation` | boolean | Non | — |
@@ -1425,6 +1437,7 @@ oscsend 127.0.0.1 8001 /eos/cuelist/1/page/1
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
+| `confirm` | boolean | Non | — |
 | `cuelist_number` | number | Oui | — |
 | `dry_run` | boolean | Non | — |
 | `require_confirmation` | boolean | Non | — |
@@ -1909,7 +1922,7 @@ oscsend 127.0.0.1 8001 /eos/fader/{index}/page/1 s:'{"bank_index":1,"delta":1}'
 | --- | --- | --- | --- |
 | `bank_index` | number | Oui | Index du bank de faders (0 = Main, 1 = Mains, etc.). |
 | `fader_index` | number | Oui | Position du fader dans le bank (1-n). |
-| `level` | number \| string | Oui | — |
+| `level` | number \| enum(full, Full, FULL, out, Out, OUT) \| string | Oui | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
@@ -2022,6 +2035,7 @@ _Pas de mapping OSC documenté._
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
+| `confirm` | boolean | Non | — |
 | `dry_run` | boolean | Non | — |
 | `palette_number` | number | Oui | Numero de palette (1-99999) |
 | `require_confirmation` | boolean | Non | — |
@@ -2176,6 +2190,7 @@ oscsend 127.0.0.1 8001 /eos/get/fpe/set s:'{"set_number":1}'
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
+| `confirm` | boolean | Non | — |
 | `cuelist_number` | number | Non | — |
 | `dry_run` | boolean | Non | — |
 | `require_confirmation` | boolean | Non | — |
@@ -2255,6 +2270,7 @@ oscsend 127.0.0.1 8001 /eos/get/active/wheels s:'{"timeoutMs":1}'
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
+| `confirm` | boolean | Non | — |
 | `dry_run` | boolean | Non | — |
 | `require_confirmation` | boolean | Non | — |
 | `safety_level` | enum(strict, standard, off) | Non | — |
@@ -2436,6 +2452,7 @@ oscsend 127.0.0.1 8001 /eos/get/live/blind s:'{"timeoutMs":1}'
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
+| `confirm` | boolean | Non | — |
 | `cuelist_number` | number | Non | — |
 | `dry_run` | boolean | Non | — |
 | `require_confirmation` | boolean | Non | — |
@@ -2592,6 +2609,7 @@ oscsend 127.0.0.1 8001 /eos/get/softkey_labels s:'{"timeoutMs":1}'
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
+| `confirm` | boolean | Non | — |
 | `dry_run` | boolean | Non | — |
 | `require_confirmation` | boolean | Non | — |
 | `safety_level` | enum(strict, standard, off) | Non | — |
@@ -2777,7 +2795,7 @@ oscsend 127.0.0.1 8001 /eos/group s:'{"group_number":1}'
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
 | `group_number` | number | Oui | Numero de groupe (1-99999) |
-| `level` | number \| string | Oui | — |
+| `level` | number \| enum(full, Full, FULL, out, Out, OUT) \| string | Oui | — |
 | `snap` | boolean | Non | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
@@ -2818,6 +2836,7 @@ oscsend 127.0.0.1 8001 /eos/group/{group}/level s:'{"group_number":1,"level":1}'
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
+| `confirm` | boolean | Non | — |
 | `dry_run` | boolean | Non | — |
 | `palette_number` | number | Oui | Numero de palette (1-99999) |
 | `require_confirmation` | boolean | Non | — |
@@ -2902,7 +2921,7 @@ oscsend 127.0.0.1 8001 /eos/key/{key} s:'{"key_name":"exemple"}'
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
-| `macro_number` | number | Oui | Numero de macro (1-9999) |
+| `macro_number` | number | Oui | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
@@ -2942,7 +2961,7 @@ oscsend 127.0.0.1 8001 /eos/macro/fire s:'{"macro_number":1}'
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
-| `macro_number` | number | Oui | Numero de macro (1-9999) |
+| `macro_number` | number | Oui | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
@@ -2983,7 +3002,7 @@ oscsend 127.0.0.1 8001 /eos/get/macro s:'{"macro_number":1}'
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
-| `macro_number` | number | Oui | Numero de macro (1-9999) |
+| `macro_number` | number | Oui | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
@@ -3135,6 +3154,7 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'{"osc_command":"exemple"}'
 | --- | --- | --- | --- |
 | `clearLine` | boolean | Non | — |
 | `command` | string | Oui | — |
+| `confirm` | boolean | Non | — |
 | `dry_run` | boolean | Non | — |
 | `require_confirmation` | boolean | Non | — |
 | `safety_level` | enum(strict, standard, off) | Non | — |
@@ -3182,6 +3202,7 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'{"command":"exemple"}'
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
+| `confirm` | boolean | Non | — |
 | `dry_run` | boolean | Non | — |
 | `fields` | array<string> | Non | — |
 | `palette_number` | number | Oui | Numero de palette (1-99999) |
@@ -3306,6 +3327,7 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'IP 1 Record#'
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
 | `channel_number` | number | Oui | Numero de canal (1-99999). |
+| `confirm` | boolean | Non | — |
 | `dry_run` | boolean | Non | — |
 | `part_number` | number | Oui | Numero de partie (1-99). |
 | `require_confirmation` | boolean | Non | — |
@@ -3351,6 +3373,7 @@ oscsend 127.0.0.1 8001 /eos/get/patch/chan_beam s:'{"channel_number":1,"part_num
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
 | `channel_number` | number | Oui | Numero de canal (1-99999). |
+| `confirm` | boolean | Non | — |
 | `dry_run` | boolean | Non | — |
 | `part_number` | number | Oui | Numero de partie (1-99). |
 | `require_confirmation` | boolean | Non | — |
@@ -3396,6 +3419,7 @@ oscsend 127.0.0.1 8001 /eos/get/patch/chan_pos s:'{"channel_number":1,"part_numb
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
 | `channel_number` | number | Oui | Numero de canal (1-99999). |
+| `confirm` | boolean | Non | — |
 | `dry_run` | boolean | Non | — |
 | `part_number` | number | Non | Numero de partie (0 = toutes les parties, 1-99). |
 | `require_confirmation` | boolean | Non | — |
@@ -3438,7 +3462,7 @@ oscsend 127.0.0.1 8001 /eos/get/patch/chan_info s:'{"channel_number":1}'
 | --- | --- | --- | --- |
 | `channel_number` | number | Oui | — |
 | `device_type` | string | Oui | — |
-| `dmx_address` | string | Oui | — |
+| `dmx_address` | number \| string | Oui | Adresse DMX au format 'univers/adresse' ou numero absolu. |
 | `label` | string | Non | — |
 | `part` | number | Non | — |
 | `targetAddress` | string | Non | — |
@@ -3452,14 +3476,14 @@ oscsend 127.0.0.1 8001 /eos/get/patch/chan_info s:'{"channel_number":1}'
 _CLI_
 
 ```bash
-npx @modelcontextprotocol/cli call --tool eos_patch_set_channel --args '{"channel_number":1,"dmx_address":"exemple","device_type":"exemple"}'
+npx @modelcontextprotocol/cli call --tool eos_patch_set_channel --args '{"channel_number":1,"dmx_address":1,"device_type":"exemple"}'
 ```
 
 _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/newcmd s:'Patch Chan 1 Part 1 Address exemple Type "exemple"#'
+oscsend 127.0.0.1 8001 /eos/newcmd s:'Patch Chan 1 Part 1 Address 1 Type "exemple"#'
 ```
 
 <a id="eos-ping"></a>
@@ -3946,7 +3970,7 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'{"format_string":"exemple"}'
 | `addresses` | number \| array<number> \| string | Oui | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
-| `value` | number \| string | Oui | — |
+| `value` | number \| enum(full, Full, FULL, out, Out, OUT) \| string | Oui | — |
 
 **Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
 
@@ -4453,7 +4477,7 @@ oscsend 127.0.0.1 8001 /eos/softkey/1 s:'{"softkey_number":1}'
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
 | `state` | number \| boolean \| string | Oui | — |
-| `submaster_number` | number | Oui | Numero de submaster (1-9999) |
+| `submaster_number` | number | Oui | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
@@ -4489,7 +4513,7 @@ oscsend 127.0.0.1 8001 /eos/sub/1/bump f 1
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
-| `submaster_number` | number | Oui | Numero de submaster (1-9999) |
+| `submaster_number` | number | Oui | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
@@ -4526,8 +4550,8 @@ oscsend 127.0.0.1 8001 /eos/get/submaster s:'{"submaster_number":1}'
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
-| `level` | number \| string | Oui | — |
-| `submaster_number` | number | Oui | Numero de submaster (1-9999) |
+| `level` | number \| enum(full, Full, FULL, out, Out, OUT) \| string | Oui | — |
+| `submaster_number` | number | Oui | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
@@ -4799,7 +4823,7 @@ _Pas de mapping OSC documenté._
 | `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes uniquement si require_confirmation vaut true. |
 | `looks` | array<object> | Oui | — |
 | `require_confirmation` | boolean | Non | Obligatoire a true pour toute execution reelle (dry_run absent ou false). Ne doit etre fourni par un assistant qu'apres validation utilisateur explicite de commands_preview. |
-| `start_cue_number` | string \| number | Non | — |
+| `start_cue_number` | number \| string | Non | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 | `user` | number | Non | — |
@@ -4880,7 +4904,7 @@ _Pas de mapping OSC documenté._
 | `channels` | string | Oui | — |
 | `color_palette` | number | Non | — |
 | `cue_label` | string | Non | — |
-| `cue_number` | string \| number | Oui | — |
+| `cue_number` | number \| string | Oui | — |
 | `cuelist_number` | number | Non | — |
 | `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes uniquement si require_confirmation vaut true. |
 | `focus_palette` | number | Non | — |
@@ -4897,7 +4921,7 @@ _Pas de mapping OSC documenté._
 _CLI_
 
 ```bash
-npx @modelcontextprotocol/cli call --tool eos_workflow_create_look --args '{"channels":"exemple","cue_number":"exemple"}'
+npx @modelcontextprotocol/cli call --tool eos_workflow_create_look --args '{"channels":"exemple","cue_number":1}'
 ```
 
 _OSC_
@@ -4921,7 +4945,7 @@ _Pas de mapping OSC documenté._
 | --- | --- | --- | --- |
 | `channel_number` | number | Oui | — |
 | `device_type` | string | Non | — |
-| `dmx_address` | string | Oui | — |
+| `dmx_address` | number \| string | Oui | Adresse DMX au format 'univers/adresse' ou numero absolu. |
 | `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes uniquement si require_confirmation vaut true. |
 | `fixture_manufacturer` | string | Non | — |
 | `fixture_mode` | string | Non | — |
@@ -4946,7 +4970,7 @@ _Pas de mapping OSC documenté._
 _CLI_
 
 ```bash
-npx @modelcontextprotocol/cli call --tool eos_workflow_patch_fixture --args '{"channel_number":1,"dmx_address":"exemple","label":"exemple"}'
+npx @modelcontextprotocol/cli call --tool eos_workflow_patch_fixture --args '{"channel_number":1,"dmx_address":1,"label":"exemple"}'
 ```
 
 _OSC_
@@ -5011,12 +5035,12 @@ _Pas de mapping OSC documenté._
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
 | `allow_non_empty_command_line` | boolean | Non | — |
-| `cue_number` | string \| number | Non | — |
+| `cue_number` | number \| string | Non | — |
 | `cuelist_number` | number | Oui | — |
 | `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes uniquement si require_confirmation vaut true. |
 | `precheck_timeout_ms` | number | Non | — |
 | `require_confirmation` | boolean | Non | Obligatoire a true pour toute execution reelle (dry_run absent ou false). Ne doit etre fourni par un assistant qu'apres validation utilisateur explicite de commands_preview. |
-| `rollback_cue_number` | string \| number | Non | — |
+| `rollback_cue_number` | number \| string | Non | — |
 | `rollback_cuelist_number` | number | Non | — |
 | `rollback_on_failure` | boolean | Non | — |
 | `targetAddress` | string | Non | — |
@@ -5054,7 +5078,7 @@ _Pas de mapping OSC documenté._
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
 | `channels` | string | Oui | — |
-| `cue_number` | string \| number | Non | — |
+| `cue_number` | number \| string | Non | — |
 | `cuelist_number` | number | Non | — |
 | `desaturate` | boolean | Non | — |
 | `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes uniquement si require_confirmation vaut true. |

@@ -326,7 +326,7 @@ describe('ToolRegistry schema-less tools', () => {
     });
   });
 
-  it('autorise un outil sensible lorsque le profil accorde satisfait le profil requis', async () => {
+  it('refuse un outil sensible lorsque le profil accorde satisfait le profil requis mais que la confirmation manque', async () => {
     const server = createMockServer();
     const registry = new ToolRegistry(server);
     const handler = jest.fn(async () => ({ content: [{ type: 'text', text: 'ok' }] }));
@@ -344,14 +344,43 @@ describe('ToolRegistry schema-less tools', () => {
         { command: 'Record Cue 1' },
         { requestId: 'role-ok', granted_role: 'admin' }
       )
-    ).resolves.toBeDefined();
+    ).rejects.toThrow('confirmation explicite absente');
 
-    expect(handler).toHaveBeenCalledTimes(1);
-    const [payload] = mockLogger.info.mock.calls[0] as [Record<string, unknown>];
+    expect(handler).not.toHaveBeenCalled();
+    const [payload] = mockLogger.warn.mock.calls[0] as [Record<string, unknown>];
     expect(payload).toMatchObject({
       required_role: 'admin',
       granted_role: 'admin',
       confirmation_state: 'missing'
+    });
+  });
+
+  it('autorise un outil sensible avec confirm=true et retire l alias si le schema ne le declare pas', async () => {
+    const server = createMockServer();
+    const registry = new ToolRegistry(server);
+    const handler = jest.fn(async () => ({ content: [{ type: 'text', text: 'ok' }] }));
+
+    registry.register({
+      name: 'eos_new_command',
+      config: { inputSchema: { command: z.string() } },
+      handler
+    });
+
+    const [, , registeredHandler] = server.registerTool.mock.calls[0];
+
+    await expect(
+      (registeredHandler as RegisteredTestHandler)(
+        { command: 'Record Cue 1', confirm: true },
+        { requestId: 'role-ok-confirmed', granted_role: 'admin' }
+      )
+    ).resolves.toBeDefined();
+
+    expect(handler).toHaveBeenCalledWith({ command: 'Record Cue 1' }, expect.anything());
+    const [payload] = mockLogger.info.mock.calls[0] as [Record<string, unknown>];
+    expect(payload).toMatchObject({
+      required_role: 'admin',
+      granted_role: 'admin',
+      confirmation_state: 'confirmed'
     });
   });
 

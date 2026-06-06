@@ -35,6 +35,31 @@ const globalConsoleTargetSchema = {
   targetConsole: z.string().min(1).optional()
 };
 
+
+const confirmationInputSchema = {
+  dry_run: z.boolean().optional(),
+  confirm: z.boolean().optional(),
+  require_confirmation: z.boolean().optional(),
+  safety_level: z.enum(['strict', 'standard', 'off']).optional()
+};
+
+function withConfirmationInputSchema(
+  config: ToolDefinition['config'],
+  requiresConfirmation: boolean
+): ToolDefinition['config'] {
+  if (!requiresConfirmation || !config.inputSchema) {
+    return config;
+  }
+
+  return {
+    ...config,
+    inputSchema: {
+      ...confirmationInputSchema,
+      ...config.inputSchema
+    }
+  };
+}
+
 function withGlobalConsoleTargetInputSchema(tool: ToolDefinition): ToolDefinition['config'] {
   const inputSchema = tool.config.inputSchema;
   if (!inputSchema || 'targetConsole' in inputSchema) {
@@ -206,6 +231,15 @@ const ROLE_PATTERNS: Array<{ pattern: RegExp; role: ToolSafetyProfile }> = [
   { pattern: /^eos_(?:channel|group|address|set_|palette|preset|effect|direct_select|fader|submaster)/, role: 'programming' }
 ];
 
+const READ_ONLY_TOOL_PATTERNS = [
+  /^eos_.*(?:get|list|info|labels|name|state|active|pending|capabilities|ping)/,
+  /^eos_patch_get_/,
+  /^eos_get_/,
+  /^eos_readiness_check$/
+];
+
+const CONFIRMATION_ARGUMENT_KEYS = ['confirm', 'require_confirmation', 'safety_level'] as const;
+
 type ConfirmationState = 'confirmed' | 'missing' | 'not_required';
 
 function resolveToolRequiredRole(tool: ToolDefinition): ToolSafetyProfile {
@@ -217,6 +251,10 @@ function resolveToolRequiredRole(tool: ToolDefinition): ToolSafetyProfile {
   const exactRole = EXACT_TOOL_ROLES[tool.name];
   if (exactRole) {
     return exactRole;
+  }
+
+  if (READ_ONLY_TOOL_PATTERNS.some((pattern) => pattern.test(tool.name))) {
+    return 'read_only';
   }
 
   const matched = ROLE_PATTERNS.find(({ pattern }) => pattern.test(tool.name));
@@ -247,23 +285,52 @@ function resolveGrantedToolRole(extra: unknown): ToolSafetyProfile {
   return getDefaultAllowedToolProfile();
 }
 
+function hasExplicitConfirmation(args: unknown): boolean {
+  const record = asObject(args);
+  return record.confirm === true || record.require_confirmation === true || record.safety_level !== undefined;
+}
+
 function resolveConfirmationState(args: unknown, requiredRole: ToolSafetyProfile): ConfirmationState {
-  if (asObject(args).require_confirmation === true) {
+  const record = asObject(args);
+  if (record.dry_run === true) {
+    return 'not_required';
+  }
+
+  if (hasExplicitConfirmation(args)) {
     return 'confirmed';
   }
 
   return requiredRole === 'read_only' ? 'not_required' : 'missing';
 }
 
+function normalizeConfirmationArgsForTool(args: unknown, inputSchema?: ToolDefinition['config']['inputSchema']): unknown {
+  if (!args || typeof args !== 'object' || Array.isArray(args) || !inputSchema) {
+    return args;
+  }
+
+  const record = { ...(args as Record<string, unknown>) };
+  if (record.confirm === true && 'require_confirmation' in inputSchema && !('confirm' in inputSchema)) {
+    record.require_confirmation = true;
+  }
+
+  for (const key of CONFIRMATION_ARGUMENT_KEYS) {
+    if (!(key in inputSchema)) {
+      delete record[key];
+    }
+  }
+
+  return record;
+}
+
 function isSensitiveAction(args: unknown): boolean {
   const record = asObject(args);
-  if (record.require_confirmation === true) {
+  if (hasExplicitConfirmation(args)) {
     return true;
   }
 
   const command = record.command;
   if (typeof command === 'string') {
-    return /\b(record|update|delete|fire)\b/i.test(command);
+    return /\b(record|update|delete|patch|go|fire|submaster|park|address|chan(?:nel)?)\b/i.test(command);
   }
 
   return false;
@@ -306,11 +373,13 @@ interface RegisteredToolSummary {
 
 
 function buildToolConfigForRegistration(tool: ToolDefinition): ToolDefinition['config'] {
-  const baseConfig = withGlobalConsoleTargetInputSchema(tool);
   const requiredRole = resolveToolRequiredRole(tool);
+  const requiresConfirmation = tool.metadata?.requiresConfirmation === true || requiredRole !== 'read_only';
+  const baseConfig = withConfirmationInputSchema(withGlobalConsoleTargetInputSchema(tool), requiresConfirmation);
   const metadata = {
     ...(tool.metadata ?? {}),
-    requiredRole
+    requiredRole,
+    requiresConfirmation
   };
   const { annotations: metadataAnnotations, ...metadataFields } = metadata;
   return {
@@ -353,7 +422,8 @@ class ToolRegistry {
       config,
       metadata: {
         ...(tool.metadata ?? {}),
-        requiredRole
+        requiredRole,
+        requiresConfirmation: tool.metadata?.requiresConfirmation === true || requiredRole !== 'read_only'
       }
     };
 
@@ -442,19 +512,21 @@ class ToolRegistry {
       return async (first: unknown, second?: unknown) => {
         const { args, extra } = normalizeInputs(first, second);
         const targetContext = hasInputSchema ? resolveArgsConsoleTarget(args, tool.config.inputSchema) : resolveArgsConsoleTarget(undefined, tool.config.inputSchema);
-        return this.executeWithAudit(tool, targetContext.args, extra, targetContext.target, () => tool.handler(targetContext.args, extra));
+        return this.executeWithAudit(tool, targetContext.args, extra, targetContext.target, (executionArgs) => tool.handler(executionArgs, extra));
       };
     }
 
     return async (first: unknown, second?: unknown) => {
       const { args, extra } = normalizeInputs(first, second);
       const targetContext = hasInputSchema ? resolveArgsConsoleTarget(args, tool.config.inputSchema) : resolveArgsConsoleTarget(undefined, tool.config.inputSchema);
-      const context: ToolContext = { name: tool.name, args: targetContext.args, extra };
 
-      const executeHandler = (): Promise<ToolExecutionResult> =>
-        Promise.resolve(tool.handler(targetContext.args, extra));
+      return this.executeWithAudit(tool, targetContext.args, extra, targetContext.target, (executionArgs) => {
+        const context: ToolContext = { name: tool.name, args: executionArgs, extra };
+        const executeHandler = (): Promise<ToolExecutionResult> =>
+          Promise.resolve(tool.handler(executionArgs, extra));
 
-      return this.executeWithAudit(tool, targetContext.args, extra, targetContext.target, () => this.compose(middlewares, executeHandler)(context));
+        return this.compose(middlewares, executeHandler)(context);
+      });
     };
   }
 
@@ -463,7 +535,7 @@ class ToolRegistry {
     args: unknown,
     extra: unknown,
     targetResolution: ConsoleTargetResolution,
-    execute: () => Promise<ToolExecutionResult>
+    execute: (args: unknown) => Promise<ToolExecutionResult>
   ): Promise<ToolExecutionResult> {
     const toolName = tool.name;
     const correlationId = resolveCorrelationId(extra);
@@ -497,13 +569,20 @@ class ToolRegistry {
         );
       }
 
+      if (confirmationState === 'missing') {
+        throw new Error(
+          `Outil ${toolName} refuse: confirmation explicite absente. Relancez d'abord en dry_run=true pour verifier commands_preview, puis executez avec confirm=true ou require_confirmation=true apres validation operateur.`
+        );
+      }
+
+      const executionArgs = normalizeConfirmationArgsForTool(args, tool.config.inputSchema);
       const executionResult = await runWithRequestContext(
         {
           correlationId,
           ...(sessionId ? { sessionId } : {}),
           ...(typeof userId === 'number' ? { userId } : {})
         },
-        () => execute()
+        () => execute(executionArgs)
       );
       const result = addConsoleTargetToResult(executionResult, targetResolution);
 
