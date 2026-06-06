@@ -336,6 +336,10 @@ Catégories documentées : `commands`, `cues`, `diagnostics`, `dmx`, `keys`, `ma
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
 | `address_number` | number \| string | Oui | Adresse DMX au format 'univers/adresse' ou numero absolu. |
+| `confirm` | boolean | Non | — |
+| `dry_run` | boolean | Non | — |
+| `require_confirmation` | boolean | Non | — |
+| `safety_level` | enum(strict, standard, off) | Non | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
@@ -376,7 +380,11 @@ oscsend 127.0.0.1 8001 /eos/addr s:'{"address_number":1}'
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
 | `address_number` | number \| string | Oui | Adresse DMX au format 'univers/adresse' ou numero absolu. |
+| `confirm` | boolean | Non | — |
 | `dmx_value` | number \| enum(full, Full, FULL, out, Out, OUT) \| string | Oui | — |
+| `dry_run` | boolean | Non | — |
+| `require_confirmation` | boolean | Non | — |
+| `safety_level` | enum(strict, standard, off) | Non | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
@@ -417,7 +425,11 @@ oscsend 127.0.0.1 8001 /eos/addr/{address}/DMX s:'{"address_number":1,"dmx_value
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
 | `address_number` | number \| string | Oui | Adresse DMX au format 'univers/adresse' ou numero absolu. |
+| `confirm` | boolean | Non | — |
+| `dry_run` | boolean | Non | — |
 | `level` | number \| enum(full, Full, FULL, out, Out, OUT) \| string | Oui | — |
+| `require_confirmation` | boolean | Non | — |
+| `safety_level` | enum(strict, standard, off) | Non | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
@@ -675,7 +687,11 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Chan 1 Sneak 1'
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
 | `channels` | number \| array<number> \| string | Oui | Un numero de canal ou une liste de canaux |
+| `confirm` | boolean | Non | — |
+| `dry_run` | boolean | Non | — |
 | `parameter` | string | Oui | — |
+| `require_confirmation` | boolean | Non | — |
+| `safety_level` | enum(strict, standard, off) | Non | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 | `value` | number \| string | Oui | — |
@@ -2880,7 +2896,11 @@ oscsend 127.0.0.1 8001 /eos/ip/fire s:'{"palette_number":1}'
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
+| `confirm` | boolean | Non | — |
+| `dry_run` | boolean | Non | — |
 | `key_name` | string | Oui | — |
+| `require_confirmation` | boolean | Non | — |
+| `safety_level` | enum(strict, standard, off) | Non | — |
 | `state` | number \| boolean | Non | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
@@ -4041,6 +4061,10 @@ oscsend 127.0.0.1 8001 /eos/param/position/xy s:'{"x":1,"y":1}'
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
+| `confirm` | boolean | Non | — |
+| `dry_run` | boolean | Non | — |
+| `require_confirmation` | boolean | Non | — |
+| `safety_level` | enum(strict, standard, off) | Non | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 | `user_id` | number | Oui | — |
@@ -4439,6 +4463,10 @@ oscsend 127.0.0.1 8001 /eos/snap s:'{"snapshot_number":1}'
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
+| `confirm` | boolean | Non | — |
+| `dry_run` | boolean | Non | — |
+| `require_confirmation` | boolean | Non | — |
+| `safety_level` | enum(strict, standard, off) | Non | — |
 | `softkey_number` | number | Oui | — |
 | `state` | number \| boolean | Non | — |
 | `targetAddress` | string | Non | — |

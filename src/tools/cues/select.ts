@@ -5,6 +5,7 @@
 import { z, type ZodRawShape } from 'zod';
 import { getOscClient } from '../../services/osc/client';
 import { oscMappings } from '../../services/osc/mappings';
+import { createDryRunResult, resolveSafetyOptions } from '../common/safety';
 import type { ToolDefinition } from '../types';
 import {
   buildCueSelectCommand,
@@ -58,6 +59,18 @@ export const eosCueSelectTool: ToolDefinition<typeof selectInputSchema> = {
     const payload = buildCueCommandPayload(identifier, { defaultPart: 0 });
     const command = buildCueSelectCommand(identifier);
     const oscRequest = buildCueSelectOscRequest(identifier, command, resolveCueOscMode(extra));
+    const safety = resolveSafetyOptions(options);
+
+    if (safety.dryRun) {
+      return createDryRunResult({
+        text: `Selection simulee de ${formatCueDescription(identifier)}`,
+        action: 'cue_select',
+        request: payload,
+        oscAddress: oscRequest.message.address,
+        oscArgs: oscRequest.message.args ?? [],
+        cli: oscRequest.command ? { text: oscRequest.command } : undefined
+      });
+    }
 
     await client.sendMessage(oscRequest.message.address, oscRequest.message.args ?? [], {
       ...extractTargetOptions(options),

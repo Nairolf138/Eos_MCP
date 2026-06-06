@@ -94,6 +94,30 @@ Toutes les adresses `/eos/get/` declarees par les services OSC, les outils MCP, 
 
 Les contrats centralisés sont vérifiés dans `src/tools/__tests__/osc_contracts.test.ts` : adresse OSC, arguments OSC (snapshots), propagation `targetAddress` / `targetPort`, transformation d'erreur OSC en résultat MCP stable et rejet des paramètres inconnus pour les schémas stricts. Les tests de famille sous `src/tools/**/__tests__` conservent les scénarios métier détaillés.
 
+
+## Suite OSC prioritaire (ajout 2026-06-06)
+
+La suite dédiée `src/tools/__tests__/osc_priority_tools.test.ts` couvre maintenant les outils demandés en priorité avec des assertions explicites sur :
+
+- l'adresse OSC générée et les arguments envoyés ;
+- le comportement strict déclaré (`native_official_required` ou blocage de l'extension `/eos/get/cmd_line`) ;
+- le comportement de compatibilité des cues `fire`, `go` et `select` via le repli `/eos/cmd` ;
+- le rejet des entrées invalides et des paramètres inconnus ;
+- le comportement `dry_run`, sans émission OSC, pour les outils prioritaires.
+
+| Outil prioritaire | Couverture additionnelle obtenue |
+| --- | --- |
+| `eos_channel_set_parameter` | Frames natives par canal, tri/dédoublonnage des canaux, argument float, politique stricte native, rejet des canaux invalides, `dry_run` sans envoi. |
+| `eos_address_select` | Adresse `/eos/addr`, argument adresse normalisée, politique stricte native, rejet des adresses libres dangereuses, `dry_run` sans envoi. |
+| `eos_address_set_level` | Adresse `/eos/addr/{address}`, argument float de niveau, politique stricte native, rejet niveau hors plage, `dry_run` sans envoi. |
+| `eos_address_set_dmx` | Adresse `/eos/addr/{address}/DMX`, argument entier DMX, politique stricte native, rejet DMX hors plage, `dry_run` sans envoi. |
+| `eos_softkey_press` | Adresse `/eos/softkey/{index}`, argument d'état, politique stricte native, rejet index hors plage, `dry_run` sans envoi. |
+| `eos_set_user_id` | Adresse `/eos/user`, argument entier utilisateur, politique stricte native, rejet utilisateur invalide, `dry_run` sans mutation de session ni envoi. |
+| `eos_get_command_line` | Payload utilisateur sur `/eos/get/cmd_line`, blocage strict documenté de l'extension non officielle, rejet utilisateur invalide, `dry_run` sans lecture. |
+| `eos_cue_fire` | Mode strict natif `/eos/cue/{cue}/fire`, mode compatibilité `/eos/cmd`, rejet cue invalide, `dry_run` sans envoi. |
+| `eos_cue_go` | Mode strict natif `/eos/cue/{cuelist}/go`, mode compatibilité `/eos/cmd`, rejet paire cue/part invalide, `dry_run` sans envoi. |
+| `eos_cue_select` | Mode strict natif `/eos/cue/{cue}`, mode compatibilité `/eos/cmd`, rejet paramètres inconnus, `dry_run` sans envoi. |
+
 | Famille | Outil MCP exporté | Commande OSC | Test associé |
 | --- | --- | --- | --- |
 | capabilities | `eos_capabilities_get` | — | — (outil non OSC ou orchestrateur) |
@@ -115,13 +139,13 @@ Les contrats centralisés sont vérifiés dans `src/tools/__tests__/osc_contract
 | commands | `eos_command` | `/eos/cmd` | `src/tools/__tests__/osc_contracts.test.ts` |
 | commands | `eos_new_command` | `/eos/newcmd` | `src/tools/__tests__/osc_contracts.test.ts` |
 | commands | `eos_command_with_substitution` | `/eos/cmd` | `src/tools/__tests__/osc_contracts.test.ts` |
-| commands | `eos_get_command_line` | `/eos/get/cmd_line` | `src/tools/__tests__/osc_contracts.test.ts` |
+| commands | `eos_get_command_line` | `/eos/get/cmd_line` | `src/tools/__tests__/osc_contracts.test.ts`; `src/tools/__tests__/osc_priority_tools.test.ts` |
 | commands | `eos_get_user_command_line` | `/eos/get/cmd_line` | `src/tools/__tests__/osc_contracts.test.ts` |
 | channels | `eos_channel_select` | `/eos/newcmd` | `src/tools/__tests__/osc_contracts.test.ts` |
 | channels | `eos_channel_set_level` | `/eos/newcmd` | `src/tools/__tests__/osc_contracts.test.ts` |
 | channels | `eos_channel_set_dmx` | `/eos/newcmd` | `src/tools/__tests__/osc_contracts.test.ts` |
 | programming | `eos_set_dmx` | `/eos/addr/{address}/DMX` | `src/tools/__tests__/osc_contracts.test.ts` |
-| channels | `eos_channel_set_parameter` | `/eos/chan/{channel}/param/{parameter}` | `src/tools/__tests__/osc_contracts.test.ts` |
+| channels | `eos_channel_set_parameter` | `/eos/chan/{channel}/param/{parameter}` | `src/tools/__tests__/osc_contracts.test.ts`; `src/tools/__tests__/osc_priority_tools.test.ts` |
 | channels | `eos_channel_get_info` | `/eos/get/channels` | `src/tools/__tests__/osc_contracts.test.ts` |
 | groups | `eos_group_select` | `/eos/group` | `src/tools/__tests__/osc_contracts.test.ts` |
 | groups | `eos_group_set_level` | `/eos/group/{group}/level` | `src/tools/__tests__/osc_contracts.test.ts` |
@@ -133,10 +157,10 @@ Les contrats centralisés sont vérifiés dans `src/tools/__tests__/osc_contract
 | diagnostics | `eos_console_targets` | — | — (outil non OSC ou orchestrateur) |
 | diagnostics | `eos_get_version` | — | — (outil non OSC ou orchestrateur) |
 | diagnostics | `eos_get_setup_defaults` | — | — (outil non OSC ou orchestrateur) |
-| cues | `eos_cue_fire` | `/eos/cue/{cuelist}/{cue}/fire` (fallback `/eos/cmd`) | `src/tools/__tests__/osc_contracts.test.ts` |
-| cues | `eos_cue_go` | `/eos/cue/{cuelist}/go` (fallback `/eos/cmd`) | `src/tools/__tests__/osc_contracts.test.ts` |
+| cues | `eos_cue_fire` | `/eos/cue/{cuelist}/{cue}/fire` (fallback `/eos/cmd`) | `src/tools/__tests__/osc_contracts.test.ts`; `src/tools/__tests__/osc_priority_tools.test.ts` |
+| cues | `eos_cue_go` | `/eos/cue/{cuelist}/go` (fallback `/eos/cmd`) | `src/tools/__tests__/osc_contracts.test.ts`; `src/tools/__tests__/osc_priority_tools.test.ts` |
 | cues | `eos_cue_stop_back` | `/eos/cmd` | `src/tools/__tests__/osc_contracts.test.ts` |
-| cues | `eos_cue_select` | `/eos/cue/{cue}` (fallback `/eos/cmd`) | `src/tools/__tests__/osc_contracts.test.ts` |
+| cues | `eos_cue_select` | `/eos/cue/{cue}` (fallback `/eos/cmd`) | `src/tools/__tests__/osc_contracts.test.ts`; `src/tools/__tests__/osc_priority_tools.test.ts` |
 | cues | `eos_cue_get_info` | `/eos/get/cue` | `src/tools/__tests__/osc_contracts.test.ts` |
 | cues | `eos_cue_list_all` | `/eos/get/cuelist` | `src/tools/__tests__/osc_contracts.test.ts` |
 | cues | `eos_cuelist_get_info` | `/eos/get/cuelist/info` | `src/tools/__tests__/osc_contracts.test.ts` |
@@ -174,7 +198,7 @@ Les contrats centralisés sont vérifiés dans `src/tools/__tests__/osc_contract
 | programming | `eos_set_xyz_position` | `/eos/param/position/xyz` | `src/tools/__tests__/osc_contracts.test.ts` |
 | queries | `eos_get_active_wheels` | `/eos/get/active/wheels` | `src/tools/__tests__/osc_contracts.test.ts` |
 | keys | `eos_key_press` | `/eos/key/{key}` | `src/tools/__tests__/osc_contracts.test.ts` |
-| keys | `eos_softkey_press` | `/eos/softkey/{index}` | `src/tools/__tests__/osc_contracts.test.ts` |
+| keys | `eos_softkey_press` | `/eos/softkey/{index}` | `src/tools/__tests__/osc_contracts.test.ts`; `src/tools/__tests__/osc_priority_tools.test.ts` |
 | keys | `eos_get_softkey_labels` | `/eos/get/softkey_labels` | `src/tools/__tests__/osc_contracts.test.ts` |
 | directSelects | `eos_direct_select_bank_create` | `/eos/ds/{index}/config/{target}/{buttons}/{flexi}/{page}` | `src/tools/__tests__/osc_contracts.test.ts` |
 | directSelects | `eos_direct_select_press` | `/eos/ds/{index}/button/{page}/{button}` | `src/tools/__tests__/osc_contracts.test.ts` |
@@ -209,10 +233,10 @@ Les contrats centralisés sont vérifiés dans `src/tools/__tests__/osc_contract
 | fpe | `eos_fpe_get_set_count` | `/eos/get/fpe/set/count` | `src/tools/__tests__/osc_contracts.test.ts` |
 | fpe | `eos_fpe_get_set_info` | `/eos/get/fpe/set` | `src/tools/__tests__/osc_contracts.test.ts` |
 | fpe | `eos_fpe_get_point_info` | `/eos/get/fpe/point` | `src/tools/__tests__/osc_contracts.test.ts` |
-| dmx | `eos_address_select` | `/eos/addr` | `src/tools/__tests__/osc_contracts.test.ts` |
-| dmx | `eos_address_set_level` | `/eos/addr/{address}` | `src/tools/__tests__/osc_contracts.test.ts` |
-| dmx | `eos_address_set_dmx` | `/eos/addr/{address}/DMX` | `src/tools/__tests__/osc_contracts.test.ts` |
-| programming | `eos_set_user_id` | `/eos/user` | `src/tools/session/__tests__/session.test.ts` |
+| dmx | `eos_address_select` | `/eos/addr` | `src/tools/__tests__/osc_contracts.test.ts`; `src/tools/__tests__/osc_priority_tools.test.ts` |
+| dmx | `eos_address_set_level` | `/eos/addr/{address}` | `src/tools/__tests__/osc_contracts.test.ts`; `src/tools/__tests__/osc_priority_tools.test.ts` |
+| dmx | `eos_address_set_dmx` | `/eos/addr/{address}/DMX` | `src/tools/__tests__/osc_contracts.test.ts`; `src/tools/__tests__/osc_priority_tools.test.ts` |
+| programming | `eos_set_user_id` | `/eos/user` | `src/tools/session/__tests__/session.test.ts`; `src/tools/__tests__/osc_priority_tools.test.ts` |
 | session | `session_set_current_user` | — | — (outil non OSC ou orchestrateur) |
 | session | `session_get_current_user` | — | — (outil non OSC ou orchestrateur) |
 | session | `session_set_context` | — | — (outil non OSC ou orchestrateur) |
