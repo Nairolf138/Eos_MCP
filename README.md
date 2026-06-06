@@ -111,6 +111,154 @@ Vérifiez votre version de Node.js :
 node --version
 ```
 
+## Configuration rapide
+
+> ⚠️ **Avertissement live : Eos MCP peut envoyer de vraies commandes à une console lumière réelle.** Une commande OSC validée peut déclencher un GO, rappeler un preset, modifier des niveaux, enregistrer/mettre à jour des cues, changer le patch ou affecter la scène devant du public. Testez d'abord avec **Eos Nomad/offline**, activez le mode lecture seule tant que possible, isolez le réseau console et ne confirmez jamais une action si un régisseur qualifié n'a pas vérifié la preview.
+
+1. Copiez l'exemple d'environnement, puis remplacez les adresses et secrets :
+
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Démarrez en observation uniquement pour valider le réseau et les lectures :
+
+   ```bash
+   EOS_READ_ONLY=true EOS_STRICT_MODE=true npm run start:dev
+   ```
+
+3. Dans Eos ou Nomad, ouvrez **Setup → System → Show Control → OSC**, activez **OSC RX** et **OSC TX**, puis configurez les ports pour que le serveur MCP et la console se répondent.
+4. Lancez `eos_readiness_check` avant tout autre outil, vérifiez `overall_status`, `transport_status`, `handshake_mode` et `json_read_supported`, puis ne passez en écriture qu'après un dry-run relu par l'opérateur.
+
+Exemple de configuration `.env` minimal pour un poste MCP connecté en Ethernet à une console/Nomad et exposant une passerelle HTTP locale verrouillée :
+
+```env
+# Console Eos / Nomad cible
+OSC_REMOTE_ADDRESS=192.168.50.10
+OSC_TCP_PORT=3032
+OSC_UDP_OUT_PORT=8001
+OSC_UDP_IN_PORT=8000
+OSC_LOCAL_ADDRESS=0.0.0.0
+
+# Garde-fous Eos MCP
+EOS_STRICT_MODE=true
+EOS_READ_ONLY=true
+EOS_MCP_ALLOWED_TOOL_PROFILE=read_only
+EOS_AUDIT_ENABLED=true
+EOS_AUDIT_LOG_FILE=logs/audit.log
+
+# Passerelle MCP HTTP/WS optionnelle
+MCP_TCP_PORT=3032
+MCP_HTTP_MCP_TOKENS=remplacer-par-un-secret-long
+MCP_HTTP_API_KEYS=
+MCP_HTTP_IP_ALLOWLIST=127.0.0.1,192.168.50.20
+MCP_HTTP_ALLOWED_ORIGINS=http://127.0.0.1:3032,http://192.168.50.20:3032
+MCP_HTTP_RATE_LIMIT_WINDOW=60000
+MCP_HTTP_RATE_LIMIT_MAX=60
+MCP_HTTP_TRUST_PROXY=false
+
+# Logs applicatifs
+LOG_LEVEL=info
+LOG_DESTINATIONS=file
+MCP_LOG_FILE=logs/mcp-server.log
+LOG_PRETTY=false
+```
+
+Pour un passage en écriture contrôlée, changez seulement les garde-fous nécessaires (`EOS_READ_ONLY=false`, profil plus permissif) pendant la fenêtre d'exploitation, conservez `EOS_STRICT_MODE=true`, gardez l'audit actif et exigez une confirmation opérateur pour chaque action mutante.
+
+### Variables OSC
+
+| Variable | Rôle | Valeur de départ conseillée |
+| --- | --- | --- |
+| `OSC_REMOTE_ADDRESS` | Adresse IP de la console Eos ou de l'instance Nomad qui reçoit les commandes OSC. | IP Ethernet de la console, jamais une adresse Wi‑Fi Internet par défaut. |
+| `OSC_TCP_PORT` | Port TCP utilisé pour la négociation/handshake OSC avec Eos. | `3032`. |
+| `OSC_UDP_OUT_PORT` | Port UDP distant vers lequel Eos MCP envoie les commandes. Il doit correspondre au **OSC RX Port** côté Eos. | `8001`. |
+| `OSC_UDP_IN_PORT` | Port UDP local sur lequel Eos MCP écoute les réponses/événements. Il doit correspondre au **OSC TX Port** côté Eos. | `8000`. |
+| `OSC_LOCAL_ADDRESS` | Interface locale d'écoute des paquets OSC. | `0.0.0.0` pour écouter toutes les interfaces, ou l'IP Ethernet dédiée pour verrouiller. |
+| `OSC_TCP_NO_DELAY` | Réduit la latence TCP en activant `TCP_NODELAY`. | `true`. |
+| `OSC_TCP_KEEP_ALIVE_MS` | Intervalle de keep-alive TCP. | `5000`. |
+| `OSC_UDP_RECV_BUFFER_SIZE` / `OSC_UDP_SEND_BUFFER_SIZE` | Buffers UDP pour éviter les pertes lors de rafales OSC. | `262144` / `524288`. |
+
+Règle pratique : le port **sortant** MCP (`OSC_UDP_OUT_PORT`) est le port **entrant** de la console, et le port **entrant** MCP (`OSC_UDP_IN_PORT`) est le port **sortant** de la console.
+
+### Mode strict officiel ETC
+
+Définissez `EOS_STRICT_MODE=true` pour demander au serveur de bloquer les adresses OSC classées comme non officielles, non documentées ou extensions MCP non autorisées. Ce mode s'appuie sur la matrice d'officialité du projet et laisse passer les adresses documentées par ETC, la commande texte officielle via `/eos/cmd` ou `/eos/newcmd`, ainsi que les messages runtime nécessaires au handshake MCP.
+
+À utiliser par défaut en production :
+
+```bash
+EOS_STRICT_MODE=true npm run start:dev
+```
+
+Si un outil échoue en mode strict, ne contournez pas automatiquement la protection : vérifiez la fiche de l'outil, l'adresse OSC générée, la documentation ETC et le besoin réel. Le mode compatibilité (`EOS_STRICT_MODE=false` ou variable absente) est réservé aux bancs de test, aux simulateurs et aux extensions dont le risque est compris et accepté.
+
+### Mode lecture seule
+
+`EOS_READ_ONLY=true` verrouille le registre MCP sur les outils annotés `readOnly: true`. Les diagnostics, ping, capacités, lectures JSON/OSC et checks de readiness restent disponibles, tandis que les commandes capables de modifier le show ou l'état live sont refusées même avec un profil admin ou un champ `confirm=true`.
+
+Utilisez ce mode pour l'installation, les répétitions de configuration, les assistants d'observation, les démos et toute connexion à une console de production tant que l'opérateur n'a pas demandé explicitement une action d'écriture.
+
+### Confirmations obligatoires
+
+Toute action qui peut modifier la console doit suivre le flux **plan → dry-run → confirmation → exécution** :
+
+1. annoncer les commandes prévues et le contexte cible (console, show, cuelist, cue, canaux) ;
+2. appeler l'outil en `dry_run=true` lorsque disponible et afficher `structuredContent.commands_preview` ;
+3. obtenir une confirmation humaine explicite et non ambiguë ;
+4. relancer le même appel avec les mêmes arguments métier et `confirm=true` ou `require_confirmation=true` ;
+5. vérifier `commandsSent`, `command_log` ou le retour OSC, puis journaliser le résultat.
+
+Les confirmations implicites comme « oui », « ok » ou « vas-y » sont insuffisantes si la preview n'a pas été relue. Préférez une phrase de confirmation contenant l'action et la cible, par exemple : « Confirme l'envoi de GO sur la cuelist 1 maintenant ».
+
+### Réseau Wi‑Fi + Ethernet
+
+La configuration recommandée sépare Internet et la console lumière :
+
+- **Wi‑Fi** : accès Internet de l'ordinateur qui héberge Eos MCP pour les assistants IA, tunnels ou mises à jour.
+- **Ethernet** : lien dédié vers la console Eos/Nomad, sur un sous-réseau statique séparé, sans bridge et sans partage de connexion Internet.
+- **Routage** : `OSC_REMOTE_ADDRESS` doit pointer vers l'IP Ethernet de la console ; l'IP Wi‑Fi ne doit pas être utilisée comme cible OSC.
+- **Pare-feu** : n'ouvrez que les ports nécessaires (`3032` TCP si utilisé, `8000/8001` UDP selon votre plan) et limitez la passerelle HTTP MCP par IP, origine et jeton.
+
+Cette séparation évite qu'un assistant ou un service cloud atteigne directement le réseau lumière, tout en permettant au poste MCP de rester connecté à Internet.
+
+### Sécurité en usage live
+
+Avant une conduite, appliquez au minimum cette checklist :
+
+- valider le show chargé, la console cible, l'utilisateur Eos et le mode live/offline ;
+- exécuter `eos_readiness_check` et arrêter si le statut ou le handshake est ambigu ;
+- conserver `EOS_STRICT_MODE=true` et activer `EOS_AUDIT_ENABLED=true` ;
+- limiter `MCP_HTTP_IP_ALLOWLIST`, `MCP_HTTP_ALLOWED_ORIGINS`, `MCP_HTTP_MCP_TOKENS` et `MCP_HTTP_API_KEYS` aux seuls clients nécessaires ;
+- refuser les commandes texte libres ou les extensions non documentées pendant une représentation sauf procédure écrite ;
+- garder un opérateur à la console, capable d'annuler, stopper ou reprendre la main immédiatement.
+
+Ne testez jamais une nouvelle automatisation directement devant public. Préparez-la hors ligne, rejouez-la en répétition, puis activez-la live uniquement avec un plan de retour arrière.
+
+### Validation avec Eos Nomad
+
+Eos Nomad est la cible de validation recommandée avant une vraie console :
+
+1. lancez Nomad en mode offline ou sur une machine de test ;
+2. chargez une copie non critique du show ;
+3. activez OSC RX/TX avec les mêmes ports que la future console ;
+4. pointez `OSC_REMOTE_ADDRESS` vers l'IP Nomad ;
+5. démarrez Eos MCP avec `EOS_READ_ONLY=true` et `EOS_STRICT_MODE=true` ;
+6. exécutez `eos_readiness_check`, puis des lectures simples (`eos_capabilities_get`, listes/counts disponibles) ;
+7. testez les workflows en `dry_run=true`, relisez les previews, puis n'autorisez une exécution réelle que sur cette copie de test.
+
+Une validation Nomad réussie ne garantit pas que le réseau, les permissions et l'état live de la console de production sont identiques : refaites toujours le readiness check sur site.
+
+### Différence entre OSC officiel, `/eos/cmd` et extensions MCP
+
+| Famille | Ce que c'est | Usage conseillé | Risque |
+| --- | --- | --- | --- |
+| **OSC officiel ETC** | Adresses documentées par ETC pour Eos, par exemple `/eos/key/{key}`, `/eos/get/version`, `/eos/preset/fire`, `/eos/cue/{cuelist}/go`. | À privilégier, surtout avec `EOS_STRICT_MODE=true`. | Dépend de l'adresse : une adresse officielle peut quand même déclencher une action live. |
+| **Commande texte officielle `/eos/cmd` / `/eos/newcmd`** | Canal officiel qui injecte une commande de ligne Eos sous forme de texte. | À réserver aux intégrations expertes lorsque les outils typés ne couvrent pas le besoin. | Très élevé : le contenu texte peut combiner sélection, niveaux, record/update/delete ou playback. |
+| **Extensions MCP / endpoints non documentés** | Aides internes, lectures de compatibilité, diagnostics ou raccourcis qui ne sont pas des commandes OSC ETC documentées. | Utiles en développement ou diagnostic, mais à éviter en production stricte. | Variable ; bloqué par `EOS_STRICT_MODE=true` lorsque classé non officiel/non documenté. |
+
+Même lorsqu'une commande passe par un chemin officiel, Eos MCP ne remplace pas le jugement métier d'un régisseur : l'officialité du transport ne signifie pas que l'action est sûre pour le plateau.
+
 ## Installation du serveur MCP
 
 1. Clonez le dépôt puis installez les dépendances :
