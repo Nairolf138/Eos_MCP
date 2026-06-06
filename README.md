@@ -115,6 +115,8 @@ node --version
 
 > ⚠️ **Avertissement live : Eos MCP peut envoyer de vraies commandes à une console lumière réelle.** Une commande OSC validée peut déclencher un GO, rappeler un preset, modifier des niveaux, enregistrer/mettre à jour des cues, changer le patch ou affecter la scène devant du public. Testez d'abord avec **Eos Nomad/offline**, activez le mode lecture seule tant que possible, isolez le réseau console et ne confirmez jamais une action si un régisseur qualifié n'a pas vérifié la preview.
 
+La revue OSC/ETC du 2026-06-06 impose l'ordre de validation suivant : **Eos Nomad/offline d'abord**, puis console physique uniquement après confirmation opérateur. Les écarts restants sont classés dans `docs/conformite-eos.md` et `docs/osc-coverage.md` en quatre statuts : officiel, compatible mais non natif, extension MCP, et non supporté en mode strict. Gardez `EOS_STRICT_MODE=true` pour bloquer automatiquement les endpoints non documentés ou legacy.
+
 1. Copiez l'exemple d'environnement, puis remplacez les adresses et secrets :
 
    ```bash

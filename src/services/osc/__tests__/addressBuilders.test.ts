@@ -67,7 +67,7 @@ describe('OSC address builders', () => {
 
   it('construit les adresses de submaster', () => {
     expect(buildSubmasterLevelAddress(7)).toBe('/eos/sub/7');
-    expect(buildSubmasterBumpAddress(7)).toBe('/eos/sub/7/bump');
+    expect(buildSubmasterBumpAddress(7)).toBe('/eos/sub/7/fire');
   });
 });
 

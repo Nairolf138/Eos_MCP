@@ -51,7 +51,7 @@ describe('fader tools', () => {
 
     expect(service.sentMessages).toHaveLength(1);
     const message = service.sentMessages[0];
-    expect(message.address).toBe(`${oscMappings.faders.base}/2/config/12/3`);
+    expect(message.address).toBe(`${oscMappings.faders.base}/2/config/3/12`);
     expect(message.args).toBeUndefined();
   });
 
@@ -63,7 +63,7 @@ describe('fader tools', () => {
 
     expect(service.sentMessages).toHaveLength(1);
     const message = service.sentMessages[0];
-    expect(message.address).toBe(`${oscMappings.faders.base}/1/2/4`);
+    expect(message.address).toBe(`${oscMappings.faders.base}/1/4`);
     expect(message.args?.[0]).toMatchObject({ type: 'f', value: 0.5 });
   });
 
@@ -87,10 +87,10 @@ describe('fader tools', () => {
     await runTool(eosFaderUnloadTool, { bank_index: 3, fader_index: 1 });
 
     expect(service.sentMessages).toHaveLength(3);
-    expect(service.sentMessages[0].address).toBe(`${oscMappings.faders.base}/3/1/1`);
+    expect(service.sentMessages[0].address).toBe(`${oscMappings.faders.base}/3/1`);
     expect(service.sentMessages[0].args?.[0]).toMatchObject({ type: 'f', value: 0.75 });
-    expect(service.sentMessages[1].address).toBe(`${oscMappings.faders.base}/3/1/1/load`);
-    expect(service.sentMessages[2].address).toBe(`${oscMappings.faders.base}/3/1/1/unload`);
+    expect(service.sentMessages[1].address).toBe(`${oscMappings.faders.base}/3/1/load`);
+    expect(service.sentMessages[2].address).toBe(`${oscMappings.faders.base}/3/1/unload`);
   });
 
   it('initialise un bank par defaut lors de la pagination', async () => {

@@ -108,5 +108,5 @@ export function buildSubmasterLevelAddress(submasterNumber: number | string): st
 }
 
 export function buildSubmasterBumpAddress(submasterNumber: number | string): string {
-  return `${buildSubmasterLevelAddress(submasterNumber)}/bump`;
+  return `${buildSubmasterLevelAddress(submasterNumber)}/fire`;
 }

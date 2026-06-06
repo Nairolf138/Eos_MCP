@@ -196,7 +196,7 @@ export const eosFaderBankCreateTool: ToolDefinition<typeof bankCreateInputSchema
     const schema = z.object(bankCreateInputSchema).strict();
     const options = schema.parse(args ?? {});
     const client = getOscClient();
-    const page = options.page_number ?? 0;
+    const page = options.page_number;
     const request = buildFaderBankCreateMessage(options.bank_index, options.fader_count, page);
     await client.sendMessage(request.message.address, request.message.args ?? [], {
       ...extractTargetOptions(options),
@@ -204,13 +204,13 @@ export const eosFaderBankCreateTool: ToolDefinition<typeof bankCreateInputSchema
     });
     const address = request.message.address;
 
-    setBankState(options.bank_index, { page, faderCount: options.fader_count });
+    setBankState(options.bank_index, { page: page ?? 0, faderCount: options.fader_count });
 
-    return createResult(`Bank ${options.bank_index} initialise avec ${options.fader_count} faders (page ${page}).`, {
+    return createResult(`Bank ${options.bank_index} initialise avec ${options.fader_count} faders${page == null ? '' : ` (page ${page})`}.`, {
       action: 'fader_bank_create',
       bank: options.bank_index,
       faders: options.fader_count,
-      page,
+      page: page ?? 0,
       osc: {
         address,
         args: []
@@ -234,7 +234,7 @@ export const eosFaderSetLevelTool: ToolDefinition<typeof setLevelInputSchema> = 
     title: 'Reglage de niveau de fader',
     description: 'Definit le niveau (0-1 ou 0-100%) du fader cible.',
     inputSchema: setLevelInputSchema,
-    annotations: annotate(`${oscMappings.faders.base}/{bank}/{page}/{fader}`)
+    annotations: annotate(oscMappings.faders.level)
   },
   handler: async (args, _extra) => {
     const schema = z.object(setLevelInputSchema).strict();
@@ -242,7 +242,7 @@ export const eosFaderSetLevelTool: ToolDefinition<typeof setLevelInputSchema> = 
     const client = getOscClient();
     const state = getBankState(options.bank_index);
     const level = resolveLevelValue(options.level);
-    const request = buildFaderSetLevelMessage(options.bank_index, state.page, options.fader_index, level);
+    const request = buildFaderSetLevelMessage(options.bank_index, options.fader_index, level);
     await client.sendMessage(request.message.address, request.message.args ?? [], {
       ...extractTargetOptions(options),
       wireContract: request.contract
@@ -250,7 +250,7 @@ export const eosFaderSetLevelTool: ToolDefinition<typeof setLevelInputSchema> = 
     const address = request.message.address;
 
     return createResult(
-      `Fader ${options.bank_index}.${state.page}.${options.fader_index} regle a ${formatPercent(level)}.`,
+      `Fader ${options.bank_index}.${options.fader_index} regle a ${formatPercent(level)} (page courante MCP ${state.page}).`,
       {
         action: 'fader_set_level',
         bank: options.bank_index,
@@ -281,19 +281,19 @@ export const eosFaderLoadTool: ToolDefinition<typeof loadInputSchema> = {
     title: 'Chargement de fader',
     description: 'Charge le contenu courant sur le fader specifie.',
     inputSchema: loadInputSchema,
-    annotations: annotate(`${oscMappings.faders.base}/{bank}/{page}/{fader}/load`)
+    annotations: annotate(oscMappings.faders.load)
   },
   handler: async (args, _extra) => {
     const schema = z.object(loadInputSchema).strict();
     const options = schema.parse(args ?? {});
     const client = getOscClient();
     const state = getBankState(options.bank_index);
-    const address = `${oscMappings.faders.base}/${options.bank_index}/${state.page}/${options.fader_index}/load`;
+    const address = `${oscMappings.faders.base}/${options.bank_index}/${options.fader_index}/load`;
 
     await client.sendMessage(address, [], extractTargetOptions(options));
 
     return createResult(
-      `Fader ${options.bank_index}.${state.page}.${options.fader_index} charge.`,
+      `Fader ${options.bank_index}.${options.fader_index} charge (page courante MCP ${state.page}).`,
       {
         action: 'fader_load',
         bank: options.bank_index,
@@ -323,19 +323,19 @@ export const eosFaderUnloadTool: ToolDefinition<typeof loadInputSchema> = {
     title: 'Dechargement de fader',
     description: 'Decharge le contenu du fader specifie.',
     inputSchema: loadInputSchema,
-    annotations: annotate(`${oscMappings.faders.base}/{bank}/{page}/{fader}/unload`)
+    annotations: annotate(oscMappings.faders.unload)
   },
   handler: async (args, _extra) => {
     const schema = z.object(loadInputSchema).strict();
     const options = schema.parse(args ?? {});
     const client = getOscClient();
     const state = getBankState(options.bank_index);
-    const address = `${oscMappings.faders.base}/${options.bank_index}/${state.page}/${options.fader_index}/unload`;
+    const address = `${oscMappings.faders.base}/${options.bank_index}/${options.fader_index}/unload`;
 
     await client.sendMessage(address, [], extractTargetOptions(options));
 
     return createResult(
-      `Fader ${options.bank_index}.${state.page}.${options.fader_index} decharge.`,
+      `Fader ${options.bank_index}.${options.fader_index} decharge (page courante MCP ${state.page}).`,
       {
         action: 'fader_unload',
         bank: options.bank_index,

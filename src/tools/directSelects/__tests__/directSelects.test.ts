@@ -65,11 +65,10 @@ describe('direct select tools', () => {
     expect(service.sentMessages).toHaveLength(1);
     const message = service.sentMessages[0];
     expect(message.address).toBe(
-      formatPattern(oscMappings.directSelects.bankCreate, {
+      formatPattern(oscMappings.directSelects.bankCreateFlexiOnPage, {
         index: 2,
         target: 'Group',
         buttons: 40,
-        flexi: 1,
         page: 3
       })
     );
@@ -84,7 +83,6 @@ describe('direct select tools', () => {
     expect(pressMessage.address).toBe(
       formatPattern(oscMappings.directSelects.base, {
         index: 2,
-        page: 3,
         button: 5
       })
     );
@@ -147,7 +145,6 @@ describe('direct select tools', () => {
     expect(service.sentMessages[0].address).toBe(
       formatPattern(oscMappings.directSelects.base, {
         index: 4,
-        page: 0,
         button: 1
       })
     );
@@ -175,9 +172,7 @@ describe('direct select tools', () => {
         formatPattern(oscMappings.directSelects.bankCreate, {
           index: 10 + index,
           target: combo.expected,
-          buttons: 8,
-          flexi: 0,
-          page: 0
+          buttons: 8
         })
       );
       expect(message.args ?? []).toEqual([]);

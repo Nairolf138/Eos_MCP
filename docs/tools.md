@@ -1604,7 +1604,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/ds/{index}/config/{target}/{buttons}/{flexi}/{page} s:'{"bank_index":1,"target_type":"exemple","button_count":1,"flexi_mode":true}'
+oscsend 127.0.0.1 8001 /eos/ds/{index}/{target}/{buttons} s:'{"bank_index":1,"target_type":"exemple","button_count":1,"flexi_mode":true}'
 ```
 
 <a id="eos-direct-select-page"></a>
@@ -1681,7 +1681,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/ds/{index}/button/{page}/{button} f 1
+oscsend 127.0.0.1 8001 /eos/ds/{index}/{button} f 1
 ```
 
 <a id="eos-effect-get-info"></a>
@@ -1866,7 +1866,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/fader/{index}/config/{faders}/{page} s:'{"bank_index":1,"fader_count":1}'
+oscsend 127.0.0.1 8001 /eos/fader/{index}/config/{faders} s:'{"bank_index":1,"fader_count":1}'
 ```
 
 <a id="eos-fader-load"></a>
@@ -1904,7 +1904,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/fader/{bank}/{page}/{fader}/load s:'{"bank_index":1,"fader_index":1}'
+oscsend 127.0.0.1 8001 /eos/fader/{index}/{fader}/load s:'{"bank_index":1,"fader_index":1}'
 ```
 
 <a id="eos-fader-page"></a>
@@ -1981,7 +1981,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/fader/{bank}/{page}/{fader} s:'{"bank_index":1,"fader_index":1,"level":1}'
+oscsend 127.0.0.1 8001 /eos/fader/{index}/{fader} s:'{"bank_index":1,"fader_index":1,"level":1}'
 ```
 
 <a id="eos-fader-unload"></a>
@@ -2019,7 +2019,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/fader/{bank}/{page}/{fader}/unload s:'{"bank_index":1,"fader_index":1}'
+oscsend 127.0.0.1 8001 /eos/fader/{index}/{fader}/unload s:'{"bank_index":1,"fader_index":1}'
 ```
 
 <a id="eos-fixture-search"></a>
@@ -4582,7 +4582,7 @@ _OSC_
 
 ```bash
 # Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/sub/1/bump f 1
+oscsend 127.0.0.1 8001 /eos/sub/1/fire f 1
 ```
 
 <a id="eos-submaster-get-info"></a>

@@ -194,19 +194,20 @@ export function buildDmxAddressDmxMessage(address: string, value: number): Built
 export function buildFaderBankCreateMessage(
   bankIndex: number,
   faderCount: number,
-  page: number
+  page?: number
 ): BuiltOscWireMessage {
-  const address = `${oscMappings.faders.base}/${bankIndex}/config/${faderCount}/${page}`;
+  const address = page == null
+    ? `${oscMappings.faders.base}/${bankIndex}/config/${faderCount}`
+    : `${oscMappings.faders.base}/${bankIndex}/config/${page}/${faderCount}`;
   return withContract('fader', address, []);
 }
 
 export function buildFaderSetLevelMessage(
   bankIndex: number,
-  page: number,
   faderIndex: number,
   level: number
 ): BuiltOscWireMessage {
-  const address = `${oscMappings.faders.base}/${bankIndex}/${page}/${faderIndex}`;
+  const address = `${oscMappings.faders.base}/${bankIndex}/${faderIndex}`;
   return withContract('fader', address, [{ type: 'f', value: level }]);
 }
 

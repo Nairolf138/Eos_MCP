@@ -27,7 +27,7 @@ Pour une execution reelle (`dry_run` absent ou `false`), le registre MCP refuse 
 
 ### Commandes ETC officielles
 
-Les commandes ETC officielles sont les adresses documentees dans le manuel Eos OSC v3.0.0, par exemple `/eos/key/{key}`, `/eos/group`, `/eos/preset/fire`, `/eos/fader/{index}/{page}/{fader}`, `/eos/ds/{index}/button/{page}/{button}`, `/eos/get/<type>/count`, `/eos/get/<type>/list`, `/eos/get/version`, `/eos/ping`, `/eos/reset` et `/eos/subscribe`. Elles sont marquees `official=true` et `strictModeAllowed=true` lorsqu'elles sont envoyables par MCP.
+Les commandes ETC officielles sont les adresses documentees dans le manuel Eos OSC v3.0.0, par exemple `/eos/key/{key}`, `/eos/group`, `/eos/preset/fire`, `/eos/fader/{index}/{fader}`, `/eos/ds/{index}/{button}`, `/eos/get/<type>/count`, `/eos/get/<type>/list`, `/eos/get/version`, `/eos/ping`, `/eos/reset` et `/eos/subscribe`. Elles sont marquees `official=true` et `strictModeAllowed=true` lorsqu'elles sont envoyables par MCP.
 
 ### Commandes envoyees via `/eos/cmd`
 
@@ -107,13 +107,13 @@ Cette matrice est derivee des annotations de `toolDefinitions`, de `src/services
 | `eos_preset_fire` | /eos/preset/fire | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
 | `eos_preset_select` | /eos/preset | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
 | `eos_preset_get_info` | /eos/get/preset | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
-| `eos_submaster_set_level` | /eos/sub/{submaster_number} | OSC officiel ETC (gabarit MCP non classe) | v3.0.0 manuel | Bloqué par gabarit strict actuel | Non | high | Oui | Oui si console/sim expose OSC |
-| `eos_submaster_bump` | /eos/sub/{submaster_number}/bump | OSC officiel ETC (gabarit MCP non classe) | v3.0.0 manuel | Bloqué par gabarit strict actuel | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_submaster_set_level` | /eos/sub/{submaster_number} | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_submaster_bump` | /eos/sub/{submaster_number}/fire | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
 | `eos_submaster_get_info` | /eos/get/submaster | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
-| `eos_fader_bank_create` | /eos/fader/{index}/config/{faders}/{page} | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
-| `eos_fader_set_level` | /eos/fader/{bank}/{page}/{fader} | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
-| `eos_fader_load` | /eos/fader/{bank}/{page}/{fader}/load | OSC officiel ETC (gabarit MCP non classe) | v3.0.0 manuel | Bloqué par gabarit strict actuel | Non | high | Oui | Oui si console/sim expose OSC |
-| `eos_fader_unload` | /eos/fader/{bank}/{page}/{fader}/unload | OSC officiel ETC (gabarit MCP non classe) | v3.0.0 manuel | Bloqué par gabarit strict actuel | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_fader_bank_create` | /eos/fader/{index}/config/{faders} ou /eos/fader/{index}/config/{page}/{faders} | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
+| `eos_fader_set_level` | /eos/fader/{index}/{fader} | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_fader_load` | /eos/fader/{index}/{fader}/load | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_fader_unload` | /eos/fader/{index}/{fader}/unload | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
 | `eos_fader_page` | /eos/fader/{index}/page/{delta} | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
 | `eos_macro_fire` | /eos/macro/fire | OSC officiel ETC | v3.0.0 manuel; min 2.0.0 | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
 | `eos_macro_select` | /eos/macro | OSC officiel ETC | v3.0.0 manuel; min 2.0.0 | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
@@ -131,8 +131,8 @@ Cette matrice est derivee des annotations de `toolDefinitions`, de `src/services
 | `eos_key_press` | /eos/key/{key} | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | medium | Oui | Oui si console/sim expose OSC |
 | `eos_softkey_press` | /eos/softkey/{index} | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | medium | Oui | Oui si console/sim expose OSC |
 | `eos_get_softkey_labels` | /eos/get/softkey_labels | endpoint non documenté | EOS 3.0.0+ (non doc.) | Bloqué en strict | Non | medium | Non | Partielle / à confirmer |
-| `eos_direct_select_bank_create` | /eos/ds/{index}/config/{target}/{buttons}/{flexi}/{page} | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
-| `eos_direct_select_press` | /eos/ds/{index}/button/{page}/{button} | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_direct_select_bank_create` | /eos/ds/{index}/{target}/{buttons} (+ variantes flexi/page) | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
+| `eos_direct_select_press` | /eos/ds/{index}/{button} | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
 | `eos_direct_select_page` | /eos/ds/{index}/page/{delta} | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
 | `eos_magic_sheet_open` | /eos/ms | OSC officiel ETC | v3.0.0 manuel; min 3.1.0 | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
 | `eos_magic_sheet_send_string` | /eos/newcmd | commande texte officielle via `/eos/cmd` | v3.0.0 manuel | Autorisé via commande texte validée | Oui (principal) | low | Non | Oui si console/sim expose OSC |
@@ -353,12 +353,12 @@ Cet inventaire couvre les occurrences trouvees dans `src/services/osc/`, `src/to
 
 | Outils MCP | Adresse OSC utilisee | Commande OSC officielle (manuel) | Arguments OSC (manuel) | Version | Reference (section/page) | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `eos_fader_bank_create` | `/eos/fader/{index}/config/{faders}/{page}` | `/eos/fader/<index>/config/<faders>` | Nombre de faders + page | v3.0.0 | ShowControl > OSC > Banques Fader (p. 605) | — |
-| `eos_fader_set_level` | `/eos/fader/{bank}/{page}/{fader}` | `/eos/fader/<index>/<fader>/level` | Niveau (0.0-1.0) | v3.0.0 | ShowControl > OSC > Banques Fader (p. 606) | MCP calcule page courante. |
+| `eos_fader_bank_create` | `/eos/fader/{index}/config/{faders}` ou `/eos/fader/{index}/config/{page}/{faders}` | `/eos/fader/<index>/config/<faders>` et `/eos/fader/<index>/config/<page>/<faders>` | Nombre de faders, page optionnelle | v3.0.0 | ShowControl > OSC > Banques Fader (p. 605) | Aligné sur l'ordre officiel ETC; la forme historique MCP `{faders}/{page}` reste une extension bloquée en strict. |
+| `eos_fader_set_level` | `/eos/fader/{index}/{fader}` | `/eos/fader/<index>/<fader>` | Niveau (0.0-1.0) | v3.0.0 | ShowControl > OSC > Banques Fader (p. 606) | La page active est pilotée séparément par `/eos/fader/<index>/page/<delta>`. |
 | `eos_fader_load`, `eos_fader_unload` | `/eos/fader/{index}/{fader}/load`, `/eos/fader/{index}/{fader}/unload` | `/eos/fader/<index>/<fader>/load` | Aucun | v3.0.0 | ShowControl > OSC > Banques Fader (p. 606) | — |
 | `eos_fader_page` | `/eos/fader/{index}/page/{delta}` | `/eos/fader/<index>/page/<delta>` | Delta de page | v3.0.0 | ShowControl > OSC > Banques Fader (p. 605) | — |
-| `eos_direct_select_bank_create` | `/eos/ds/{index}/config/{target}/{buttons}/{flexi}/{page}` | `/eos/ds/<index>/<type>/<page>/<buttons>` | Type d'element + pagination | v3.0.0 | ShowControl > OSC > Selections directes (p. 603-604) | MCP ajoute parametres flexi/page. |
-| `eos_direct_select_press` | `/eos/ds/{index}/button/{page}/{button}` | `/eos/ds/<index>/<button>` | Etat touche 1.0/0.0 | v3.0.0 | ShowControl > OSC > Selections directes (p. 604) | — |
+| `eos_direct_select_bank_create` | `/eos/ds/{index}/{target}/{buttons}`, `/eos/ds/{index}/{target}/flexi/{buttons}`, `/eos/ds/{index}/{target}/{page}/{buttons}` ou `/eos/ds/{index}/{target}/flexi/{page}/{buttons}` | Mêmes formes officielles | Type d'element, Flexi optionnel, page optionnelle | v3.0.0 | ShowControl > OSC > Selections directes (p. 603-604) | Aligné sur les chemins natifs ETC; l'ancien chemin MCP `/config/...` est une extension bloquée en strict. |
+| `eos_direct_select_press` | `/eos/ds/{index}/{button}` | `/eos/ds/<index>/<button>` | Etat touche 1.0/0.0 | v3.0.0 | ShowControl > OSC > Selections directes (p. 604) | La page active est pilotée séparément par `/eos/ds/<index>/page/<delta>`. |
 | `eos_direct_select_page` | `/eos/ds/{index}/page/{delta}` | `/eos/ds/<index>/page/<delta>` | Delta de page | v3.0.0 | ShowControl > OSC > Selections directes (p. 604) | — |
 
 ## Pixel maps & Magic Sheets
@@ -385,7 +385,7 @@ Cet inventaire couvre les occurrences trouvees dans `src/services/osc/`, `src/to
 | `eos_patch_get_channel_info` | `/eos/get/patch/chan_info` | `/eos/get/patch/<channel>` | Numero de canal, parts | v3.0.0 | ShowControl > OSC > Synchronisation (p. 624) | MCP utilise un endpoint JSON `chan_info`. |
 | `eos_patch_get_augment3d_position` | `/eos/get/patch/chan_pos` | _Non documente dans le manuel v3.0.0_ | Requete JSON | n/a | n/a | Extension MCP pour Augment3d. |
 | `eos_patch_get_augment3d_beam` | `/eos/get/patch/chan_beam` | _Non documente dans le manuel v3.0.0_ | Requete JSON | n/a | n/a | Extension MCP pour Augment3d. |
-| `eos_submaster_set_level`, `eos_submaster_bump` | `/eos/sub` | `/eos/sub` | Niveau ou bump (1.0/0.0) | v3.0.0 | ShowControl > OSC > Submaster (p. 609) | — |
+| `eos_submaster_set_level`, `eos_submaster_bump` | `/eos/sub/{number}` et `/eos/sub/{number}/fire` | `/eos/sub/<number>` et `/eos/sub/<number>/fire` | Niveau ou état bump (1.0/0.0) | v3.0.0 | ShowControl > OSC > Submaster (p. 609) | L'ancien alias MCP `/eos/sub/{number}/bump` est remplacé par l'adresse officielle `/fire`. |
 | `eos_submaster_get_info` | `/eos/get/submaster` | `/eos/get/sub/...` | Requetes de synchronisation | v3.0.0 | ShowControl > OSC > Synchronisation (p. 623-624) | — |
 
 ## Cues & show control
@@ -424,3 +424,14 @@ La strategie retenue est unique: le serveur selectionne l'utilisateur courant de
 | `session_set_current_user`, `session_get_current_user`, `session_set_context`, `session_get_context`, `session_clear_context` | — | _Hors OSC console_ | — | n/a | n/a | Gestion locale de session MCP. |
 | `eos_capabilities_get` | — | _Hors OSC console_ | — | n/a | n/a | Informations internes MCP. |
 | `ping` | — | _Hors OSC console_ | — | n/a | n/a | Ping serveur MCP. |
+
+## Écarts restants après revue ETC/Nomad
+
+La revue 2026-06-06 classe les écarts résiduels selon quatre catégories opérationnelles avant usage sur une console réelle :
+
+- **Officiel** : adresse documentée dans le manuel Eos v3.0.0 ou commande texte envoyée via `/eos/cmd`/`/eos/newcmd`; utilisable en `EOS_STRICT_MODE=true` après validation fonctionnelle sur Eos Nomad.
+- **Compatible mais non natif** : fonctionnalité représentée par une commande texte EOS officielle ou par une variante de réponse `/eos/out/...`, sans adresse OSC spécialisée équivalente dans le mapping MCP; utilisable en strict uniquement si la matrice `officiality` l'autorise.
+- **Extension MCP** : endpoint ajouté pour ergonomie, diagnostic ou compatibilité simulateur (`/eos/get/cmd_line`, `/eos/get/patch/chan_pos`, `/eos/get/patch/chan_beam`, anciens chemins fader/direct-select); interdit en exploitation stricte tant qu'ETC ne le documente pas.
+- **Non supporté en mode strict** : endpoint non documenté ou non classé (`/eos/get/channels`, `/eos/get/softkey_labels`, `/eos/get/fpe/*`, `/eos/get/show/name`, `/eos/get/live/blind`, `/eos/get/setup_defaults`, etc.) bloqué par `EOS_STRICT_MODE=true`.
+
+Validation requise : toute nouvelle combinaison outil/adresse doit être testée d'abord avec Eos Nomad/offline (OSC RX/TX activés, `EOS_READ_ONLY=true` pour les lectures, dry-run pour les écritures), puis seulement ensuite avec une console physique, opérateur présent, audit activé et rollback connu.

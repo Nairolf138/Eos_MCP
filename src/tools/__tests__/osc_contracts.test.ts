@@ -276,6 +276,21 @@ function expectedAddress(tool: ToolDefinition, args: Record<string, unknown>): s
   if (tool.name === 'eos_cuelist_bank_create') {
     return `/eos/cuelist/${String(args.bank_index)}/config/${String(args.cuelist_number)}/${String(args.num_prev_cues)}/${String(args.num_pending_cues)}/${String(args.offset)}`;
   }
+  if (tool.name === 'eos_fader_bank_create' && args.page_number != null) {
+    return `/eos/fader/${String(args.bank_index)}/config/${String(args.page_number)}/${String(args.fader_count)}`;
+  }
+  if (tool.name === 'eos_direct_select_bank_create') {
+    const target = toolTargetName(args.target_type);
+    if (args.flexi_mode === true && args.page_number != null) {
+      return `/eos/ds/${String(args.bank_index)}/${target}/flexi/${String(args.page_number)}/${String(args.button_count)}`;
+    }
+    if (args.flexi_mode === true) {
+      return `/eos/ds/${String(args.bank_index)}/${target}/flexi/${String(args.button_count)}`;
+    }
+    if (args.page_number != null) {
+      return `/eos/ds/${String(args.bank_index)}/${target}/${String(args.page_number)}/${String(args.button_count)}`;
+    }
+  }
 
   const mapping = tool.config.annotations?.mapping as { osc?: unknown } | undefined;
   const osc = mapping?.osc;
