@@ -4,6 +4,7 @@
  */
 import { z, type ZodRawShape } from 'zod';
 import { oscMappings } from '../../services/osc/mappings';
+import { cueNumberSchema, dmxAddressSchema, userIdSchema } from '../../utils/validators';
 import { buildRecordCueCommand, formatCueTarget } from '../cues/common';
 import { sendDeterministicCommand } from '../commands/command_tools';
 import type { ToolDefinition } from '../types';
@@ -11,13 +12,8 @@ import type { ToolDefinition } from '../types';
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
   targetPort: z.coerce.number().int().min(1).max(65535).optional(),
-  user: z.coerce.number().int().min(0).optional()
+  user: userIdSchema.optional()
 } satisfies ZodRawShape;
-
-const cueNumberSchema = z.union([
-  z.coerce.number().positive().max(9999),
-  z.string().trim().min(1).max(32)
-]);
 
 const cueListNumberSchema = z.coerce.number().int().min(1).max(999);
 
@@ -261,7 +257,7 @@ export const eosPaletteLabelSetTool: ToolDefinition<typeof paletteLabelSetInputS
 
 const patchSetChannelInputSchema = {
   channel_number: channelNumberSchema,
-  dmx_address: z.string().trim().min(1).max(32),
+  dmx_address: dmxAddressSchema,
   device_type: z.string().trim().min(1).max(128),
   part: partNumberSchema.optional(),
   label: z.string().trim().min(1).max(128).optional(),

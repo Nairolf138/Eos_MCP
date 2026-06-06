@@ -13,6 +13,7 @@ import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
 import { buildGroupJsonMessage, buildGroupSelectMessage } from '../../services/osc/messageBuilders';
 import { oscMappings } from '../../services/osc/mappings';
+import { levelValueSchema } from '../../utils/validators';
 import { buildReadConvention, buildToolResult, type ToolDefinition, type ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
@@ -26,8 +27,6 @@ const groupNumberSchema = z.coerce
   .min(1)
   .max(99999)
   .describe('Numero de groupe (1-99999)');
-
-const levelValueSchema = z.union([z.number(), z.string().min(1)]);
 
 const LEVEL_KEYWORDS: Record<string, number> = {
   full: 100,

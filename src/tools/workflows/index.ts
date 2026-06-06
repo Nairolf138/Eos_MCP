@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { z, type ZodRawShape } from 'zod';
-import { validateCueArgumentsPair, optionalTimeoutMsSchema } from '../../utils/validators';
+import { dmxAddressSchema, safeChannelRangeTextSchema, userIdSchema, validateCueArgumentsPair, optionalTimeoutMsSchema } from '../../utils/validators';
 import { getOscClient } from '../../services/osc/client';
 import { buildCueJsonMessage } from '../../services/osc/messageBuilders';
 import { oscMappings } from '../../services/osc/mappings';
@@ -37,7 +37,7 @@ const primaryWorkflowAnnotations = {
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
   targetPort: z.coerce.number().int().min(1).max(65535).optional(),
-  user: z.coerce.number().int().min(0).optional(),
+  user: userIdSchema.optional(),
   verification_timeout_ms: z.coerce.number().int().positive().max(10000).optional().describe(
     'Timeout en millisecondes pour verifier apres envoi les commandes EOS sensibles.'
   )
@@ -587,7 +587,7 @@ function logEffectVerificationStep(steps: WorkflowStepLog[], verification: Effec
 }
 
 const createLookInputSchema = {
-  channels: z.string().trim().min(1).max(256),
+  channels: safeChannelRangeTextSchema,
   cue_number: cueNumberSchema,
   cuelist_number: cuelistNumberSchema.optional(),
   color_palette: z.coerce.number().int().min(1).max(99999).optional(),
@@ -611,7 +611,7 @@ const effectDirectionCommandLabels: Record<EffectDirection, string> = {
 };
 
 const createEffectInputSchema = {
-  channels: z.string().trim().min(1).max(256),
+  channels: safeChannelRangeTextSchema,
   effect_number: z.coerce.number().int().min(1).max(9999),
   group_number: z.coerce.number().int().min(1).max(99999).optional(),
   direction: effectDirectionSchema.optional().default('left_to_right'),
@@ -898,7 +898,7 @@ const createCueSeriesInputSchema = {
   base_cuelist_number: cuelistNumberSchema.optional(),
   start_cue_number: cueNumberSchema.optional().default(1),
   looks: z.array(workflowObject({
-    channels: z.string().trim().min(1).max(256),
+    channels: safeChannelRangeTextSchema,
     cue_number: cueNumberSchema.optional(),
     intensity: cueSeriesIntensitySchema.optional(),
     level: cueSeriesIntensitySchema.optional(),
@@ -1046,7 +1046,7 @@ export const eosWorkflowCreateCueSeriesTool: ToolDefinition<typeof createCueSeri
 
 const patchFixtureInputSchema = {
   channel_number: z.coerce.number().int().min(1).max(99999),
-  dmx_address: z.string().trim().min(1).max(32),
+  dmx_address: dmxAddressSchema,
   device_type: z.string().trim().min(1).max(128).optional(),
   fixture_query: z.string().trim().min(1).max(128).optional(),
   fixture_manufacturer: z.string().trim().min(1).max(128).optional(),
@@ -1324,19 +1324,19 @@ const buildGroupsAndPalettesInputSchema = {
   groups: z.array(workflowObject({
     number: z.coerce.number().int().min(1).max(99999),
     label: z.string().trim().min(1).max(128),
-    channels: z.string().trim().min(1).max(256)
+    channels: safeChannelRangeTextSchema
   })).optional(),
   color_palettes: z.array(workflowObject({
     number: z.coerce.number().int().min(1).max(99999),
     label: z.string().trim().min(1).max(128),
-    channels: z.string().trim().min(1).max(256),
+    channels: safeChannelRangeTextSchema,
     hue: z.coerce.string().trim().min(1).max(128).optional(),
     saturation: z.coerce.number().finite().optional()
   })).optional(),
   focus_palettes: z.array(workflowObject({
     number: z.coerce.number().int().min(1).max(99999),
     label: z.string().trim().min(1).max(128),
-    channels: z.string().trim().min(1).max(256),
+    channels: safeChannelRangeTextSchema,
     description: z.string().trim().min(1).max(256).optional()
   })).optional(),
   dry_run: workflowDryRunSchema,
@@ -1347,7 +1347,7 @@ const buildGroupsAndPalettesInputSchema = {
 const updateCueLookInputSchema = {
   cuelist_number: cuelistNumberSchema.optional(),
   cue_number: cueNumberSchema.optional(),
-  channels: z.string().trim().min(1).max(256),
+  channels: safeChannelRangeTextSchema,
   intensity_factor: z.coerce.number().finite().positive().optional(),
   desaturate: z.boolean().optional(),
   warmify: z.boolean().optional(),

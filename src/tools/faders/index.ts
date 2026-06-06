@@ -9,6 +9,7 @@ import {
   buildFaderSetLevelMessage
 } from '../../services/osc/messageBuilders';
 import { oscMappings } from '../../services/osc/mappings';
+import { levelValueSchema } from '../../utils/validators';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 interface FaderBankState {
@@ -43,8 +44,6 @@ const faderIndexSchema = z.coerce
   .int()
   .min(1)
   .describe('Position du fader dans le bank (1-n).');
-
-const levelValueSchema = z.union([z.number(), z.string().min(1)]);
 
 const bankCreateInputSchema = {
   bank_index: bankIndexSchema,

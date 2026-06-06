@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { z, type ZodRawShape } from 'zod';
-import { channelRangeSchema, optionalPortSchema, optionalTimeoutMsSchema } from '../../utils/validators';
+import { channelRangeSchema, dmxValueSchema, levelValueSchema, optionalPortSchema, optionalTimeoutMsSchema } from '../../utils/validators';
 import {
   createCacheKey,
   createOscPrefixTag,
@@ -24,8 +24,6 @@ const targetOptionsSchema = {
 
 const channelListSchema = channelRangeSchema.describe('Un numero de canal ou une liste de canaux');
 
-const levelValueSchema = z.union([z.number(), z.string().min(1)]);
-const dmxValueSchema = z.union([z.number(), z.string().min(1)]);
 const parameterValueSchema = z.union([z.number(), z.string().min(1)]);
 
 const LEVEL_KEYWORDS: Record<string, number> = {

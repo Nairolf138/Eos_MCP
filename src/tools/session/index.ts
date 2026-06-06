@@ -11,6 +11,7 @@ import {
 } from '../../services/cache/sessionContextStore';
 import { getOscClient } from '../../services/osc/client';
 import { oscMappings } from '../../services/osc/mappings';
+import { channelNumberSchema, userIdSchema } from '../../utils/validators';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 let currentUserId: number | null = null;
@@ -22,7 +23,7 @@ const sessionContextSchema = z
   .object({
     show: z.string().min(1).nullable().optional(),
     active_cuelist: z.union([z.string().min(1), z.number().int().min(0)]).nullable().optional(),
-    selected_channels: z.array(z.coerce.number().int().min(1)).optional(),
+    selected_channels: z.array(channelNumberSchema).optional(),
     selected_groups: z.array(z.coerce.number().int().min(1)).optional(),
     recent_palettes: z
       .array(
@@ -187,14 +188,14 @@ function buildSuggestedNextActions(hasContext: boolean): Array<Record<string, st
 }
 
 const setCurrentUserInputSchema = {
-  user: z.coerce.number().int().min(0, "L'identifiant utilisateur doit etre positif")
+  user: userIdSchema
 };
 
 const contextIdentityInputSchema = {
   context_id: z.string().min(1).optional(),
   mcp_session_id: z.string().min(1).optional(),
   agent_id: z.string().min(1).optional(),
-  user_id: z.coerce.number().int().min(0).optional()
+  user_id: userIdSchema.optional()
 };
 
 const setContextInputSchema = {
@@ -213,7 +214,7 @@ const targetOptionsSchema = {
 };
 
 const setUserIdInputSchema = {
-  user_id: z.coerce.number().int().min(0, "L'identifiant utilisateur doit etre positif"),
+  user_id: userIdSchema,
   ...targetOptionsSchema
 };
 

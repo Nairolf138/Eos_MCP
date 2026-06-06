@@ -6,6 +6,7 @@ import { z, type ZodRawShape } from 'zod';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
 import { buildSoftkeyAddress, oscMappings } from '../../services/osc/mappings';
+import { softkeyIndexSchema } from '../../utils/validators';
 import { withToolMetadata, type ToolDefinition, type ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
@@ -91,11 +92,7 @@ const keyPressInputSchema = {
 } satisfies ZodRawShape;
 
 const softkeyPressInputSchema = {
-  softkey_number: z.coerce
-    .number()
-    .int()
-    .min(1, 'Le numero de softkey doit etre compris entre 1 et 12')
-    .max(12, 'Le numero de softkey doit etre compris entre 1 et 12'),
+  softkey_number: softkeyIndexSchema,
   state: buttonStateSchema,
   ...targetOptionsSchema
 } satisfies ZodRawShape;

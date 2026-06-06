@@ -7,7 +7,7 @@ import type { OscMessageArgument } from '../../services/osc/index';
 import type { BuiltOscWireMessage } from '../../services/osc/messageBuilders';
 import { buildCueFireAddress, buildCueGoAddress, buildCueSelectAddress, oscMappings } from '../../services/osc/mappings';
 import { getResourceCache } from '../../services/cache/index';
-import { cueObjectNumberSchema, cuelistNumberSchema as sharedCuelistNumberSchema, optionalPortSchema } from '../../utils/validators';
+import { cueNumberSchema as sharedCueNumberSchema, cuelistNumberSchema as sharedCuelistNumberSchema, optionalPortSchema } from '../../utils/validators';
 import { buildToolResult, type ToolExecutionResult } from '../types';
 import { safetyOptionsSchema } from '../common/safety';
 import type { CueIdentifier } from './types';
@@ -20,7 +20,7 @@ export const targetOptionsSchema = {
 
 export const cuelistNumberSchema = sharedCuelistNumberSchema;
 
-export const cueNumberSchema = z.union([z.string().min(1), cueObjectNumberSchema]);
+export const cueNumberSchema = sharedCueNumberSchema;
 
 export const cuePartSchema = z.coerce.number().int().min(0).max(99);
 
