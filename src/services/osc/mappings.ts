@@ -221,10 +221,6 @@ export const oscMappings = {
   }
 } as const;
 
-export function buildSoftkeyAddress(index: number): string {
-  return `/eos/softkey/${index}`;
-}
-
 export const oscPayloadAnnotations = {
   commands: {
     command: { wireFormat: 'eos-native-command', arguments: 'single OSC string containing an EOS command-line command' },
@@ -269,17 +265,25 @@ export const oscPayloadAnnotations = {
 
 export type OscMappings = typeof oscMappings;
 
-export function buildChannelParameterAddress(channel: number | string, parameter: number | string): string {
-  return `/eos/chan/${encodeURIComponent(String(channel))}/param/${encodeURIComponent(String(parameter))}`;
-}
-
-export function buildDmxAddressLevelAddress(address: number | string): string {
-  return `${oscMappings.dmx.base}/${encodeURIComponent(String(address))}`;
-}
-
-export function buildDmxAddressDmxAddress(address: number | string): string {
-  return `${buildDmxAddressLevelAddress(address)}/DMX`;
-}
+export {
+  buildChannelParameterAddress,
+  buildCueFireAddress,
+  buildCueGoAddress,
+  buildCueSelectAddress,
+  buildDmxAddressDmxAddress,
+  buildDmxAddressLevelAddress,
+  buildDmxAddressSelectAddress,
+  buildKeyAddress,
+  buildMacroFireAddress,
+  buildMacroSelectAddress,
+  buildPatchAugment3dBeamAddress,
+  buildPatchAugment3dPositionAddress,
+  buildPatchChannelInfoAddress,
+  buildSoftkeyAddress,
+  buildSubmasterBumpAddress,
+  buildSubmasterLevelAddress,
+  buildUserCommandOutAddress
+} from './addressBuilders';
 
 export function toEosOutResponseAddress(address: string): string {
   return address.startsWith('/eos/out/') ? address : address.replace(/^\/eos\//, '/eos/out/');
@@ -362,24 +366,3 @@ export const oscResponseMappings = {
     list: withEosOutResponseVariant(oscMappings.cues.list)
   }
 } as const;
-
-
-function encodeCuePathSegment(value: string | number): string {
-  return encodeURIComponent(String(value).trim());
-}
-
-export function buildCueFireAddress(cueNumber: string | number, cuelistNumber?: number | null): string {
-  const cue = encodeCuePathSegment(cueNumber);
-  if (cuelistNumber != null) {
-    return `/eos/cue/${encodeCuePathSegment(cuelistNumber)}/${cue}/fire`;
-  }
-  return `/eos/cue/${cue}/fire`;
-}
-
-export function buildCueGoAddress(cuelistNumber: number): string {
-  return `/eos/cue/${encodeCuePathSegment(cuelistNumber)}/go`;
-}
-
-export function buildCueSelectAddress(cueNumber: string | number): string {
-  return `/eos/cue/${encodeCuePathSegment(cueNumber)}`;
-}

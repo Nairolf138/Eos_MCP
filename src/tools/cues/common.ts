@@ -5,7 +5,8 @@
 import { z, type ZodRawShape } from 'zod';
 import type { OscMessageArgument } from '../../services/osc/index';
 import type { BuiltOscWireMessage } from '../../services/osc/messageBuilders';
-import { buildCueFireAddress, buildCueGoAddress, buildCueSelectAddress, oscMappings } from '../../services/osc/mappings';
+import { buildCueFireAddress, buildCueGoAddress, buildCueSelectAddress } from '../../services/osc/addressBuilders';
+import { oscMappings } from '../../services/osc/mappings';
 import { getResourceCache } from '../../services/cache/index';
 import { cueNumberSchema as sharedCueNumberSchema, cuelistNumberSchema as sharedCuelistNumberSchema, optionalPortSchema } from '../../utils/validators';
 import { buildToolResult, type ToolExecutionResult } from '../types';

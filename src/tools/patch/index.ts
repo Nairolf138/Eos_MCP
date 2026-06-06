@@ -10,7 +10,12 @@ import {
   getResourceCache
 } from '../../services/cache/index';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
-import { oscMappings, oscResponseMappings } from '../../services/osc/mappings';
+import {
+  buildPatchAugment3dBeamAddress,
+  buildPatchAugment3dPositionAddress,
+  buildPatchChannelInfoAddress
+} from '../../services/osc/addressBuilders';
+import { oscResponseMappings } from '../../services/osc/mappings';
 import { createDryRunResult, resolveSafetyOptions, safetyOptionsSchema } from '../common/safety';
 import {
   buildReadConvention,
@@ -698,14 +703,18 @@ export interface ReadPatchChannelInfoResult extends Omit<ToolReadConvention, 'st
   };
 }
 
-export async function readPatchChannelInfo(options: ReadPatchChannelInfoOptions): Promise<ReadPatchChannelInfoResult> {
+const PATCH_CHANNEL_INFO_ADDRESS = buildPatchChannelInfoAddress();
+const PATCH_AUGMENT3D_POSITION_ADDRESS = buildPatchAugment3dPositionAddress();
+const PATCH_AUGMENT3D_BEAM_ADDRESS = buildPatchAugment3dBeamAddress();
+
+export function readPatchChannelInfo(options: ReadPatchChannelInfoOptions): Promise<ReadPatchChannelInfoResult> {
   const client = getOscClient();
   const payload = {
     channel: options.channel_number,
     part: options.part_number ?? 0
   };
   const cacheKey = createCacheKey({
-    address: oscMappings.patch.channelInfo,
+    address: PATCH_CHANNEL_INFO_ADDRESS,
     payload,
     targetAddress: options.targetAddress,
     targetPort: options.targetPort
@@ -721,7 +730,7 @@ export async function readPatchChannelInfo(options: ReadPatchChannelInfoOptions)
     ],
     prefixTags: [createOscPrefixTag('/eos/out/')],
     fetcher: async () => {
-      const response: OscJsonResponse = await client.requestJson(oscMappings.patch.channelInfo, {
+      const response: OscJsonResponse = await client.requestJson(PATCH_CHANNEL_INFO_ADDRESS, {
         payload,
         timeoutMs: options.timeoutMs,
         targetAddress: options.targetAddress,
@@ -749,7 +758,7 @@ export async function readPatchChannelInfo(options: ReadPatchChannelInfoOptions)
       return {
         ...buildReadConvention({
           status: response.status,
-          source: { type: 'eos_osc', address: oscMappings.patch.channelInfo, args: payload },
+          source: { type: 'eos_osc', address: PATCH_CHANNEL_INFO_ADDRESS, args: payload },
           error: response.error ?? null
         }),
         status: response.status,
@@ -757,7 +766,7 @@ export async function readPatchChannelInfo(options: ReadPatchChannelInfoOptions)
         ...withOscDiagnostics(response),
         ...(validatedChannel ? { channel: validatedChannel } : {}),
         osc: {
-          address: oscMappings.patch.channelInfo,
+          address: PATCH_CHANNEL_INFO_ADDRESS,
           args: payload
         }
       };
@@ -788,7 +797,7 @@ export const eosPatchGetChannelInfoTool: ToolDefinition<typeof channelInfoInputS
     description: 'Recupere les informations de patch pour un canal donne.',
     inputSchema: channelInfoInputSchema,
     outputSchema: patchChannelInfoOutputSchema.shape,
-    annotations: annotate(oscMappings.patch.channelInfo)
+    annotations: annotate(PATCH_CHANNEL_INFO_ADDRESS)
   },
   handler: async (args, _extra) => {
     const schema = z.object(channelInfoInputSchema).strict();
@@ -804,7 +813,7 @@ export const eosPatchGetChannelInfoTool: ToolDefinition<typeof channelInfoInputS
         text: `Lecture patch simulee pour canal ${options.channel_number}`,
         action: 'patch_get_channel_info',
         request: payload,
-        oscAddress: oscMappings.patch.channelInfo,
+        oscAddress: PATCH_CHANNEL_INFO_ADDRESS,
         oscArgs: payload
       });
     }
@@ -846,7 +855,7 @@ export const eosPatchGetAugment3dPositionTool: ToolDefinition<typeof augment3dIn
     description: "Recupere la position Augment3d d'une partie de canal.",
     inputSchema: augment3dInputSchema,
     outputSchema: augment3dPositionOutputSchema.shape,
-    annotations: annotate(oscMappings.patch.augment3dPosition)
+    annotations: annotate(PATCH_AUGMENT3D_POSITION_ADDRESS)
   },
   handler: async (args, _extra) => {
     const schema = z.object(augment3dInputSchema).strict();
@@ -863,13 +872,13 @@ export const eosPatchGetAugment3dPositionTool: ToolDefinition<typeof augment3dIn
         text: `Lecture Augment3d position simulee pour canal ${options.channel_number}/${options.part_number}`,
         action: 'patch_get_augment3d_position',
         request: payload,
-        oscAddress: oscMappings.patch.augment3dPosition,
+        oscAddress: PATCH_AUGMENT3D_POSITION_ADDRESS,
         oscArgs: payload
       });
     }
 
     const cacheKey = createCacheKey({
-      address: oscMappings.patch.augment3dPosition,
+      address: PATCH_AUGMENT3D_POSITION_ADDRESS,
       payload,
       targetAddress: options.targetAddress,
       targetPort: options.targetPort
@@ -882,7 +891,7 @@ export const eosPatchGetAugment3dPositionTool: ToolDefinition<typeof augment3dIn
       tags: [createResourceTag('patch')],
       prefixTags: [createOscPrefixTag('/eos/out/')],
       fetcher: async () => {
-        const response: OscJsonResponse = await client.requestJson(oscMappings.patch.augment3dPosition, {
+        const response: OscJsonResponse = await client.requestJson(PATCH_AUGMENT3D_POSITION_ADDRESS, {
           payload,
           timeoutMs: options.timeoutMs,
           targetAddress: options.targetAddress,
@@ -907,13 +916,13 @@ export const eosPatchGetAugment3dPositionTool: ToolDefinition<typeof augment3dIn
         return createResult(appendConsoleCheck(baseText, response), {
           ...buildReadConvention({
             status: response.status,
-            source: { type: 'eos_osc', address: oscMappings.patch.augment3dPosition, args: payload },
+            source: { type: 'eos_osc', address: PATCH_AUGMENT3D_POSITION_ADDRESS, args: payload },
             error: response.error ?? null
           }),
           ...withOscDiagnostics(response),
           ...(validatedPosition ? { augment3d: validatedPosition } : {}),
           osc: {
-            address: oscMappings.patch.augment3dPosition,
+            address: PATCH_AUGMENT3D_POSITION_ADDRESS,
             args: payload
           }
         });
@@ -938,7 +947,7 @@ export const eosPatchGetAugment3dBeamTool: ToolDefinition<typeof augment3dInputS
     description: 'Recupere les informations de faisceau Augment3d pour une partie de canal.',
     inputSchema: augment3dInputSchema,
     outputSchema: augment3dBeamOutputSchema.shape,
-    annotations: annotate(oscMappings.patch.augment3dBeam)
+    annotations: annotate(PATCH_AUGMENT3D_BEAM_ADDRESS)
   },
   handler: async (args, _extra) => {
     const schema = z.object(augment3dInputSchema).strict();
@@ -955,13 +964,13 @@ export const eosPatchGetAugment3dBeamTool: ToolDefinition<typeof augment3dInputS
         text: `Lecture Augment3d beam simulee pour canal ${options.channel_number}/${options.part_number}`,
         action: 'patch_get_augment3d_beam',
         request: payload,
-        oscAddress: oscMappings.patch.augment3dBeam,
+        oscAddress: PATCH_AUGMENT3D_BEAM_ADDRESS,
         oscArgs: payload
       });
     }
 
     const cacheKey = createCacheKey({
-      address: oscMappings.patch.augment3dBeam,
+      address: PATCH_AUGMENT3D_BEAM_ADDRESS,
       payload,
       targetAddress: options.targetAddress,
       targetPort: options.targetPort
@@ -974,7 +983,7 @@ export const eosPatchGetAugment3dBeamTool: ToolDefinition<typeof augment3dInputS
       tags: [createResourceTag('patch')],
       prefixTags: [createOscPrefixTag('/eos/out/')],
       fetcher: async () => {
-        const response: OscJsonResponse = await client.requestJson(oscMappings.patch.augment3dBeam, {
+        const response: OscJsonResponse = await client.requestJson(PATCH_AUGMENT3D_BEAM_ADDRESS, {
           payload,
           timeoutMs: options.timeoutMs,
           targetAddress: options.targetAddress,
@@ -999,13 +1008,13 @@ export const eosPatchGetAugment3dBeamTool: ToolDefinition<typeof augment3dInputS
         return createResult(appendConsoleCheck(baseText, response), {
           ...buildReadConvention({
             status: response.status,
-            source: { type: 'eos_osc', address: oscMappings.patch.augment3dBeam, args: payload },
+            source: { type: 'eos_osc', address: PATCH_AUGMENT3D_BEAM_ADDRESS, args: payload },
             error: response.error ?? null
           }),
           ...withOscDiagnostics(response),
           ...(validatedBeam ? { augment3d: validatedBeam } : {}),
           osc: {
-            address: oscMappings.patch.augment3dBeam,
+            address: PATCH_AUGMENT3D_BEAM_ADDRESS,
             args: payload
           }
         });

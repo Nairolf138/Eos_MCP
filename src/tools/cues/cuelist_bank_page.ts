@@ -4,6 +4,7 @@
  */
 import { z, type ZodRawShape } from 'zod';
 import { getOscClient } from '../../services/osc/client';
+import { buildCuelistBankPageAddress } from '../../services/osc/addressBuilders';
 import { oscMappings } from '../../services/osc/mappings';
 import { buildToolResult, type ToolDefinition, type ToolExecutionResult } from '../types';
 import { extractTargetOptions, notifyCueResourceChange, targetOptionsSchema } from './common';
@@ -40,7 +41,7 @@ export const eosCuelistBankPageTool: ToolDefinition<typeof bankPageInputSchema> 
     const schema = z.object(bankPageInputSchema).strict();
     const options = schema.parse(args ?? {});
     const client = getOscClient();
-    const address = `/eos/cuelist/${options.bank_index}/page/${options.delta}`;
+    const address = buildCuelistBankPageAddress(options.bank_index, options.delta);
 
     await client.sendMessage(address, [], extractTargetOptions(options));
     notifyCueResourceChange({ cuelistNumber: null, cueNumber: null, cuePart: null });
