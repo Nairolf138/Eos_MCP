@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { z, type ZodRawShape } from 'zod';
-import { buildToolResult, type ToolExecutionResult } from '../types';
+import { buildToolResult, type ToolExecutionResult, type ToolRiskLevel } from '../types';
 
 export const safetyLevelSchema = z.enum(['strict', 'standard', 'off']);
 
@@ -26,6 +26,27 @@ export function isToolSafetyProfileAllowed(
   requiredProfile: ToolSafetyProfile
 ): boolean {
   return compareToolSafetyProfiles(grantedProfile, requiredProfile) >= 0;
+}
+
+
+export function resolveRiskLevelForSafetyProfile(
+  requiredProfile: ToolSafetyProfile,
+  options: { critical?: boolean } = {}
+): ToolRiskLevel {
+  if (options.critical) {
+    return 'critical';
+  }
+
+  switch (requiredProfile) {
+    case 'read_only':
+      return 'low';
+    case 'programming':
+      return 'medium';
+    case 'live_playback':
+      return 'high';
+    case 'admin':
+      return 'high';
+  }
 }
 
 export const safetyOptionsSchema = {

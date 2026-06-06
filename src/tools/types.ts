@@ -184,6 +184,7 @@ export type ToolRiskLevel = 'low' | 'medium' | 'high' | 'critical';
 
 export interface ToolMetadata {
   annotations?: Record<string, unknown>;
+  readOnly?: boolean;
   category?: string;
   synonyms?: string[];
   riskLevel?: ToolRiskLevel;

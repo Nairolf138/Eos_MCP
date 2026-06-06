@@ -196,6 +196,25 @@ L'audit dédié est désactivé par défaut. Activez-le avec `EOS_AUDIT_ENABLED=
 
 Utilisation recommandée : conservez `logs/audit.log` hors du dépôt, faites-le collecter par votre système SIEM ou votre rotation de logs, et corrélez les entrées avec `correlationId`/`sessionId` lorsque la passerelle MCP les fournit. Les logs applicatifs restent configurés séparément via `LOG_DESTINATIONS` et `MCP_LOG_FILE`; l'audit ne s'active que par `EOS_AUDIT_ENABLED=true`.
 
+
+### Mode lecture seule EOS_READ_ONLY
+
+Définissez `EOS_READ_ONLY=true` pour démarrer le serveur en mode verrouillé. Dans ce mode, le registre MCP n'autorise que les outils classés comme lecture seule (`readOnly: true`) : lectures OSC/JSON, capacités, ping, diagnostics, contexte de session et autres vérifications qui ne modifient pas l'état de la console. Les outils qui envoient des commandes susceptibles de changer le show ou l'état live (`eos_command`, `eos_new_command`, `eos_cue_*` d'exécution/enregistrement, patch, macros, workflows d'écriture, faders/submasters, etc.) sont refusés même si le client fournit un profil `admin` et `confirm=true`.
+
+Chaque outil publié expose désormais les métadonnées de sécurité suivantes dans le catalogue MCP et dans les annotations de schéma :
+
+- `readOnly: true|false` indique si l'outil est autorisé lorsque `EOS_READ_ONLY=true` ;
+- `riskLevel: low|medium|high|critical` décrit l'impact potentiel côté console ;
+- `requiresConfirmation: true|false` indique si l'exécution réelle nécessite une confirmation opérateur (`confirm=true` ou `require_confirmation=true`).
+
+Exemple de démarrage sécurisé pour un assistant limité à l'observation et au diagnostic :
+
+```bash
+EOS_READ_ONLY=true npm run start:dev
+```
+
+Conservez `EOS_READ_ONLY=false` (valeur par défaut) uniquement lorsque des commandes d'exploitation ou de programmation doivent être possibles, puis combinez-le avec les profils de sécurité MCP (`EOS_MCP_ALLOWED_TOOL_PROFILE`) et les confirmations explicites déjà documentées.
+
 ## Configuration réseau et de la console Eos
 
 | Protocole | Port | Description |
