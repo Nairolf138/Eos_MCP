@@ -423,7 +423,7 @@ export const eosSubmasterBumpTool: ToolDefinition<typeof bumpInputSchema> = {
     title: 'Commande de bump',
     description: "Active ou desactive le bump d'un submaster.",
     inputSchema: bumpInputSchema,
-    annotations: annotate(oscMappings.submasters.base + '/{submaster_number}/bump', ['f {state}'])
+    annotations: annotate(oscMappings.submasters.base + '/{submaster_number}/fire', ['f {state}'])
   },
   handler: async (args, _extra) => {
     const schema = z.object(bumpInputSchema).strict();

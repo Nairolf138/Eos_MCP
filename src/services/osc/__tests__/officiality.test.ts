@@ -42,7 +42,7 @@ describe('OSC address officiality classification', () => {
   });
 
   it('resout les templates utilises par les outils MCP', () => {
-    expect(getOscAddressOfficiality('/eos/fader/1/2/3')?.strictModeAllowed).toBe(true);
+    expect(getOscAddressOfficiality('/eos/fader/1/2')?.strictModeAllowed).toBe(true);
     expect(getOscAddressOfficiality('/eos/group/4/level')?.official).toBe(true);
     expect(getOscAddressOfficiality('/eos/key/go_0')?.official).toBe(true);
     expect(getOscAddressOfficiality('/eos/out/user/3/cmd')).toMatchObject({ official: true, strictModeAllowed: true });

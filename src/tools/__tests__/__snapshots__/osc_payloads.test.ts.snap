@@ -114,18 +114,18 @@ exports[`OSC payload snapshots captures EOS-native effect command payloads 2`] =
 
 exports[`OSC payload snapshots captures EOS-native layout payloads 1`] = `
 {
-  "address": "/eos/fader/1/config/10/0",
+  "address": "/eos/fader/1/config/10",
   "args": [],
-  "arguments": "EOS-native address path encodes bank, fader count, and page",
+  "arguments": "EOS-native address path encodes bank, optional page, and fader count",
   "wireFormat": "eos-native-address",
 }
 `;
 
 exports[`OSC payload snapshots captures EOS-native layout payloads 2`] = `
 {
-  "address": "/eos/ds/1/config/Chan/10/0/1",
+  "address": "/eos/ds/1/Chan/1/10",
   "args": [],
-  "arguments": "EOS-native address path encodes bank, target, buttons, flexi, and page",
+  "arguments": "EOS-native address path encodes bank, target, optional flexi, optional page, and buttons",
   "wireFormat": "eos-native-address",
 }
 `;

@@ -135,6 +135,27 @@ function formatDirectSelectPath(
   });
 }
 
+
+function buildDirectSelectBankCreateAddress(options: BankCreateOptions, state: DirectSelectBankState): string {
+  const values = {
+    index: options.bank_index,
+    target: state.targetType,
+    buttons: state.buttonCount,
+    page: state.page
+  };
+
+  if (state.flexiMode && options.page_number != null) {
+    return formatDirectSelectPath(oscMappings.directSelects.bankCreateFlexiOnPage, values);
+  }
+  if (state.flexiMode) {
+    return formatDirectSelectPath(oscMappings.directSelects.bankCreateFlexi, values);
+  }
+  if (options.page_number != null) {
+    return formatDirectSelectPath(oscMappings.directSelects.bankCreateOnPage, values);
+  }
+  return formatDirectSelectPath(oscMappings.directSelects.bankCreate, values);
+}
+
 function normaliseTargetType(value: string): string | null {
   const trimmed = value.trim();
   if (trimmed.length === 0) {
@@ -255,13 +276,7 @@ export const eosDirectSelectBankCreateTool: ToolDefinition<typeof bankCreateInpu
 
     setBankState(options.bank_index, state);
 
-    const address = formatDirectSelectPath(oscMappings.directSelects.bankCreate, {
-      index: options.bank_index,
-      target: state.targetType,
-      buttons: state.buttonCount,
-      flexi: state.flexiMode ? 1 : 0,
-      page: state.page
-    });
+    const address = buildDirectSelectBankCreateAddress(options, state);
 
     await client.sendMessage(address, [], extractTargetOptions(options));
 
@@ -327,7 +342,6 @@ export const eosDirectSelectPressTool: ToolDefinition<typeof pressInputSchema> =
 
     const address = formatDirectSelectPath(oscMappings.directSelects.base, {
       index: options.bank_index,
-      page: state.page,
       button: options.button_index
     });
     const stateValue: number = options.state;

@@ -100,12 +100,19 @@ export const oscMappings = {
   },
   faders: {
     base: '/eos/fader',
-    bankCreate: '/eos/fader/{index}/config/{faders}/{page}',
-    bankPage: '/eos/fader/{index}/page/{delta}'
+    bankCreate: '/eos/fader/{index}/config/{faders}',
+    bankCreateOnPage: '/eos/fader/{index}/config/{page}/{faders}',
+    bankPage: '/eos/fader/{index}/page/{delta}',
+    level: '/eos/fader/{index}/{fader}',
+    load: '/eos/fader/{index}/{fader}/load',
+    unload: '/eos/fader/{index}/{fader}/unload'
   },
   directSelects: {
-    base: '/eos/ds/{index}/button/{page}/{button}',
-    bankCreate: '/eos/ds/{index}/config/{target}/{buttons}/{flexi}/{page}',
+    base: '/eos/ds/{index}/{button}',
+    bankCreate: '/eos/ds/{index}/{target}/{buttons}',
+    bankCreateFlexi: '/eos/ds/{index}/{target}/flexi/{buttons}',
+    bankCreateOnPage: '/eos/ds/{index}/{target}/{page}/{buttons}',
+    bankCreateFlexiOnPage: '/eos/ds/{index}/{target}/flexi/{page}/{buttons}',
     bankPage: '/eos/ds/{index}/page/{delta}'
   },
   pixelMaps: {
@@ -243,10 +250,10 @@ export const oscPayloadAnnotations = {
     stop: { wireFormat: 'eos-native-command', arguments: 'single OSC string containing `Effect Stop` or `Effect <number> Stop`' }
   },
   faders: {
-    bankCreate: { wireFormat: 'eos-native-address', arguments: 'EOS-native address path encodes bank, fader count, and page' }
+    bankCreate: { wireFormat: 'eos-native-address', arguments: 'EOS-native address path encodes bank, optional page, and fader count' }
   },
   directSelects: {
-    bankCreate: { wireFormat: 'eos-native-address', arguments: 'EOS-native address path encodes bank, target, buttons, flexi, and page' }
+    bankCreate: { wireFormat: 'eos-native-address', arguments: 'EOS-native address path encodes bank, target, optional flexi, optional page, and buttons' }
   },
   cues: {
     fire: { wireFormat: 'eos-native-address', arguments: 'EOS-native address path encodes cue/cuelist, no OSC arguments' },

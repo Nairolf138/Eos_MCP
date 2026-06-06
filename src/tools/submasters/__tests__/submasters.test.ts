@@ -60,10 +60,10 @@ describe('submaster tools', () => {
 
     expect(service.sentMessages).toHaveLength(2);
 
-    expect(service.sentMessages[0]).toMatchObject({ address: `${oscMappings.submasters.base}/5/bump` });
+    expect(service.sentMessages[0]).toMatchObject({ address: `${oscMappings.submasters.base}/5/fire` });
     expect(service.sentMessages[0]?.args?.[0]).toMatchObject({ type: 'f', value: 1 });
 
-    expect(service.sentMessages[1]).toMatchObject({ address: `${oscMappings.submasters.base}/5/bump` });
+    expect(service.sentMessages[1]).toMatchObject({ address: `${oscMappings.submasters.base}/5/fire` });
     expect(service.sentMessages[1]?.args?.[0]).toMatchObject({ type: 'f', value: 0 });
   });
 
