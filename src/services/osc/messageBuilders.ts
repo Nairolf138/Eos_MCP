@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { z } from 'zod';
-import { buildDmxAddressDmxAddress, buildDmxAddressLevelAddress, oscMappings } from './mappings';
+import { buildDmxAddressDmxAddress, buildDmxAddressLevelAddress } from './addressBuilders';
+import { oscMappings } from './mappings';
 import type { OscMessage, OscMessageArgument } from './index';
 import { getOscAddressOfficiality } from './officiality';
 

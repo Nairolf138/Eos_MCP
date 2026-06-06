@@ -4,6 +4,7 @@
  */
 import { z, type ZodRawShape } from 'zod';
 import { getOscClient } from '../../services/osc/client';
+import { buildCuelistBankCreateAddress } from '../../services/osc/addressBuilders';
 import { oscMappings } from '../../services/osc/mappings';
 import { buildToolResult, type ToolDefinition, type ToolExecutionResult } from '../types';
 import {
@@ -56,23 +57,18 @@ export const eosCuelistBankCreateTool: ToolDefinition<typeof bankCreateInputSche
       throw new Error("Le numero de cuelist est requis pour configurer un bank.");
     }
 
-    const segments = [
-      'eos',
-      'cuelist',
-      String(options.bank_index),
-      'config',
-      String(identifier.cuelistNumber),
-      String(options.num_prev_cues),
-      String(options.num_pending_cues)
-    ];
-
     let offset: number | undefined;
     if (typeof options.offset === 'number') {
       offset = Math.trunc(options.offset);
-      segments.push(String(offset));
     }
 
-    const address = `/${segments.join('/')}`;
+    const address = buildCuelistBankCreateAddress(
+      options.bank_index,
+      identifier.cuelistNumber,
+      options.num_prev_cues,
+      options.num_pending_cues,
+      offset
+    );
 
     await client.sendMessage(address, [], extractTargetOptions(options));
     notifyCueResourceChange({ ...identifier, cueNumber: null, cuePart: null });

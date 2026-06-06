@@ -12,7 +12,8 @@ import {
 } from '../../services/cache/index';
 import { getOscClient, type OscJsonResponse, type StepStatus } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
-import { buildChannelParameterAddress, oscMappings } from '../../services/osc/mappings';
+import { buildChannelParameterAddress } from '../../services/osc/addressBuilders';
+import { oscMappings } from '../../services/osc/mappings';
 import { buildDmxAddressDmxMessage } from '../../services/osc/messageBuilders';
 import { createDryRunResult, resolveSafetyOptions, safetyOptionsSchema } from '../common/safety';
 import { sendDeterministicCommand } from '../commands/command_tools';

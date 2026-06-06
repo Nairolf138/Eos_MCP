@@ -11,6 +11,7 @@ import {
 } from '../../services/cache/index';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
+import { buildSubmasterBumpAddress, buildSubmasterLevelAddress } from '../../services/osc/addressBuilders';
 import { oscMappings } from '../../services/osc/mappings';
 import { levelValueSchema, submasterNumberSchema } from '../../utils/validators';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
@@ -384,14 +385,14 @@ export const eosSubmasterSetLevelTool: ToolDefinition<typeof setLevelInputSchema
     title: 'Reglage de submaster',
     description: "Ajuste le niveau d'un submaster sur une echelle de 0.0 a 1.0.",
     inputSchema: setLevelInputSchema,
-    annotations: annotate(`${oscMappings.submasters.base}/{submaster_number}`, ['f {level}'])
+    annotations: annotate(oscMappings.submasters.base + '/{submaster_number}', ['f {level}'])
   },
   handler: async (args, _extra) => {
     const schema = z.object(setLevelInputSchema).strict();
     const options = schema.parse(args ?? {});
     const client = getOscClient();
     const level = resolveLevelValue(options.level);
-    const address = `${oscMappings.submasters.base}/${options.submaster_number}`;
+    const address = buildSubmasterLevelAddress(options.submaster_number);
 
     await client.sendMessage(address, buildFloatArgs(level), extractTargetOptions(options));
 
@@ -422,14 +423,14 @@ export const eosSubmasterBumpTool: ToolDefinition<typeof bumpInputSchema> = {
     title: 'Commande de bump',
     description: "Active ou desactive le bump d'un submaster.",
     inputSchema: bumpInputSchema,
-    annotations: annotate(`${oscMappings.submasters.base}/{submaster_number}/bump`, ['f {state}'])
+    annotations: annotate(oscMappings.submasters.base + '/{submaster_number}/bump', ['f {state}'])
   },
   handler: async (args, _extra) => {
     const schema = z.object(bumpInputSchema).strict();
     const options = schema.parse(args ?? {});
     const client = getOscClient();
     const state = resolveBumpState(options.state);
-    const address = `${oscMappings.submasters.base}/${options.submaster_number}/bump`;
+    const address = buildSubmasterBumpAddress(options.submaster_number);
     const value = state ? 1 : 0;
 
     await client.sendMessage(address, buildFloatArgs(value), extractTargetOptions(options));

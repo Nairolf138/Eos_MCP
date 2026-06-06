@@ -11,6 +11,7 @@ import {
 } from '../../services/cache/index';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
+import { buildMacroFireAddress, buildMacroSelectAddress } from '../../services/osc/addressBuilders';
 import { oscMappings } from '../../services/osc/mappings';
 import { macroNumberSchema } from '../../utils/validators';
 import { buildToolResult, withToolMetadata, type ToolDefinition, type ToolExecutionResult } from '../types';
@@ -357,8 +358,10 @@ export const eosMacroFireTool: ToolDefinition<typeof fireInputSchema> = {
       }
     ];
 
+    const address = buildMacroFireAddress();
+
     await client.sendMessage(
-      oscMappings.macros.fire,
+      address,
       oscArgs,
       {
         targetAddress: options.targetAddress,
@@ -371,7 +374,7 @@ export const eosMacroFireTool: ToolDefinition<typeof fireInputSchema> = {
       `Macro ${options.macro_number} declenchee`,
       options.macro_number,
       payload,
-      oscMappings.macros.fire,
+      address,
       oscArgs
     );
   }
@@ -412,8 +415,10 @@ export const eosMacroSelectTool: ToolDefinition<typeof selectInputSchema> = {
       }
     ];
 
+    const address = buildMacroSelectAddress();
+
     await client.sendMessage(
-      oscMappings.macros.select,
+      address,
       oscArgs,
       {
         targetAddress: options.targetAddress,
@@ -426,7 +431,7 @@ export const eosMacroSelectTool: ToolDefinition<typeof selectInputSchema> = {
       `Macro ${options.macro_number} selectionnee`,
       options.macro_number,
       payload,
-      oscMappings.macros.select,
+      address,
       oscArgs
     );
   }

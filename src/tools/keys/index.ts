@@ -5,7 +5,8 @@
 import { z, type ZodRawShape } from 'zod';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
-import { buildSoftkeyAddress, oscMappings } from '../../services/osc/mappings';
+import { buildKeyAddress, buildSoftkeyAddress } from '../../services/osc/addressBuilders';
+import { oscMappings } from '../../services/osc/mappings';
 import { softkeyIndexSchema } from '../../utils/validators';
 import { createDryRunResult, resolveSafetyOptions, safetyOptionsSchema } from '../common/safety';
 import { withToolMetadata, type ToolDefinition, type ToolExecutionResult } from '../types';
@@ -216,7 +217,7 @@ export const eosKeyPressTool: ToolDefinition<typeof keyPressInputSchema> = {
     const keyName = options.key_name as KeyName;
     const state = normaliseButtonState(options.state);
     const identifier = resolveKeyIdentifier(keyName);
-    const address = `${oscMappings.keys.base}/${identifier}`;
+    const address = buildKeyAddress(identifier);
     const client = getOscClient();
     const oscArgs = createOscArgs(state);
 
