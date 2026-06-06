@@ -74,7 +74,7 @@ const importTool: ToolDefinition<typeof importInputSchema> = {
   },
   metadata: {
     category: 'showfile',
-    riskLevel: 'medium',
+    riskLevel: 'show-modifying',
     requiresConfirmation: true,
     synonyms: ['esf3d', 'showfile fallback', 'offline showfile']
   },
@@ -124,7 +124,7 @@ function createMetadataTool<K extends keyof ShowfileMetadata>(name: string, titl
     },
     metadata: {
       category: 'showfile',
-      riskLevel: 'low',
+      riskLevel: 'read',
       synonyms: ['esf3d', 'showfile offline']
     },
     async handler(args) {

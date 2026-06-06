@@ -327,7 +327,7 @@ Catégories documentées : `commands`, `cues`, `diagnostics`, `dmx`, `keys`, `ma
 | --- | --- |
 | Catégorie | `dmx` |
 | Synonymes | `dmx`, `address`, `adresse`, `level`, `sortie directe` |
-| Niveau de risque | `high` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_create_look` |
 
@@ -371,7 +371,7 @@ oscsend 127.0.0.1 8001 /eos/addr s:'{"address_number":1}'
 | --- | --- |
 | Catégorie | `dmx` |
 | Synonymes | `dmx`, `address`, `adresse`, `level`, `sortie directe` |
-| Niveau de risque | `high` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_create_look` |
 
@@ -416,7 +416,7 @@ oscsend 127.0.0.1 8001 /eos/addr/{address}/DMX s:'{"address_number":1,"dmx_value
 | --- | --- |
 | Catégorie | `dmx` |
 | Synonymes | `dmx`, `address`, `adresse`, `level`, `sortie directe` |
-| Niveau de risque | `high` |
+| Niveau de risque | `live` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_create_look` |
 
@@ -461,7 +461,7 @@ oscsend 127.0.0.1 8001 /eos/addr/{address} s:'{"address_number":1,"level":1}'
 | --- | --- |
 | Catégorie | `palettes` |
 | Synonymes | `palette`, `ip`, `fp`, `cp`, `bp`, `look building` |
-| Niveau de risque | `high` |
+| Niveau de risque | `live` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_create_look`, `eos_workflow_create_cue_series` |
 
@@ -503,7 +503,7 @@ oscsend 127.0.0.1 8001 /eos/bp/fire s:'{"palette_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :** Aucun argument.
@@ -531,7 +531,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -570,7 +570,7 @@ oscsend 127.0.0.1 8001 /eos/get/channels s:'{"channels":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `medium` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -608,7 +608,7 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Chan 1'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `medium` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -646,7 +646,7 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Chan 1 At 1 DMX'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `high` |
+| Niveau de risque | `live` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -685,7 +685,7 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Chan 1 Sneak 1'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `medium` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -730,7 +730,7 @@ oscsend 127.0.0.1 8001 /eos/chan/1/param/exemple f:1
 | --- | --- |
 | Catégorie | `palettes` |
 | Synonymes | `palette`, `ip`, `fp`, `cp`, `bp`, `look building` |
-| Niveau de risque | `high` |
+| Niveau de risque | `live` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_create_look`, `eos_workflow_create_cue_series` |
 
@@ -774,7 +774,7 @@ oscsend 127.0.0.1 8001 /eos/cp/fire s:'{"palette_number":1}'
 | --- | --- |
 | Catégorie | `commands` |
 | Synonymes | `command line`, `cmd`, `newcmd`, `texte eos`, `ligne de commande` |
-| Niveau de risque | `high` |
+| Niveau de risque | `dangerous` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_create_look`, `eos_workflow_update_cue_look` |
 
@@ -822,7 +822,7 @@ oscsend 127.0.0.1 8001 /eos/cmd s:'{"command":"exemple"}'
 | --- | --- |
 | Catégorie | `commands` |
 | Synonymes | `command line`, `cmd`, `newcmd`, `texte eos`, `ligne de commande` |
-| Niveau de risque | `high` |
+| Niveau de risque | `dangerous` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_create_look`, `eos_workflow_update_cue_look` |
 
@@ -869,7 +869,7 @@ oscsend 127.0.0.1 8001 /eos/cmd s:'{"template":"exemple"}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -904,7 +904,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -942,7 +942,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :** Aucun argument.
@@ -972,7 +972,7 @@ _Pas de mapping OSC documenté._
 | --- | --- |
 | Catégorie | `cues` |
 | Synonymes | `cue`, `cuelist`, `playback`, `go`, `record cue` |
-| Niveau de risque | `high` |
+| Niveau de risque | `live` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_create_cue_series`, `eos_workflow_update_cue_look` |
 
@@ -1018,7 +1018,7 @@ oscsend 127.0.0.1 8001 /eos/cue/{cuelist}/{cue}/fire s:'{"cue_number":1}'
 | --- | --- |
 | Catégorie | `cues` |
 | Synonymes | `cue`, `cuelist`, `playback`, `go`, `record cue` |
-| Niveau de risque | `high` |
+| Niveau de risque | `read` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_create_cue_series`, `eos_workflow_update_cue_look` |
 
@@ -1065,7 +1065,7 @@ oscsend 127.0.0.1 8001 /eos/get/cue s:'{"cuelist_number":1,"cue_number":1}'
 | --- | --- |
 | Catégorie | `cues` |
 | Synonymes | `cue`, `cuelist`, `playback`, `go`, `record cue` |
-| Niveau de risque | `high` |
+| Niveau de risque | `live` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_create_cue_series`, `eos_workflow_update_cue_look` |
 
@@ -1109,7 +1109,7 @@ oscsend 127.0.0.1 8001 /eos/cue/{cuelist}/go s:'{"cuelist_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `high` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -1151,7 +1151,7 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Cue 1 Label "exemple"#'
 | --- | --- |
 | Catégorie | `cues` |
 | Synonymes | `cue`, `cuelist`, `playback`, `go`, `record cue` |
-| Niveau de risque | `high` |
+| Niveau de risque | `read` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_create_cue_series`, `eos_workflow_update_cue_look` |
 
@@ -1193,7 +1193,7 @@ oscsend 127.0.0.1 8001 /eos/get/cuelist s:'{"cuelist_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `high` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -1234,7 +1234,7 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Record Cue {cuelist_number}/1#'
 | --- | --- |
 | Catégorie | `cues` |
 | Synonymes | `cue`, `cuelist`, `playback`, `go`, `record cue` |
-| Niveau de risque | `high` |
+| Niveau de risque | `read` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_create_cue_series`, `eos_workflow_update_cue_look` |
 
@@ -1280,7 +1280,7 @@ oscsend 127.0.0.1 8001 /eos/cue/{cue} s:'{"cue_number":1}'
 | --- | --- |
 | Catégorie | `cues` |
 | Synonymes | `cue`, `cuelist`, `playback`, `go`, `record cue` |
-| Niveau de risque | `high` |
+| Niveau de risque | `live` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_create_cue_series`, `eos_workflow_update_cue_look` |
 
@@ -1323,7 +1323,7 @@ oscsend 127.0.0.1 8001 /eos/cmd s:'Cue 1 Stop#'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `high` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -1364,7 +1364,7 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Update Cue 1#'
 | --- | --- |
 | Catégorie | `cues` |
 | Synonymes | `cue`, `cuelist`, `playback`, `go`, `record cue` |
-| Niveau de risque | `high` |
+| Niveau de risque | `read` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_create_cue_series`, `eos_workflow_update_cue_look` |
 
@@ -1412,7 +1412,7 @@ oscsend 127.0.0.1 8001 /eos/cuelist/1/config/1/1/1
 | --- | --- |
 | Catégorie | `cues` |
 | Synonymes | `cue`, `cuelist`, `playback`, `go`, `record cue` |
-| Niveau de risque | `high` |
+| Niveau de risque | `read` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_create_cue_series`, `eos_workflow_update_cue_look` |
 
@@ -1457,7 +1457,7 @@ oscsend 127.0.0.1 8001 /eos/cuelist/1/page/1
 | --- | --- |
 | Catégorie | `cues` |
 | Synonymes | `cue`, `cuelist`, `playback`, `go`, `record cue` |
-| Niveau de risque | `high` |
+| Niveau de risque | `read` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_create_cue_series`, `eos_workflow_update_cue_look` |
 
@@ -1499,7 +1499,7 @@ oscsend 127.0.0.1 8001 /eos/get/cuelist/info s:'{"cuelist_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -1538,7 +1538,7 @@ oscsend 127.0.0.1 8001 /eos/get/curve s:'{"curve_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -1575,7 +1575,7 @@ oscsend 127.0.0.1 8001 /eos/curve/select s:'{"curve_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `medium` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -1616,7 +1616,7 @@ oscsend 127.0.0.1 8001 /eos/ds/{index}/config/{target}/{buttons}/{flexi}/{page} 
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `medium` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -1654,7 +1654,7 @@ oscsend 127.0.0.1 8001 /eos/ds/{index}/page/1 s:'{"bank_index":1,"delta":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `high` |
+| Niveau de risque | `live` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -1693,7 +1693,7 @@ oscsend 127.0.0.1 8001 /eos/ds/{index}/button/{page}/{button} f 1
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -1732,7 +1732,7 @@ oscsend 127.0.0.1 8001 /eos/get/effect s:'{"effect_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `medium` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -1769,7 +1769,7 @@ oscsend 127.0.0.1 8001 /eos/cmd s:'{"effect_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `medium` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -1806,7 +1806,7 @@ oscsend 127.0.0.1 8001 /eos/cmd s:'{"effect_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -1839,7 +1839,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `medium` |
+| Niveau de risque | `live` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -1878,7 +1878,7 @@ oscsend 127.0.0.1 8001 /eos/fader/{index}/config/{faders}/{page} s:'{"bank_index
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `high` |
+| Niveau de risque | `live` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -1916,7 +1916,7 @@ oscsend 127.0.0.1 8001 /eos/fader/{bank}/{page}/{fader}/load s:'{"bank_index":1,
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `medium` |
+| Niveau de risque | `live` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -1954,7 +1954,7 @@ oscsend 127.0.0.1 8001 /eos/fader/{index}/page/1 s:'{"bank_index":1,"delta":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `high` |
+| Niveau de risque | `live` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -1993,7 +1993,7 @@ oscsend 127.0.0.1 8001 /eos/fader/{bank}/{page}/{fader} s:'{"bank_index":1,"fade
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `high` |
+| Niveau de risque | `live` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -2031,7 +2031,7 @@ oscsend 127.0.0.1 8001 /eos/fader/{bank}/{page}/{fader}/unload s:'{"bank_index":
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -2070,7 +2070,7 @@ _Pas de mapping OSC documenté._
 | --- | --- |
 | Catégorie | `palettes` |
 | Synonymes | `palette`, `ip`, `fp`, `cp`, `bp`, `look building` |
-| Niveau de risque | `high` |
+| Niveau de risque | `live` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_create_look`, `eos_workflow_create_cue_series` |
 
@@ -2112,7 +2112,7 @@ oscsend 127.0.0.1 8001 /eos/fp/fire s:'{"palette_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -2151,7 +2151,7 @@ oscsend 127.0.0.1 8001 /eos/get/fpe/point s:'{"set_number":1,"point_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -2188,7 +2188,7 @@ oscsend 127.0.0.1 8001 /eos/get/fpe/set/count s:'{"timeoutMs":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -2228,7 +2228,7 @@ oscsend 127.0.0.1 8001 /eos/get/fpe/set s:'{"set_number":1}'
 | --- | --- |
 | Catégorie | `cues` |
 | Synonymes | `cue`, `cuelist`, `playback`, `go`, `record cue` |
-| Niveau de risque | `high` |
+| Niveau de risque | `read` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_create_cue_series`, `eos_workflow_update_cue_look` |
 
@@ -2270,7 +2270,7 @@ oscsend 127.0.0.1 8001 /eos/get/active/cue s:'{"cuelist_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -2309,7 +2309,7 @@ oscsend 127.0.0.1 8001 /eos/get/active/wheels s:'{"timeoutMs":1}'
 | --- | --- |
 | Catégorie | `commands` |
 | Synonymes | `command line`, `cmd`, `newcmd`, `texte eos`, `ligne de commande` |
-| Niveau de risque | `high` |
+| Niveau de risque | `read` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_create_look`, `eos_workflow_update_cue_look` |
 
@@ -2354,7 +2354,7 @@ oscsend 127.0.0.1 8001 /eos/get/cmd_line s:'{"user":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -2389,7 +2389,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :** Aucun argument.
@@ -2417,7 +2417,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -2454,7 +2454,7 @@ _Pas de mapping OSC documenté._
 | --- | --- |
 | Catégorie | `showControl` |
 | Synonymes | `show control`, `show name`, `live blind`, `cue string`, `staging mode` |
-| Niveau de risque | `critical` |
+| Niveau de risque | `read` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_rehearsal_go` |
 
@@ -2494,7 +2494,7 @@ oscsend 127.0.0.1 8001 /eos/get/live/blind s:'{"timeoutMs":1}'
 | --- | --- |
 | Catégorie | `cues` |
 | Synonymes | `cue`, `cuelist`, `playback`, `go`, `record cue` |
-| Niveau de risque | `high` |
+| Niveau de risque | `read` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_create_cue_series`, `eos_workflow_update_cue_look` |
 
@@ -2536,7 +2536,7 @@ oscsend 127.0.0.1 8001 /eos/get/pending/cue s:'{"cuelist_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -2572,7 +2572,7 @@ _Pas de mapping OSC documenté._
 | --- | --- |
 | Catégorie | `showControl` |
 | Synonymes | `show control`, `show name`, `live blind`, `cue string`, `staging mode` |
-| Niveau de risque | `critical` |
+| Niveau de risque | `read` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_rehearsal_go` |
 
@@ -2612,7 +2612,7 @@ oscsend 127.0.0.1 8001 /eos/get/show/name s:'{"timeoutMs":1}'
 | --- | --- |
 | Catégorie | `keys` |
 | Synonymes | `key`, `button`, `softkey`, `touche`, `facepanel` |
-| Niveau de risque | `medium` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 | Workflow préféré | `eos_workflow_rehearsal_go` |
 
@@ -2652,7 +2652,7 @@ oscsend 127.0.0.1 8001 /eos/get/softkey_labels s:'{"timeoutMs":1}'
 | --- | --- |
 | Catégorie | `commands` |
 | Synonymes | `command line`, `cmd`, `newcmd`, `texte eos`, `ligne de commande` |
-| Niveau de risque | `high` |
+| Niveau de risque | `read` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_create_look`, `eos_workflow_update_cue_look` |
 
@@ -2697,7 +2697,7 @@ oscsend 127.0.0.1 8001 /eos/get/cmd_line s:'{"user":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -2731,7 +2731,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -2769,7 +2769,7 @@ oscsend 127.0.0.1 8001 /eos/get/group s:'{"group_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -2806,7 +2806,7 @@ oscsend 127.0.0.1 8001 /eos/get/group/list s:'{"timeoutMs":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `medium` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -2843,7 +2843,7 @@ oscsend 127.0.0.1 8001 /eos/group s:'{"group_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `high` |
+| Niveau de risque | `live` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -2884,7 +2884,7 @@ oscsend 127.0.0.1 8001 /eos/group/{group}/level s:'{"group_number":1,"level":1}'
 | --- | --- |
 | Catégorie | `palettes` |
 | Synonymes | `palette`, `ip`, `fp`, `cp`, `bp`, `look building` |
-| Niveau de risque | `high` |
+| Niveau de risque | `live` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_create_look`, `eos_workflow_create_cue_series` |
 
@@ -2928,7 +2928,7 @@ oscsend 127.0.0.1 8001 /eos/ip/fire s:'{"palette_number":1}'
 | --- | --- |
 | Catégorie | `keys` |
 | Synonymes | `key`, `button`, `softkey`, `touche`, `facepanel` |
-| Niveau de risque | `medium` |
+| Niveau de risque | `live` |
 | Confirmation requise | Non |
 | Workflow préféré | `eos_workflow_rehearsal_go` |
 
@@ -2973,7 +2973,7 @@ oscsend 127.0.0.1 8001 /eos/key/{key} s:'{"key_name":"exemple"}'
 | --- | --- |
 | Catégorie | `macros` |
 | Synonymes | `macro`, `macro fire`, `automation`, `sequence` |
-| Niveau de risque | `high` |
+| Niveau de risque | `live` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_rehearsal_go` |
 
@@ -3013,7 +3013,7 @@ oscsend 127.0.0.1 8001 /eos/macro/fire s:'{"macro_number":1}'
 | --- | --- |
 | Catégorie | `macros` |
 | Synonymes | `macro`, `macro fire`, `automation`, `sequence` |
-| Niveau de risque | `high` |
+| Niveau de risque | `read` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_rehearsal_go` |
 
@@ -3054,7 +3054,7 @@ oscsend 127.0.0.1 8001 /eos/get/macro s:'{"macro_number":1}'
 | --- | --- |
 | Catégorie | `macros` |
 | Synonymes | `macro`, `macro fire`, `automation`, `sequence` |
-| Niveau de risque | `high` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_rehearsal_go` |
 
@@ -3092,7 +3092,7 @@ oscsend 127.0.0.1 8001 /eos/macro s:'{"macro_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -3130,7 +3130,7 @@ oscsend 127.0.0.1 8001 /eos/get/magic_sheet s:'{"ms_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -3168,7 +3168,7 @@ oscsend 127.0.0.1 8001 /eos/ms s:'{"ms_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -3207,7 +3207,7 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'{"osc_command":"exemple"}'
 | --- | --- |
 | Catégorie | `commands` |
 | Synonymes | `command line`, `cmd`, `newcmd`, `texte eos`, `ligne de commande` |
-| Niveau de risque | `high` |
+| Niveau de risque | `dangerous` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_create_look`, `eos_workflow_update_cue_look` |
 
@@ -3257,7 +3257,7 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'{"command":"exemple"}'
 | --- | --- |
 | Catégorie | `palettes` |
 | Synonymes | `palette`, `ip`, `fp`, `cp`, `bp`, `look building` |
-| Niveau de risque | `high` |
+| Niveau de risque | `read` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_create_look`, `eos_workflow_create_cue_series` |
 
@@ -3302,7 +3302,7 @@ oscsend 127.0.0.1 8001 /eos/get/palette s:'{"palette_type":"ip","palette_number"
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `high` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -3342,7 +3342,7 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'IP 1 Label "exemple"#'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `high` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -3383,7 +3383,7 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'IP 1 Record#'
 | --- | --- |
 | Catégorie | `patch` |
 | Synonymes | `patch`, `fixture`, `channel setup`, `augment3d`, `adressage` |
-| Niveau de risque | `critical` |
+| Niveau de risque | `read` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_autopatch_band` |
 
@@ -3429,7 +3429,7 @@ oscsend 127.0.0.1 8001 /eos/get/patch/chan_beam s:'{"channel_number":1,"part_num
 | --- | --- |
 | Catégorie | `patch` |
 | Synonymes | `patch`, `fixture`, `channel setup`, `augment3d`, `adressage` |
-| Niveau de risque | `critical` |
+| Niveau de risque | `read` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_autopatch_band` |
 
@@ -3475,7 +3475,7 @@ oscsend 127.0.0.1 8001 /eos/get/patch/chan_pos s:'{"channel_number":1,"part_numb
 | --- | --- |
 | Catégorie | `patch` |
 | Synonymes | `patch`, `fixture`, `channel setup`, `augment3d`, `adressage` |
-| Niveau de risque | `critical` |
+| Niveau de risque | `read` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_autopatch_band` |
 
@@ -3519,7 +3519,7 @@ oscsend 127.0.0.1 8001 /eos/get/patch/chan_info s:'{"channel_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `high` |
+| Niveau de risque | `dangerous` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -3561,7 +3561,7 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Patch Chan 1 Part 1 Address 1 Type "exempl
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -3600,7 +3600,7 @@ oscsend 127.0.0.1 8001 /eos/ping s:'{"message":"exemple"}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -3638,7 +3638,7 @@ oscsend 127.0.0.1 8001 /eos/get/pixmap s:'{"pixmap_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -3677,7 +3677,7 @@ oscsend 127.0.0.1 8001 /eos/pixmap s:'{"pixmap_number":1}'
 | --- | --- |
 | Catégorie | `presets` |
 | Synonymes | `preset`, `look`, `preset fire`, `preset select` |
-| Niveau de risque | `high` |
+| Niveau de risque | `live` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_create_look`, `eos_workflow_create_cue_series` |
 
@@ -3717,7 +3717,7 @@ oscsend 127.0.0.1 8001 /eos/preset/fire s:'{"preset_number":1}'
 | --- | --- |
 | Catégorie | `presets` |
 | Synonymes | `preset`, `look`, `preset fire`, `preset select` |
-| Niveau de risque | `high` |
+| Niveau de risque | `read` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_create_look`, `eos_workflow_create_cue_series` |
 
@@ -3759,7 +3759,7 @@ oscsend 127.0.0.1 8001 /eos/get/preset s:'{"preset_number":1}'
 | --- | --- |
 | Catégorie | `presets` |
 | Synonymes | `preset`, `look`, `preset fire`, `preset select` |
-| Niveau de risque | `high` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_create_look`, `eos_workflow_create_cue_series` |
 
@@ -3798,7 +3798,7 @@ oscsend 127.0.0.1 8001 /eos/preset s:'{"preset_number":1}'
 | Champ | Valeur |
 | --- | --- |
 | Catégorie | `diagnostics` |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 | Workflow préféré | `first_step` |
 
@@ -3840,7 +3840,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `high` |
+| Niveau de risque | `dangerous` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -3876,7 +3876,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `medium` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -3914,7 +3914,7 @@ oscsend 127.0.0.1 8001 /eos/param/color/hs s:'{"hue":1,"saturation":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `medium` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -3955,7 +3955,7 @@ oscsend 127.0.0.1 8001 /eos/param/color/rgb s:'{"red":1,"green":1,"blue":1}'
 | --- | --- |
 | Catégorie | `showControl` |
 | Synonymes | `show control`, `show name`, `live blind`, `cue string`, `staging mode` |
-| Niveau de risque | `critical` |
+| Niveau de risque | `dangerous` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_rehearsal_go` |
 
@@ -3995,7 +3995,7 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'{"format_string":"exemple"}'
 | --- | --- |
 | Catégorie | `showControl` |
 | Synonymes | `show control`, `show name`, `live blind`, `cue string`, `staging mode` |
-| Niveau de risque | `critical` |
+| Niveau de risque | `dangerous` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_rehearsal_go` |
 
@@ -4033,7 +4033,7 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'{"format_string":"exemple"}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `medium` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -4071,7 +4071,7 @@ oscsend 127.0.0.1 8001 /eos/addr/{address}/DMX s:'{"addresses":1,"value":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `medium` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -4109,7 +4109,7 @@ oscsend 127.0.0.1 8001 /eos/param/position/xy s:'{"x":1,"y":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `medium` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -4150,7 +4150,7 @@ oscsend 127.0.0.1 8001 /eos/user i:1
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `medium` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -4191,7 +4191,7 @@ oscsend 127.0.0.1 8001 /eos/param/position/xyz s:'{"x":1,"y":1,"z":1}'
 | --- | --- |
 | Catégorie | `showfile` |
 | Synonymes | `esf3d`, `showfile offline` |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -4225,7 +4225,7 @@ _Pas de mapping OSC documenté._
 | --- | --- |
 | Catégorie | `showfile` |
 | Synonymes | `esf3d`, `showfile fallback`, `offline showfile` |
-| Niveau de risque | `medium` |
+| Niveau de risque | `dangerous` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -4267,7 +4267,7 @@ _Pas de mapping OSC documenté._
 | --- | --- |
 | Catégorie | `showfile` |
 | Synonymes | `esf3d`, `showfile offline` |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -4301,7 +4301,7 @@ _Pas de mapping OSC documenté._
 | --- | --- |
 | Catégorie | `showfile` |
 | Synonymes | `esf3d`, `showfile offline` |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -4335,7 +4335,7 @@ _Pas de mapping OSC documenté._
 | --- | --- |
 | Catégorie | `showfile` |
 | Synonymes | `esf3d`, `showfile offline` |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -4369,7 +4369,7 @@ _Pas de mapping OSC documenté._
 | --- | --- |
 | Catégorie | `showfile` |
 | Synonymes | `esf3d`, `showfile offline` |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -4403,7 +4403,7 @@ _Pas de mapping OSC documenté._
 | --- | --- |
 | Catégorie | `showfile` |
 | Synonymes | `esf3d`, `showfile offline` |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -4435,7 +4435,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -4474,7 +4474,7 @@ oscsend 127.0.0.1 8001 /eos/get/snapshot s:'{"snapshot_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `high` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -4513,7 +4513,7 @@ oscsend 127.0.0.1 8001 /eos/snap s:'{"snapshot_number":1}'
 | --- | --- |
 | Catégorie | `keys` |
 | Synonymes | `key`, `button`, `softkey`, `touche`, `facepanel` |
-| Niveau de risque | `medium` |
+| Niveau de risque | `live` |
 | Confirmation requise | Non |
 | Workflow préféré | `eos_workflow_rehearsal_go` |
 
@@ -4556,7 +4556,7 @@ oscsend 127.0.0.1 8001 /eos/softkey/1 s:'{"softkey_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `high` |
+| Niveau de risque | `live` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -4594,7 +4594,7 @@ oscsend 127.0.0.1 8001 /eos/sub/1/bump f 1
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -4632,7 +4632,7 @@ oscsend 127.0.0.1 8001 /eos/get/submaster s:'{"submaster_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `high` |
+| Niveau de risque | `live` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -4670,7 +4670,7 @@ oscsend 127.0.0.1 8001 /eos/sub/1 f 1
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -4708,7 +4708,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `high` |
+| Niveau de risque | `live` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -4748,7 +4748,7 @@ oscsend 127.0.0.1 8001 /eos/param/wheel/rate s:'{"parameter_name":"exemple","rat
 | --- | --- |
 | Catégorie | `showControl` |
 | Synonymes | `show control`, `show name`, `live blind`, `cue string`, `staging mode` |
-| Niveau de risque | `critical` |
+| Niveau de risque | `read` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_rehearsal_go` |
 
@@ -4785,7 +4785,7 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'{"targetAddress":"exemple"}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `high` |
+| Niveau de risque | `live` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -4824,7 +4824,7 @@ oscsend 127.0.0.1 8001 /eos/param/wheel/tick s:'{"parameter_name":"exemple","tic
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `high` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -4867,7 +4867,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `high` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -4907,7 +4907,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `high` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -4947,7 +4947,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `high` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -4990,7 +4990,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `high` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -5034,7 +5034,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `high` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -5084,7 +5084,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `high` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -5127,7 +5127,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `high` |
+| Niveau de risque | `live` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -5171,7 +5171,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `high` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 
 **Arguments :**
@@ -5214,7 +5214,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -5246,7 +5246,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -5281,7 +5281,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -5316,7 +5316,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :** Aucun argument.
@@ -5344,7 +5344,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**
@@ -5381,7 +5381,7 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `low` |
+| Niveau de risque | `read` |
 | Confirmation requise | Non |
 
 **Arguments :**

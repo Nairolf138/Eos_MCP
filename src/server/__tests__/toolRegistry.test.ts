@@ -56,11 +56,13 @@ const createMockServer = (): McpServer & {
 
 describe('ToolRegistry schema-less tools', () => {
   const originalReadOnly = process.env.EOS_READ_ONLY;
+  const originalStrictMode = process.env.EOS_STRICT_MODE;
 
   beforeEach(() => {
     mockLogger.info.mockClear();
     mockLogger.warn.mockClear();
     delete process.env.EOS_READ_ONLY;
+    delete process.env.EOS_STRICT_MODE;
   });
 
   afterEach(() => {
@@ -68,6 +70,11 @@ describe('ToolRegistry schema-less tools', () => {
       delete process.env.EOS_READ_ONLY;
     } else {
       process.env.EOS_READ_ONLY = originalReadOnly;
+    }
+    if (originalStrictMode === undefined) {
+      delete process.env.EOS_STRICT_MODE;
+    } else {
+      process.env.EOS_STRICT_MODE = originalStrictMode;
     }
   });
 
@@ -162,7 +169,7 @@ describe('ToolRegistry schema-less tools', () => {
       metadata: {
         category: 'commands',
         synonyms: ['cmd', 'ligne de commande'],
-        riskLevel: 'high',
+        riskLevel: 'show-modifying',
         requiresConfirmation: true,
         preferredWorkflow: 'eos_workflow_create_look'
       },
@@ -177,7 +184,7 @@ describe('ToolRegistry schema-less tools', () => {
         annotations: expect.objectContaining({
           mapping: { osc: '/eos/cmd' },
           category: 'commands',
-          riskLevel: 'high',
+          riskLevel: 'show-modifying',
           requiresConfirmation: true
         })
       }),
@@ -190,7 +197,7 @@ describe('ToolRegistry schema-less tools', () => {
         config: expect.objectContaining({
           metadata: expect.objectContaining({
             category: 'commands',
-            riskLevel: 'high',
+            riskLevel: 'show-modifying',
             requiresConfirmation: true,
             preferredWorkflow: 'eos_workflow_create_look'
           })
@@ -317,7 +324,7 @@ describe('ToolRegistry schema-less tools', () => {
     registry.register({
       name: 'eos_new_command',
       config: { inputSchema: { command: z.string(), confirm: z.boolean().optional() } },
-      metadata: { readOnly: false, riskLevel: 'high', requiresConfirmation: true },
+      metadata: { readOnly: false, riskLevel: 'show-modifying', requiresConfirmation: true },
       handler
     });
 
@@ -348,7 +355,7 @@ describe('ToolRegistry schema-less tools', () => {
     registry.register({
       name: 'eos_ping',
       config: {},
-      metadata: { readOnly: true, riskLevel: 'low', requiresConfirmation: false },
+      metadata: { readOnly: true, riskLevel: 'read', requiresConfirmation: false },
       handler
     });
 
@@ -394,6 +401,63 @@ describe('ToolRegistry schema-less tools', () => {
       required_role: 'admin',
       granted_role: 'read_only',
       confirmation_state: 'confirmed'
+    });
+  });
+
+  it('applique defaultDryRun pour previsualiser un outil live sans confirmation', async () => {
+    const server = createMockServer();
+    const registry = new ToolRegistry(server);
+    const handler = jest.fn(async (args): Promise<ToolExecutionResult> => ({
+      content: [{ type: 'text', text: 'dry' }],
+      structuredContent: { dry_run: (args as { dry_run?: boolean }).dry_run }
+    }));
+
+    registry.register({
+      name: 'eos_cue_go',
+      config: { inputSchema: { dry_run: z.boolean().optional() } },
+      handler
+    });
+
+    const [, , registeredHandler] = server.registerTool.mock.calls[0];
+
+    await expect(
+      (registeredHandler as RegisteredTestHandler)({}, { requestId: 'default-dry-run' })
+    ).resolves.toBeDefined();
+
+    expect(handler).toHaveBeenCalledWith({ dry_run: true }, expect.anything());
+    const [payload] = mockLogger.info.mock.calls[0] as [Record<string, unknown>];
+    expect(payload).toMatchObject({
+      tool_risk_level: 'live',
+      default_dry_run: true,
+      confirmation_state: 'not_required'
+    });
+  });
+
+  it('bloque les outils non autorises par la classification en mode strict', async () => {
+    process.env.EOS_STRICT_MODE = 'true';
+    const server = createMockServer();
+    const registry = new ToolRegistry(server);
+    const handler = jest.fn(async () => ({ content: [{ type: 'text', text: 'ok' }] }));
+
+    registry.register({
+      name: 'eos_get_command_line',
+      config: {
+        annotations: { mapping: { osc: '/eos/get/cmd_line' } }
+      },
+      handler
+    });
+
+    const [, , registeredHandler] = server.registerTool.mock.calls[0];
+
+    await expect(
+      (registeredHandler as RegisteredTestHandler)({ requestId: 'strict-denied' })
+    ).rejects.toThrow('EOS_STRICT_MODE=true');
+
+    expect(handler).not.toHaveBeenCalled();
+    const [payload] = mockLogger.warn.mock.calls[0] as [Record<string, unknown>];
+    expect(payload).toMatchObject({
+      allowed_in_strict_mode: false,
+      status: 'error'
     });
   });
 

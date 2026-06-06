@@ -506,7 +506,7 @@ export const macroTools = withToolMetadata([
 ], {
   category: 'macros',
   synonyms: ['macro', 'macro fire', 'automation', 'sequence'],
-  riskLevel: 'high',
+  riskLevel: 'show-modifying',
   requiresConfirmation: true,
   preferredWorkflow: 'eos_workflow_rehearsal_go'
 });

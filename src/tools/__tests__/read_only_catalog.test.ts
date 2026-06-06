@@ -9,13 +9,19 @@ describe('tool catalog read-only classification', () => {
     for (const tool of toolDefinitions) {
       expect(tool.metadata).toEqual(expect.objectContaining({
         readOnly: expect.any(Boolean),
-        riskLevel: expect.stringMatching(/^(low|medium|high|critical)$/),
+        riskLevel: expect.stringMatching(/^(read|preview|live|show-modifying|dangerous)$/),
+        allowedInReadOnly: expect.any(Boolean),
+        allowedInStrictMode: expect.any(Boolean),
+        defaultDryRun: expect.any(Boolean),
         requiresConfirmation: expect.any(Boolean)
       }));
       expect(tool.config.annotations).toEqual(expect.objectContaining({
         readOnly: tool.metadata?.readOnly,
         riskLevel: tool.metadata?.riskLevel,
-        requiresConfirmation: tool.metadata?.requiresConfirmation
+        requiresConfirmation: tool.metadata?.requiresConfirmation,
+        allowedInReadOnly: tool.metadata?.allowedInReadOnly,
+        allowedInStrictMode: tool.metadata?.allowedInStrictMode,
+        defaultDryRun: tool.metadata?.defaultDryRun
       }));
     }
   });

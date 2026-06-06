@@ -570,7 +570,7 @@ const paletteTools = withToolMetadata([
 ], {
   category: 'palettes',
   synonyms: ['palette', 'ip', 'fp', 'cp', 'bp', 'look building'],
-  riskLevel: 'high',
+  riskLevel: 'show-modifying',
   requiresConfirmation: true,
   preferredWorkflow: ['eos_workflow_create_look', 'eos_workflow_create_cue_series']
 });

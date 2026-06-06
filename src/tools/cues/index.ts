@@ -30,7 +30,7 @@ export const cueTools = withToolMetadata([
 ], {
   category: 'cues',
   synonyms: ['cue', 'cuelist', 'playback', 'go', 'record cue'],
-  riskLevel: 'high',
+  riskLevel: 'show-modifying',
   requiresConfirmation: true,
   preferredWorkflow: ['eos_workflow_create_cue_series', 'eos_workflow_update_cue_look']
 });

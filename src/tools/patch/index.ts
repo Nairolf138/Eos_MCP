@@ -1030,7 +1030,7 @@ const patchTools = withToolMetadata([
 ], {
   category: 'patch',
   synonyms: ['patch', 'fixture', 'channel setup', 'augment3d', 'adressage'],
-  riskLevel: 'critical',
+  riskLevel: 'dangerous',
   requiresConfirmation: true,
   preferredWorkflow: 'eos_workflow_autopatch_band'
 });

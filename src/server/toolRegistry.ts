@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { createLogger } from './logger';
 import { runWithRequestContext } from './requestContext';
 import { getDefaultAllowedToolProfile, isEosReadOnlyModeEnabled } from '../config/env';
+import { isEosStrictModeEnabled } from '../services/osc/officiality';
 import {
   isToolSafetyProfileAllowed,
   toolSafetyProfileSchema,
@@ -234,7 +235,7 @@ function hasExplicitConfirmation(args: unknown): boolean {
   return record.confirm === true || record.require_confirmation === true || record.safety_level !== undefined;
 }
 
-function resolveConfirmationState(args: unknown, requiredRole: ToolSafetyProfile): ConfirmationState {
+function resolveConfirmationState(args: unknown, requiresConfirmation: boolean): ConfirmationState {
   const record = asObject(args);
   if (record.dry_run === true) {
     return 'not_required';
@@ -244,7 +245,32 @@ function resolveConfirmationState(args: unknown, requiredRole: ToolSafetyProfile
     return 'confirmed';
   }
 
-  return requiredRole === 'read_only' ? 'not_required' : 'missing';
+  return requiresConfirmation ? 'missing' : 'not_required';
+}
+
+
+function applyDefaultDryRunForTool(
+  args: unknown,
+  classification: ReturnType<typeof classifyToolMetadata>,
+  inputSchema?: ToolDefinition['config']['inputSchema']
+): unknown {
+  if (!classification.defaultDryRun || !inputSchema || !('dry_run' in inputSchema)) {
+    return args;
+  }
+
+  if (!args || typeof args !== 'object' || Array.isArray(args)) {
+    return { dry_run: true };
+  }
+
+  const record = args as Record<string, unknown>;
+  if ('dry_run' in record || hasExplicitConfirmation(record)) {
+    return args;
+  }
+
+  return {
+    ...record,
+    dry_run: true
+  };
 }
 
 function normalizeConfirmationArgsForTool(args: unknown, inputSchema?: ToolDefinition['config']['inputSchema']): unknown {
@@ -543,12 +569,14 @@ class ToolRegistry {
     const sessionId = resolveSessionId(extra);
     const userId = resolveUserId(args, extra);
     const startedAt = Date.now();
-    const safetyMode = resolveSafetyMode(args);
-    const sensitiveAction = isSensitiveAction(args);
+    const classification = classifyToolMetadata(tool);
+    const executionInputArgs = applyDefaultDryRunForTool(args, classification, tool.config.inputSchema);
+    const safetyMode = resolveSafetyMode(executionInputArgs);
+    const sensitiveAction = isSensitiveAction(executionInputArgs);
     const requiredRole = resolveToolRequiredRole(tool);
     const grantedRole = resolveGrantedToolRole(extra);
-    const confirmationState = resolveConfirmationState(args, requiredRole);
-    const argsSanitized = sanitizeValue(args);
+    const confirmationState = resolveConfirmationState(executionInputArgs, classification.requiresConfirmation);
+    const argsSanitized = sanitizeValue(executionInputArgs);
     const targetConsole = {
       ...(targetResolution.targetConsole ? { name: targetResolution.targetConsole } : {}),
       address: targetResolution.targetAddress,
@@ -558,16 +586,22 @@ class ToolRegistry {
     const compatibilityStatus = evaluateToolCompatibility(toolName, compatibilityContext);
 
     try {
-      const classification = classifyToolMetadata(tool);
       const readOnlyMode = isEosReadOnlyModeEnabled();
+      const strictMode = isEosStrictModeEnabled();
 
-      if (readOnlyMode && !classification.readOnly) {
+      if (readOnlyMode && !classification.allowedInReadOnly) {
         throw new Error(
-          `Outil ${toolName} refuse: EOS_READ_ONLY=true autorise uniquement les outils de lecture ou de diagnostic.`
+          `Outil ${toolName} refuse: EOS_READ_ONLY=true autorise uniquement les outils dont allowedInReadOnly=true.`
         );
       }
 
-      if (!isToolSafetyProfileAllowed(grantedRole, requiredRole)) {
+      if (strictMode && !classification.allowedInStrictMode) {
+        throw new Error(
+          `Outil ${toolName} refuse: EOS_STRICT_MODE=true bloque les outils dont allowedInStrictMode=false.`
+        );
+      }
+
+      if (asObject(executionInputArgs).dry_run !== true && !isToolSafetyProfileAllowed(grantedRole, requiredRole)) {
         throw new Error(
           `Outil ${toolName} refuse: profil requis ${requiredRole}, profil accorde ${grantedRole}.`
         );
@@ -585,7 +619,7 @@ class ToolRegistry {
         );
       }
 
-      const executionArgs = normalizeConfirmationArgsForTool(args, tool.config.inputSchema);
+      const executionArgs = normalizeConfirmationArgsForTool(executionInputArgs, tool.config.inputSchema);
       const executionResult = await runWithRequestContext(
         {
           correlationId,
@@ -599,7 +633,7 @@ class ToolRegistry {
 
       auditDryRunToolResult({
         toolName,
-        args,
+        args: executionInputArgs,
         result,
         correlationId,
         sessionId,
@@ -622,7 +656,11 @@ class ToolRegistry {
         granted_role: grantedRole,
         confirmation_state: confirmationState,
         read_only_mode: isEosReadOnlyModeEnabled(),
-        tool_read_only: classifyToolMetadata(tool).readOnly,
+        tool_read_only: classification.readOnly,
+        tool_risk_level: classification.riskLevel,
+        allowed_in_read_only: classification.allowedInReadOnly,
+        allowed_in_strict_mode: classification.allowedInStrictMode,
+        default_dry_run: classification.defaultDryRun,
         compatibility: compatibilityStatus,
         durationMs: Date.now() - startedAt,
         status: 'ok'
@@ -630,11 +668,11 @@ class ToolRegistry {
 
       return result;
     } catch (error) {
-      if (asObject(args).dry_run === true) {
+      if (asObject(executionInputArgs).dry_run === true) {
         writeCommandAudit({
           toolName,
           oscAddress: null,
-          args,
+          args: executionInputArgs,
           eosUser: typeof userId === 'number' ? userId : null,
           mode: resolveAuditMode(),
           delivery: 'dry_run',
@@ -665,7 +703,11 @@ class ToolRegistry {
         granted_role: grantedRole,
         confirmation_state: confirmationState,
         read_only_mode: isEosReadOnlyModeEnabled(),
-        tool_read_only: classifyToolMetadata(tool).readOnly,
+        tool_read_only: classification.readOnly,
+        tool_risk_level: classification.riskLevel,
+        allowed_in_read_only: classification.allowedInReadOnly,
+        allowed_in_strict_mode: classification.allowedInStrictMode,
+        default_dry_run: classification.defaultDryRun,
         compatibility: compatibilityStatus,
         durationMs: Date.now() - startedAt,
         status: 'error'

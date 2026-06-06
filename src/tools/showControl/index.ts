@@ -455,7 +455,7 @@ export const showControlTools = withToolMetadata([
 ], {
   category: 'showControl',
   synonyms: ['show control', 'show name', 'live blind', 'cue string', 'staging mode'],
-  riskLevel: 'critical',
+  riskLevel: 'dangerous',
   requiresConfirmation: true,
   preferredWorkflow: 'eos_workflow_rehearsal_go'
 });
