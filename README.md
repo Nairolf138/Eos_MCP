@@ -182,6 +182,20 @@ npx ts-node src/server/index.ts --verbose --json-logs --stats-interval 30s
 
 Le protocole MCP utilise exclusivement STDOUT pour échanger avec les clients. Pour éviter toute interférence, l'intégralité des logs applicatifs est désormais routée vers STDERR (ou vers les fichiers/transports configurés). Même si la destination héritée `stdout` reste acceptée dans les variables d'environnement pour des raisons de compatibilité, elle est automatiquement redirigée vers STDERR par le serveur. Consultez vos journaux via STDERR ou en configurant `LOG_DESTINATIONS=file`/`transport` selon vos besoins.
 
+### Audit des commandes MCP/OSC
+
+L'audit dédié est désactivé par défaut. Activez-le avec `EOS_AUDIT_ENABLED=true`; le serveur écrit alors un journal JSON Lines dans `EOS_AUDIT_LOG_FILE` (par défaut `logs/audit.log`, relatif à la racine du projet si le chemin n'est pas absolu). Chaque ligne correspond à une commande dry-run ou à un envoi OSC réel et contient notamment :
+
+- `timestamp` : horodatage ISO de l'événement ;
+- `toolName` : nom de l'outil MCP ou, à défaut, identifiant OSC utilisé ;
+- `oscAddress` et `args` : adresse OSC et arguments, avec masquage des champs sensibles (`token`, `password`, `secret`, `authorization`, `apiKey`, etc.) ;
+- `eosUser` : utilisateur Eos résolu depuis les arguments ou le contexte MCP lorsqu'il est connu ;
+- `mode` : `strict` si `EOS_STRICT_MODE=true`, sinon `compatibility` ;
+- `delivery` : `dry_run` pour les previews ou `sent` pour les envois réels ;
+- `status`, `result` ou `error` : issue de l'opération, également nettoyée des secrets.
+
+Utilisation recommandée : conservez `logs/audit.log` hors du dépôt, faites-le collecter par votre système SIEM ou votre rotation de logs, et corrélez les entrées avec `correlationId`/`sessionId` lorsque la passerelle MCP les fournit. Les logs applicatifs restent configurés séparément via `LOG_DESTINATIONS` et `MCP_LOG_FILE`; l'audit ne s'active que par `EOS_AUDIT_ENABLED=true`.
+
 ## Configuration réseau et de la console Eos
 
 | Protocole | Port | Description |

@@ -27,6 +27,7 @@ import { getResourceCache } from '../cache/index';
 import { resolveConsoleTarget } from '../consoleTargets';
 import { RequestQueue, type RequestQueueDiagnostics, type RequestQueueRunOptions } from './requestQueue';
 import { getRequestContext } from '../../server/requestContext';
+import { resolveAuditMode, writeCommandAudit } from '../audit';
 import { assertOscAddressStrictModeAllowed } from './officiality';
 import {
   extractJsonPayloadFromMessage,
@@ -1109,22 +1110,70 @@ export class OscClient {
     const queuePolicy = this.buildQueuePolicy(message.address, gatewayOptions);
 
     let transportType: TransportType | null = null;
-
-    await this.requestQueue.run(
-      operation,
-      () => this.gateway.send(message, gatewayOptions).then((sentTransport) => {
-        transportType = sentTransport ?? this.gateway.getActiveTransport?.(gatewayOptions.toolId ?? message.address) ?? null;
-      }),
-      {
-        timeoutMs,
-        timeoutMessage: queueOptions.timeoutMessage,
-        details,
-        targetKey: queuePolicy.targetKey,
-        familyKey: queueOptions.familyKey ?? queuePolicy.familyKey
+    const requestContext = getRequestContext();
+    const auditBase = {
+      toolName: requestContext?.toolName ?? gatewayOptions.toolId ?? message.address,
+      oscAddress: message.address,
+      args: message.args ?? [],
+      eosUser: typeof requestContext?.userId === 'number' ? requestContext.userId : this.extractUserFromMessage(message, queueOptions.details),
+      mode: resolveAuditMode(),
+      delivery: 'sent' as const,
+      correlationId: requestContext?.correlationId,
+      sessionId: requestContext?.sessionId,
+      target: {
+        ...(gatewayOptions.targetConsole ? { console: gatewayOptions.targetConsole } : {}),
+        ...(gatewayOptions.targetAddress ? { address: gatewayOptions.targetAddress } : {}),
+        ...(typeof gatewayOptions.targetPort === 'number' ? { port: gatewayOptions.targetPort } : {})
       }
-    );
+    };
 
-    return transportType ?? this.gateway.getActiveTransport?.(gatewayOptions.toolId ?? message.address) ?? null;
+    try {
+      await this.requestQueue.run(
+        operation,
+        () => this.gateway.send(message, gatewayOptions).then((sentTransport) => {
+          transportType = sentTransport ?? this.gateway.getActiveTransport?.(gatewayOptions.toolId ?? message.address) ?? null;
+        }),
+        {
+          timeoutMs,
+          timeoutMessage: queueOptions.timeoutMessage,
+          details,
+          targetKey: queuePolicy.targetKey,
+          familyKey: queueOptions.familyKey ?? queuePolicy.familyKey
+        }
+      );
+
+      const finalTransport = transportType ?? this.gateway.getActiveTransport?.(gatewayOptions.toolId ?? message.address) ?? null;
+      writeCommandAudit({
+        ...auditBase,
+        status: 'ok',
+        result: { transport: finalTransport }
+      });
+      return finalTransport;
+    } catch (error) {
+      writeCommandAudit({
+        ...auditBase,
+        status: 'error',
+        error: error instanceof Error ? { name: error.name, message: error.message } : error
+      });
+      throw error;
+    }
+  }
+
+
+  private extractUserFromMessage(message: OscMessage, details?: Record<string, unknown>): number | null {
+    const detailUser = details?.user;
+    if (typeof detailUser === 'number' && Number.isFinite(detailUser)) {
+      return Math.trunc(detailUser);
+    }
+
+    if (message.address === USER_REQUEST) {
+      const argUser = message.args?.[0]?.value;
+      if (typeof argUser === 'number' && Number.isFinite(argUser)) {
+        return Math.trunc(argUser);
+      }
+    }
+
+    return null;
   }
 
   private buildQueuePolicy(address: string, options: OscGatewaySendOptions): OscQueuePolicy {

@@ -67,6 +67,10 @@ describe('configuration', () => {
           }
         ]
       },
+      audit: {
+        enabled: false,
+        logFile: resolve(process.cwd(), 'logs/audit.log')
+      },
       httpGateway: {
         publicUrl: undefined,
         trustProxy: false,
@@ -124,7 +128,9 @@ describe('configuration', () => {
       CACHE_TTL_GROUPS_MS: '2000',
       CACHE_TTL_PALETTES_MS: '2200',
       CACHE_TTL_FIXTURES_MS: '600000',
-      CACHE_TTL_SESSION_MS: '900000'
+      CACHE_TTL_SESSION_MS: '900000',
+      EOS_AUDIT_ENABLED: 'true',
+      EOS_AUDIT_LOG_FILE: 'var/log/eos-audit.jsonl'
     };
 
     const config = loadConfig(env);
@@ -147,6 +153,10 @@ describe('configuration', () => {
       { type: 'stderr' },
       { type: 'file', path: resolve(process.cwd(), 'var/log/eos-mcp.log') }
     ]);
+    expect(config.audit).toEqual({
+      enabled: true,
+      logFile: resolve(process.cwd(), 'var/log/eos-audit.jsonl')
+    });
     expect(config.httpGateway.security).toEqual({
       apiKeys: ['admin-key'],
       mcpTokens: ['token-one', 'token-two'],
