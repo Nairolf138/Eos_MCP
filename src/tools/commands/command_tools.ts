@@ -902,7 +902,7 @@ export const commandTools = withToolMetadata([
 ], {
   category: 'commands',
   synonyms: ['command line', 'cmd', 'newcmd', 'texte eos', 'ligne de commande'],
-  riskLevel: 'high',
+  riskLevel: 'show-modifying',
   requiresConfirmation: true,
   preferredWorkflow: ['eos_workflow_create_look', 'eos_workflow_update_cue_look']
 }) as ToolDefinition[];

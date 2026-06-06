@@ -657,7 +657,7 @@ export const eosPresetGetInfoTool: ToolDefinition<typeof presetGetInfoInputSchem
 export const presetTools = withToolMetadata([eosPresetFireTool, eosPresetSelectTool, eosPresetGetInfoTool], {
   category: 'presets',
   synonyms: ['preset', 'look', 'preset fire', 'preset select'],
-  riskLevel: 'high',
+  riskLevel: 'show-modifying',
   requiresConfirmation: true,
   preferredWorkflow: ['eos_workflow_create_look', 'eos_workflow_create_cue_series']
 });

@@ -74,7 +74,7 @@ describe('tool JSON schemas', () => {
     const patchSchema = toolJsonSchemas.find((schema) => schema.name === 'eos_patch_get_channel_info');
     expect(patchSchema?.metadata).toMatchObject({
       category: 'patch',
-      riskLevel: 'critical',
+      riskLevel: 'read',
       preferredWorkflow: 'eos_workflow_autopatch_band'
     });
   });

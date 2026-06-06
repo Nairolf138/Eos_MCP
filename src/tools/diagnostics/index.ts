@@ -300,7 +300,7 @@ export const eosReadinessCheckTool: ToolDefinition<typeof readinessInputSchema> 
   },
   metadata: {
     category: 'diagnostics',
-    riskLevel: 'low',
+    riskLevel: 'read',
     preferredWorkflow: 'first_step'
   },
   handler: async (args, _extra) => {

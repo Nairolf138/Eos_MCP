@@ -351,7 +351,7 @@ export const keyTools = withToolMetadata([
 ], {
   category: 'keys',
   synonyms: ['key', 'button', 'softkey', 'touche', 'facepanel'],
-  riskLevel: 'medium',
+  riskLevel: 'show-modifying',
   requiresConfirmation: false,
   preferredWorkflow: 'eos_workflow_rehearsal_go'
 });

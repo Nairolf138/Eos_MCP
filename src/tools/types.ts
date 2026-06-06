@@ -180,7 +180,7 @@ export type ToolMiddleware = (
   next: () => Promise<ToolExecutionResult>
 ) => Promise<ToolExecutionResult>;
 
-export type ToolRiskLevel = 'low' | 'medium' | 'high' | 'critical';
+export type ToolRiskLevel = 'read' | 'preview' | 'live' | 'show-modifying' | 'dangerous';
 
 export interface ToolMetadata {
   annotations?: Record<string, unknown>;
@@ -189,6 +189,9 @@ export interface ToolMetadata {
   synonyms?: string[];
   riskLevel?: ToolRiskLevel;
   requiresConfirmation?: boolean;
+  allowedInReadOnly?: boolean;
+  allowedInStrictMode?: boolean;
+  defaultDryRun?: boolean;
   nativeOscPreferred?: boolean;
   cmdFallbackAllowed?: boolean;
   strictModeBehavior?: StrictModeBehavior;

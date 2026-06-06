@@ -44,7 +44,7 @@ export const eosExampleSetLabelTool: ToolDefinition<typeof exampleInputSchema> =
   },
   metadata: {
     category: 'examples',
-    riskLevel: 'medium',
+    riskLevel: 'show-modifying',
     requiresConfirmation: true
   },
   async handler(args) {

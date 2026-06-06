@@ -34,18 +34,18 @@ export function resolveRiskLevelForSafetyProfile(
   options: { critical?: boolean } = {}
 ): ToolRiskLevel {
   if (options.critical) {
-    return 'critical';
+    return 'dangerous';
   }
 
   switch (requiredProfile) {
     case 'read_only':
-      return 'low';
+      return 'read';
     case 'programming':
-      return 'medium';
+      return 'show-modifying';
     case 'live_playback':
-      return 'high';
+      return 'live';
     case 'admin':
-      return 'high';
+      return 'show-modifying';
   }
 }
 

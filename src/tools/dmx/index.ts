@@ -331,7 +331,7 @@ export const eosAddressSetDmxTool: ToolDefinition<typeof addressSetDmxInputSchem
 export const dmxTools = withToolMetadata([eosAddressSelectTool, eosAddressSetLevelTool, eosAddressSetDmxTool], {
   category: 'dmx',
   synonyms: ['dmx', 'address', 'adresse', 'level', 'sortie directe'],
-  riskLevel: 'high',
+  riskLevel: 'show-modifying',
   requiresConfirmation: true,
   preferredWorkflow: 'eos_workflow_create_look'
 });
