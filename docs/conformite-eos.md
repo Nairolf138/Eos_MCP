@@ -45,6 +45,146 @@ Les adresses de runtime MCP (`/eos/handshake`, `/eos/protocol/select` et replies
 
 Les endpoints non documentes sont les adresses observees ou introduites pour compatibilite qui ne correspondent pas directement a une commande OSC du manuel: `/eos/get/cmd_line`, `/eos/get/softkey_labels`, `/eos/get/channels`, `/eos/get/fpe/*`, `/eos/get/patch/chan_info`, `/eos/get/cuelist/info`, `/eos/get/active/cue`, `/eos/get/pending/cue`, `/eos/get/show/name`, `/eos/get/live/blind` et `/eos/get/setup_defaults`. En mode strict, les endpoints classes `strictModeAllowed=false` sont bloques avant l'appel a la passerelle OSC.
 
+## Matrice de conformité par outil MCP
+
+Cette matrice est derivee des annotations de `toolDefinitions`, de `src/services/osc/officiality.ts` et de `src/services/osc/compatibilityMatrix.ts`. Elle distingue explicitement les familles suivantes: **OSC officiel ETC**, **commande texte officielle via `/eos/cmd` ou `/eos/newcmd`**, **endpoint MCP interne / hors OSC console**, **endpoint non documente**, et **compatibilite simulateur**.
+
+| Outil MCP | Adresse OSC utilisee | Statut officiel ETC | Version Eos de reference | Mode strict autorise | Alternative `/eos/cmd` | Niveau de risque | Confirmation | Compatibilite simulateur |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `eos_capabilities_get` | — | endpoint MCP interne | MCP (n/a console) | n/a (pas d OSC console) | Non | low | Non | n/a |
+| `ping` | — | endpoint MCP interne | MCP (n/a console) | n/a (pas d OSC console) | Non | low | Non | n/a |
+| `eos_connect` | /eos/handshake, /eos/protocol/select | endpoint MCP interne | MCP runtime; detecte version console | Autorisé (runtime MCP) | Non | low | Non | Oui (simulateur handshake) |
+| `eos_configure` | /eos/handshake, /eos/protocol/select | endpoint MCP interne | MCP runtime; detecte version console | Autorisé (runtime MCP) | Non | low | Non | Oui (simulateur handshake) |
+| `eos_ping` | /eos/ping | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
+| `eos_reset` | /eos/reset | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
+| `eos_subscribe` | /eos/subscribe | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
+| `eos_workflow_create_look` | — | endpoint MCP interne | EOS 3.0.0+ / MCP | n/a (pas d OSC console) | Non | high | Oui | Oui (dry-run/chaînage) |
+| `eos_workflow_create_effect` | — | endpoint MCP interne | EOS 3.0.0+ / MCP | n/a (pas d OSC console) | Non | high | Oui | Oui (dry-run/chaînage) |
+| `eos_workflow_create_cue_series` | — | endpoint MCP interne | EOS 3.0.0+ / MCP | n/a (pas d OSC console) | Non | high | Oui | Oui (dry-run/chaînage) |
+| `eos_workflow_patch_fixture` | — | endpoint MCP interne | EOS 3.0.0+ / MCP | n/a (pas d OSC console) | Non | high | Oui | Oui (dry-run/chaînage) |
+| `eos_workflow_patch_scan` | — | endpoint MCP interne | EOS 3.0.0+ / MCP | n/a (pas d OSC console) | Non | high | Oui | Oui (dry-run/chaînage) |
+| `eos_workflow_autopatch_band` | — | endpoint MCP interne | EOS 3.0.0+ / MCP | n/a (pas d OSC console) | Non | high | Oui | Oui (dry-run/chaînage) |
+| `eos_workflow_rehearsal_go_safe` | — | endpoint MCP interne | EOS 3.0.0+ / MCP | n/a (pas d OSC console) | Non | high | Oui | Oui (dry-run/chaînage) |
+| `eos_workflow_build_groups_and_palettes` | — | endpoint MCP interne | EOS 3.0.0+ / MCP | n/a (pas d OSC console) | Non | high | Oui | Oui (dry-run/chaînage) |
+| `eos_workflow_update_cue_look` | — | endpoint MCP interne | EOS 3.0.0+ / MCP | n/a (pas d OSC console) | Non | high | Oui | Oui (dry-run/chaînage) |
+| `eos_command` | /eos/cmd | commande texte officielle via `/eos/cmd` | v3.0.0 manuel | Autorisé via commande texte validée | Oui (principal) | high | Oui | Oui si console/sim expose OSC |
+| `eos_new_command` | /eos/newcmd | commande texte officielle via `/eos/cmd` | v3.0.0 manuel | Autorisé via commande texte validée | Oui (principal) | high | Oui | Oui si console/sim expose OSC |
+| `eos_command_with_substitution` | /eos/cmd | commande texte officielle via `/eos/cmd` | v3.0.0 manuel | Autorisé via commande texte validée | Oui (principal) | high | Oui | Oui si console/sim expose OSC |
+| `eos_get_command_line` | /eos/get/cmd_line | endpoint MCP interne | EOS 3.0.0+ / MCP | Bloqué en strict | Non | high | Oui | Oui (repli simulateur) |
+| `eos_get_user_command_line` | /eos/get/cmd_line | endpoint MCP interne | EOS 3.0.0+ / MCP | Bloqué en strict | Non | high | Oui | Oui (repli simulateur) |
+| `eos_channel_select` | /eos/newcmd | commande texte officielle via `/eos/cmd` | v3.0.0 manuel | Autorisé via commande texte validée | Oui (principal) | low | Non | Oui si console/sim expose OSC |
+| `eos_channel_set_level` | /eos/newcmd | commande texte officielle via `/eos/cmd` | v3.0.0 manuel | Autorisé via commande texte validée | Oui (principal) | high | Oui | Oui si console/sim expose OSC |
+| `eos_channel_set_dmx` | /eos/newcmd | commande texte officielle via `/eos/cmd` | v3.0.0 manuel | Autorisé via commande texte validée | Oui (principal) | high | Oui | Oui si console/sim expose OSC |
+| `eos_set_dmx` | /eos/addr/{address}/DMX | OSC officiel ETC | v3.0.0 manuel; min 2.0.0 | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_channel_set_parameter` | /eos/chan/{channel}/param/{parameter} | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_channel_get_info` | /eos/get/channels | endpoint non documenté | EOS 3.0.0+ (non doc.) | Bloqué en strict | Non | low | Non | Partielle / à confirmer |
+| `eos_group_select` | /eos/group | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
+| `eos_group_set_level` | /eos/group/{group}/level | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_group_get_info` | /eos/get/group | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
+| `eos_group_list_all` | /eos/get/group/list | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
+| `eos_enable_logging` | — | endpoint MCP interne | EOS 3.0.0+ / MCP | n/a (pas d OSC console) | Non | low | Non | n/a |
+| `eos_readiness_check` | /eos/ping, /eos/handshake, /eos/get/{cue|group|preset}/count, /eos/get/patch/chan_info | mixte: OSC officiel ETC + endpoint MCP interne + endpoint non documenté | v3.0.0 manuel; patch read non doc. | Partiel: bloque les lectures non documentées | Non | low | Non | Oui (avec limites patch/read) |
+| `eos_get_diagnostics` | — | endpoint MCP interne | EOS 3.0.0+ / MCP | n/a (pas d OSC console) | Non | low | Non | n/a |
+| `eos_console_targets` | — | endpoint MCP interne | EOS 3.0.0+ / MCP | n/a (pas d OSC console) | Non | low | Non | n/a |
+| `eos_get_version` | /eos/get/version | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
+| `eos_get_setup_defaults` | /eos/get/setup_defaults | endpoint non documenté | n/a (non doc.) | Bloqué en strict | Non | low | Non | Partielle / à confirmer |
+| `eos_cue_fire` | /eos/cue/{cuelist}/{cue}/fire | OSC officiel ETC | v3.0.0 manuel; min 2.0.0 | Autorisé (OSC officiel requis) | Oui (compat/fallback) | high | Oui | Oui si console/sim expose OSC |
+| `eos_cue_go` | /eos/cue/{cuelist}/go | OSC officiel ETC | v3.0.0 manuel; min 2.0.0 | Autorisé (OSC officiel requis) | Oui (compat/fallback) | high | Oui | Oui si console/sim expose OSC |
+| `eos_cue_stop_back` | /eos/cmd | commande texte officielle via `/eos/cmd` | v3.0.0 manuel | Autorisé via commande texte validée | Oui (principal) | high | Oui | Oui si console/sim expose OSC |
+| `eos_cue_select` | /eos/cue/{cue} | OSC officiel ETC | v3.0.0 manuel; min 2.0.0 | Autorisé (OSC officiel requis) | Oui (compat/fallback) | high | Oui | Oui si console/sim expose OSC |
+| `eos_cue_get_info` | /eos/get/cue | OSC officiel ETC | v3.0.0 manuel; min 2.0.0 | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_cue_list_all` | /eos/get/cuelist | OSC officiel ETC | v3.0.0 manuel; min 2.0.0 | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_cuelist_get_info` | /eos/get/cuelist/info | endpoint non documenté | EOS 2.0.0+ (non doc.) | Bloqué en strict | Non | high | Oui | Partielle / à confirmer |
+| `eos_cuelist_bank_create` | /eos/cuelist/{bank_index}/config/{cuelist_number}/{num_prev_cues}/{num_pending_cues} | OSC officiel ETC | v3.0.0 manuel; min 2.0.0 | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_cuelist_bank_page` | /eos/cuelist/{bank_index}/page/{delta} | OSC officiel ETC | v3.0.0 manuel; min 2.0.0 | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_get_active_cue` | /eos/get/active/cue | endpoint non documenté | EOS 2.0.0+ (non doc.) | Bloqué en strict | Non | high | Oui | Partielle / à confirmer |
+| `eos_get_pending_cue` | /eos/get/pending/cue | endpoint non documenté | EOS 2.0.0+ (non doc.) | Bloqué en strict | Non | high | Oui | Partielle / à confirmer |
+| `eos_intensity_palette_fire` | /eos/ip/fire | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_focus_palette_fire` | /eos/fp/fire | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_color_palette_fire` | /eos/cp/fire | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_beam_palette_fire` | /eos/bp/fire | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_palette_get_info` | /eos/get/palette | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_preset_fire` | /eos/preset/fire | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_preset_select` | /eos/preset | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_preset_get_info` | /eos/get/preset | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_submaster_set_level` | /eos/sub/{submaster_number} | OSC officiel ETC (gabarit MCP non classe) | v3.0.0 manuel | Bloqué par gabarit strict actuel | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_submaster_bump` | /eos/sub/{submaster_number}/bump | OSC officiel ETC (gabarit MCP non classe) | v3.0.0 manuel | Bloqué par gabarit strict actuel | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_submaster_get_info` | /eos/get/submaster | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
+| `eos_fader_bank_create` | /eos/fader/{index}/config/{faders}/{page} | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
+| `eos_fader_set_level` | /eos/fader/{bank}/{page}/{fader} | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_fader_load` | /eos/fader/{bank}/{page}/{fader}/load | OSC officiel ETC (gabarit MCP non classe) | v3.0.0 manuel | Bloqué par gabarit strict actuel | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_fader_unload` | /eos/fader/{bank}/{page}/{fader}/unload | OSC officiel ETC (gabarit MCP non classe) | v3.0.0 manuel | Bloqué par gabarit strict actuel | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_fader_page` | /eos/fader/{index}/page/{delta} | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
+| `eos_macro_fire` | /eos/macro/fire | OSC officiel ETC | v3.0.0 manuel; min 2.0.0 | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_macro_select` | /eos/macro | OSC officiel ETC | v3.0.0 manuel; min 2.0.0 | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_macro_get_info` | /eos/get/macro | OSC officiel ETC | v3.0.0 manuel; min 2.0.0 | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_effect_select` | /eos/cmd | commande texte officielle via `/eos/cmd` | v3.0.0 manuel | Autorisé via commande texte validée | Oui (principal) | low | Non | Oui si console/sim expose OSC |
+| `eos_effect_stop` | /eos/cmd | commande texte officielle via `/eos/cmd` | v3.0.0 manuel | Autorisé via commande texte validée | Oui (principal) | low | Non | Oui si console/sim expose OSC |
+| `eos_effect_get_info` | /eos/get/effect | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
+| `eos_wheel_tick` | /eos/param/wheel/tick | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
+| `eos_switch_continuous` | /eos/param/wheel/rate | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
+| `eos_set_color_hs` | /eos/param/color/hs | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
+| `eos_set_color_rgb` | /eos/param/color/rgb | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
+| `eos_set_pantilt_xy` | /eos/param/position/xy | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
+| `eos_set_xyz_position` | /eos/param/position/xyz | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
+| `eos_get_active_wheels` | /eos/get/active/wheels | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
+| `eos_key_press` | /eos/key/{key} | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | medium | Oui | Oui si console/sim expose OSC |
+| `eos_softkey_press` | /eos/softkey/{index} | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | medium | Oui | Oui si console/sim expose OSC |
+| `eos_get_softkey_labels` | /eos/get/softkey_labels | endpoint non documenté | EOS 3.0.0+ (non doc.) | Bloqué en strict | Non | medium | Non | Partielle / à confirmer |
+| `eos_direct_select_bank_create` | /eos/ds/{index}/config/{target}/{buttons}/{flexi}/{page} | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
+| `eos_direct_select_press` | /eos/ds/{index}/button/{page}/{button} | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_direct_select_page` | /eos/ds/{index}/page/{delta} | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
+| `eos_magic_sheet_open` | /eos/ms | OSC officiel ETC | v3.0.0 manuel; min 3.1.0 | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
+| `eos_magic_sheet_send_string` | /eos/newcmd | commande texte officielle via `/eos/cmd` | v3.0.0 manuel | Autorisé via commande texte validée | Oui (principal) | low | Non | Oui si console/sim expose OSC |
+| `eos_magic_sheet_get_info` | /eos/get/magic_sheet | OSC officiel ETC | v3.0.0 manuel; min 3.1.0 | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
+| `eos_pixmap_select` | /eos/pixmap | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
+| `eos_pixmap_get_info` | /eos/get/pixmap | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
+| `eos_curve_select` | /eos/curve/select | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
+| `eos_curve_get_info` | /eos/get/curve | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
+| `eos_fixture_search` | — | endpoint MCP interne | EOS 3.0.0+ / MCP | n/a (pas d OSC console) | Non | low | Non | n/a |
+| `eos_patch_get_channel_info` | /eos/get/patch/chan_info | endpoint non documenté | EOS 2.9.0+ (non doc.) | Bloqué en strict | Non | critical | Oui | Partielle / à confirmer |
+| `eos_patch_get_augment3d_position` | /eos/get/patch/chan_pos | endpoint MCP interne | EOS 3.0.0+ / MCP | Bloqué en strict | Non | critical | Oui | Partielle / à confirmer |
+| `eos_patch_get_augment3d_beam` | /eos/get/patch/chan_beam | endpoint MCP interne | EOS 3.0.0+ / MCP | Bloqué en strict | Non | critical | Oui | Partielle / à confirmer |
+| `eos_snapshot_recall` | /eos/snap | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_snapshot_get_info` | /eos/get/snapshot | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
+| `eos_get_show_name` | /eos/get/show/name | endpoint non documenté | EOS 3.0.0+ (non doc.) | Bloqué en strict | Non | critical | Oui | Partielle / à confirmer |
+| `eos_get_live_blind_state` | /eos/get/live/blind | endpoint non documenté | EOS 3.0.0+ (non doc.) | Bloqué en strict | Non | critical | Oui | Partielle / à confirmer |
+| `eos_toggle_staging_mode` | /eos/newcmd | commande texte officielle via `/eos/cmd` | v3.0.0 manuel | Autorisé via commande texte validée | Oui (principal) | critical | Oui | Oui si console/sim expose OSC |
+| `eos_set_cue_send_string` | /eos/newcmd | commande texte officielle via `/eos/cmd` | v3.0.0 manuel | Autorisé via commande texte validée | Oui (principal) | critical | Oui | Oui si console/sim expose OSC |
+| `eos_set_cue_receive_string` | /eos/newcmd | commande texte officielle via `/eos/cmd` | v3.0.0 manuel | Autorisé via commande texte validée | Oui (principal) | critical | Oui | Oui si console/sim expose OSC |
+| `eos_showfile_import` | — | endpoint MCP interne | EOS 3.0.0+ / MCP | n/a (pas d OSC console) | Non | medium | Oui | n/a |
+| `eos_showfile_get_patch` | — | endpoint MCP interne | EOS 3.0.0+ / MCP | n/a (pas d OSC console) | Non | low | Non | n/a |
+| `eos_showfile_list_groups` | — | endpoint MCP interne | EOS 3.0.0+ / MCP | n/a (pas d OSC console) | Non | low | Non | n/a |
+| `eos_showfile_list_labels` | — | endpoint MCP interne | EOS 3.0.0+ / MCP | n/a (pas d OSC console) | Non | low | Non | n/a |
+| `eos_showfile_list_cues` | — | endpoint MCP interne | EOS 3.0.0+ / MCP | n/a (pas d OSC console) | Non | low | Non | n/a |
+| `eos_showfile_list_palettes` | — | endpoint MCP interne | EOS 3.0.0+ / MCP | n/a (pas d OSC console) | Non | low | Non | n/a |
+| `eos_showfile_list_fixtures` | — | endpoint MCP interne | EOS 3.0.0+ / MCP | n/a (pas d OSC console) | Non | low | Non | n/a |
+| `eos_get_count` | /eos/get/cue/count, /eos/get/cuelist/count, /eos/get/group/count + 12 autres | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
+| `eos_get_list_all` | /eos/get/cue/list, /eos/get/cuelist/list, /eos/get/group/list + 12 autres | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
+| `eos_fpe_get_set_count` | /eos/get/fpe/set/count | endpoint non documenté | EOS 3.0.0+ (non doc.) | Bloqué en strict | Non | low | Non | Partielle / à confirmer |
+| `eos_fpe_get_set_info` | /eos/get/fpe/set | endpoint non documenté | EOS 3.0.0+ (non doc.) | Bloqué en strict | Non | low | Non | Partielle / à confirmer |
+| `eos_fpe_get_point_info` | /eos/get/fpe/point | endpoint non documenté | EOS 3.0.0+ (non doc.) | Bloqué en strict | Non | low | Non | Partielle / à confirmer |
+| `eos_address_select` | /eos/addr | OSC officiel ETC | v3.0.0 manuel; min 2.0.0 | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_address_set_level` | /eos/addr/{address} | OSC officiel ETC | v3.0.0 manuel; min 2.0.0 | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_address_set_dmx` | /eos/addr/{address}/DMX | OSC officiel ETC | v3.0.0 manuel; min 2.0.0 | Autorisé (OSC officiel requis) | Non | high | Oui | Oui si console/sim expose OSC |
+| `eos_set_user_id` | /eos/user | OSC officiel ETC | v3.0.0 manuel | Autorisé (OSC officiel requis) | Non | low | Non | Oui si console/sim expose OSC |
+| `session_set_current_user` | — | endpoint MCP interne | MCP (n/a console) | n/a (pas d OSC console) | Non | low | Non | n/a |
+| `session_get_current_user` | — | endpoint MCP interne | MCP (n/a console) | n/a (pas d OSC console) | Non | low | Non | n/a |
+| `session_set_context` | — | endpoint MCP interne | MCP (n/a console) | n/a (pas d OSC console) | Non | low | Non | n/a |
+| `session_get_context` | — | endpoint MCP interne | MCP (n/a console) | n/a (pas d OSC console) | Non | low | Non | n/a |
+| `session_clear_context` | — | endpoint MCP interne | MCP (n/a console) | n/a (pas d OSC console) | Non | low | Non | n/a |
+| `eos_cue_record` | /eos/newcmd | commande texte officielle via `/eos/cmd` | v3.0.0 manuel | Autorisé via commande texte validée | Oui (principal) | high | Oui | Oui si console/sim expose OSC |
+| `eos_cue_update` | /eos/newcmd | commande texte officielle via `/eos/cmd` | v3.0.0 manuel | Autorisé via commande texte validée | Oui (principal) | high | Oui | Oui si console/sim expose OSC |
+| `eos_cue_label_set` | /eos/newcmd | commande texte officielle via `/eos/cmd` | v3.0.0 manuel | Autorisé via commande texte validée | Oui (principal) | high | Oui | Oui si console/sim expose OSC |
+| `eos_palette_record` | /eos/newcmd | commande texte officielle via `/eos/cmd` | v3.0.0 manuel | Autorisé via commande texte validée | Oui (principal) | high | Oui | Oui si console/sim expose OSC |
+| `eos_palette_label_set` | /eos/newcmd | commande texte officielle via `/eos/cmd` | v3.0.0 manuel | Autorisé via commande texte validée | Oui (principal) | high | Oui | Oui si console/sim expose OSC |
+| `eos_patch_set_channel` | /eos/newcmd | commande texte officielle via `/eos/cmd` | v3.0.0 manuel | Autorisé via commande texte validée | Oui (principal) | high | Oui | Oui si console/sim expose OSC |
+
+
+## Version de console réellement validée
+
+La validation automatisée actuellement tracée dans le dépôt couvre le simulateur/fixture Eos `3.2.10-sim` utilisé par les tests MCP de bout en bout. Aucune validation matérielle d'une console physique ETC n'est documentée dans ce dépôt pour cette matrice; la référence normative reste donc le manuel Eos v3.0.0, tandis que les endpoints marqués simulateur ou non documentés doivent être confirmés sur la console cible avant exploitation en production.
+
 ## Inventaire officiel/non officiel des endpoints `/eos/get/`
 
 Cet inventaire couvre les occurrences trouvees dans `src/services/osc/`, `src/tools/`, `docs/` et les tests de contrat. La colonne strict reprend la classification technique `strictModeAllowed` de `src/services/osc/officiality.ts`.
