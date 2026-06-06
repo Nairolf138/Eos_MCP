@@ -11,11 +11,13 @@ import {
   buildDmxAddressLevelMessage,
   buildDmxAddressSelectMessage
 } from '../../services/osc/messageBuilders';
+import { createDryRunResult, resolveSafetyOptions, safetyOptionsSchema } from '../common/safety';
 import { buildToolResult, withToolMetadata, type ToolDefinition, type ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
-  targetPort: z.coerce.number().int().min(1).max(65535).optional()
+  targetPort: z.coerce.number().int().min(1).max(65535).optional(),
+  ...safetyOptionsSchema
 } satisfies ZodRawShape;
 
 const LEVEL_KEYWORDS: Record<string, number> = {
@@ -196,6 +198,16 @@ export const eosAddressSelectTool: ToolDefinition<typeof addressSelectInputSchem
     const address = normaliseAddress(options.address_number);
     const request = buildDmxAddressSelectMessage(address);
 
+    if (resolveSafetyOptions(options).dryRun) {
+      return createDryRunResult({
+        text: `Selection d'adresse DMX ${address} simulee`,
+        action: 'address_select',
+        request: { address },
+        oscAddress: request.message.address,
+        oscArgs: request.message.args ?? []
+      });
+    }
+
     await client.sendMessage(request.message.address, request.message.args ?? [], {
       ...extractTargetOptions(options),
       wireContract: request.contract
@@ -236,6 +248,16 @@ export const eosAddressSetLevelTool: ToolDefinition<typeof addressSetLevelInputS
     const address = normaliseAddress(options.address_number);
     const level = resolveLevelValue(options.level);
     const request = buildDmxAddressLevelMessage(address, level);
+
+    if (resolveSafetyOptions(options).dryRun) {
+      return createDryRunResult({
+        text: `Reglage de niveau DMX ${level}% simule pour ${address}`,
+        action: 'address_set_level',
+        request: { address, level },
+        oscAddress: request.message.address,
+        oscArgs: request.message.args ?? []
+      });
+    }
 
     await client.sendMessage(request.message.address, request.message.args ?? [], {
       ...extractTargetOptions(options),
@@ -278,6 +300,16 @@ export const eosAddressSetDmxTool: ToolDefinition<typeof addressSetDmxInputSchem
     const address = normaliseAddress(options.address_number);
     const value = resolveDmxValue(options.dmx_value);
     const request = buildDmxAddressDmxMessage(address, value);
+
+    if (resolveSafetyOptions(options).dryRun) {
+      return createDryRunResult({
+        text: `Reglage DMX brut ${value} simule pour ${address}`,
+        action: 'address_set_dmx',
+        request: { address, value },
+        oscAddress: request.message.address,
+        oscArgs: request.message.args ?? []
+      });
+    }
 
     await client.sendMessage(request.message.address, request.message.args ?? [], {
       ...extractTargetOptions(options),

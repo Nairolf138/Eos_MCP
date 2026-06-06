@@ -14,6 +14,7 @@ import { getOscClient, type OscJsonResponse, type StepStatus } from '../../servi
 import type { OscMessageArgument } from '../../services/osc/index';
 import { buildChannelParameterAddress, oscMappings } from '../../services/osc/mappings';
 import { buildDmxAddressDmxMessage } from '../../services/osc/messageBuilders';
+import { createDryRunResult, resolveSafetyOptions, safetyOptionsSchema } from '../common/safety';
 import { sendDeterministicCommand } from '../commands/command_tools';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 
@@ -371,7 +372,8 @@ const setParameterSchema = {
   channels: channelListSchema,
   parameter: z.string().min(1),
   value: parameterValueSchema,
-  ...targetOptionsSchema
+  ...targetOptionsSchema,
+  ...safetyOptionsSchema
 } satisfies ZodRawShape;
 
 const getInfoSchema = {
@@ -605,6 +607,22 @@ export const eosChannelSetParameterTool: ToolDefinition<typeof setParameterSchem
       address: buildChannelParameterAddress(channel, options.parameter),
       args: oscArgs
     }));
+
+    if (resolveSafetyOptions(options).dryRun) {
+      return createDryRunResult({
+        text: `Reglage du parametre ${options.parameter} simule pour les canaux ${channels.join(', ')}`,
+        action: 'set_parameter',
+        request: { channels, parameter: options.parameter, value },
+        oscAddress: frames[0]?.address ?? '/eos/chan/{channel}/param/{parameter}',
+        oscArgs: oscArgs,
+        extra: {
+          channels,
+          parameter: options.parameter,
+          value,
+          frames
+        }
+      });
+    }
 
     for (const frame of frames) {
       await client.sendMessage(frame.address, frame.args, targetOptions);

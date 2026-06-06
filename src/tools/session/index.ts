@@ -12,6 +12,7 @@ import {
 import { getOscClient } from '../../services/osc/client';
 import { oscMappings } from '../../services/osc/mappings';
 import { channelNumberSchema, userIdSchema } from '../../utils/validators';
+import { createDryRunResult, resolveSafetyOptions, safetyOptionsSchema } from '../common/safety';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 let currentUserId: number | null = null;
@@ -215,7 +216,8 @@ const targetOptionsSchema = {
 
 const setUserIdInputSchema = {
   user_id: userIdSchema,
-  ...targetOptionsSchema
+  ...targetOptionsSchema,
+  ...safetyOptionsSchema
 };
 
 const extractTargetOptions = (options: { targetAddress?: string; targetPort?: number }) => {
@@ -327,6 +329,17 @@ export const eosSetUserIdTool: ToolDefinition<typeof setUserIdInputSchema> = {
     const options = schema.parse(args ?? {});
     const client = getOscClient();
     const oscArgs = [{ type: 'i' as const, value: options.user_id }];
+
+    if (resolveSafetyOptions(options).dryRun) {
+      return createDryRunResult({
+        text: `Changement d'identifiant utilisateur EOS simule vers ${options.user_id}`,
+        action: 'set_user_id',
+        request: { user_id: options.user_id },
+        oscAddress: oscMappings.system.setUserId,
+        oscArgs,
+        extra: { user_id: options.user_id, session_user: currentUserId }
+      });
+    }
 
     await client.sendMessage(oscMappings.system.setUserId, oscArgs, extractTargetOptions(options));
     setCurrentUserId(options.user_id);

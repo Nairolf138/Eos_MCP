@@ -7,11 +7,17 @@ import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
 import { buildSoftkeyAddress, oscMappings } from '../../services/osc/mappings';
 import { softkeyIndexSchema } from '../../utils/validators';
+import { createDryRunResult, resolveSafetyOptions, safetyOptionsSchema } from '../common/safety';
 import { withToolMetadata, type ToolDefinition, type ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
   targetPort: z.coerce.number().int().min(1).max(65535).optional()
+} satisfies ZodRawShape;
+
+const keyActionOptionsSchema = {
+  ...targetOptionsSchema,
+  ...safetyOptionsSchema
 } satisfies ZodRawShape;
 
 const buttonStateSchema = z.union([z.coerce.number().int().min(0).max(1), z.boolean()]).optional();
@@ -88,13 +94,13 @@ function createOscArgs(state: 0 | 1): OscMessageArgument[] {
 const keyPressInputSchema = {
   key_name: keyNameSchema,
   state: buttonStateSchema,
-  ...targetOptionsSchema
+  ...keyActionOptionsSchema
 } satisfies ZodRawShape;
 
 const softkeyPressInputSchema = {
   softkey_number: softkeyIndexSchema,
   state: buttonStateSchema,
-  ...targetOptionsSchema
+  ...keyActionOptionsSchema
 } satisfies ZodRawShape;
 
 const softkeyLabelsInputSchema = {
@@ -212,8 +218,19 @@ export const eosKeyPressTool: ToolDefinition<typeof keyPressInputSchema> = {
     const identifier = resolveKeyIdentifier(keyName);
     const address = `${oscMappings.keys.base}/${identifier}`;
     const client = getOscClient();
+    const oscArgs = createOscArgs(state);
 
-    await client.sendMessage(address, createOscArgs(state), {
+    if (resolveSafetyOptions(options).dryRun) {
+      return createDryRunResult({
+        text: `Appui touche ${keyName} simule`,
+        action: 'key_press',
+        request: { key_name: keyName, osc_identifier: identifier, state },
+        oscAddress: address,
+        oscArgs
+      });
+    }
+
+    await client.sendMessage(address, oscArgs, {
       targetAddress: options.targetAddress,
       targetPort: options.targetPort
     });
@@ -225,7 +242,7 @@ export const eosKeyPressTool: ToolDefinition<typeof keyPressInputSchema> = {
       state,
       osc: {
         address,
-        args: createOscArgs(state)
+        args: oscArgs
       }
     });
   }
@@ -259,8 +276,19 @@ export const eosSoftkeyPressTool: ToolDefinition<typeof softkeyPressInputSchema>
     const softkeyNumber = options.softkey_number;
     const address = buildSoftkeyAddress(softkeyNumber);
     const client = getOscClient();
+    const oscArgs = createOscArgs(state);
 
-    await client.sendMessage(address, createOscArgs(state), {
+    if (resolveSafetyOptions(options).dryRun) {
+      return createDryRunResult({
+        text: `Appui softkey ${softkeyNumber} simule`,
+        action: 'softkey_press',
+        request: { softkey_number: softkeyNumber, state },
+        oscAddress: address,
+        oscArgs
+      });
+    }
+
+    await client.sendMessage(address, oscArgs, {
       targetAddress: options.targetAddress,
       targetPort: options.targetPort
     });
@@ -271,7 +299,7 @@ export const eosSoftkeyPressTool: ToolDefinition<typeof softkeyPressInputSchema>
       state,
       osc: {
         address,
-        args: createOscArgs(state)
+        args: oscArgs
       }
     });
   }
