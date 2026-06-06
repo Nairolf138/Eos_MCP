@@ -61,6 +61,7 @@ Formats à utiliser selon le langage :
 - [Guide agent LLM](docs/llm-agent-guide.md) : règles de conduite pour assistants IA, exemples dry-run/confirmation et table d’orientation outil par intention utilisateur.
 - [Dépannage OSC Eos](docs/troubleshooting-osc-eos.md) : checklist réseau/OSC et règles de fallback showfile lorsque les lectures live ne sont pas fiables.
 - [Configuration réseau Eos MCP](docs/network-setup.md) : topologie Wi-Fi Internet + Ethernet console Eos sans bridge, sans partage Internet et avec sous-réseaux séparés.
+- [Checklist de sécurité live](docs/live-safety-checklist.md) : contrôles obligatoires avant connexion à une console de production et liste des commandes dangereuses à confirmer.
 - [Architecture technique](docs/architecture.md) : diagrammes du flux MCP → OSC, composants internes et guide “où modifier quoi” pour contribuer.
 - [`docs/tools.md`](docs/tools.md) : référence exhaustive générée automatiquement pour chaque outil MCP.
 - [Ajouter un outil MCP](docs/adding-a-tool.md) : procédure contributeur pour créer une famille d’outils, déclarer les mappings OSC, écrire les schémas Zod, tester et régénérer la référence.
