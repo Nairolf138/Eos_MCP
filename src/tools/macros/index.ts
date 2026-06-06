@@ -12,19 +12,13 @@ import {
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
 import { oscMappings } from '../../services/osc/mappings';
+import { macroNumberSchema } from '../../utils/validators';
 import { buildToolResult, withToolMetadata, type ToolDefinition, type ToolExecutionResult } from '../types';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
   targetPort: z.coerce.number().int().min(1).max(65535).optional()
 } satisfies ZodRawShape;
-
-const macroNumberSchema = z.coerce
-  .number()
-  .int()
-  .min(1)
-  .max(9999)
-  .describe('Numero de macro (1-9999)');
 
 const timeoutSchema = z.coerce.number().int().min(50).optional();
 

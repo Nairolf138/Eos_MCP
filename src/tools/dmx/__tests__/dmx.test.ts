@@ -82,6 +82,13 @@ describe('dmx address tools', () => {
   it('refuse une valeur DMX hors plage', async () => {
     await expect(
       runTool(eosAddressSetDmxTool, { address_number: '1/050', dmx_value: 300 })
-    ).rejects.toThrow(/comprise entre 0 et 255/);
+    ).rejects.toThrow(/255/);
+  });
+
+  it('refuse une adresse DMX libre non validee', async () => {
+    await expect(
+      runTool(eosAddressSelectTool, { address_number: '1 Delete Cue 2' })
+    ).rejects.toThrow(/Adresse DMX invalide/);
+    expect(service.sentMessages).toHaveLength(0);
   });
 });

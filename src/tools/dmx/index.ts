@@ -4,6 +4,7 @@
  */
 import { z, type ZodRawShape } from 'zod';
 import { getOscClient } from '../../services/osc/client';
+import { dmxAddressSchema, dmxValueSchema, levelValueSchema } from '../../utils/validators';
 import { oscMappings } from '../../services/osc/mappings';
 import {
   buildDmxAddressDmxMessage,
@@ -16,13 +17,6 @@ const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
   targetPort: z.coerce.number().int().min(1).max(65535).optional()
 } satisfies ZodRawShape;
-
-const dmxAddressSchema = z
-  .union([z.string().min(1), z.coerce.number().int().min(1).max(65535)])
-  .describe("Adresse DMX au format 'univers/adresse' ou numero absolu.");
-
-const levelValueSchema = z.union([z.number(), z.string().min(1)]);
-const dmxValueSchema = z.union([z.number(), z.string().min(1)]);
 
 const LEVEL_KEYWORDS: Record<string, number> = {
   full: 100,

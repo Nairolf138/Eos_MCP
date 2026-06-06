@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { getOscClient, type CommandLineState, type OscRuntimeCapabilities } from '../../services/osc/client';
 import { buildCueJsonMessage } from '../../services/osc/messageBuilders';
 import { oscMappings } from '../../services/osc/mappings';
+import { userIdSchema } from '../../utils/validators';
 import { getCurrentUserId } from '../session/index';
 import {
   assertSensitiveActionAllowed,
@@ -598,9 +599,9 @@ export async function sendDeterministicCommand(options: DeterministicCommandOpti
 }
 
 const commandInputSchema = {
-  command: z.string().min(1, 'La commande ne peut pas etre vide'),
+  command: z.string().trim().min(1, 'La commande ne peut pas etre vide').max(512, 'La commande ne peut pas depasser 512 caracteres'),
   terminateWithEnter: z.boolean().optional(),
-  user: z.coerce.number().int().min(0).optional(),
+  user: userIdSchema.optional(),
   ...targetOptionsSchema
 };
 
@@ -669,11 +670,11 @@ export const eosCommandTool: ToolDefinition<typeof commandInputSchema> = {
 };
 
 const newCommandInputSchema = {
-  command: z.string().min(1, 'La commande ne peut pas etre vide'),
+  command: z.string().trim().min(1, 'La commande ne peut pas etre vide').max(512, 'La commande ne peut pas depasser 512 caracteres'),
   substitutions: substitutionsSchema,
   terminateWithEnter: z.boolean().optional(),
   clearLine: z.boolean().optional(),
-  user: z.coerce.number().int().min(0).optional(),
+  user: userIdSchema.optional(),
   ...targetOptionsSchema
 };
 
@@ -725,10 +726,10 @@ export const eosNewCommandTool: ToolDefinition<typeof newCommandInputSchema> = {
 };
 
 const substitutionCommandInputSchema = {
-  template: z.string().min(1, 'Le gabarit ne peut pas etre vide'),
+  template: z.string().trim().min(1, 'Le gabarit ne peut pas etre vide').max(512, 'Le gabarit ne peut pas depasser 512 caracteres'),
   values: substitutionsSchema,
   terminateWithEnter: z.boolean().optional(),
-  user: z.coerce.number().int().min(0).optional(),
+  user: userIdSchema.optional(),
   ...targetOptionsSchema
 };
 
@@ -794,13 +795,13 @@ export const eosCommandWithSubstitutionTool: ToolDefinition<typeof substitutionC
 };
 
 const commandLineInputSchema = {
-  user: z.coerce.number().int().min(0).optional(),
+  user: userIdSchema.optional(),
   timeoutMs: z.coerce.number().int().positive().optional(),
   ...targetOptionsSchema
 };
 
 const userCommandLineInputSchema = {
-  user: z.coerce.number().int().min(0),
+  user: userIdSchema,
   timeoutMs: z.coerce.number().int().positive().optional(),
   ...targetOptionsSchema
 };

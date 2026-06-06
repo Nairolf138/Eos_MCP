@@ -8,9 +8,15 @@ import {
   TIMEOUT_MAX_MS,
   TIMEOUT_MIN_MS,
   channelRangeSchema,
+  cueNumberSchema,
+  dmxAddressSchema,
+  dmxValueSchema,
   ensureTimeout,
+  levelValueSchema,
   optionalTimeoutMsSchema,
   parseNumberRangeString,
+  safeChannelRangeTextSchema,
+  userIdSchema,
   validateCueArgumentsPair
 } from '../validators';
 import { ErrorCode, isAppError } from '../../server/errors';
@@ -47,6 +53,26 @@ describe('validators', () => {
   it('accepte les plages de canaux en chaine via schema', () => {
     const parsed = channelRangeSchema.parse('Channels 10-12, 15');
     expect(parsed).toEqual([10, 11, 12, 15]);
+  });
+
+  it('refuse les plages de canaux contenant du texte de commande libre', () => {
+    expect(safeChannelRangeTextSchema.safeParse('1 Delete Cue 5').success).toBe(false);
+    expect(channelRangeSchema.safeParse('1, Delete Cue 5').success).toBe(false);
+    expect(channelRangeSchema.safeParse('Chan 1 Thru 3').success).toBe(true);
+  });
+
+  it('borne explicitement les identifiants et valeurs EOS dangereuses', () => {
+    expect(userIdSchema.safeParse(999).success).toBe(true);
+    expect(userIdSchema.safeParse(1000).success).toBe(false);
+    expect(cueNumberSchema.safeParse('1.5').success).toBe(true);
+    expect(cueNumberSchema.safeParse('1 Delete').success).toBe(false);
+    expect(levelValueSchema.safeParse(100).success).toBe(true);
+    expect(levelValueSchema.safeParse(101).success).toBe(false);
+    expect(dmxValueSchema.safeParse(255).success).toBe(true);
+    expect(dmxValueSchema.safeParse(256).success).toBe(false);
+    expect(dmxAddressSchema.safeParse('2/512').success).toBe(true);
+    expect(dmxAddressSchema.safeParse('2/513').success).toBe(false);
+    expect(dmxAddressSchema.safeParse('1 Delete').success).toBe(false);
   });
 
   it('impose la coherence cue_part/cue_number', () => {

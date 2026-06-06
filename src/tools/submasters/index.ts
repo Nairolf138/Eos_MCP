@@ -12,6 +12,7 @@ import {
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
 import type { OscMessageArgument } from '../../services/osc/index';
 import { oscMappings } from '../../services/osc/mappings';
+import { levelValueSchema, submasterNumberSchema } from '../../utils/validators';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 export interface SubmasterTimings {
@@ -40,16 +41,9 @@ const targetOptionsSchema = {
   targetPort: z.coerce.number().int().min(1).max(65535).optional()
 } satisfies ZodRawShape;
 
-const submasterNumberSchema = z.coerce
-  .number()
-  .int()
-  .min(1)
-  .max(9999)
-  .describe('Numero de submaster (1-9999)');
-
 const setLevelInputSchema = {
   submaster_number: submasterNumberSchema,
-  level: z.union([z.number(), z.string().min(1)]),
+  level: levelValueSchema,
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 

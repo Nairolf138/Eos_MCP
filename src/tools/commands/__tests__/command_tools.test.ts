@@ -81,6 +81,16 @@ describe('command tools', () => {
     expect(service.sentMessages).toHaveLength(0);
   });
 
+  it('refuse les commandes texte libres hors profil strict /eos/cmd', async () => {
+    await expect(runTool(eosCommandTool, { command: 'Patch 1 At 1/001' })).rejects.toThrow(/security\.strict\.allowlist/);
+    expect(service.sentMessages).toHaveLength(0);
+  });
+
+  it('borne explicitement le user id des commandes texte', async () => {
+    await expect(runTool(eosCommandTool, { command: 'Go To Cue 1', user: 1000 })).rejects.toThrow();
+    expect(service.sentMessages).toHaveLength(0);
+  });
+
   it('autorise les commandes sensibles avec confirmation explicite', async () => {
     await runTool(eosCommandTool, { command: 'Record Cue 1', require_confirmation: true });
     expect(service.sentMessages).toHaveLength(1);
