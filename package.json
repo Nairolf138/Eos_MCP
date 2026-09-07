@@ -1,7 +1,7 @@
 {
   "name": "eos_mcp",
   "version": "1.0.0",
-  "description": "Bootstrap project for an MCP-compatible OSC service",
+  "description": "Production-oriented Model Context Protocol (MCP) server for ETC Eos-family lighting consoles and Eos Nomad over OSC.",
   "main": "dist/server/index.js",
   "scripts": {
     "build": "tsc && node -e \"const fs=require('node:fs');fs.mkdirSync('dist',{recursive:true});fs.copyFileSync('manifest.json','dist/manifest.json');\"",
@@ -21,8 +21,19 @@
     "test:conformance": "jest --passWithNoTests src/services/osc/__tests__/eos-conformance.integration.test.ts"
   },
   "keywords": [
+    "etc-eos",
+    "eos",
+    "eos-nomad",
+    "lighting-console",
+    "stage-lighting",
+    "theatre-lighting",
+    "lighting-automation",
+    "model-context-protocol",
     "mcp",
+    "mcp-server",
     "osc",
+    "open-sound-control",
+    "ai-agent",
     "typescript"
   ],
   "author": {

@@ -1,846 +1,265 @@
-# Eos MCP
+# ETC Eos MCP Server
 
-![Licence: AGPL v3](https://img.shields.io/badge/License-AGPLv3-blue.svg)
+![License: AGPL v3](https://img.shields.io/badge/License-AGPLv3-blue.svg)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)
+![MCP](https://img.shields.io/badge/Model%20Context%20Protocol-MCP-5c4ee5.svg)
+![OSC](https://img.shields.io/badge/ETC%20Eos-OSC-lightgrey.svg)
 
-**Eos MCP** est une passerelle prête pour la production qui transforme votre console lumière ETC Eos en un service pilotable par les assistants IA et vos outils d’automatisation. Grâce au protocole MCP (Model Context Protocol) et à une intégration réseau Open Sound Control (OSC) robuste, vous orchestrez vos cues, presets et routines depuis des interfaces conversationnelles ou des workflows low-code, en conservant un contrôle fin sur la sécurité et la supervision.
+**ETC Eos MCP Server** is a production-oriented **Model Context Protocol (MCP) server for ETC Eos-family lighting consoles and Eos Nomad**. It connects AI assistants, agents and automation systems to Eos through **Open Sound Control (OSC)**, exposing more than 100 typed tools for cues, channels, groups, palettes, presets, effects, faders, submasters, patch, Magic Sheets, Pixel Maps, show data, diagnostics and higher-level lighting workflows.
 
-## Convention d'attribution
+The project is designed for **stage lighting automation, theatre lighting workflows and AI-assisted Eos programming** while keeping the operator in control through read-only mode, strict OSC validation, dry-runs, explicit confirmations and audit logging.
 
-Pour éviter toute ambiguïté, la convention d'identité retenue dans ce dépôt est **`Florian Ribes (NairolfConcept)`**.
-Cette forme doit être utilisée de manière identique dans les mentions légales, en-têtes de fichiers et documents du projet.
+> **Résumé FR** — Eos MCP est un serveur MCP open source permettant de connecter des assistants IA et des outils d’automatisation aux consoles lumière **ETC Eos / Eos Nomad** via OSC. Il couvre la programmation, le patch, les cues, palettes, effets, faders, diagnostics et workflows avancés avec des garde-fous pensés pour l’exploitation scénique.
 
-## En-têtes de licence (AGPL-3.0-only)
+**Project website:** [NairolfConcept — Eos MCP](https://nairolfconcept.fr/eos-mcp.html)  
+**Tool reference:** [`docs/tools.md`](docs/tools.md) · **Architecture:** [`docs/architecture.md`](docs/architecture.md) · **Live safety:** [`docs/live-safety-checklist.md`](docs/live-safety-checklist.md) · **OSC coverage:** [`docs/osc-coverage.md`](docs/osc-coverage.md)
 
-Le dépôt applique désormais un en-tête court dans chaque fichier source. La convention est obligatoire pour tous les **nouveaux fichiers** afin de garantir la cohérence future.
+---
 
-- Titulaire de copyright : **`Florian Ribes (NairolfConcept)`**
-- Année : **`2026`**
-- Identifiant de licence : **`SPDX-License-Identifier: AGPL-3.0-only`**
+## Why ETC Eos MCP?
 
-Formats à utiliser selon le langage :
+Eos MCP is not just a thin “send an OSC string” bridge. It provides a structured tool layer intended for AI agents and automation systems that need to understand what they are allowed to do, preview changes and interact with an Eos console predictably.
 
-- **TypeScript / JavaScript (`.ts`, `.js`, `.d.ts`)**
+| Capability | Eos MCP |
+| --- | --- |
+| ETC Eos / Eos Nomad control over OSC | ✅ |
+| 100+ typed MCP tools | ✅ |
+| Cues, channels, groups, palettes, presets, effects | ✅ |
+| Faders, submasters, keys and Direct Selects | ✅ |
+| Patch and fixture-oriented workflows | ✅ |
+| Magic Sheets, Pixel Maps and show-control tools | ✅ |
+| Read-only observation mode | ✅ |
+| Strict ETC OSC mode | ✅ |
+| Dry-run + explicit operator confirmation | ✅ |
+| Audit logging | ✅ |
+| MCP over STDIO | ✅ |
+| Streamable HTTP MCP + HTTP/WS gateway | ✅ |
+| Eos version / OSC compatibility tracking | ✅ |
+| Higher-level workflows designed for LLM agents | ✅ |
 
-  ```ts
-  /*
-   * Copyright 2026 Florian Ribes (NairolfConcept)
-   * SPDX-License-Identifier: AGPL-3.0-only
-   */
-  ```
+## What can an AI agent do with Eos MCP?
 
-- **Shell (`.sh`)**
+Depending on the active safety profile and operator confirmation, an MCP client can use Eos MCP to:
 
-  ```sh
-  # Copyright 2026 Florian Ribes (NairolfConcept)
-  # SPDX-License-Identifier: AGPL-3.0-only
-  ```
+- inspect connection state, capabilities, Eos version and show context;
+- read or manipulate channels and intensity levels;
+- work with groups, presets, color/focus/beam palettes and parameters;
+- trigger, select, record or update cues and cue lists;
+- control faders, submasters, macros, effects and console keys;
+- assist with patching and fixture-oriented programming;
+- interact with Direct Selects, Magic Sheets and Pixel Maps where supported;
+- query show-control information and selected showfile data;
+- execute guided multi-step workflows such as safe rehearsal playback, cue-series creation or band patch preparation;
+- expose Eos capabilities to external automation systems without forcing every client to implement ETC OSC itself.
 
-- **Batch Windows (`.cmd`, `.bat`)**
+The complete generated catalog is in [`docs/tools.md`](docs/tools.md).
 
-  ```bat
-  @REM Copyright 2026 Florian Ribes (NairolfConcept)
-  @REM SPDX-License-Identifier: AGPL-3.0-only
-  ```
+## Architecture
 
-## Pourquoi choisir Eos MCP ?
-
-- **Automatisation fiable** : un serveur résilient capable de fonctionner en continu pour alimenter vos process scéniques et broadcast.
-- **Expérience opérateur unifiée** : exposez vos outils Eos à ChatGPT, Claude, n8n ou à toute plateforme compatible MCP sans réécrire vos scripts.
-- **Sécurité intégrée** : API keys, jetons MCP et filtrage réseau configurables pour cadrer l’accès à votre console.
-- **Documentation générée** : chaque outil MCP dispose d’une fiche détaillée dans [`docs/tools.md`](docs/tools.md) afin d’accélérer l’onboarding de vos équipes.
-
-## Cas d’usage clés
-
-- Déclencher des cues lumières depuis un assistant IA pour fluidifier les répétitions.
-- Intégrer Eos dans un workflow n8n afin de synchroniser régie, timecode et automation.
-- Superviser et auditer les commandes envoyées à distance via la passerelle HTTP/WS optionnelle.
-
-## Documentation complémentaire
-
-- [Cookbook d’automatisation](docs/cookbook.md) : scénarios prêts à l’emploi pour déclencher des cues, manipuler les presets et ajuster des niveaux d’intensité.
-- [Guide agent LLM](docs/llm-agent-guide.md) : règles de conduite pour assistants IA, exemples dry-run/confirmation et table d’orientation outil par intention utilisateur.
-- [Dépannage OSC Eos](docs/troubleshooting-osc-eos.md) : checklist réseau/OSC et règles de fallback showfile lorsque les lectures live ne sont pas fiables.
-- [Configuration réseau Eos MCP](docs/network-setup.md) : topologie Wi-Fi Internet + Ethernet console Eos sans bridge, sans partage Internet et avec sous-réseaux séparés.
-- [Checklist de sécurité live](docs/live-safety-checklist.md) : contrôles obligatoires avant connexion à une console de production et liste des commandes dangereuses à confirmer.
-- [Architecture technique](docs/architecture.md) : diagrammes du flux MCP → OSC, composants internes et guide “où modifier quoi” pour contribuer.
-- [`docs/tools.md`](docs/tools.md) : référence exhaustive générée automatiquement pour chaque outil MCP.
-- [Ajouter un outil MCP](docs/adding-a-tool.md) : procédure contributeur pour créer une famille d’outils, déclarer les mappings OSC, écrire les schémas Zod, tester et régénérer la référence.
-- [Guide licensing (community vs commerciale)](docs/licensing/README.md) : vue simple des deux voies, FAQ et cas pratiques.
-
-### Outils MCP essentiels
-
-| Outil | Description | Fiche détaillée |
-| --- | --- | --- |
-| `eos_readiness_check` | Première étape obligatoire read-only : ping, handshake, version, ligne de commande, nom du show, count et lecture patch optionnelle. | [docs/tools.md#eos-readiness-check](docs/tools.md#eos-readiness-check) |
-| `eos_cue_go` | GO sur la liste de cues active. | [docs/tools.md#eos-cue-go](docs/tools.md#eos-cue-go) |
-| `eos_cue_stop_back` | Stop ou retour en arrière sur une liste. | [docs/tools.md#eos-cue-stop-back](docs/tools.md#eos-cue-stop-back) |
-| `eos_preset_fire` | Rappel immédiat d’un preset. | [docs/tools.md#eos-preset-fire](docs/tools.md#eos-preset-fire) |
-| `eos_channel_set_level` | Réglage d’intensité (0–100 %) d’un canal. | [docs/tools.md#eos-channel-set-level](docs/tools.md#eos-channel-set-level) |
-
-### Première étape obligatoire : readiness
-
-Avant toute lecture métier, dry-run ou action réelle, un assistant LLM doit appeler `eos_readiness_check`. L'outil retourne `structuredContent.overall_status`, `transport_status`, `handshake_mode`, `json_read_supported`, `failed_checks` et `operator_actions`; si la lecture JSON n'est pas supportée, l'assistant ne doit pas inventer le patch, les cues ou l'état du show et doit demander une reconfiguration OSC ou une source explicite. Fournissez `patchChannel` lorsque vous voulez aussi valider une lecture patch read-only sur un canal connu.
-
-### Safety pattern
-
-> **Plan → dry-run → confirmation → exécution.** Pour toute modification du show (cue, patch, palette, commande texte ou déclenchement live), l’assistant doit annoncer son plan d’action, proposer un dry-run avec preview des commandes, puis exécuter en réel uniquement après confirmation explicite de l’opérateur.
-
-Exemple de modification de cue :
-
-1. **Plan annoncé** : « Je vais mettre à jour la cue 12 de la liste 1 sur les canaux `1 Thru 10`, appliquer un facteur d’intensité `0.7`, puis préparer l’update sans l’envoyer. »
-2. **Dry-run proposé** : appeler `eos_workflow_update_cue_look` avec `dry_run=true` pour prévisualiser `Chan 1 Thru 10 At * 0.7` puis `Update Cue 1 / 12` dans `structuredContent.commands_preview`.
-3. **Confirmation explicite** : attendre une réponse non ambiguë, par exemple « Confirme, exécute la mise à jour de la cue 12. »
-4. **Exécution réelle** : relancer le même workflow avec les mêmes arguments métier, `dry_run=false` (ou sans `dry_run`) et `require_confirmation: true` uniquement après cette confirmation explicite, puis contrôler `structuredContent.command_log` et `structuredContent.commandsSent`.
-
-Les **outils bas niveau sensibles** (`eos_cue_record`, `eos_cue_update`, `eos_patch_*`, `eos_command`, `eos_new_command`, déclenchements `fire`, etc.) s’adressent aux intégrations qui savent exactement quelle commande EOS envoyer et s’appuient sur `require_confirmation`, `confirm`, `safety_level` et des schémas stricts. `eos_new_command` refuse aussi les commandes composées de programmation de cues (par exemple `At` + `Record` + `Label`). Pour une série de cues, Claude doit privilégier `eos_workflow_create_cue_series` avec `looks[].intensity` (ou `looks[].level`) afin que le workflow émette `Chan 1 Thru 10 At Full`, puis `Record Cue 3`, puis `Cue 3 Label "Reggae"` comme commandes séparées, sans concaténer `At`, `Record` ou `Label` dans `channels`. Les **workflows haut niveau guidés** (`eos_workflow_*`) orchestrent plusieurs commandes métier, acceptent des métadonnées clientes inconnues sans les exécuter et fournissent une preview complète via `dry_run=true`; leur exécution réelle est refusée tant que `require_confirmation` ne vaut pas `true`, et Claude ne doit ajouter ce champ qu’en relançant le même workflow après validation utilisateur explicite de `structuredContent.commands_preview`.
-
-#### Politique de confirmation commune
-
-Tous les outils susceptibles de déclencher ou modifier directement l’état de la console exposent `requiresConfirmation: true` dans leurs annotations MCP au moment de l’enregistrement. Cela couvre les commandes `record`, `update`, `delete`, `patch`, `go`, `fire`, `macro fire`, les actions de submaster, `park`, les niveaux d’adresses, les niveaux de canaux et les commandes texte libres via `/eos/cmd` ou `/eos/newcmd`. Une exécution réelle échoue si la confirmation explicite est absente. Les intégrations doivent relancer l’appel avec `confirm: true`, `require_confirmation: true` ou un `safety_level` explicite après validation opérateur; `dry_run=true` reste le comportement recommandé pour les workflows composés afin de vérifier `structuredContent.commands_preview` avant l’envoi.
-
-## Prérequis
-
-- Node.js 20+ (tests effectués avec la LTS actuelle).
-- npm 9+.
-- Une console ETC Eos (ou le logiciel **Nomad** en mode offline) accessible sur le même réseau.
-- L’accès à l’outil ciblé (ChatGPT, Claude, n8n) pour l’intégration MCP.
-
-Vérifiez votre version de Node.js :
-
-```bash
-node --version
+```text
+AI assistant / MCP client / automation
+                │
+                │ Model Context Protocol
+                ▼
+        ┌──────────────────┐
+        │     Eos MCP      │
+        │ tools + safety   │
+        │ workflows + audit│
+        └────────┬─────────┘
+                 │ OSC
+                 ▼
+        ETC Eos / Eos Nomad
 ```
 
-## Configuration rapide
+Eos MCP acts as the controlled translation layer between an MCP client and ETC Eos. The server handles tool schemas, validation, safety policy, connection state and OSC message construction so the client can reason in terms of lighting operations rather than raw network packets.
 
-> ⚠️ **Avertissement live : Eos MCP peut envoyer de vraies commandes à une console lumière réelle.** Une commande OSC validée peut déclencher un GO, rappeler un preset, modifier des niveaux, enregistrer/mettre à jour des cues, changer le patch ou affecter la scène devant du public. Testez d'abord avec **Eos Nomad/offline**, activez le mode lecture seule tant que possible, isolez le réseau console et ne confirmez jamais une action si un régisseur qualifié n'a pas vérifié la preview.
+See [`docs/architecture.md`](docs/architecture.md) for the internal architecture and [`docs/conformite-eos.md`](docs/conformite-eos.md) for the mapping between MCP tools and ETC Eos OSC behaviour.
 
-La revue OSC/ETC du 2026-06-06 impose l'ordre de validation suivant : **Eos Nomad/offline d'abord**, puis console physique uniquement après confirmation opérateur. Les écarts restants sont classés dans `docs/conformite-eos.md` et `docs/osc-coverage.md` en quatre statuts : officiel, compatible mais non natif, extension MCP, et non supporté en mode strict. Gardez `EOS_STRICT_MODE=true` pour bloquer automatiquement les endpoints non documentés ou legacy.
+## Quick start
 
-1. Copiez l'exemple d'environnement, puis remplacez les adresses et secrets :
+### Requirements
 
-   ```bash
-   cp .env.example .env
-   ```
+- Node.js 20+
+- npm 9+
+- an ETC Eos-family console or **Eos Nomad**
+- network access between the Eos MCP host and the console/Nomad instance
+- an MCP-capable client or automation system
 
-2. Démarrez en observation uniquement pour valider le réseau et les lectures :
+### Install
 
-   ```bash
-   EOS_READ_ONLY=true EOS_STRICT_MODE=true npm run start:dev
-   ```
+```bash
+git clone https://github.com/Nairolf138/Eos_MCP.git
+cd Eos_MCP
+npm install
+cp .env.example .env
+```
 
-3. Dans Eos ou Nomad, ouvrez **Setup → System → Show Control → OSC**, activez **OSC RX** et **OSC TX**, puis configurez les ports pour que le serveur MCP et la console se répondent.
-4. Lancez `eos_readiness_check` avant tout autre outil, vérifiez `overall_status`, `transport_status`, `handshake_mode` et `json_read_supported`, puis ne passez en écriture qu'après un dry-run relu par l'opérateur.
+For a first connection, start in observation mode:
 
-Exemple de configuration `.env` minimal pour un poste MCP connecté en Ethernet à une console/Nomad et exposant une passerelle HTTP locale verrouillée :
+```bash
+EOS_READ_ONLY=true EOS_STRICT_MODE=true npm run start:dev
+```
+
+On Eos or Nomad, enable **OSC RX** and **OSC TX** under:
+
+**Setup → System → Show Control → OSC**
+
+Then configure the console ports to match your `.env` file and run `eos_readiness_check` before attempting programming or playback actions.
+
+A typical safe starting point is:
 
 ```env
-# Console Eos / Nomad cible
 OSC_REMOTE_ADDRESS=192.168.50.10
 OSC_TCP_PORT=3032
 OSC_UDP_OUT_PORT=8001
 OSC_UDP_IN_PORT=8000
 OSC_LOCAL_ADDRESS=0.0.0.0
 
-# Garde-fous Eos MCP
 EOS_STRICT_MODE=true
 EOS_READ_ONLY=true
 EOS_MCP_ALLOWED_TOOL_PROFILE=read_only
 EOS_AUDIT_ENABLED=true
 EOS_AUDIT_LOG_FILE=logs/audit.log
-
-# Passerelle MCP HTTP/WS optionnelle
-MCP_TCP_PORT=3032
-MCP_HTTP_MCP_TOKENS=remplacer-par-un-secret-long
-MCP_HTTP_API_KEYS=
-MCP_HTTP_IP_ALLOWLIST=127.0.0.1,192.168.50.20
-MCP_HTTP_ALLOWED_ORIGINS=http://127.0.0.1:3032,http://192.168.50.20:3032
-MCP_HTTP_RATE_LIMIT_WINDOW=60000
-MCP_HTTP_RATE_LIMIT_MAX=60
-MCP_HTTP_TRUST_PROXY=false
-
-# Logs applicatifs
-LOG_LEVEL=info
-LOG_DESTINATIONS=file
-MCP_LOG_FILE=logs/mcp-server.log
-LOG_PRETTY=false
 ```
 
-Pour un passage en écriture contrôlée, changez seulement les garde-fous nécessaires (`EOS_READ_ONLY=false`, profil plus permissif) pendant la fenêtre d'exploitation, conservez `EOS_STRICT_MODE=true`, gardez l'audit actif et exigez une confirmation opérateur pour chaque action mutante.
+Network setup details: [`docs/network-setup.md`](docs/network-setup.md).
 
-### Variables OSC
+## MCP transports
 
-| Variable | Rôle | Valeur de départ conseillée |
-| --- | --- | --- |
-| `OSC_REMOTE_ADDRESS` | Adresse IP de la console Eos ou de l'instance Nomad qui reçoit les commandes OSC. | IP Ethernet de la console, jamais une adresse Wi‑Fi Internet par défaut. |
-| `OSC_TCP_PORT` | Port TCP utilisé pour la négociation/handshake OSC avec Eos. | `3032`. |
-| `OSC_UDP_OUT_PORT` | Port UDP distant vers lequel Eos MCP envoie les commandes. Il doit correspondre au **OSC RX Port** côté Eos. | `8001`. |
-| `OSC_UDP_IN_PORT` | Port UDP local sur lequel Eos MCP écoute les réponses/événements. Il doit correspondre au **OSC TX Port** côté Eos. | `8000`. |
-| `OSC_LOCAL_ADDRESS` | Interface locale d'écoute des paquets OSC. | `0.0.0.0` pour écouter toutes les interfaces, ou l'IP Ethernet dédiée pour verrouiller. |
-| `OSC_TCP_NO_DELAY` | Réduit la latence TCP en activant `TCP_NODELAY`. | `true`. |
-| `OSC_TCP_KEEP_ALIVE_MS` | Intervalle de keep-alive TCP. | `5000`. |
-| `OSC_UDP_RECV_BUFFER_SIZE` / `OSC_UDP_SEND_BUFFER_SIZE` | Buffers UDP pour éviter les pertes lors de rafales OSC. | `262144` / `524288`. |
+Eos MCP supports two main integration patterns.
 
-Règle pratique : le port **sortant** MCP (`OSC_UDP_OUT_PORT`) est le port **entrant** de la console, et le port **entrant** MCP (`OSC_UDP_IN_PORT`) est le port **sortant** de la console.
+### STDIO MCP
 
-### Mode strict officiel ETC
-
-Définissez `EOS_STRICT_MODE=true` pour demander au serveur de bloquer les adresses OSC classées comme non officielles, non documentées ou extensions MCP non autorisées. Ce mode s'appuie sur la matrice d'officialité du projet et laisse passer les adresses documentées par ETC, la commande texte officielle via `/eos/cmd` ou `/eos/newcmd`, ainsi que les messages runtime nécessaires au handshake MCP.
-
-À utiliser par défaut en production :
-
-```bash
-EOS_STRICT_MODE=true npm run start:dev
-```
-
-Si un outil échoue en mode strict, ne contournez pas automatiquement la protection : vérifiez la fiche de l'outil, l'adresse OSC générée, la documentation ETC et le besoin réel. Le mode compatibilité (`EOS_STRICT_MODE=false` ou variable absente) est réservé aux bancs de test, aux simulateurs et aux extensions dont le risque est compris et accepté.
-
-### Mode lecture seule
-
-`EOS_READ_ONLY=true` verrouille le registre MCP sur les outils annotés `readOnly: true`. Les diagnostics, ping, capacités, lectures JSON/OSC et checks de readiness restent disponibles, tandis que les commandes capables de modifier le show ou l'état live sont refusées même avec un profil admin ou un champ `confirm=true`.
-
-Utilisez ce mode pour l'installation, les répétitions de configuration, les assistants d'observation, les démos et toute connexion à une console de production tant que l'opérateur n'a pas demandé explicitement une action d'écriture.
-
-### Confirmations obligatoires
-
-Toute action qui peut modifier la console doit suivre le flux **plan → dry-run → confirmation → exécution** :
-
-1. annoncer les commandes prévues et le contexte cible (console, show, cuelist, cue, canaux) ;
-2. appeler l'outil en `dry_run=true` lorsque disponible et afficher `structuredContent.commands_preview` ;
-3. obtenir une confirmation humaine explicite et non ambiguë ;
-4. relancer le même appel avec les mêmes arguments métier et `confirm=true` ou `require_confirmation=true` ;
-5. vérifier `commandsSent`, `command_log` ou le retour OSC, puis journaliser le résultat.
-
-Les confirmations implicites comme « oui », « ok » ou « vas-y » sont insuffisantes si la preview n'a pas été relue. Préférez une phrase de confirmation contenant l'action et la cible, par exemple : « Confirme l'envoi de GO sur la cuelist 1 maintenant ».
-
-### Réseau Wi‑Fi + Ethernet
-
-La configuration recommandée sépare Internet et la console lumière :
-
-- **Wi‑Fi** : accès Internet de l'ordinateur qui héberge Eos MCP pour les assistants IA, tunnels ou mises à jour.
-- **Ethernet** : lien dédié vers la console Eos/Nomad, sur un sous-réseau statique séparé, sans bridge et sans partage de connexion Internet.
-- **Routage** : `OSC_REMOTE_ADDRESS` doit pointer vers l'IP Ethernet de la console ; l'IP Wi‑Fi ne doit pas être utilisée comme cible OSC.
-- **Pare-feu** : n'ouvrez que les ports nécessaires (`3032` TCP si utilisé, `8000/8001` UDP selon votre plan) et limitez la passerelle HTTP MCP par IP, origine et jeton.
-
-Cette séparation évite qu'un assistant ou un service cloud atteigne directement le réseau lumière, tout en permettant au poste MCP de rester connecté à Internet.
-
-### Sécurité en usage live
-
-Avant une conduite, appliquez au minimum cette checklist :
-
-- valider le show chargé, la console cible, l'utilisateur Eos et le mode live/offline ;
-- exécuter `eos_readiness_check` et arrêter si le statut ou le handshake est ambigu ;
-- conserver `EOS_STRICT_MODE=true` et activer `EOS_AUDIT_ENABLED=true` ;
-- limiter `MCP_HTTP_IP_ALLOWLIST`, `MCP_HTTP_ALLOWED_ORIGINS`, `MCP_HTTP_MCP_TOKENS` et `MCP_HTTP_API_KEYS` aux seuls clients nécessaires ;
-- refuser les commandes texte libres ou les extensions non documentées pendant une représentation sauf procédure écrite ;
-- garder un opérateur à la console, capable d'annuler, stopper ou reprendre la main immédiatement.
-
-Ne testez jamais une nouvelle automatisation directement devant public. Préparez-la hors ligne, rejouez-la en répétition, puis activez-la live uniquement avec un plan de retour arrière.
-
-### Validation avec Eos Nomad
-
-Eos Nomad est la cible de validation recommandée avant une vraie console :
-
-1. lancez Nomad en mode offline ou sur une machine de test ;
-2. chargez une copie non critique du show ;
-3. activez OSC RX/TX avec les mêmes ports que la future console ;
-4. pointez `OSC_REMOTE_ADDRESS` vers l'IP Nomad ;
-5. démarrez Eos MCP avec `EOS_READ_ONLY=true` et `EOS_STRICT_MODE=true` ;
-6. exécutez `eos_readiness_check`, puis des lectures simples (`eos_capabilities_get`, listes/counts disponibles) ;
-7. testez les workflows en `dry_run=true`, relisez les previews, puis n'autorisez une exécution réelle que sur cette copie de test.
-
-Une validation Nomad réussie ne garantit pas que le réseau, les permissions et l'état live de la console de production sont identiques : refaites toujours le readiness check sur site.
-
-### Différence entre OSC officiel, `/eos/cmd` et extensions MCP
-
-| Famille | Ce que c'est | Usage conseillé | Risque |
-| --- | --- | --- | --- |
-| **OSC officiel ETC** | Adresses documentées par ETC pour Eos, par exemple `/eos/key/{key}`, `/eos/get/version`, `/eos/preset/fire`, `/eos/cue/{cuelist}/go`. | À privilégier, surtout avec `EOS_STRICT_MODE=true`. | Dépend de l'adresse : une adresse officielle peut quand même déclencher une action live. |
-| **Commande texte officielle `/eos/cmd` / `/eos/newcmd`** | Canal officiel qui injecte une commande de ligne Eos sous forme de texte. | À réserver aux intégrations expertes lorsque les outils typés ne couvrent pas le besoin. | Très élevé : le contenu texte peut combiner sélection, niveaux, record/update/delete ou playback. |
-| **Extensions MCP / endpoints non documentés** | Aides internes, lectures de compatibilité, diagnostics ou raccourcis qui ne sont pas des commandes OSC ETC documentées. | Utiles en développement ou diagnostic, mais à éviter en production stricte. | Variable ; bloqué par `EOS_STRICT_MODE=true` lorsque classé non officiel/non documenté. |
-
-Même lorsqu'une commande passe par un chemin officiel, Eos MCP ne remplace pas le jugement métier d'un régisseur : l'officialité du transport ne signifie pas que l'action est sûre pour le plateau.
-
-## Installation du serveur MCP
-
-1. Clonez le dépôt puis installez les dépendances :
-
-   ```bash
-   git clone https://github.com/Nairolf138/Eos_MCP.git
-   cd Eos_MCP
-   npm install
-   ```
-
-2. (Facultatif) Le fichier `.env.example` reflète les valeurs par défaut validées par le serveur : copiez-le vers `.env` puis ajustez vos ports/paramètres réseau si nécessaire. Lors de l'exécution, le serveur charge désormais automatiquement le fichier `.env` depuis la racine du projet ; aucune étape supplémentaire n'est requise.
-
-## Scripts npm utiles
-
-- `npm run build` : compile TypeScript vers `dist/`.
-- `npm run tsc` : lance uniquement la compilation TypeScript (utile sous Windows pour isoler les erreurs TS sans copier les artefacts).
-- `npm run lint` : vérifie le style de code avec ESLint.
-- `npm run lint:manifest` : valide la structure du manifest MCP via Ajv.
-- `npm run check:agent-ready` : exécute la chaîne CI recommandée pour préparer une intervention agent (`lint`, `tsc`, `docs:check`, `lint:manifest`, puis `test`).
-- `npm run check:agent-ready:e2e` : exécute la même chaîne puis lance explicitement la suite e2e HTTP/OSC lorsque la validation complète est nécessaire.
-- `npm test` : exécute la suite de tests (Jest).
-- `npm start` : lance le serveur MCP compilé en mode stdio.
-- `npm run start:dev` : lance le serveur MCP directement avec `ts-node`.
-- `npm run docs:generate` : régénère la documentation complète des outils MCP et les commentaires JSDoc.
-- `npm run docs:check` : vérifie que `docs/tools.md` est synchronisé avec le code source.
-- `npm run package` : produit un binaire autonome dans `dist/bin/eos-mcp` (Linux x64 par défaut) via [`pkg`](https://github.com/vercel/pkg).
-
-Sur Windows, utilisez `npm run tsc` pour exécuter exactement la même compilation TypeScript que `npm run build`, sans étape de copie d'artefacts.
-
-La description détaillée de chaque outil est disponible dans [`docs/tools.md`](docs/tools.md). Le fichier est généré automatiquement à partir des schémas Zod déclarés dans `src/tools/**`.
-
-### Fallback showfile `.esf3d` hors live
-
-Les outils `eos_showfile_*` peuvent importer un showfile `.esf3d` uniquement comme fallback hors live, après autorisation opérateur explicite (`operator_authorized=true`). L'import accepte soit un chemin local limité à un `allowedRoot`, soit un upload base64 contrôlé; dans les deux cas le fichier doit garder l'extension `.esf3d`. Le fichier est traité comme une archive ZIP dans un répertoire temporaire isolé avec limites de taille, contrôle zip-slip et nettoyage systématique. Les réponses portent toujours `source: "showfile"` et `live: false` pour éviter toute confusion avec la console. Ce fallback ne remplace pas la lecture OSC live et ne doit pas être présenté comme état temps réel de la console.
-
-Toutes les modifications publiées sont consignées dans [`CHANGELOG.md`](CHANGELOG.md). La procédure de mise à jour de version du serveur est documentée dans [`docs/versioning.md`](docs/versioning.md). Les instructions de déploiement (systemd, NSSM) sont disponibles dans [`docs/deployment.md`](docs/deployment.md).
-
-## Options de ligne de commande
-
-Le module principal (`src/server/index.ts`) expose plusieurs utilitaires accessibles sans démarrer le serveur. Les commandes ci-dessous fonctionnent aussi bien avec `ts-node` qu’avec le build compilé (`dist/server/index.js`).
-
-```bash
-# Afficher l'aide intégrée
-npx ts-node src/server/index.ts --help
-
-# Afficher la version du serveur MCP
-npx ts-node src/server/index.ts --version
-
-# Lister les outils MCP embarqués
-npx ts-node src/server/index.ts --list-tools
-
-# Vérifier la configuration (retourne un code de sortie non nul en cas d'erreur)
-npx ts-node src/server/index.ts --check-config
-```
-
-Ces commandes peuvent également être lancées sur la version compilée avec `node dist/server/index.js <option>`. Utilisez `--list-tools` pour inspecter rapidement les outils disponibles et `--check-config` afin de valider votre fichier `.env` ou les variables d'environnement avant un déploiement. Si la passerelle HTTP/WS MCP est activée via `MCP_TCP_PORT`, la validation échoue désormais lorsque `MCP_HTTP_MCP_TOKENS` est vide ou resté sur la valeur par défaut `change-me`.
-
-Lorsque vous démarrez réellement le serveur (sans combiner d'option utilitaire ci-dessus), plusieurs modificateurs sont disponibles :
-
-- `--verbose` active la journalisation détaillée des messages OSC (entrants/sortants).
-- `--json-logs` force le format JSON pour toutes les destinations configurées et remplace toute sortie `stdout` par `stderr` afin de préserver le canal STDOUT pour le protocole MCP.
-- `--stats-interval <durée>` publie périodiquement les compteurs RX/TX issus d'`OscService.getDiagnostics()` dans les logs (valeurs acceptant `10s`, `5s`, `5000ms`, etc.).
-
-Exemple :
-
-```bash
-npx ts-node src/server/index.ts --verbose --json-logs --stats-interval 30s
-```
-
-### Journalisation et séparation STDOUT/STDERR
-
-Le protocole MCP utilise exclusivement STDOUT pour échanger avec les clients. Pour éviter toute interférence, l'intégralité des logs applicatifs est désormais routée vers STDERR (ou vers les fichiers/transports configurés). Même si la destination héritée `stdout` reste acceptée dans les variables d'environnement pour des raisons de compatibilité, elle est automatiquement redirigée vers STDERR par le serveur. Consultez vos journaux via STDERR ou en configurant `LOG_DESTINATIONS=file`/`transport` selon vos besoins.
-
-### Audit des commandes MCP/OSC
-
-L'audit dédié est désactivé par défaut. Activez-le avec `EOS_AUDIT_ENABLED=true`; le serveur écrit alors un journal JSON Lines dans `EOS_AUDIT_LOG_FILE` (par défaut `logs/audit.log`, relatif à la racine du projet si le chemin n'est pas absolu). Chaque ligne correspond à une commande dry-run ou à un envoi OSC réel et contient notamment :
-
-- `timestamp` : horodatage ISO de l'événement ;
-- `toolName` : nom de l'outil MCP ou, à défaut, identifiant OSC utilisé ;
-- `oscAddress` et `args` : adresse OSC et arguments, avec masquage des champs sensibles (`token`, `password`, `secret`, `authorization`, `apiKey`, etc.) ;
-- `eosUser` : utilisateur Eos résolu depuis les arguments ou le contexte MCP lorsqu'il est connu ;
-- `mode` : `strict` si `EOS_STRICT_MODE=true`, sinon `compatibility` ;
-- `delivery` : `dry_run` pour les previews ou `sent` pour les envois réels ;
-- `status`, `result` ou `error` : issue de l'opération, également nettoyée des secrets.
-
-Utilisation recommandée : conservez `logs/audit.log` hors du dépôt, faites-le collecter par votre système SIEM ou votre rotation de logs, et corrélez les entrées avec `correlationId`/`sessionId` lorsque la passerelle MCP les fournit. Les logs applicatifs restent configurés séparément via `LOG_DESTINATIONS` et `MCP_LOG_FILE`; l'audit ne s'active que par `EOS_AUDIT_ENABLED=true`.
-
-
-### Mode lecture seule EOS_READ_ONLY
-
-Définissez `EOS_READ_ONLY=true` pour démarrer le serveur en mode verrouillé. Dans ce mode, le registre MCP n'autorise que les outils classés comme lecture seule (`readOnly: true`) : lectures OSC/JSON, capacités, ping, diagnostics, contexte de session et autres vérifications qui ne modifient pas l'état de la console. Les outils qui envoient des commandes susceptibles de changer le show ou l'état live (`eos_command`, `eos_new_command`, `eos_cue_*` d'exécution/enregistrement, patch, macros, workflows d'écriture, faders/submasters, etc.) sont refusés même si le client fournit un profil `admin` et `confirm=true`.
-
-Chaque outil publié expose désormais les métadonnées de sécurité suivantes dans le catalogue MCP et dans les annotations de schéma :
-
-- `readOnly: true|false` indique si l'outil est autorisé lorsque `EOS_READ_ONLY=true` ;
-- `riskLevel: low|medium|high|critical` décrit l'impact potentiel côté console ;
-- `requiresConfirmation: true|false` indique si l'exécution réelle nécessite une confirmation opérateur (`confirm=true` ou `require_confirmation=true`).
-
-Exemple de démarrage sécurisé pour un assistant limité à l'observation et au diagnostic :
-
-```bash
-EOS_READ_ONLY=true npm run start:dev
-```
-
-Conservez `EOS_READ_ONLY=false` (valeur par défaut) uniquement lorsque des commandes d'exploitation ou de programmation doivent être possibles, puis combinez-le avec les profils de sécurité MCP (`EOS_MCP_ALLOWED_TOOL_PROFILE`) et les confirmations explicites déjà documentées.
-
-## Configuration réseau et de la console Eos
-
-| Protocole | Port | Description |
-|-----------|------|-------------|
-| TCP       | 3032 | Passerelle HTTP/WS MCP (GET `/health`, GET `/tools`, POST `/tools/:name`, WebSocket `/ws`) activable via `MCP_TCP_PORT`. |
-| UDP       | 8000 | Port d'écoute OSC local (inbound). |
-| UDP       | 8001 | Port de sortie OSC par défaut (outbound). |
-
-Variables d’environnement pertinentes :
-
-- `MCP_TCP_PORT` pour activer la passerelle HTTP/WS optionnelle (par exemple `3032`).
-- `MCP_HTTP_TRUST_PROXY` à `true` pour faire confiance aux en-têtes `X-Forwarded-*` exposés par un reverse proxy ou un tunnel.
-- `OSC_UDP_IN_PORT` pour le port d'écoute local.
-- `OSC_UDP_OUT_PORT` et `OSC_REMOTE_ADDRESS` pour la cible UDP sortante.
-- `OSC_TCP_NO_DELAY` pour activer `TCP_NODELAY` sur le socket TCP (par défaut `true`).
-- `OSC_TCP_KEEP_ALIVE_MS` pour l'intervalle de keep-alive TCP en millisecondes (par défaut `5000`).
-- `OSC_UDP_RECV_BUFFER_SIZE` et `OSC_UDP_SEND_BUFFER_SIZE` pour ajuster les buffers UDP (par défaut `262144`/`524288` octets selon les limites OS).
-
-### Étapes côté console Eos
-
-1. Sur la console (ou Nomad), ouvrez **Setup → System → Show Control → OSC**.
-2. Activez **OSC RX** et **OSC TX**.
-3. Renseignez l’adresse IP du serveur MCP dans **OSC TX IP Address**.
-4. Configurez les ports : `OSC RX Port` = `OSC_UDP_OUT_PORT` (par défaut 8001) et `OSC TX Port` = `OSC_UDP_IN_PORT` (par défaut 8000).
-5. Validez et redémarrez le show si nécessaire.
-
-## Démarrage du serveur MCP
-
-### Mode développement (TypeScript à la volée)
-
-```bash
-npm run start:dev
-```
-
-### Mode production (build + exécution Node.js)
+Suitable for local MCP clients that launch the server as a subprocess:
 
 ```bash
 npm run build
 npm start
 ```
 
-Le serveur écoute sur STDIO pour les clients MCP et initialise un service OSC avec la configuration précédente. Le journal de démarrage vous indique les ports surveillés. Un message dédié confirme désormais le nombre d’outils chargés, l’état de la passerelle HTTP/WS et la disponibilité du transport STDIO :
+### Streamable HTTP MCP / HTTP gateway
 
-```text
-{"toolCount":5,"httpGateway":{"address":"0.0.0.0","family":"IPv4","port":3032},"stdioTransport":"listening"} Serveur MCP demarre : 5 outil(s) disponibles. Passerelle HTTP/WS active sur le port 3032. Transport STDIO en ecoute.
-```
-
-Si la passerelle HTTP/WS n’est pas configurée ou ne peut pas démarrer, le message précise que seule la communication STDIO est active, ce qui permet aux opérateurs d’identifier rapidement la configuration effective au lancement du service.
-
-## Checklist de publication
-
-Avant de publier une nouvelle version :
-
-1. Mettre à jour [`CHANGELOG.md`](CHANGELOG.md) avec les évolutions et corrections apportées.
-2. Appliquer `npm version <patch|minor|major>` pour générer le commit et le tag correspondant.
-3. Lancer la chaîne de vérification recommandée (`npm run check:agent-ready`) si ce n’est pas déjà fait; utiliser `npm run check:agent-ready:e2e` pour inclure explicitement la suite e2e HTTP/OSC.
-4. Pousser la branche et le tag associé :
-   ```bash
-   git push --follow-tags
-   ```
-5. Vérifier que la documentation générée reste à jour (`npm run docs:check`).
-
-### Passerelle HTTP/WS optionnelle
-
-Définissez la variable d’environnement `MCP_TCP_PORT` pour exposer une API HTTP REST (`GET /tools`, `POST /tools/:name`) et un WebSocket (`/ws`) au-dessus du registre d’outils MCP. Exemple :
+Set `MCP_TCP_PORT` to expose the HTTP MCP endpoint and the optional HTTP/WS gateway:
 
 ```bash
 MCP_TCP_PORT=3032 npm run start:dev
 ```
 
-#### Vérifier la santé de la passerelle
+Relevant endpoints include:
 
-Expose un court statut JSON utile pour les sondes de monitoring ou les systèmes d'alerte. L'endpoint renvoie le statut, le temps de fonctionnement et le nombre d'outils MCP enregistrés.
+- `GET /health`
+- `GET /tools`
+- `GET /manifest.json`
+- `POST /mcp`
+- `POST /tools/:name`
+- `WS /ws`
 
-```bash
-curl -X GET "http://localhost:3032/health"
-```
+When exposing the HTTP transport beyond localhost, configure MCP tokens, IP allowlists, allowed origins and rate limiting. See [`docs/deployment.md`](docs/deployment.md) and [`docs/live-safety-checklist.md`](docs/live-safety-checklist.md).
 
-Réponse attendue :
+## Safety model for live lighting control
 
-```json
-{
-  "status": "ok",
-  "uptimeMs": 1234,
-  "toolCount": 5,
-  "transportActive": true,
-  "mcp": {
-    "http": {
-      "status": "listening",
-      "startedAt": 1715080000000,
-      "uptimeMs": 1234,
-      "websocketClients": 0,
-      "address": {
-        "address": "0.0.0.0",
-        "family": "IPv4",
-        "port": 3032
-      }
-    },
-    "stdio": {
-      "status": "listening",
-      "clients": 1,
-      "startedAt": 1715079999000,
-      "uptimeMs": 1200
-    }
-  },
-  "osc": {
-    "status": "online",
-    "updatedAt": 1715080000500,
-    "transports": {
-      "tcp": {
-        "type": "tcp",
-        "state": "connected",
-        "lastHeartbeatSentAt": 1715080000400,
-        "lastHeartbeatAckAt": 1715080000400,
-        "consecutiveFailures": 0
-      },
-      "udp": {
-        "type": "udp",
-        "state": "connected",
-        "lastHeartbeatSentAt": null,
-        "lastHeartbeatAckAt": null,
-        "consecutiveFailures": 0
-      }
-    },
-    "diagnostics": {
-      "config": {
-        "localAddress": "0.0.0.0",
-        "localPort": 8000,
-        "remoteAddress": "127.0.0.1",
-        "remotePort": 8001
-      },
-      "logging": { "incoming": false, "outgoing": false },
-      "stats": {
-        "incoming": { "count": 12, "bytes": 2048, "lastTimestamp": 1715080000300, "lastMessage": null, "addresses": [] },
-        "outgoing": { "count": 18, "bytes": 4096, "lastTimestamp": 1715080000350, "lastMessage": null, "addresses": [] }
-      },
-      "listeners": { "active": 1 },
-      "startedAt": 1715079900000,
-      "uptimeMs": 100000
-    }
-  }
-}
-```
+> **Eos MCP can send real commands to a real lighting console. A valid OSC command can change output, record or update show data, alter patching or trigger playback in front of an audience.**
 
-#### Publier la passerelle via un tunnel ou un reverse proxy
+The recommended workflow is:
 
-L'endpoint `/manifest.json` annonce une URL absolue à destination des clients MCP. Le manifest embarqué fournit désormais le placeholder explicite `http://{HOST}:{PORT}` : il est remplacé au moment de la réponse HTTP par l'adresse détectée (`Host`, `X-Forwarded-Host`, `X-Forwarded-Proto`) ou par la valeur de `MCP_HTTP_PUBLIC_URL`. Lorsque vous exposez le serveur derrière un tunnel (`ngrok`, `Cloudflare Tunnel`, etc.) ou un reverse proxy (Nginx, Traefik, Caddy), vous pouvez forcer l'URL publiée via la variable d’environnement `MCP_HTTP_PUBLIC_URL` :
+**plan → dry-run → operator review → explicit confirmation → execution → verification**
 
-```bash
-MCP_TCP_PORT=3032 \
-MCP_HTTP_PUBLIC_URL="https://eos-mcp.example.com" \
-npm run start:dev
-```
+Key safeguards include:
 
-- Si votre proxy réécrit le chemin (ex. `https://example.com/mcp`), incluez-le dans `MCP_HTTP_PUBLIC_URL` afin que les clients MCP résolvent correctement les endpoints (`/manifest.json`, `/health`, `/tools`, `/ws`).
-- Conservez les en-têtes `X-Forwarded-*` lorsque vous terminez TLS en amont : le serveur peut ainsi détecter automatiquement le schéma `https` et générer un manifest cohérent, même sans variable dédiée.
-- Pour les tunnels dynamiques (adresse changeante), automatisez la mise à jour de `MCP_HTTP_PUBLIC_URL` ou vérifiez que l’outil propage bien les en-têtes originaux. Si la variable n'est pas définie, le placeholder `http://{HOST}:{PORT}` est résolu à chaque requête.
-- Lorsque l’application est publiée derrière un reverse proxy ou un tunnel TLS, positionnez `MCP_HTTP_TRUST_PROXY=true` afin que la passerelle HTTP respecte les en-têtes `X-Forwarded-For`/`X-Forwarded-Proto` pour l’allowlist IP, le rate limiting et la résolution d’URL.
+- `EOS_READ_ONLY=true` to expose observation/read-only tools only;
+- `EOS_STRICT_MODE=true` to prefer documented ETC OSC behaviour and reject unsupported or non-official paths according to the compatibility policy;
+- MCP tool metadata describing read-only state, risk level and confirmation requirements;
+- `dry_run=true` on supported high-level workflows;
+- explicit `confirm` / `require_confirmation` gates for mutating actions;
+- optional audit logging for MCP/OSC actions;
+- readiness checks before live reads or writes.
 
-Une URL publique correctement configurée garantit que les assistants IA et orchestrateurs MCP peuvent établir des connexions WebSocket et HTTP sans dépendre d’un placeholder statique.
+New automations should be validated with **Eos Nomad/offline first**, then tested on the real console under operator supervision before use during a performance.
 
-Le bloc `mcp` regroupe désormais l'état du serveur HTTP (adresse liée, clients WebSocket, durée de fonctionnement) et du transport STDIO (nombre de clients et uptime).
-`osc.transports` expose le détail des liens TCP/UDP (derniers heartbeats, échecs consécutifs) tandis que `osc.diagnostics` réunit les compteurs RX/TX, la configuration réseau appliquée et l'état de la journalisation.
+Read the full checklist before live use: [`docs/live-safety-checklist.md`](docs/live-safety-checklist.md).
 
-### Enregistrer le manifest MCP dans Claude
+## High-level workflows for AI agents
 
-Le serveur expose automatiquement le manifest Claude-compatible sur `GET /manifest.json`. Ce fichier référence la liste des outils (`/tools`), le schéma JSON de chaque outil (`/schemas/tools/{toolName}.json`) ainsi qu’un catalogue (`/schemas/tools/index.json`).
+Eos MCP includes guided workflows that reduce the need for an LLM to assemble long sequences of low-level Eos commands itself. Examples include:
 
-1. Vérifiez la validité du manifest localement :
+- `eos_workflow_autopatch_band` — prepare a structured band / fixture patch;
+- `eos_workflow_create_look` — build a lighting look from channels, groups or palettes;
+- `eos_workflow_create_cue_series` — generate a structured sequence of cues;
+- `eos_workflow_update_cue_look` — preview and update an existing cue;
+- `eos_workflow_create_effect` — prepare effect programming;
+- `eos_workflow_rehearsal_go_safe` — guarded rehearsal playback.
 
-   ```bash
-   npm run lint:manifest
-   ```
+These workflows are designed to expose previews and structured results that an AI agent can inspect before asking the operator to approve execution.
 
-2. Assurez-vous que votre passerelle HTTP/WS est accessible publiquement (reverse proxy, tunnel, etc.) et notez l’URL complète du manifest (par exemple `https://mcp.example.com/manifest.json`).
+See [`docs/llm-agent-guide.md`](docs/llm-agent-guide.md) and [`docs/cookbook.md`](docs/cookbook.md).
 
-3. Enregistrez le service dans Claude via l’outil officiel :
+## ETC Eos OSC compatibility
 
-   ```bash
-   npx @anthropic-ai/anthropic-cli mcp register --manifest-url https://mcp.example.com/manifest.json
-   ```
+The project tracks which operations rely on documented ETC OSC addresses, compatibility fallbacks or MCP-side extensions. This matters because an operation being technically possible does not automatically make it appropriate for a live console.
 
-4. Vous pouvez tester l’intégration MCP en mode local via :
+Useful references:
 
-   ```bash
-   npx @anthropic-ai/anthropic-cli mcp test --manifest-url http://localhost:3032/manifest.json
-   ```
+- [`docs/conformite-eos.md`](docs/conformite-eos.md) — MCP tool ↔ ETC Eos OSC mapping;
+- [`docs/osc-coverage.md`](docs/osc-coverage.md) — OSC endpoint coverage and officiality tracking;
+- [`docs/eos-version-compatibility.md`](docs/eos-version-compatibility.md) — Eos 2.x / 3.x compatibility notes;
+- [`docs/troubleshooting-osc-eos.md`](docs/troubleshooting-osc-eos.md) — Eos OSC troubleshooting.
 
-Le manifest est également copié automatiquement dans `dist/manifest.json` lors du `npm run build`, garantissant sa présence dans vos artefacts de déploiement (binaire `pkg`, archives, etc.).
+## Documentation
 
-#### Lister les outils disponibles
-
-```bash
-curl -X GET "http://localhost:3032/tools"
-```
-
-Réponse attendue :
-
-```json
-{
-  "tools": [
-    {
-      "name": "ping",
-      "config": {
-        "title": "Ping tool",
-        "description": "Retourne un message de confirmation."
-      },
-      "metadata": {
-        "hasInputSchema": true,
-        "inputSchemaResourceUri": "schema://tools/ping",
-        "hasOutputSchema": false,
-        "hasMiddlewares": true,
-        "middlewareCount": 1
-      }
-    }
-  ]
-}
-```
-
-Les outils munis d’un schéma Zod exposent le pointeur MCP correspondant dans `metadata.inputSchemaResourceUri` (`schema://tools/<nom>`).
-
-#### Appel JSON-RPC (transport HTTP MCP)
-
-Le point d'entrée `/mcp` implémente [la spécification HTTP Streamable du protocole MCP](https://modelcontextprotocol.io/specification/latest/basic/transports/streamable-http). Toute session commence par une requête `initialize` qui négocie la version de protocole et retourne un identifiant de session dans l'en-tête `Mcp-Session-Id`.
-
-```bash
-curl -X POST "http://localhost:3032/mcp" \
-  -H "Content-Type: application/json" \
-  -H "Accept: application/json, text/event-stream" \
-  -d '{
-    "jsonrpc": "2.0",
-    "id": "init-1",
-    "method": "initialize",
-    "params": {
-      "protocolVersion": "2025-06-18",
-      "capabilities": {},
-      "clientInfo": { "name": "curl", "version": "0.1" }
-    }
-  }'
-```
-
-La réponse contient les capacités du serveur et l'en-tête `Mcp-Session-Id`. Pour appeler un outil, renvoyez cet identifiant **et** l'en-tête `Mcp-Protocol-Version` (valeur négociée lors de l'initialisation) :
-
-```bash
-curl -X POST "http://localhost:3032/mcp" \
-  -H "Content-Type: application/json" \
-  -H "Accept: application/json, text/event-stream" \
-  -H "Mcp-Session-Id: <session-id>" \
-  -H "Mcp-Protocol-Version: 2025-06-18" \
-  -d '{
-    "jsonrpc": "2.0",
-    "id": "call-1",
-    "method": "tools/call",
-    "params": {
-      "name": "ping",
-      "arguments": { "message": "Bonjour" }
-    }
-  }'
-```
-
-Réponse attendue :
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": "call-1",
-  "result": {
-    "content": [
-      {
-        "type": "text",
-        "text": "pong: Bonjour"
-      }
-    ]
-  }
-}
-```
-
-Pour fermer proprement une session, envoyez `DELETE /mcp` avec les mêmes en-têtes `Mcp-Session-Id` et `Mcp-Protocol-Version`.
-
-#### Sécurisation du transport HTTP MCP
-
-La fonction `createHttpGateway` accepte un objet `security` pour appliquer une politique de défense simple côté HTTP MCP.
-
-| Option | Description |
-|--------|-------------|
-| `apiKeys` | Tableau de clés API autorisées. À transmettre dans l’en-tête `X-API-Key`. |
-| `mcpTokens` | Liste de jetons MCP pour l’authentification (en-tête `X-MCP-Token` ou `Authorization: Bearer <token>`). Ces jetons sont également requis pour les requêtes mutantes afin de limiter les attaques CSRF. |
-| `ipAllowlist` | Liste d’adresses IP autorisées (`"*"` pour tout accepter). |
-| `allowedOrigins` | Origines HTTP autorisées pour CORS (`"*"` pour tout accepter). |
-| `rateLimit` | Limiteur de débit en mémoire `{ windowMs, max }` appliqué par adresse IP. |
-| `express` | Permet de surcharger les middlewares Express (`authentication`, `csrf`, `cors`, `throttling`). |
-
-Exemple :
-
-```ts
-createHttpGateway(registry, {
-  port: 3032,
-  security: {
-    apiKeys: ['test-key'],
-    mcpTokens: ['token-123'],
-    ipAllowlist: ['127.0.0.1'],
-    allowedOrigins: ['http://localhost'],
-    rateLimit: { windowMs: 60000, max: 30 }
-  }
-});
-```
-
-Les clients doivent inclure les en-têtes `X-API-Key`, `X-MCP-Token`, `Origin` et, une fois la session ouverte, `Mcp-Session-Id` / `Mcp-Protocol-Version`. Si les middlewares intégrés ne conviennent pas, vous pouvez injecter vos propres middlewares Express via `security.express` (par exemple pour utiliser `helmet`, `cors` ou un proxy externe).
-#### Exemple `.env`
-
-```env
-MCP_TCP_PORT=3032
-MCP_HTTP_MCP_TOKENS=change-me
-MCP_HTTP_IP_ALLOWLIST=
-MCP_HTTP_ALLOWED_ORIGINS=
-MCP_HTTP_RATE_LIMIT_WINDOW=60000
-MCP_HTTP_RATE_LIMIT_MAX=60
-```
-
-Cette configuration laisse la passerelle HTTP/WS activée mais verrouillée : aucune adresse IP ni origine n'est autorisée tant que les listes restent vides (deny all), et un jeton MCP est exigé pour toute requête.
-
-> ⚠️ Lorsque `MCP_TCP_PORT` est défini, le serveur refuse désormais de démarrer en production si `MCP_HTTP_MCP_TOKENS` est vide ou encore fixé à `change-me`. En développement (`NODE_ENV !== "production"`), le démarrage continue mais un avertissement est journalisé pour inciter au changement.
-
-| Paramètre | Mode strict (défaut) | Mode LAN (exemple) |
-| --- | --- | --- |
-| `MCP_HTTP_IP_ALLOWLIST` | Vide ⇒ deny all | `192.168.1.10,192.168.1.15` |
-| `MCP_HTTP_ALLOWED_ORIGINS` | Vide ⇒ deny all | `http://192.168.1.10,http://192.168.1.15` |
-| `MCP_HTTP_MCP_TOKENS` | `change-me` (à remplacer) | `lan-secret-123` |
-| `MCP_HTTP_API_KEYS` | Vide (désactivé) | `lan-key` |
-| `MCP_HTTP_RATE_LIMIT_WINDOW` | `60000` ms | `60000` ms |
-| `MCP_HTTP_RATE_LIMIT_MAX` | `60` requêtes | `120` requêtes |
-| `MCP_HTTP_TRUST_PROXY` | `false` | `true` |
-
-Pensez à remplacer les jetons et clés par des valeurs robustes avant d'exposer la passerelle sur votre réseau.
-
-## Vérification locale avec la CLI MCP
-
-Après démarrage du serveur, utilisez le client officiel pour invoquer un outil :
-
-```bash
-npx @modelcontextprotocol/cli call --tool ping --args '{"message":"Bonjour"}'
-```
-
-Référez-vous à [`docs/tools.md`](docs/tools.md) pour la liste exhaustive des outils et des charges utiles attendues.
-
-## Intégration avec les assistants IA
-
-Les trois intégrations ci-dessous s’appuient sur le protocole MCP. Chaque outil invoquera le serveur en STDIO ; assurez-vous qu’il s’exécute dans un terminal dédié.
-
-### ChatGPT (plateforme GPTs)
-
-1. Ouvrez [https://chat.openai.com/](https://chat.openai.com/) et créez un GPT personnalisé.
-2. Dans l’onglet **Actions**, cliquez sur **Ajouter une action** puis choisissez **Model Context Protocol**.
-3. Renseignez :
-   - **Nom** : `Eos MCP` (ou similaire).
-   - **Type de connexion** : `Commande locale`.
-   - **Commande** : `npm run start:dev` (développement) ou `node dist/server/index.js` (production).
-   - **Répertoire de travail** : chemin absolu du dossier `Eos_MCP`.
-4. Sauvegardez le GPT. Au premier lancement, ChatGPT vous demandera d’autoriser l’exécution de la commande ; acceptez pour ouvrir le serveur.
-5. Dans la conversation, demandez une action (ex. « déclenche la cue 5 »). ChatGPT traduira la requête en appel d’outil MCP ; surveillez le terminal pour vérifier que la commande est déclenchée.
-
-### Claude Desktop / Claude.ai
-
-1. Assurez-vous d’utiliser une version compatible MCP (Claude Desktop ≥ 1.3 ou Claude.ai avec accès MCP).
-2. Créez ou modifiez le fichier de configuration :
-   - macOS : `~/Library/Application Support/Claude/claude_desktop_config.json`
-   - Windows : `%APPDATA%/Claude/claude_desktop_config.json`
-   - Linux : `~/.config/Claude/claude_desktop_config.json`
-3. Ajoutez la configuration suivante :
-
-   ```json
-   {
-     "mcpServers": {
-       "eos-mcp": {
-         "command": "npm",
-         "args": ["run", "start:dev"],
-         "workingDirectory": "/chemin/vers/Eos_MCP"
-       }
-     }
-   }
-   ```
-
-   Pour un build production, remplacez par `"command": "node", "args": ["dist/server/index.js"]`.
-4. Redémarrez Claude Desktop puis ouvrez un chat. Tapez une instruction liée à Eos ; Claude sélectionnera automatiquement le serveur MCP si pertinent.
-5. Vérifiez que les réponses incluent la trace des outils MCP utilisés et que la console Eos reçoit bien les messages OSC.
-
-#### Guide d’usage avec Claude
-
-Pour limiter les ambiguïtés en conduite et garder une trace claire des décisions, demandez à Claude de suivre ce flux avant toute action Eos :
-
-1. **Connexion** : appeler `eos_connect` si la session OSC n’est pas encore établie ou si la cible réseau doit être confirmée.
-2. **Audit des capacités** : appeler `eos_capabilities_get` pour vérifier les outils disponibles, le mode de sécurité et l’état de la passerelle avant de proposer un plan. Lire explicitement `structuredContent.context.osc_limitations` (ou le résultat de `eos_connect`) : si `can_read_queries=false`, Claude doit annoncer que la lecture EOS n’est pas garantie et ne doit pas inventer le patch, la cuelist, les cues ou l’état du show sans réponse de lecture explicite.
-3. **Choix du niveau d’abstraction** : privilégier les workflows haut niveau lorsque l’intention correspond au besoin :
-   - `eos_workflow_autopatch_band` pour préparer rapidement un patch groupe/band ;
-   - `eos_workflow_create_look` pour construire un look cohérent à partir de canaux, palettes ou groupes ;
-   - `eos_workflow_create_cue_series` pour générer une suite de cues structurée; pour un niveau, renseigner `looks[].intensity` ou `looks[].level` (`Full`, `Out`, `0`-`100`, valeurs EOS sûres) plutôt que d’ajouter `At` dans `channels`.
-4. **Répétitions** : utiliser `eos_workflow_rehearsal_go_safe` pour les tops en répétition, plutôt qu’un `GO` bas niveau direct, afin de conserver les garde-fous de cuelist, cue cible et validation.
-5. **Prévisualisation obligatoire** : demander d’abord `dry_run: true` sur les workflows ou outils qui le supportent, relire `structuredContent.commands_preview` avec l’utilisateur, puis relancer uniquement après validation explicite avec les mêmes arguments métier, `dry_run: false` (ou sans champ `dry_run`) et `require_confirmation: true` lorsque le workflow modifie le show.
-6. **Mode dégradé** : si `eos_connect` retourne `handshake_mode=degraded` ou une limitation « mode dégradé : envoi possible, lecture non garantie », Claude peut proposer des envois prudents après confirmation, mais doit traiter toute lecture de patch/cuelist comme inconnue tant qu’un outil de lecture ne répond pas avec succès.
-
-**Règle de confirmation utilisateur** : Claude doit obtenir une confirmation explicite de l’utilisateur avant toute action destructive ou toute modification du show, notamment patch, record, update, delete, live fire, rappel de palette/preset affectant la scène, ou déclenchement de cue. Lorsque l’outil expose `require_confirmation`, l’appel réel doit inclure `require_confirmation: true` après cette confirmation.
-
-Mini exemples conversationnels :
-
-| Intention utilisateur | Workflow conseillé avec Claude |
+| Topic | Document |
 | --- | --- |
-| « Prépare le patch de mon groupe batterie sur l’univers 2, mais montre-moi d’abord ce qui sera envoyé. » | `eos_connect` → `eos_capabilities_get` → `eos_workflow_autopatch_band` avec `dry_run: true`, puis confirmation utilisateur avant l’exécution réelle. |
-| « Crée un look bleu doux sur les faces et les contres pour la scène 3. » | `eos_capabilities_get` → `eos_workflow_create_look` en `dry_run: true`, revue du rendu prévu, puis exécution avec confirmation si le show est modifié. |
-| « En répétition, envoie la prochaine cue de la liste 1 si tout est prêt. » | `eos_capabilities_get` → `eos_workflow_rehearsal_go_safe` avec confirmation utilisateur et garde-fous, plutôt qu’un `eos_cue_go` direct. |
+| Complete MCP tool catalog | [`docs/tools.md`](docs/tools.md) |
+| Architecture | [`docs/architecture.md`](docs/architecture.md) |
+| AI / LLM agent guide | [`docs/llm-agent-guide.md`](docs/llm-agent-guide.md) |
+| Automation cookbook | [`docs/cookbook.md`](docs/cookbook.md) |
+| Network setup | [`docs/network-setup.md`](docs/network-setup.md) |
+| Live safety | [`docs/live-safety-checklist.md`](docs/live-safety-checklist.md) |
+| Eos OSC compliance | [`docs/conformite-eos.md`](docs/conformite-eos.md) |
+| OSC coverage | [`docs/osc-coverage.md`](docs/osc-coverage.md) |
+| Version compatibility | [`docs/eos-version-compatibility.md`](docs/eos-version-compatibility.md) |
+| Deployment | [`docs/deployment.md`](docs/deployment.md) |
+| End-to-end testing | [`docs/testing-e2e.md`](docs/testing-e2e.md) |
+| Adding a tool | [`docs/adding-a-tool.md`](docs/adding-a-tool.md) |
+| Licensing guide | [`docs/licensing/README.md`](docs/licensing/README.md) |
+| Changelog | [`CHANGELOG.md`](CHANGELOG.md) |
 
-### n8n (automatisation de workflows)
+The previous long-form README has been preserved for reference in [`docs/README-legacy.md`](docs/README-legacy.md).
 
-Deux options s’offrent à vous : appeler directement le serveur via STDIO (nœud **Execute Command**) ou passer par la CLI MCP.
+## Development
 
-#### Option A – nœud Execute Command
-
-1. Ajoutez un nœud **Execute Command** dans votre workflow.
-2. Configurez la commande :
-
-   ```bash
-   npx @modelcontextprotocol/cli call --cwd /chemin/vers/Eos_MCP --tool <outil> --args '<json>'
-   ```
-
-3. Exemple pour lancer un ping :
-
-   ```bash
-   npx @modelcontextprotocol/cli call --cwd /chemin/vers/Eos_MCP --tool ping --args '{"message":"Bonjour"}'
-   ```
-
-4. Parsez la sortie JSON du nœud pour enchaîner sur d’autres actions n8n.
-
-#### Option B – Serveur MCP persistant
-
-1. Démarrez le serveur MCP dans un service externe (systemd, PM2…).
-2. Utilisez un nœud **HTTP Request** ou **Webhooks** pour réagir à des événements, puis un nœud **Execute Command** minimal qui envoie le message OSC attendu via `oscsend` ou un script Node.js interne se connectant à `OSC_REMOTE_ADDRESS`.
-3. Combinez ces deux approches pour déclencher automatiquement les outils MCP en fonction de vos triggers (emails, API externes, calendrier, etc.).
-
-## Appels OSC directs
-
-Chaque outil expose également un chemin OSC. Exemple pour reproduire le `ping` via OSC :
+Useful commands:
 
 ```bash
-oscsend 127.0.0.1 8001 /eos/ping s:'{"message":"Bonjour"}'
+npm run build
+npm run lint
+npm run tsc
+npm test
+npm run test:e2e
+npm run docs:check
+npm run check:agent-ready
+npm run check:agent-ready:e2e
 ```
 
-Adaptez le chemin et la charge utile selon la documentation des outils.
+List the tools or validate the current configuration without starting a normal session:
 
-## Version community vs licence commerciale
+```bash
+npx ts-node src/server/index.ts --list-tools
+npx ts-node src/server/index.ts --check-config
+```
 
-La version **community** est publiée sous **GNU AGPLv3** (`AGPL-3.0-only`).
+Contributions are welcome. Start with [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`docs/adding-a-tool.md`](docs/adding-a-tool.md).
 
-### Ce que la version community permet
+## Project identity
 
-- utiliser Eos MCP en interne et en production ;
-- modifier le code et redistribuer des versions dérivées ;
-- opérer le logiciel en service réseau **à condition** de respecter les obligations AGPLv3 (notamment la mise à disposition du code source correspondant aux modifications couvertes).
+**Eos MCP** is developed by **Florian Ribes (NairolfConcept)**.
 
-### Quand basculer vers une licence commerciale
+- Website: [nairolfconcept.fr/eos-mcp.html](https://nairolfconcept.fr/eos-mcp.html)
+- GitHub: [Nairolf138/Eos_MCP](https://github.com/Nairolf138/Eos_MCP)
 
-Une **licence commerciale** devient nécessaire dès qu’une organisation souhaite exploiter Eos MCP sans appliquer les obligations AGPLv3 (par exemple intégrer des développements propriétaires non publiés dans un service distribué ou proposé à des tiers).
+Eos MCP is an independent project and is **not an official ETC product**. ETC, Eos and related product names are trademarks of their respective owners.
 
-Le guide rapide de choix de licence est disponible dans [`docs/licensing/README.md`](docs/licensing/README.md), avec FAQ et exemples concrets. La politique détaillée reste documentée dans [`docs/licensing/strategy.md`](docs/licensing/strategy.md).
+## License
 
-## Contribution
+The community edition is released under **GNU AGPLv3 (`AGPL-3.0-only`)**. See [`LICENSE`](LICENSE) and the [licensing guide](docs/licensing/README.md).
 
-Consultez [`CONTRIBUTING.md`](./CONTRIBUTING.md) pour le processus de contribution et la mini-checklist **Licence compliance** à valider avant toute PR.
-
-## Licence
-
-Ce projet est distribué sous la licence **GNU AGPLv3** (`AGPL-3.0-only`).
-Consultez le texte complet dans [`./LICENSE`](./LICENSE).
-
-### Maintainer
-
-- **Auteur** : Florian Ribes
-- **Organisation** : NairolfConcept
-- **Site web** : https://nairolfconcept.fr
+A separate commercial licensing path is documented for organisations that need to use Eos MCP without the obligations of AGPLv3.

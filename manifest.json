@@ -1,6 +1,6 @@
 {
   "name": "Eos MCP",
-  "description": "Serveur MCP pour piloter les consoles ETC Eos via des outils compatibles Claude et Model Context Protocol.",
+  "description": "Production-oriented MCP server for ETC Eos-family lighting consoles and Eos Nomad over OSC, with typed tools, guided workflows, safety controls and HTTP/STDIO transports.",
   "version": "1.0.0",
   "mcp": {
     "schema_version": "1.0",
