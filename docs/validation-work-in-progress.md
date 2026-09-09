@@ -137,6 +137,19 @@ Next: remaining contract/result snapshots, manifest and documentation (including
 the obsolete claim that JSON conformance fixtures are console captures), followed
 by `npm run check:agent-ready:e2e`. No physical console/Nomad validation performed.
 
+Documentation review found one further false capability: the Magic Sheet
+send-string wrapper sent an OSC-looking path as Eos CLI text without implementing
+either a Magic Sheet button or external OSC output. It is now absent from MCP
+discovery and returns `unsupported` for direct imports. Native Magic Sheet open
+and Get remain. The executable catalogue now contains **125 tools** (four legacy
+operations removed; see `docs/native-osc-limitations.md`).
+
+Batch validation: **33/33 tests passed in three suites** (unsupported operations,
+Magic Sheets, registry), TypeScript and changed-file ESLint passed. Next remains
+documentation, manifest recommendations, reviewed contract snapshots and the full
+contributor gate. This correction was made while tracing documentation claims to
+their implementation, not by restarting the audit.
+
 Primary reference: [ETC OSC Dictionary](https://www.etcconnect.com/WebDocs/Controls/EosFamilyOnlineHelp/en/Content/23_Show_Control/08_OSC/OSC_Dictionary.htm)
 and [ETC OSC Get](https://www.etcconnect.com/WebDocs/Controls/EosFamilyOnlineHelp/en/Content/23_Show_Control/08_OSC/Using_OSC_with_Eos/OSC_Third-Party_Integration/OSC_Get.htm).
 Fixtures are synthetic examples based on these references, not console captures.

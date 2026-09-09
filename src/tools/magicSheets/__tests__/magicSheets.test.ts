@@ -5,7 +5,7 @@
 import { OscClient, setOscClient, type OscGateway, type OscGatewaySendOptions } from '../../../services/osc/client';
 import type { OscMessage } from '../../../services/osc/index';
 import { oscMappings } from '../../../services/osc/mappings';
-import { getStructuredContent, isTextContent, runTool } from '../../__tests__/helpers/runTool';
+import { runTool } from '../../__tests__/helpers/runTool';
 import {
     eosMagicSheetOpenTool,
     eosMagicSheetSendStringTool
@@ -57,48 +57,9 @@ describe('magic sheet tools', () => {
     ]);
   });
 
-  it('envoie une commande texte lorsque le role est Primary', async () => {
-    await runTool(
-      eosMagicSheetSendStringTool,
-      { osc_command: '/hog/playback/go' },
-      { connection: { role: 'Primary' } }
-    );
-
-    expect(service.sentMessages).toHaveLength(1);
-    const [message] = service.sentMessages;
-    expect(message.address).toBe(oscMappings.magicSheets.sendString);
-    expect(message.args).toEqual([
-      {
-        type: 's',
-        value: '/hog/playback/go'
-      }
-    ]);
-  });
-
-  it("refuse l'envoi lorsqu'il ne s'agit pas d'une connexion Primary", async () => {
-    const result = await runTool(
-      eosMagicSheetSendStringTool,
-      { osc_command: '/hog/playback/go' },
-      { connection: { role: 'Secondary' } }
-    );
-
-    expect(service.sentMessages).toHaveLength(0);
-    const textContent = result.content.find(isTextContent);
-    expect(textContent).toBeDefined();
-    if (!textContent) {
-      throw new Error('Expected text content');
-    }
-    expect(textContent.text).toContain('connexion Primary');
-
-    const structuredContent = getStructuredContent(result);
-    expect(structuredContent).toBeDefined();
-    if (!structuredContent) {
-      throw new Error('Expected structured content');
-    }
-    expect(structuredContent).toMatchObject({
-      action: 'magic_sheet_send_string',
-      required_role: 'Primary',
-      provided_role: 'Secondary'
-    });
+  it.each(['Primary','Secondary'])('refuse la fausse route Magic Sheet pour %s sans commande console', async role=>{
+    const result=await runTool(eosMagicSheetSendStringTool,{osc_command:'/hog/playback/go'},{connection:{role}});
+    expect(result.isError).toBe(true);expect(result.structuredContent).toMatchObject({status:'unsupported',verified:false});
+    expect(service.sentMessages).toEqual([]);
   });
 });

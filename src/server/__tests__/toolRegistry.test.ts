@@ -82,7 +82,7 @@ describe('ToolRegistry schema-less tools', () => {
     }
   });
 
-  it.each(['eos_magic_sheet_send_string','eos_cue_select','eos_cuelist_bank_create','eos_cuelist_bank_page','eos_magic_sheet_open','eos_pixmap_select','eos_curve_select','eos_toggle_staging_mode'])('does not advertise console action %s as read-only', name=>{
+  it.each(['eos_cue_select','eos_cuelist_bank_create','eos_cuelist_bank_page','eos_magic_sheet_open','eos_pixmap_select','eos_curve_select','eos_toggle_staging_mode'])('does not advertise console action %s as read-only', name=>{
     expect(toolDefinitions.find(tool=>tool.name===name)?.metadata).toMatchObject({readOnly:false,allowedInReadOnly:false,requiresConfirmation:true});
   });
 

@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 import tools from '../index';
+import { eosMagicSheetSendStringTool } from '../magicSheets';
 import { eosWorkflowCreateEffectTool } from '../workflows';
 import { eosSetCueSendStringTool, eosSetCueReceiveStringTool } from '../showControl';
 import { OscClient, setOscClient } from '../../services/osc/client';
@@ -13,6 +14,7 @@ describe('Unimplemented operations are not advertised or sent to Eos', () => {
   beforeEach(() => { send.mockClear(); setOscClient(new OscClient({ send, onMessage: () => () => {} })); });
   afterEach(() => setOscClient(null));
   test.each([
+    [eosMagicSheetSendStringTool, {osc_command:'/eos/cues/1/fire'}],
     [eosWorkflowCreateEffectTool, { channels: '1 Thru 5', effect_number: 17 }],
     [eosSetCueSendStringTool, { format_string: '/cue/%1/%2' }],
     [eosSetCueReceiveStringTool, { format_string: '/cue/%1/%2' }]

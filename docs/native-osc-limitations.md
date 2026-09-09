@@ -1,6 +1,6 @@
 # Native ETC OSC: explicit limits
 
-The default MCP catalogue no longer advertises these three unimplemented operations:
+The default MCP catalogue no longer advertises these four unimplemented operations:
 
 - `eos_workflow_create_effect`: the former generic fly-out sequence did not define
   a valid Eos effect type, steps, grouping or parameter assignment. Its supposed
@@ -9,6 +9,11 @@ The default MCP catalogue no longer advertises these three unimplemented operati
   not create or redefine one. A prepared console macro may perform a known sequence.
 - `eos_set_cue_send_string` and `eos_set_cue_receive_string`: configure these fields
   in **Setup > Show Control > OSC**. No documented OSC assignment is implemented.
+
+- `eos_magic_sheet_send_string`: the old implementation passed an OSC-looking
+  string to `/eos/newcmd`; that does not configure a Magic Sheet button or send OSC
+  from Eos to an external device. Configure a console button or macro in Eos.
+  `eos_magic_sheet_open` and the native Magic Sheet information tool remain usable.
 
 Their TypeScript exports remain explicit `unsupported` responses for compatibility
 with direct imports; neither dry-run nor confirmation causes console traffic.

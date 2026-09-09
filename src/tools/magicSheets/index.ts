@@ -267,31 +267,6 @@ function buildMagicSheetInfoResult(
   });
 }
 
-function extractRole(extra: unknown): string | null {
-  if (!extra || typeof extra !== 'object') {
-    return null;
-  }
-
-  const record = extra as Record<string, unknown>;
-  const directRole = record.role ?? record.connectionRole ?? record.connection_role;
-  if (typeof directRole === 'string' && directRole.trim().length > 0) {
-    return directRole.trim();
-  }
-
-  const nestedKeys = ['connection', 'session', 'context', 'metadata'];
-  for (const key of nestedKeys) {
-    const nested = record[key];
-    if (nested && typeof nested === 'object') {
-      const nestedRole = extractRole(nested);
-      if (nestedRole) {
-        return nestedRole;
-      }
-    }
-  }
-
-  return null;
-}
-
 /**
  * @tool eos_magic_sheet_open
  * @summary Ouverture de magic sheet
@@ -362,35 +337,10 @@ export const eosMagicSheetSendStringTool: ToolDefinition<typeof sendStringInputS
       }
     }
   },
-  handler: async (args, extra) => {
-    const schema = z.object(sendStringInputSchema).strict();
-    const options = schema.parse(args ?? {});
-    const role = extractRole(extra);
-
-    if ((role ?? '').toLowerCase() !== 'primary') {
-      const message = 'La commande magic sheet send string requiert une connexion Primary.';
-      return createResult(message, {
-        action: 'magic_sheet_send_string',
-        error: message,
-        required_role: 'Primary',
-        provided_role: role ?? null
-      });
-    }
-
-    const client = getOscClient();
-
-    await client.sendNewCommand(options.osc_command, extractTargetOptions(options));
-
-    return createResult('Commande envoyee via magic sheet.', {
-      action: 'magic_sheet_send_string',
-      osc_command: options.osc_command,
-      osc: {
-        address: oscMappings.magicSheets.sendString,
-        args: [options.osc_command]
-      },
-      ...extractTargetOptions(options)
-    });
-  }
+  handler: async args => {
+          z.object(sendStringInputSchema).strict().parse(args ?? {});
+          return {isError:true,content:[{type:'text',text:'Envoi de chaine Magic Sheet indisponible: cette operation ne configure pas un bouton ni une sortie OSC Eos. Utiliser une macro console preparee.'}],structuredContent:{status:'unsupported',verified:false,sent_to_transport:false,commandsSent:[]}};
+        }
 };
 
 /**
@@ -456,7 +406,6 @@ export const eosMagicSheetGetInfoTool: ToolDefinition<typeof getInfoInputSchema>
 
 export const magicSheetTools = [
   eosMagicSheetOpenTool,
-  eosMagicSheetSendStringTool,
   eosMagicSheetGetInfoTool
 ];
 
