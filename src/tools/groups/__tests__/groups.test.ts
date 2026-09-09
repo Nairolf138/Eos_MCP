@@ -2,17 +2,15 @@
  * Copyright 2026 Florian Ribes (NairolfConcept)
  * SPDX-License-Identifier: Apache-2.0
  */
-import type { OscMessage } from '../../../services/osc/index';
-import { OscClient, setOscClient, type OscGateway, type OscGatewaySendOptions } from '../../../services/osc/client';
 import { getResourceCache } from '../../../services/cache/index';
+import { OscClient, setOscClient, type OscGateway, type OscGatewaySendOptions } from '../../../services/osc/client';
+import type { OscMessage } from '../../../services/osc/index';
 import { oscMappings } from '../../../services/osc/mappings';
+import { runTool } from '../../__tests__/helpers/runTool';
 import {
-  eosGroupSelectTool,
-  eosGroupSetLevelTool,
-  eosGroupGetInfoTool,
-  eosGroupListAllTool
+    eosGroupSelectTool,
+    eosGroupSetLevelTool
 } from '../index';
-import { getStructuredContent, runTool } from '../../__tests__/helpers/runTool';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];

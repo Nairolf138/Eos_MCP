@@ -2,15 +2,14 @@
  * Copyright 2026 Florian Ribes (NairolfConcept)
  * SPDX-License-Identifier: Apache-2.0
  */
-import type { OscMessage } from '../../../services/osc/index';
 import { OscClient, setOscClient, type OscGateway, type OscGatewaySendOptions } from '../../../services/osc/client';
+import type { OscMessage } from '../../../services/osc/index';
 import { oscMappings } from '../../../services/osc/mappings';
-import {
-  eosMagicSheetGetInfoTool,
-  eosMagicSheetOpenTool,
-  eosMagicSheetSendStringTool
-} from '../index';
 import { getStructuredContent, isTextContent, runTool } from '../../__tests__/helpers/runTool';
+import {
+    eosMagicSheetOpenTool,
+    eosMagicSheetSendStringTool
+} from '../index';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];

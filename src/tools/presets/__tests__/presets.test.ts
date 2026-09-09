@@ -2,15 +2,14 @@
  * Copyright 2026 Florian Ribes (NairolfConcept)
  * SPDX-License-Identifier: Apache-2.0
  */
-import type { OscMessage } from '../../../services/osc/index';
 import { OscClient, setOscClient, type OscGateway, type OscGatewaySendOptions } from '../../../services/osc/client';
+import type { OscMessage } from '../../../services/osc/index';
 import { oscMappings } from '../../../services/osc/mappings';
+import { runTool } from '../../__tests__/helpers/runTool';
 import {
-  eosPresetFireTool,
-  eosPresetSelectTool,
-  eosPresetGetInfoTool
+    eosPresetFireTool,
+    eosPresetSelectTool
 } from '../index';
-import { getStructuredContent, isTextContent, runTool } from '../../__tests__/helpers/runTool';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -30,44 +29,6 @@ class FakeOscService implements OscGateway {
 
   public emit(message: OscMessage): void {
     this.listeners.forEach((listener) => listener(message));
-  }
-}
-
-function assertHasPresetDetails(
-  data: Record<string, unknown>
-): asserts data is {
-  action: string;
-  status: string;
-  preset: {
-    exists: true;
-    flags: Record<string, boolean>;
-    effects: unknown[];
-    channels: unknown[];
-  };
-} {
-  const preset = (data as { preset?: unknown }).preset;
-  if (typeof preset !== 'object' || preset === null) {
-    throw new Error('Expected preset details');
-  }
-
-  const presetData = preset as {
-    exists?: unknown;
-    flags?: unknown;
-    effects?: unknown;
-    channels?: unknown;
-  };
-
-  if (presetData.exists !== true) {
-    throw new Error('Preset expected to exist');
-  }
-
-  if (
-    typeof presetData.flags !== 'object' ||
-    presetData.flags === null ||
-    !Array.isArray(presetData.effects) ||
-    !Array.isArray(presetData.channels)
-  ) {
-    throw new Error('Preset details missing expected properties');
   }
 }
 

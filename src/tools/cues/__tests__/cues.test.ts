@@ -2,20 +2,18 @@
  * Copyright 2026 Florian Ribes (NairolfConcept)
  * SPDX-License-Identifier: Apache-2.0
  */
-import type { OscMessage } from '../../../services/osc/index';
-import { OscClient, setOscClient, type OscGateway, type OscGatewaySendOptions } from '../../../services/osc/client';
 import { createCacheKey, createResourceTag, getResourceCache } from '../../../services/cache/index';
-import { oscMappings } from '../../../services/osc/mappings';
-import {
-  eosCueGoTool,
-  eosCueStopBackTool,
-  eosCuelistBankCreateTool,
-  eosCuelistBankPageTool,
-  eosGetActiveCueTool,
-  eosCueFireTool,
-  eosCueSelectTool
-} from '../index';
+import { OscClient, setOscClient, type OscGateway, type OscGatewaySendOptions } from '../../../services/osc/client';
+import type { OscMessage } from '../../../services/osc/index';
 import { getStructuredContent, runTool } from '../../__tests__/helpers/runTool';
+import {
+    eosCueFireTool,
+    eosCueGoTool,
+    eosCueSelectTool,
+    eosCueStopBackTool,
+    eosCuelistBankCreateTool,
+    eosCuelistBankPageTool
+} from '../index';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -70,39 +68,49 @@ describe('cue tools', () => {
   });
 
 
+  it.each([
+    [{cue_number:12.5}, '/eos/cue/12.5/fire'],
+    [{cue_number:12.5,cuelist_number:2}, '/eos/cue/2/12.5/fire'],
+    [{cue_number:12.5,cuelist_number:2,cue_part:0}, '/eos/cue/2/12.5/0/fire'],
+    [{cue_number:12.5,cuelist_number:2,cue_part:3}, '/eos/cue/2/12.5/3/fire']
+  ])('preserve exactement la cible cue %j', async (args, address) => {
+    await runTool(eosCueFireTool, {...args, confirm:true});
+    expect(service.sentMessages).toEqual([{address}]);
+  });
+
+  it('refuse une part sans liste et une option back qui promettrait une autre action', async () => {
+    await expect(runTool(eosCueFireTool, {cue_number:12.5,cue_part:2,confirm:true})).rejects.toThrow('liste');
+    await expect(runTool(eosCueStopBackTool, {cuelist_number:2,back:true})).rejects.toThrow();
+    expect(service.sentMessages).toHaveLength(0);
+  });
+
   it('refuse cue_part sans cue_number sur cue_go', async () => {
     await expect(runTool(eosCueGoTool, { cuelist_number: 5, cue_part: 1 })).rejects.toThrow('cue_part requiert cue_number');
   });
 
   it('enchaine un go puis un stop back sur la meme liste', async () => {
     await runTool(eosCueGoTool, { cuelist_number: 5 });
-    await runTool(eosCueStopBackTool, { cuelist_number: 5, back: true });
+    await runTool(eosCueStopBackTool, { cuelist_number: 5 });
 
     expect(service.sentMessages).toHaveLength(2);
 
     const goMessage = service.sentMessages[0];
-    expect(goMessage.address).toBe('/eos/cue/5/go');
+    expect(goMessage.address).toBe('/eos/cues/5/fire');
     expect(goMessage.args).toBeUndefined();
 
     const stopMessage = service.sentMessages[1];
-    expect(stopMessage.address).toBe(oscMappings.cues.stopBackCommand);
-    expect(stopMessage.args).toEqual([
-      {
-        type: 's',
-        value: 'Cue 5 Back#'
-      }
-    ]);
+    expect(stopMessage.address).toBe('/eos/cues/5/stop');
+    expect(stopMessage.args ?? []).toEqual([]);
   });
 
 
 
-  it('utilise /eos/cmd en mode compatibilite interne pour cue_go', async () => {
+  it('conserve le GO natif meme en mode compatibilite', async () => {
     await runTool(eosCueGoTool, { cuelist_number: 5 }, { cueOscMode: 'compatibility' });
 
     expect(service.sentMessages).toEqual([
       {
-        address: oscMappings.cues.compatibility.go,
-        args: [{ type: 's', value: 'CueList 5 Go' }]
+        address: '/eos/cues/5/fire'
       }
     ]);
   });
@@ -112,7 +120,7 @@ describe('cue tools', () => {
 
     expect(service.sentMessages).toEqual([
       {
-        address: '/eos/cue/7'
+        address: '/eos/cue', args: [{ type: 'i', value: 7 }]
       }
     ]);
   });

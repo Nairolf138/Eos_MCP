@@ -2,30 +2,16 @@
  * Copyright 2026 Florian Ribes (NairolfConcept)
  * SPDX-License-Identifier: Apache-2.0
  */
-import type { OscMessage } from '../../../services/osc/index';
 import { OscClient, setOscClient, type OscGateway, type OscGatewaySendOptions } from '../../../services/osc/client';
+import type { OscMessage } from '../../../services/osc/index';
 import { oscMappings } from '../../../services/osc/mappings';
-import {
-  eosBeamPaletteFireTool,
-  eosColorPaletteFireTool,
-  eosFocusPaletteFireTool,
-  eosIntensityPaletteFireTool,
-  eosPaletteGetInfoTool
-} from '../index';
 import { getStructuredContent, runTool } from '../../__tests__/helpers/runTool';
-
-function assertHasPalette(
-  data: Record<string, unknown>
-): asserts data is Record<string, unknown> & { palette: Record<string, unknown> } {
-  if (typeof data !== 'object' || data === null) {
-    throw new Error('Expected palette data');
-  }
-
-  const palette = (data as { palette?: unknown }).palette;
-  if (typeof palette !== 'object' || palette === null) {
-    throw new Error('Palette details missing');
-  }
-}
+import {
+    eosBeamPaletteFireTool,
+    eosColorPaletteFireTool,
+    eosFocusPaletteFireTool,
+    eosIntensityPaletteFireTool
+} from '../index';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];

@@ -8,7 +8,6 @@ import { oscMappings } from '../../services/osc/mappings';
 import { assertSensitiveActionAllowed, createDryRunResult, resolveSafetyOptions } from '../common/safety';
 import type { ToolDefinition } from '../types';
 import {
-  buildCueFireCommand,
   buildCueCommandPayload,
   createCueCommandResult,
   createCueIdentifierFromOptions,
@@ -17,12 +16,10 @@ import {
   cuelistNumberSchema,
   extractTargetOptions,
   buildCueFireOscRequest,
-  resolveCueOscMode,
   notifyCueResourceChange,
   formatCueDescription,
   targetOptionsSchema
 } from './common';
-import type { CueIdentifier } from './types';
 
 const fireInputSchema = {
   cuelist_number: cuelistNumberSchema.optional(),
@@ -52,20 +49,13 @@ export const eosCueFireTool: ToolDefinition<typeof fireInputSchema> = {
       }
     }
   },
-  handler: async (args, extra) => {
+  handler: async (args) => {
     const schema = z.object(fireInputSchema).strict();
     const options = schema.parse(args ?? {});
     const client = getOscClient();
-    const baseIdentifier = createCueIdentifierFromOptions(options);
-    const identifier: CueIdentifier = {
-      cuelistNumber: baseIdentifier.cuelistNumber,
-      cueNumber: baseIdentifier.cueNumber,
-      cuePart: baseIdentifier.cuePart ?? 0
-    };
-
-    const payload = buildCueCommandPayload(identifier, { defaultPart: 0 });
-    const command = buildCueFireCommand(identifier);
-    const oscRequest = buildCueFireOscRequest(identifier, command, resolveCueOscMode(extra));
+    const identifier = createCueIdentifierFromOptions(options);
+    const payload = buildCueCommandPayload(identifier);
+    const oscRequest = buildCueFireOscRequest(identifier);
     const safety = resolveSafetyOptions(options);
 
     if (safety.dryRun) {
@@ -96,7 +86,7 @@ export const eosCueFireTool: ToolDefinition<typeof fireInputSchema> = {
       },
       {
         oscArgs: oscRequest.message.args ?? [],
-        request: { command, oscMode: oscRequest.mode, fallbackReason: oscRequest.fallbackReason ?? null },
+        request: { ...payload, oscMode: oscRequest.mode },
         cli: oscRequest.command ? { text: oscRequest.command } : undefined
       }
     );

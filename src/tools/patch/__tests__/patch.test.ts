@@ -3,17 +3,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { getResourceCache } from '../../../services/cache/index';
-import type { OscMessage } from '../../../services/osc/index';
 import { OscClient, setOscClient, type OscGateway, type OscGatewaySendOptions } from '../../../services/osc/client';
-import eosPayloadVariants from '../../../services/osc/__tests__/fixtures/eos-query-payload-variants.json';
+import type { OscMessage } from '../../../services/osc/index';
 import { oscMappings } from '../../../services/osc/mappings';
-import {
-  eosPatchGetAugment3dBeamTool,
-  eosPatchGetAugment3dPositionTool,
-  eosPatchGetChannelInfoTool
-} from '../index';
-import type { ToolExecutionResult } from '../../types';
 import { getStructuredContent, runTool } from '../../__tests__/helpers/runTool';
+import type { ToolExecutionResult } from '../../types';
+import {
+    eosPatchGetAugment3dBeamTool,
+    eosPatchGetAugment3dPositionTool,
+    eosPatchGetChannelInfoTool
+} from '../index';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -65,56 +64,22 @@ describe('patch tools', () => {
       osc: { address: oscMappings.patch.channelInfo }
     });
   });
-  it('propage les diagnostics OSC et le message console pour timeout, payload texte, payload vide et JSON invalide', async () => {
-    const timeoutResult = await runTool(eosPatchGetChannelInfoTool, {
-      channel_number: 301,
-      timeoutMs: 50
-    });
-    const timeoutContent = extractStructuredContent(timeoutResult);
-    expect(timeoutContent).toMatchObject({
-      status: 'timeout',
-      diagnostics: {
-        requestAddress: oscMappings.patch.channelInfo,
-        responseAddress: null,
-        timeoutMs: 50,
-        payloadType: 'empty'
-      }
-    });
-    expect(timeoutResult.content?.[0]?.type).toBe('text');
-    expect(timeoutResult.content?.[0]?.text).toContain('OSC RX activé');
+  it('ne presente pas un timeout comme un patch vide ou verifie', async () => {
+    const result = await runTool(eosPatchGetChannelInfoTool, { channel_number: 301, timeoutMs: 50 });
+    expect(extractStructuredContent(result)).toMatchObject({status: 'timeout', is_complete: false, confidence: 'none'});
+    expect(extractStructuredContent(result)?.channel).toBeUndefined();
+    expect(service.sentMessages).toEqual([{address:'/eos/get/patch/301/1',args:[]}]);
+  });
 
-    const cases = [
-      { channel: 302, value: 'not json', payloadType: 'plain_text' },
-      { channel: 303, value: '', payloadType: 'empty' },
-      { channel: 304, value: '{"status":', payloadType: 'invalid_json' }
-    ] as const;
-
-    for (const testCase of cases) {
-      const promise = runTool(eosPatchGetChannelInfoTool, {
-        channel_number: testCase.channel,
-        timeoutMs: 50
-      });
-
-      queueMicrotask(() => {
-        service.emit({
-          address: oscMappings.patch.channelInfo,
-          args: [{ type: 's', value: testCase.value }]
-        });
-      });
-
-      const result = await promise;
-      const structuredContent = extractStructuredContent(result);
-      expect(structuredContent).toMatchObject({
-        status: 'error',
-        diagnostics: {
-          requestAddress: oscMappings.patch.channelInfo,
-          responseAddress: oscMappings.patch.channelInfo,
-          timeoutMs: 50,
-          payloadType: testCase.payloadType
-        }
-      });
-      expect(result.content?.[0]?.text).toContain('ports UDP 8000/8001 ou TCP 3032 cohérents');
-    }
+  it('refuse une reponse native dont la section principale est mal formee', async () => {
+    service.send = async message => {
+      service.sentMessages.push(message);
+      service.emit({address:'/eos/out/get/patch/302/1',args:[{type:'i',value:-1},{type:'s',value:'uid-302'}]});
+      service.emit({address:'/eos/out/get/patch/302/1/notes',args:[{type:'i',value:-1},{type:'s',value:'uid-302'},{type:'s',value:''}]});
+    };
+    const result = await runTool(eosPatchGetChannelInfoTool, {channel_number:302, part_number:1, timeoutMs:50});
+    expect(extractStructuredContent(result)).toMatchObject({status:'error',is_complete:false});
+    expect(extractStructuredContent(result)?.channel).toBeUndefined();
   });
 
   it('valide les numeros de canal et de partie', async () => {

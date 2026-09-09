@@ -3,15 +3,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { ZodError } from 'zod';
-import type { OscMessage } from '../../../services/osc/index';
 import { OscClient, setOscClient, type OscGateway, type OscGatewaySendOptions } from '../../../services/osc/client';
+import type { OscMessage } from '../../../services/osc/index';
 import { oscMappings } from '../../../services/osc/mappings';
+import { runTool } from '../../__tests__/helpers/runTool';
 import {
-  eosEffectGetInfoTool,
-  eosEffectSelectTool,
-  eosEffectStopTool
+    eosEffectGetInfoTool,
+    eosEffectSelectTool,
+    eosEffectStopTool
 } from '../index';
-import { getStructuredContent, isTextContent, runTool } from '../../__tests__/helpers/runTool';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];

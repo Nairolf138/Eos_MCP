@@ -75,13 +75,13 @@ function cueCommandRequest(command: string, fallbackReason?: string): CueOscRequ
 
 // Playback always uses native addresses. The former CLI compatibility fallback
 // did not preserve cue-list/part semantics and is deliberately no longer sent.
-export function buildCueFireOscRequest(identifier: CueIdentifier, _command: string, _mode: CueOscMode = 'strict'): CueOscRequest {
+export function buildCueFireOscRequest(identifier: CueIdentifier): CueOscRequest {
   if (identifier.cueNumber == null) throw new Error('Numero de cue requis.');
   return { mode: 'strict', ...buildCueWireMessage(buildCueFireAddress(identifier.cueNumber, identifier.cuelistNumber, identifier.cuePart)) };
 }
 
-export function buildCueGoOscRequest(identifier: CueIdentifier, command: string, mode: CueOscMode = 'strict'): CueOscRequest {
-  if (identifier.cueNumber != null) return buildCueFireOscRequest(identifier, command, mode);
+export function buildCueGoOscRequest(identifier: CueIdentifier): CueOscRequest {
+  if (identifier.cueNumber != null) return buildCueFireOscRequest(identifier);
   if (identifier.cuePart != null) throw new Error('Une part exige un numero de cue.');
   return { mode: 'strict', ...buildCueWireMessage(identifier.cuelistNumber != null ? buildCueGoAddress(identifier.cuelistNumber) : '/eos/cues/fire') };
 }
@@ -219,20 +219,6 @@ function formatCueRef(identifier: CueIdentifier): string {
     return `Cue ${identifier.cuelistNumber}/${cueNumber}${cuePart}`;
   }
   return `Cue ${cueNumber}${cuePart}`;
-}
-
-export function buildCueFireCommand(identifier: CueIdentifier): string {
-  return `${formatCueRef(identifier)} Fire`;
-}
-
-export function buildCueGoCommand(identifier: CueIdentifier): string {
-  if (identifier.cueNumber != null) {
-    return `${formatCueRef(identifier)} Go`;
-  }
-  if (identifier.cuelistNumber != null) {
-    return `CueList ${identifier.cuelistNumber} Go`;
-  }
-  return 'Go';
 }
 
 export function buildCueSelectCommand(identifier: CueIdentifier): string {

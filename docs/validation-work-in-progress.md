@@ -47,8 +47,8 @@ historical, not results for this batch.
 
 Next work:
 
-1. Complete remaining ETC semantics: cue fire without an explicit list/part;
-   unsupported effect-creation CLI and setup send/receive-string tools; safe cue
+1. Complete remaining ETC semantics: unsupported effect-creation CLI and setup
+   send/receive-string tools; safe cue
    workflow labels; completeness of passive wheel/softkey and patch information.
 2. Finish completeness and published-schema/readback checks, including passive
    observations, multipart patch data and submaster contents limitations.
@@ -60,6 +60,23 @@ Next work:
 5. Run `npm run check:agent-ready:e2e` in full. Merge only when every necessary
    control is green and the implementation is ready. Push each coherent tested
    batch, updating this checkpoint with exact results and the next action.
+
+Completed batch after `d5f2c68`: cue firing preserves an omitted list/part instead
+of adding part zero; explicit list/part combinations retain their exact native
+path. Removed fictitious playback CLI text from result descriptions. Legacy tests
+now use native GO, Stop/Back, cue selection, DMX integers and snapshot integers;
+passive command-line tests no longer simulate a `/get` request. Patch tests assert
+that absent/malformed replies cannot become successful patch data. Removed unused
+imports/helpers left by the earlier JSON test migration.
+
+Validation: **60/60 tests passed in five suites** (cues, priority contracts, patch,
+snapshots, address builders); **repository-wide ESLint and TypeScript passed**.
+The regression inventory run before this batch had **597 passed / 54 failed tests
+in 51 passing / 12 failing suites**. Remaining failures are in workflow and command
+fixtures, registry role expectations, programming tests, generated documentation
+and reviewed snapshots. Do not treat that historical inventory as a green gate.
+Next batch: resolve unsupported workflow semantics and native cue readbacks, then
+finish those remaining test families. The 6 HTTP MCP E2E tests passed in `d5f2c68`.
 
 Primary reference: [ETC OSC Dictionary](https://www.etcconnect.com/WebDocs/Controls/EosFamilyOnlineHelp/en/Content/23_Show_Control/08_OSC/OSC_Dictionary.htm)
 and [ETC OSC Get](https://www.etcconnect.com/WebDocs/Controls/EosFamilyOnlineHelp/en/Content/23_Show_Control/08_OSC/Using_OSC_with_Eos/OSC_Third-Party_Integration/OSC_Get.htm).

@@ -2,14 +2,13 @@
  * Copyright 2026 Florian Ribes (NairolfConcept)
  * SPDX-License-Identifier: Apache-2.0
  */
-import type { OscMessage } from '../../../services/osc/index';
 import { OscClient, setOscClient, type OscGateway, type OscGatewaySendOptions } from '../../../services/osc/client';
+import type { OscMessage } from '../../../services/osc/index';
+import { runTool } from '../../__tests__/helpers/runTool';
 import {
-  eosGetSoftkeyLabelsTool,
-  eosKeyPressTool,
-  eosSoftkeyPressTool
+    eosKeyPressTool,
+    eosSoftkeyPressTool
 } from '../index';
-import { getStructuredContent, runTool } from '../../__tests__/helpers/runTool';
 
 describe('key tools', () => {
   class FakeOscService implements OscGateway {

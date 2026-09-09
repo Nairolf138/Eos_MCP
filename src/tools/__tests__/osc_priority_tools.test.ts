@@ -17,27 +17,19 @@ type CapturedCall = {
 
 class PriorityOscClient {
   public readonly calls: CapturedCall[] = [];
+  public readonly observations: TargetOptions[] = [];
 
   public async sendMessage(address: string, args: OscMessageArgument[] = [], options: TargetOptions = {}): Promise<void> {
     this.calls.push({ address, args, options });
   }
 
   public async getCommandLine(options: TargetOptions & { user?: number } = {}): Promise<Record<string, unknown>> {
-    const payload: Record<string, unknown> = {};
-    if (typeof options.user === 'number') {
-      payload.user = options.user;
-    }
-    this.calls.push({
-      address: '/eos/out/user/{number}/cmd',
-      args: [{ type: 's', value: JSON.stringify(payload) }],
-      options
-    });
+    this.observations.push(options);
     return {
       status: 'ok',
       text: 'Chan 1 At Full',
       user: options.user ?? null,
-      payload,
-      source: 'mcp_extension_get_cmd_line'
+      source: 'official_osc_out'
     };
   }
 }
@@ -78,7 +70,7 @@ const nonCueCases = [
   {
     name: 'eos_address_select',
     args: { address_number: '2/41', targetAddress: '192.0.2.10', targetPort: 3032 },
-    expectedCalls: [{ address: '/eos/addr', args: [{ type: 's', value: '2/041' }] }],
+    expectedCalls: [{ address: '/eos/addr', args: [{ type: 'i', value: 553 }] }],
     invalidArgs: { address_number: '1 Delete Cue 2' },
     dryRunOscAddress: '/eos/addr'
   },
@@ -167,30 +159,25 @@ describe('suite OSC prioritaire', () => {
     expect(content.osc).toMatchObject({ address: testCase.dryRunOscAddress });
   });
 
-  it('eos_get_command_line lit la ligne de commande avec payload utilisateur et cible OSC', async () => {
+  it('eos_get_command_line observe le retour utilisateur sans emettre de requete OSC', async () => {
     const tool = priorityTool('eos_get_command_line');
     const args = { user: 7, targetAddress: '192.0.2.10', targetPort: 3032, timeoutMs: 50 };
     parseStrictSchema(tool, args);
 
     const result = await runTool(tool, args);
 
-    expect(client.calls).toEqual([
-      {
-        address: '/eos/out/user/{number}/cmd',
-        args: [{ type: 's', value: JSON.stringify({ user: 7 }) }],
-        options: expect.objectContaining({ user: 7, targetAddress: '192.0.2.10', targetPort: 3032, timeoutMs: 50 })
-      }
-    ]);
+    expect(client.calls).toEqual([]);
+    expect(client.observations).toEqual([expect.objectContaining(args)]);
     expect(structured(result)).toMatchObject({ status: 'ok', text: 'Chan 1 At Full', user: 7 });
   });
 
-  it('eos_get_command_line documente le blocage strict de son endpoint extension et simule le dry_run', async () => {
+  it('eos_get_command_line documente le retour officiel et simule le dry_run', async () => {
     const tool = priorityTool('eos_get_command_line');
 
-    expect(tool.metadata?.strictModeBehavior).toBe('blocked_without_validated_cmd_fallback');
-    expect(tool.metadata?.nativeOscPreferred).toBe(false);
+    expect(tool.metadata?.strictModeBehavior).toBe('native_official_required');
+    expect(tool.metadata?.nativeOscPreferred).toBe(true);
     expect(tool.config.annotations?.oscStrictModePolicy).toMatchObject({
-      blockedOscAddresses: ['/eos/out/user/{number}/cmd']
+      blockedOscAddresses: []
     });
 
     await expect(runTool(tool, { user: -1 })).rejects.toThrow();
@@ -211,20 +198,20 @@ describe('suite OSC prioritaire', () => {
 
     expect(client.calls).toEqual([
       { address: '/eos/cue/2/fire', args: [], options: expect.objectContaining({ wireContract: expect.objectContaining({ family: 'cue' }) }) },
-      { address: '/eos/cue/1/go', args: [], options: expect.objectContaining({ wireContract: expect.objectContaining({ family: 'cue' }) }) },
-      { address: '/eos/cue/2', args: [], options: expect.objectContaining({ wireContract: expect.objectContaining({ family: 'cue' }) }) }
+      { address: '/eos/cues/1/fire', args: [], options: expect.objectContaining({ wireContract: expect.objectContaining({ family: 'cue' }) }) },
+      { address: '/eos/cue', args: [{ type: 'i', value: 2 }], options: expect.objectContaining({ wireContract: expect.objectContaining({ family: 'cue' }) }) }
     ]);
   });
 
-  it('cues fire/go/select basculent vers /eos/cmd en mode compatibilite', async () => {
+  it('la compatibilite conserve fire/go natifs et termine la selection CLI', async () => {
     await runTool(priorityTool('eos_cue_fire'), { cuelist_number: 3, cue_number: 2, confirm: true }, { cueOscMode: 'compatibility' });
     await runTool(priorityTool('eos_cue_go'), { cuelist_number: 1 }, { cueOscMode: 'compatibility' });
     await runTool(priorityTool('eos_cue_select'), { cue_number: 2 }, { cueOscMode: 'compatibility' });
 
     expect(client.calls).toEqual([
-      { address: '/eos/cmd', args: [{ type: 's', value: 'Cue 2 CueList 3 Fire' }], options: expect.objectContaining({ wireContract: expect.objectContaining({ family: 'cue' }) }) },
-      { address: '/eos/cmd', args: [{ type: 's', value: 'CueList 1 Go' }], options: expect.objectContaining({ wireContract: expect.objectContaining({ family: 'cue' }) }) },
-      { address: '/eos/cmd', args: [{ type: 's', value: 'Cue 2' }], options: expect.objectContaining({ wireContract: expect.objectContaining({ family: 'cue' }) }) }
+      { address: '/eos/cue/3/2/fire', args: [], options: expect.objectContaining({ wireContract: expect.objectContaining({ family: 'cue' }) }) },
+      { address: '/eos/cues/1/fire', args: [], options: expect.objectContaining({ wireContract: expect.objectContaining({ family: 'cue' }) }) },
+      { address: '/eos/cmd', args: [{ type: 's', value: 'Cue 2#' }], options: expect.objectContaining({ wireContract: expect.objectContaining({ family: 'cue' }) }) }
     ]);
   });
 
@@ -242,7 +229,7 @@ describe('suite OSC prioritaire', () => {
 
     expect(client.calls).toHaveLength(0);
     expect(fire).toMatchObject({ status: 'dry_run', dry_run: true, osc: { address: '/eos/cue/2/fire', args: [] } });
-    expect(go).toMatchObject({ status: 'dry_run', dry_run: true, osc: { address: '/eos/cue/1/go', args: [] } });
-    expect(select).toMatchObject({ status: 'dry_run', dry_run: true, osc: { address: '/eos/cue/2', args: [] } });
+    expect(go).toMatchObject({ status: 'dry_run', dry_run: true, osc: { address: '/eos/cues/1/fire', args: [] } });
+    expect(select).toMatchObject({ status: 'dry_run', dry_run: true, osc: { address: '/eos/cue', args: [{ type: 'i', value: 2 }] } });
   });
 });

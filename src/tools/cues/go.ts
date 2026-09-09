@@ -9,7 +9,6 @@ import { oscMappings } from '../../services/osc/mappings';
 import { createDryRunResult, resolveSafetyOptions } from '../common/safety';
 import type { ToolDefinition } from '../types';
 import {
-  buildCueGoCommand,
   buildCueCommandPayload,
   createCueCommandResult,
   createCueIdentifierFromOptions,
@@ -18,7 +17,6 @@ import {
   cuelistNumberSchema,
   extractTargetOptions,
   buildCueGoOscRequest,
-  resolveCueOscMode,
   notifyCueResourceChange,
   formatCueDescription,
   targetOptionsSchema
@@ -53,14 +51,13 @@ export const eosCueGoTool: ToolDefinition<typeof goInputSchema> = {
       highlighted: true
     }
   },
-  handler: async (args, extra) => {
+  handler: async (args) => {
     const schema = z.object(goInputSchema).strict().superRefine((value, ctx) => validateCueArgumentsPair(value, ctx));
     const options = schema.parse(args ?? {});
     const client = getOscClient();
     const identifier = createCueIdentifierFromOptions(options);
     const payload = buildCueCommandPayload(identifier);
-    const command = buildCueGoCommand(identifier);
-    const oscRequest = buildCueGoOscRequest(identifier, command, resolveCueOscMode(extra));
+    const oscRequest = buildCueGoOscRequest(identifier);
     const safety = resolveSafetyOptions(options);
 
     if (safety.dryRun) {
@@ -89,7 +86,7 @@ export const eosCueGoTool: ToolDefinition<typeof goInputSchema> = {
       },
       {
         oscArgs: oscRequest.message.args ?? [],
-        request: { command, oscMode: oscRequest.mode, fallbackReason: oscRequest.fallbackReason ?? null },
+        request: { ...payload, oscMode: oscRequest.mode },
         cli: oscRequest.command ? { text: oscRequest.command } : undefined
       }
     );

@@ -2,11 +2,11 @@
  * Copyright 2026 Florian Ribes (NairolfConcept)
  * SPDX-License-Identifier: Apache-2.0
  */
-import type { OscMessage } from '../../../services/osc/index';
 import { OscClient, setOscClient, type OscGateway, type OscGatewaySendOptions } from '../../../services/osc/client';
+import type { OscMessage } from '../../../services/osc/index';
 import { oscMappings } from '../../../services/osc/mappings';
-import { eosSnapshotGetInfoTool, eosSnapshotRecallTool } from '../index';
-import { getStructuredContent, isTextContent, runTool } from '../../__tests__/helpers/runTool';
+import { runTool } from '../../__tests__/helpers/runTool';
+import { eosSnapshotRecallTool } from '../index';
 
 class FakeOscService implements OscGateway {
   public readonly sentMessages: OscMessage[] = [];
@@ -63,9 +63,7 @@ describe('snapshot tools', () => {
 
     expect(service.sentMessages).toHaveLength(2);
     const [first, second] = service.sentMessages;
-    const firstPayload = JSON.parse(String(first.args?.[0]?.value ?? '{}'));
-    const secondPayload = JSON.parse(String(second.args?.[0]?.value ?? '{}'));
-    expect(firstPayload).toMatchObject({ snapshot: 3 });
-    expect(secondPayload).toMatchObject({ snapshot: 7 });
+    expect(first.args).toEqual([{ type: 'i', value: 3 }]);
+    expect(second.args).toEqual([{ type: 'i', value: 7 }]);
   });
 });
