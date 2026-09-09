@@ -48,6 +48,20 @@ export class NativeQueryClient {
     if (plan.kind === 'observe') {
       return { status: 'error', data: null, payload: null, request_address: plan.address, error: 'Cette information est diffusee par Eos; aucune requete /get equivalente n’est documentee. Attendre un evenement OSC recent.' };
     }
+    if (plan.family === 'patch' && plan.kind === 'resource' && /\/0$/.test(plan.address)) {
+      const first = await this.exchange({ ...plan, address: plan.address.replace(/\/0$/, '/1') }, timeoutMs, io);
+      if (first.status !== 'ok') return first;
+      const main = first.data as Record<string, unknown>;
+      const count = Number(main.part_count);
+      if (!Number.isInteger(count) || count < 1 || count > 99) throw new Error('Nombre de parties patch invalide.');
+      const parts = [main];
+      for (let part = 2; part <= count; part++) {
+        const response = await this.exchange({ ...plan, address: plan.address.replace(/\/0$/, `/${part}`) }, timeoutMs, io);
+        if (response.status !== 'ok') return response;
+        parts.push(response.data as Record<string, unknown>);
+      }
+      return { ...first, data: { ...main, parts }, request_address: plan.address };
+    }
     if (plan.kind === 'enumerate') {
       const countAddress = plan.address.replace('/index/{index}', '/count');
       const countResult = await this.exchange({ ...plan, address: countAddress, kind: 'scalar' }, timeoutMs, io);

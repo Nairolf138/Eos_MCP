@@ -538,8 +538,8 @@ export const eosEffectSelectTool: ToolDefinition<typeof selectInputSchema> = {
     const client = getOscClient();
     const command = `Effect ${options.effect_number}`;
 
-    await client.sendCommand(
-      command,
+    await client.sendMessage(
+      oscMappings.effects.select, [{ type: 'i', value: options.effect_number }],
       {
         targetAddress: options.targetAddress,
         targetPort: options.targetPort
@@ -569,7 +569,7 @@ export const eosEffectStopTool: ToolDefinition<typeof stopInputSchema> = {
   name: 'eos_effect_stop',
   config: {
     title: "Arret d'effet",
-    description: 'Stoppe un effet actif sur la selection.',
+    description: 'Stoppe le numero d’effet indique, ou tous les effets actifs si le numero est absent (Effect n At Enter / Stop_Effect Enter).' ,
     inputSchema: stopInputSchema,
     annotations: {
       mapping: {
@@ -582,10 +582,10 @@ export const eosEffectStopTool: ToolDefinition<typeof stopInputSchema> = {
     const options = schema.parse(args ?? {});
     const client = getOscClient();
     const command = typeof options.effect_number === 'number'
-      ? `Effect ${options.effect_number} Stop`
-      : 'Effect Stop';
+      ? `Effect ${options.effect_number} At#`
+      : 'Stop_Effect#';
 
-    await client.sendCommand(
+    await client.sendNewCommand(
       command,
       {
         targetAddress: options.targetAddress,

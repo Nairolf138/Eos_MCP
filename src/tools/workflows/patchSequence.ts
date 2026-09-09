@@ -2,9 +2,10 @@
  * Copyright 2026 Florian Ribes (NairolfConcept)
  * SPDX-License-Identifier: AGPL-3.0-only
  */
+import { pollReadback } from '../common/readback';
 import { resolveFixture } from '../../fixtures';
 import { getOscClient } from '../../services/osc/client';
-import { toAbsoluteDmxAddress } from '../../services/osc/addressBuilders';
+import { toAbsoluteDmxAddress, buildPatchReadAddress } from '../../services/osc/addressBuilders';
 import { buildToolResult, type ToolExecutionResult } from '../types';
 
 export interface PatchSequenceTargetOptions {
@@ -17,7 +18,7 @@ export interface PatchSequenceTargetOptions {
 export interface PatchSequenceBuildOptions extends PatchSequenceTargetOptions {
   channel_number: number;
   dmx_address: string;
-  label: string;
+  label?: string;
   device_type?: string;
   fixture_query?: string;
   fixture_manufacturer?: string;
@@ -34,7 +35,7 @@ export interface PatchSequenceBuildOptions extends PatchSequenceTargetOptions {
 export interface PatchSequenceCommandStep { step: string; command: string }
 export interface PatchSequenceStepLog { step: string; status: 'ok' | 'error'; command: string; error?: string }
 export interface PatchPlan {
-  channel: number; part: number; start: number; end: number; footprint: number; label: string;
+  channel: number; part: number; start: number; end: number; footprint: number; label?: string;
   dimmer: boolean; eos_profile: string | null; position?: { x: number; y: number; z: number };
 }
 const normalise = (text: string): string => text.trim().toLowerCase().replace(/[_\s]+/g, ' ');
@@ -68,7 +69,7 @@ export function buildPatchSequence(options: PatchSequenceBuildOptions): {
   return { plan, fixtureResolution, commands: [
     { step: 'open_patch', command: '/eos/user/<user>/key/open_dmx_patch [1, 0]' },
     { step: 'patch_fixture', command: `Address ${start} At ${plan.channel} Part 1#` },
-    { step: 'label_fixture', command: `/eos/set/patch/${plan.channel}/label ${JSON.stringify(plan.label)}` },
+    ...(plan.label !== undefined ? [{ step: 'label_fixture', command: `/eos/set/patch/${plan.channel}/label ${JSON.stringify(plan.label)}` }] : []),
     ...(plan.position ? [{ step: 'set_3d_position', command: `/eos/set/patch/${plan.channel}/augment3d/position (XYZ demandes; orientation preservee)` }] : [])
   ] };
 }
@@ -84,7 +85,7 @@ export async function applyPatchPlans(plans: PatchPlan[], options: PatchSequence
   const preview = plans.flatMap((plan) => [
     `/eos/user/${options.user ?? '<user>'}/key/open_dmx_patch [1, 0]`,
     `/eos/user/${options.user ?? '<user>'}/newcmd ${JSON.stringify(`Address ${plan.start} At ${plan.channel} Part 1#`)}`,
-    `/eos/set/patch/${plan.channel}/label ${JSON.stringify(plan.label)}`,
+    ...(plan.label !== undefined ? [`/eos/set/patch/${plan.channel}/label ${JSON.stringify(plan.label)}`] : []),
     ...(plan.position ? [`/eos/set/patch/${plan.channel}/augment3d/position ${JSON.stringify(plan.position)} (orientation relue)`] : [])
   ]);
   const resultBase = { workflow, plan: plans, commands_preview: preview,
@@ -93,7 +94,9 @@ export async function applyPatchPlans(plans: PatchPlan[], options: PatchSequence
   if (options.require_confirmation !== true) throw new Error('Confirmation explicite requise pour appliquer le patch.');
   if (!options.user || options.user > 99) throw new Error('Le patch exige un utilisateur OSC dedie, user entre 1 et 99.');
   const client = getOscClient();
-  const read = (address: string) => client.requestJson(address, { targetAddress: options.targetAddress, targetPort: options.targetPort, timeoutMs: options.verification_timeout_ms ?? 5000 });
+  const timeoutMs = options.verification_timeout_ms ?? 5000;
+  const read = (address: string, budget = timeoutMs) => client.requestJson(address, { targetAddress: options.targetAddress, targetPort: options.targetPort, timeoutMs: budget });
+  const verify = (address: string, match: (data: Record<string, unknown>) => boolean) => pollReadback((remaining) => read(address, remaining), (data) => data != null && match(data as Record<string, unknown>), timeoutMs);
   const snapshot = await read('/eos/get/patch/index/{index}');
   if (snapshot.status !== 'ok') throw new Error(`Preflight patch incomplet: ${snapshot.error ?? snapshot.status}. Aucune ecriture.`);
   const records = ((snapshot.data as { items?: Record<string, unknown>[] })?.items ?? []).slice();
@@ -101,7 +104,7 @@ export async function applyPatchPlans(plans: PatchPlan[], options: PatchSequence
     const count = Number(item.part_count);
     if (!Number.isInteger(count) || count < 1) throw new Error('Nombre de parties inconnu; preflight refuse.');
     for (let part = 2; part <= count; part++) {
-      const extra = await read(`/eos/get/patch/${item.channel_number}/${part}`);
+      const extra = await read(buildPatchReadAddress(Number(item.channel_number), part));
       if (extra.status !== 'ok') throw new Error('Lecture multipart incomplete; preflight refuse.');
       records.push(extra.data as Record<string, unknown>);
     }
@@ -110,6 +113,7 @@ export async function applyPatchPlans(plans: PatchPlan[], options: PatchSequence
     const existing = records.find((item) => item.channel_number === plan.channel && item.part_number === 1);
     if (existing && Number(existing.part_count) !== 1) throw new Error(`Canal ${plan.channel} multipart: modification automatique refusee.`);
     if (!plan.dimmer && (!existing || !plan.eos_profile || normalise(String(existing.model)) !== normalise(plan.eos_profile))) throw new Error(`Canal ${plan.channel}: preparer le profil Eos puis fournir eos_profile exactement comme le champ model de sa lecture OSC.`);
+    if (!plan.dimmer && existing && Number(existing.address) === 0) throw new Error(`Empreinte du canal ${plan.channel} non verifiable sans adresse initiale; preparer et adresser ce profil dans Eos avant de le deplacer.`);
     if (plan.dimmer && existing && !/dimmer/i.test(String(existing.model))) throw new Error(`Canal ${plan.channel}: le profil existant n’est pas un dimmer.`);
     if (existing && Number(existing.address) > 0 && Number(existing.address) !== plan.start && options.allow_readdress !== true) throw new Error(`Canal ${plan.channel} deja adresse; allow_readdress=true requis pour le deplacer.`);
     for (const item of records) {
@@ -129,23 +133,27 @@ export async function applyPatchPlans(plans: PatchPlan[], options: PatchSequence
     for (const plan of plans) {
       const command = `Address ${plan.start} At ${plan.channel} Part 1#`;
       await client.sendNewCommand(command, options); commandsSent.push(command);
-      const patched = await read(`/eos/get/patch/${plan.channel}/1`);
+      const patched = await verify(buildPatchReadAddress(plan.channel), (data) => data.address === plan.start && data.ending_address === plan.end);
       const actual = patched.data as Record<string, unknown> | null;
       if (patched.status !== 'ok' || actual?.address !== plan.start || actual?.ending_address !== plan.end || (!plan.dimmer && normalise(String(actual.model)) !== normalise(plan.eos_profile!))) throw new Error(`Adresse ou profil non confirme pour canal ${plan.channel}.`);
+      if (plan.label !== undefined) {
       await client.sendMessage(`/eos/set/patch/${plan.channel}/label`, [{ type: 's', value: plan.label }], options);
       commandsSent.push(`/eos/set/patch/${plan.channel}/label ${JSON.stringify(plan.label)}`);
+      }
       if (plan.position) {
-        const pose = await read(`/eos/get/patch/${plan.channel}/1/augment3d/position`);
+        const pose = await read(buildPatchReadAddress(plan.channel, 1, 'augment3d/position'));
         const orientation = (pose.data as { orientation?: { x: number; y: number; z: number } })?.orientation;
         if (pose.status !== 'ok' || !orientation || !Object.values(orientation).every(Number.isFinite)) throw new Error('Orientation Augment3d inconnue; position non modifiee.');
         await client.sendMessage(`/eos/set/patch/${plan.channel}/augment3d/position`, [plan.position.x, plan.position.y, plan.position.z, orientation.x, orientation.y, orientation.z].map((value) => ({ type: 'f', value })), options);
         commandsSent.push(`/eos/set/patch/${plan.channel}/augment3d/position`);
-        const checkPose = await read(`/eos/get/patch/${plan.channel}/1/augment3d/position`);
+        const checkPose = await read(buildPatchReadAddress(plan.channel, 1, 'augment3d/position'));
         const position = (checkPose.data as { position?: Record<string, number> })?.position;
         if (checkPose.status !== 'ok' || !position || Object.entries(plan.position).some(([key, value]) => Math.abs(position[key] - value) > 0.001)) throw new Error('Position Augment3d non confirmee.');
       }
-      const check = await read(`/eos/get/patch/${plan.channel}/1`);
+      if (plan.label !== undefined) {
+      const check = await verify(buildPatchReadAddress(plan.channel), (data) => data.label === plan.label);
       if (check.status !== 'ok' || (check.data as { label?: unknown })?.label !== plan.label) throw new Error(`Label non confirme pour canal ${plan.channel}.`);
+      }
       completed.push(plan.channel);
     }
     return buildToolResult({ status: 'ok', summary: `${completed.length} canaux patches et relus dans Eos.`, commandsSent, structuredContent: { ...resultBase, completed_channels: completed, verified: true, preflight_console: 'complete' } });

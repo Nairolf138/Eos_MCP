@@ -37,21 +37,29 @@ export function buildDmxAddressDmxAddress(address: number | string): string {
   return `${buildDmxAddressLevelAddress(address)}/DMX`;
 }
 
-export function buildCueFireAddress(cueNumber: string | number, cuelistNumber?: number | null): string {
+export function buildCueFireAddress(cueNumber: string | number, cuelistNumber?: number | null, part?: number | null): string {
   const cue = encodeTrimmedOscPathSegment(cueNumber);
+  if (part != null && cuelistNumber == null) throw new Error("Une part exige une liste de cues explicite.");
   if (cuelistNumber != null) {
-    return `/eos/cue/${encodeTrimmedOscPathSegment(cuelistNumber)}/${cue}/fire`;
+    return `/eos/cue/${encodeTrimmedOscPathSegment(cuelistNumber)}/${cue}${part != null ? `/${part}` : ''}/fire`;
   }
   return `/eos/cue/${cue}/fire`;
 }
 
 export function buildCueGoAddress(cuelistNumber: number): string {
-  return `/eos/cue/${encodeTrimmedOscPathSegment(cuelistNumber)}/go`;
+  return `/eos/cues/${encodeTrimmedOscPathSegment(cuelistNumber)}/fire`;
 }
 
-export function buildCueSelectAddress(cueNumber: string | number): string {
-  return `/eos/cue/${encodeTrimmedOscPathSegment(cueNumber)}`;
+export function buildCueSelectAddress(cuelistNumber?: number | null, cueNumber?: string | number | null): string {
+  if (cueNumber != null && cuelistNumber == null) throw new Error('Liste explicite requise pour selectionner une part.');
+  return cuelistNumber == null ? '/eos/cue' : `/eos/cue/${encodeTrimmedOscPathSegment(cuelistNumber)}${cueNumber != null ? `/${encodeTrimmedOscPathSegment(cueNumber)}` : ''}`;
 }
+
+export function buildCueStopBackAddress(cuelistNumber: number): string { return `/eos/cues/${cuelistNumber}/stop`; }
+export function buildPatchReadAddress(channel: number, part = 1, section?: 'augment3d/position' | 'augment3d/beam'): string { return `/eos/get/patch/${channel}/${part}${section ? `/${section}` : ''}`; }
+export function buildChannelLevelAddress(channel: number): string { return `/eos/chan/${channel}`; }
+export function buildChannelColorHsAddress(channel: number): string { return `${buildChannelLevelAddress(channel)}/color/hs`; }
+
 
 export function buildCuelistBankCreateAddress(
   bankIndex: number,

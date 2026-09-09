@@ -62,8 +62,8 @@ describe('validators', () => {
   });
 
   it('borne explicitement les identifiants et valeurs EOS dangereuses', () => {
-    expect(userIdSchema.safeParse(999).success).toBe(true);
-    expect(userIdSchema.safeParse(1000).success).toBe(false);
+    expect(userIdSchema.safeParse(99).success).toBe(true);
+    expect(userIdSchema.safeParse(100).success).toBe(false);
     expect(cueNumberSchema.safeParse('1.5').success).toBe(true);
     expect(cueNumberSchema.safeParse('1 Delete').success).toBe(false);
     expect(levelValueSchema.safeParse(100).success).toBe(true);

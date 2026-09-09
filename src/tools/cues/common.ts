@@ -5,7 +5,7 @@
 import { z, type ZodRawShape } from 'zod';
 import type { OscMessageArgument } from '../../services/osc/index';
 import type { BuiltOscWireMessage } from '../../services/osc/messageBuilders';
-import { buildCueFireAddress, buildCueGoAddress } from '../../services/osc/addressBuilders';
+import { buildCueFireAddress, buildCueGoAddress, buildCueSelectAddress } from '../../services/osc/addressBuilders';
 import { oscMappings } from '../../services/osc/mappings';
 import { getResourceCache } from '../../services/cache/index';
 import { cueNumberSchema as sharedCueNumberSchema, cuelistNumberSchema as sharedCuelistNumberSchema, optionalPortSchema } from '../../utils/validators';
@@ -73,37 +73,17 @@ function cueCommandRequest(command: string, fallbackReason?: string): CueOscRequ
   };
 }
 
-function canUseNativeCueAddress(identifier: CueIdentifier): boolean {
-  return identifier.cuePart == null || identifier.cuePart === 0;
-}
-
-export function buildCueFireOscRequest(identifier: CueIdentifier, command: string, mode: CueOscMode = 'strict'): CueOscRequest {
-  if (mode === 'compatibility') {
-    return cueCommandRequest(command);
-  }
-  if (identifier.cueNumber == null) {
-    return cueCommandRequest(command, 'cue_number absent: commande texte requise pour Fire.');
-  }
-  if (!canUseNativeCueAddress(identifier)) {
-    return cueCommandRequest(command, 'cue_part non nul: adresse native Fire sans part dediee.');
-  }
-  return {
-    mode: 'strict',
-    ...buildCueWireMessage(buildCueFireAddress(identifier.cueNumber, identifier.cuelistNumber))
-  };
+// Playback always uses native addresses. The former CLI compatibility fallback
+// did not preserve cue-list/part semantics and is deliberately no longer sent.
+export function buildCueFireOscRequest(identifier: CueIdentifier, _command: string, _mode: CueOscMode = 'strict'): CueOscRequest {
+  if (identifier.cueNumber == null) throw new Error('Numero de cue requis.');
+  return { mode: 'strict', ...buildCueWireMessage(buildCueFireAddress(identifier.cueNumber, identifier.cuelistNumber, identifier.cuePart)) };
 }
 
 export function buildCueGoOscRequest(identifier: CueIdentifier, command: string, mode: CueOscMode = 'strict'): CueOscRequest {
-  if (mode === 'compatibility') {
-    return cueCommandRequest(command);
-  }
-  if (identifier.cuelistNumber != null && identifier.cueNumber == null && canUseNativeCueAddress(identifier)) {
-    return {
-      mode: 'strict',
-      ...buildCueWireMessage(buildCueGoAddress(identifier.cuelistNumber))
-    };
-  }
-  return cueCommandRequest(command, 'GO vers une cue/part precise: commande texte requise.');
+  if (identifier.cueNumber != null) return buildCueFireOscRequest(identifier, command, mode);
+  if (identifier.cuePart != null) throw new Error('Une part exige un numero de cue.');
+  return { mode: 'strict', ...buildCueWireMessage(identifier.cuelistNumber != null ? buildCueGoAddress(identifier.cuelistNumber) : '/eos/cues/fire') };
 }
 
 export function buildCueSelectOscRequest(identifier: CueIdentifier, command: string, mode: CueOscMode = 'strict'): CueOscRequest {
@@ -112,9 +92,8 @@ export function buildCueSelectOscRequest(identifier: CueIdentifier, command: str
   }
   if (identifier.cueNumber == null) throw new Error('Numero de cue requis.');
   const list = identifier.cuelistNumber;
-  const address = identifier.cuePart != null
-    ? `/eos/cue/${list ?? 1}/${identifier.cueNumber}`
-    : list != null ? `/eos/cue/${list}` : '/eos/cue';
+  if (identifier.cuePart != null && list == null) throw new Error('Une part exige une liste de cues explicite.');
+  const address = buildCueSelectAddress(list, identifier.cuePart != null ? identifier.cueNumber : undefined);
   const value = identifier.cuePart ?? Number(identifier.cueNumber);
   return { mode: 'strict', ...buildCueWireMessage(address, [{ type: Number.isInteger(value) ? 'i' : 'f', value }]) };
 }
@@ -237,7 +216,7 @@ function formatCueRef(identifier: CueIdentifier): string {
   const cueNumber = identifier.cueNumber ?? 0;
   const cuePart = identifier.cuePart != null && identifier.cuePart > 0 ? ` Part ${identifier.cuePart}` : '';
   if (identifier.cuelistNumber != null) {
-    return `Cue ${cueNumber}${cuePart} CueList ${identifier.cuelistNumber}`;
+    return `Cue ${identifier.cuelistNumber}/${cueNumber}${cuePart}`;
   }
   return `Cue ${cueNumber}${cuePart}`;
 }

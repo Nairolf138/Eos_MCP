@@ -9,8 +9,8 @@ import type { OscMessage } from '../../index';
  */
 export const typed = (values: unknown[]): NonNullable<OscMessage['args']> => values.map((value) => ({ type: typeof value === 'string' ? 's' : typeof value === 'boolean' ? value ? 'T' : 'F' : Number.isInteger(value) ? 'i' : 'f', value }));
 export const frame = (address: string, values: unknown[]): OscMessage => ({ address, args: typed(values) });
-export function nativeObject(family: string, number: number, index = -1, label = `${family} ${number}`): OscMessage[] {
-  const path = `/eos/out/get/${family}/${family === 'cue' ? `2/${number}/0` : family === 'patch' ? `${number}/1` : number}`;
+export function nativeObject(family: string, number: number, index = -1, label = `${family} ${number}`, list = 2, part?: number): OscMessage[] {
+  const path = `/eos/out/get/${family}/${family === 'cue' ? `${list}/${number}/${part ?? 0}` : family === 'patch' ? `${number}/${part ?? 1}` : number}`;
   const head: unknown[] = [index, `uid-${family}-${number}`, label];
   const properties: Record<string, unknown[]> = {
     patch: ['ETC', 'Dimmer', 513, 513, 50, '', '', '', '', '', '', '', '', '', '', '', 1, 513],
@@ -46,10 +46,11 @@ export function replyToNativeRequest(message: OscMessage): OscMessage[] {
   if (address.endsWith('/count')) return [frame(address.replace('/eos/get/', '/eos/out/get/'), address === '/eos/get/fpe/1/count' ? [0, 1] : [1])];
   if (address.endsWith('/augment3d/position')) return [frame(address.replace('/eos/get/', '/eos/out/get/'), [-1, 'uid-patch', 1, 2, 3, 10, 20, 30, 0])];
   if (address.endsWith('/augment3d/beam')) return [frame(address.replace('/eos/get/', '/eos/out/get/'), [-1, 'uid-patch', 25, 'R02', 1, 0.5, 15, 'gobo-1', 'Breakup', 90, false])];
-  const match = address.match(/^\/eos\/get\/(\w+)(?:\/(2))?\/(index\/)?(\d+(?:\.\d+)?)(?:\/(\d+))?$/);
-  if (!match) return [];
-  const family = match[1];
-  const index = match[3] ? Number(match[4]) : -1;
-  const number = match[3] ? 7 : Number(match[4]);
-  return nativeObject(family, number, index);
+  const pieces = address.split('/').slice(3);
+  const family = pieces.shift()!;
+  const list = family === 'cue' ? Number(pieces.shift()) : 2;
+  const indexed = pieces[0] === 'index';
+  const number = indexed ? 7 : Number(pieces[0]);
+  if (!Number.isFinite(number)) return [];
+  return nativeObject(family, number, indexed ? Number(pieces[1]) : -1, undefined, list, indexed ? undefined : pieces[1] === undefined ? undefined : Number(pieces[1]));
 }

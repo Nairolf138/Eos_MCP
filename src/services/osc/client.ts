@@ -2,6 +2,8 @@
  * Copyright 2026 Florian Ribes (NairolfConcept)
  * SPDX-License-Identifier: Apache-2.0
  */
+import { randomUUID } from 'node:crypto';
+import { oscValues } from './nativeProtocol';
 import {
     AppError,
     ErrorCode,
@@ -392,18 +394,14 @@ export class OscClient {
 
   public async ping(options: PingOptions = {}): Promise<PingResult> {
     const timeoutMs = options.timeoutMs ?? this.config.defaultTimeoutMs ?? DEFAULT_OPERATION_TIMEOUT_MS;
-    const message: OscMessage = {
-      address: PING_REQUEST,
-      args: []
-    };
-
-    if (options.message) {
-      message.args?.push({ type: 's', value: options.message });
-    }
+    const echo = options.message ?? `eos-mcp:${randomUUID()}`;
+    const peer = normalizePeer(resolveConsoleTarget(options).targetAddress);
+    const message: OscMessage = { address: PING_REQUEST, args: [{ type: 's', value: echo }] };
 
     const startedAt = Date.now();
     const awaiter = this.createResponseAwaiter(
-      (incoming) => (incoming.address === PING_REPLY ? incoming : null),
+      (incoming) => (incoming.address === PING_REPLY && oscValues(incoming)[0] === echo
+        && (messagePeer(incoming) === null || messagePeer(incoming) === peer) ? incoming : null),
       timeoutMs,
       'Aucune reponse ping recu avant expiration',
       'le ping OSC',
@@ -424,20 +422,9 @@ export class OscClient {
     try {
       const response = await awaiter.promise;
 
-      const payload = this.extractPayload(response);
-      const status = this.normaliseStatus(payload);
-      if (status === 'error') {
-        this.ensureConnectionActive('le ping OSC', payload, { address: PING_REPLY });
-      }
+      // Ping returns the echoed OSC argument, never a JSON status envelope.
+      return { status: 'ok', roundtripMs: Date.now() - startedAt, echo, payload: response };
 
-      const errorMessage = status === 'error' ? this.extractErrorMessage(payload) : null;
-      return {
-        status,
-        roundtripMs: status === 'ok' ? Date.now() - startedAt : null,
-        echo: this.extractEcho(payload),
-        payload,
-        ...(errorMessage ? { error: errorMessage } : {})
-      };
     } catch (error) {
       const timeoutError = this.asAppError(error, ErrorCode.OSC_TIMEOUT);
       if (timeoutError) {

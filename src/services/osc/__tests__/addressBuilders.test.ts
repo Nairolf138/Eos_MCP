@@ -27,7 +27,8 @@ import {
 
 describe('OSC address builders', () => {
   it('construit les adresses de parametre de channel', () => {
-    expect(buildChannelParameterAddress(101, 'Pan/Tilt')).toBe('/eos/chan/101/param/Pan%2FTilt');
+    expect(buildChannelParameterAddress(101, 'Color Select')).toBe('/eos/chan/101/param/Color Select');
+    expect(() => buildChannelParameterAddress(101, 'Pan/Tilt')).toThrow();
   });
 
   it('construit les adresses DMX', () => {
@@ -43,8 +44,9 @@ describe('OSC address builders', () => {
   it('construit les adresses de cue', () => {
     expect(buildCueFireAddress(' 10.5 ', 3)).toBe('/eos/cue/3/10.5/fire');
     expect(buildCueFireAddress(10)).toBe('/eos/cue/10/fire');
-    expect(buildCueGoAddress(7)).toBe('/eos/cue/7/go');
-    expect(buildCueSelectAddress('1/2')).toBe('/eos/cue/1%2F2');
+    expect(buildCueGoAddress(7)).toBe('/eos/cues/7/fire');
+    expect(buildCueSelectAddress(1, 2)).toBe('/eos/cue/1/2');
+    expect(buildCueSelectAddress()).toBe('/eos/cue');
     expect(buildCuelistBankCreateAddress(99, 2, 4, 7)).toBe('/eos/cuelist/99/config/2/4/7');
     expect(buildCuelistBankCreateAddress(99, 2, 4, 7, -1)).toBe('/eos/cuelist/99/config/2/4/7/-1');
     expect(buildCuelistBankPageAddress(5, -2)).toBe('/eos/cuelist/5/page/-2');

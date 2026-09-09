@@ -154,8 +154,8 @@ export class OscConnectionGateway implements OscGateway {
     const encoded = this.encodeMessage(message);
     const resolvedTarget = resolveConsoleTarget({
       targetConsole: options.targetConsole,
-      targetAddress: options.targetAddress,
-      targetPort: options.targetPort
+      targetAddress: options.targetConsole ? options.targetAddress : options.targetAddress ?? this.config.host,
+      targetPort: options.targetConsole ? options.targetPort : options.targetPort ?? this.config.udpPort
     });
     const overrides = {
       targetConsole: resolvedTarget.targetConsole ?? undefined,

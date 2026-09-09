@@ -52,7 +52,7 @@ describe('dmx address tools', () => {
     expect(service.sentMessages).toHaveLength(1);
     expect(service.sentMessages[0]?.address).toBe(oscMappings.dmx.addressSelect);
 
-    expect(service.sentMessages[0]?.args).toEqual([{ type: 's', value: '2/041' }]);
+    expect(service.sentMessages[0]?.args).toEqual([{ type: 'i', value: 553 }]);
 
     const structuredContent = getStructuredContent(result);
     expect(structuredContent).toBeDefined();

@@ -4,11 +4,12 @@
  */
 import { z, type ZodRawShape } from 'zod';
 import { oscMappings } from '../../services/osc/mappings';
+import { getOscClient } from '../../services/osc/client';
 import { cueNumberSchema, dmxAddressSchema, userIdSchema } from '../../utils/validators';
 import { buildRecordCueCommand, formatCueTarget } from '../cues/common';
 import { sendDeterministicCommand } from '../commands/command_tools';
 import { buildPatchSequence, applyPatchPlans } from '../workflows/patchSequence';
-import type { ToolDefinition } from '../types';
+import { buildToolResult, type ToolDefinition } from '../types';
 
 const targetOptionsSchema = {
   targetAddress: z.string().min(1).optional(),
@@ -24,10 +25,6 @@ const paletteTypeSchema = z.enum(['ip', 'fp', 'cp', 'bp']);
 
 const channelNumberSchema = z.coerce.number().int().min(1).max(99999);
 const partNumberSchema = z.coerce.number().int().min(1).max(99);
-
-function escapeLabel(label: string): string {
-  return label.replace(/"/g, '\\"').trim();
-}
 
 function palettePrefix(type: z.infer<typeof paletteTypeSchema>): string {
   const mapping: Record<z.infer<typeof paletteTypeSchema>, string> = {
@@ -127,7 +124,7 @@ export const eosCueUpdateTool: ToolDefinition<typeof cueUpdateInputSchema> = {
 
 const cueLabelSetInputSchema = {
   cue_number: cueNumberSchema,
-  cuelist_number: cueListNumberSchema.optional(),
+  cuelist_number: cueListNumberSchema.describe('Liste explicite requise pour adresser le label sans modifier la selection courante.'),
   label: z.string().trim().min(1).max(128),
   ...targetOptionsSchema
 } satisfies ZodRawShape;
@@ -149,23 +146,15 @@ export const eosCueLabelSetTool: ToolDefinition<typeof cueLabelSetInputSchema> =
     inputSchema: cueLabelSetInputSchema,
     annotations: {
       mapping: {
-        osc: oscMappings.commands.newCommand,
-        cli: 'Cue <cuelist>/<cue> Label "<label>"#',
-        commandExample: 'Cue {cue_number} Label "{label}"#'
+        osc: '/eos/set/cue/{cuelist}/{number}/label'
       }
     }
   },
   handler: async (args) => {
     const options = z.object(cueLabelSetInputSchema).strict().parse(args ?? {});
-    const command = `${formatCueTarget(options.cue_number, options.cuelist_number)} Label "${escapeLabel(options.label)}"`;
-    return sendDeterministicCommand({
-      command,
-      clearLine: true,
-      terminateWithEnter: true,
-      user: options.user,
-      targetAddress: options.targetAddress,
-      targetPort: options.targetPort
-    });
+    const address = `/eos/set/cue/${options.cuelist_number}/${options.cue_number}/label`;
+    await getOscClient().sendMessage(address, [{ type: 's', value: options.label }], options);
+    return buildToolResult({ summary: 'Label envoye par OSC Set.', commandsSent: [address], structuredContent: { verified: false, osc: { address, args: [options.label] } } });
   }
 };
 
@@ -236,23 +225,15 @@ export const eosPaletteLabelSetTool: ToolDefinition<typeof paletteLabelSetInputS
     inputSchema: paletteLabelSetInputSchema,
     annotations: {
       mapping: {
-        osc: oscMappings.commands.newCommand,
-        cli: '<IP|FP|CP|BP> <numero> Label "<label>"#',
-        commandExample: 'IP {palette_number} Label "{label}"#'
+        osc: '/eos/set/{palette_type}/{number}/label'
       }
     }
   },
   handler: async (args) => {
     const options = z.object(paletteLabelSetInputSchema).strict().parse(args ?? {});
-    const command = `${palettePrefix(options.palette_type)} ${options.palette_number} Label "${escapeLabel(options.label)}"`;
-    return sendDeterministicCommand({
-      command,
-      clearLine: true,
-      terminateWithEnter: true,
-      user: options.user,
-      targetAddress: options.targetAddress,
-      targetPort: options.targetPort
-    });
+    const address = `/eos/set/${options.palette_type}/${options.palette_number}/label`;
+    await getOscClient().sendMessage(address, [{ type: 's', value: options.label }], options);
+    return buildToolResult({ summary: 'Label envoye par OSC Set.', commandsSent: [address], structuredContent: { verified: false, osc: { address, args: [options.label] } } });
   }
 };
 
@@ -295,7 +276,7 @@ export const eosPatchSetChannelTool: ToolDefinition<typeof patchSetChannelInputS
   },
   handler: async (args) => {
     const options = z.object(patchSetChannelInputSchema).strict().parse(args ?? {});
-    const execution = buildPatchSequence({ ...options, label: options.label ?? '' });
+    const execution = buildPatchSequence(options);
     return applyPatchPlans([execution.plan], options, 'eos_patch_set_channel');
   }
 };

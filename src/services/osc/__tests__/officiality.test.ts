@@ -1,109 +1,35 @@
 /*
  * Copyright 2026 Florian Ribes (NairolfConcept)
- * SPDX-License-Identifier: Apache-2.0
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
-import {
-  OSC_ADDRESS_OFFICIALITY,
-  assertOscAddressStrictModeAllowed,
-  getOscAddressOfficiality,
-  isEosStrictModeEnabled
-} from '../officiality';
-import { oscMappings } from '../mappings';
+import { assertOscAddressStrictModeAllowed, getOscAddressOfficiality, isEosStrictModeEnabled } from '../officiality';
 
-const strictEnv = { EOS_STRICT_MODE: 'true' } as NodeJS.ProcessEnv;
-
-function collectOscGetAddresses(value: unknown, acc = new Set<string>()): Set<string> {
-  if (typeof value === 'string') {
-    if (value.startsWith('/eos/get/')) {
-      acc.add(value);
-    }
-    return acc;
-  }
-
-  if (value && typeof value === 'object') {
-    for (const nested of Object.values(value as Record<string, unknown>)) {
-      collectOscGetAddresses(nested, acc);
-    }
-  }
-
-  return acc;
-}
-
-describe('OSC address officiality classification', () => {
-  it('classe les adresses OSC avec les champs requis', () => {
-    expect(OSC_ADDRESS_OFFICIALITY.length).toBeGreaterThan(0);
-    for (const entry of OSC_ADDRESS_OFFICIALITY) {
-      expect(entry.address).toMatch(/^\/eos\//);
-      expect(typeof entry.official).toBe('boolean');
-      expect(typeof entry.strictModeAllowed).toBe('boolean');
-      expect(entry.source.length).toBeGreaterThan(0);
-      expect(entry.notes.length).toBeGreaterThan(0);
-    }
+describe('ETC reference-backed OSC address policy', () => {
+  test.each([
+    '/eos/get/version','/eos/get/patch/101/1','/eos/get/group/index/0',
+    '/eos/get/fx/1','/eos/get/fpe/1/0','/eos/get/cue/2/12.5/0',
+    '/eos/get/patch/101/1/augment3d/position', '/eos/cues/2/fire', '/eos/cues/2/stop',
+    '/eos/cue/2/12.5/1/fire','/eos/group/1','/eos/addr/513/DMX','/eos/addr/513/dmx',
+    '/eos/fx','/eos/user/3/newcmd','/eos/user/99/chan/101/param/Pan',
+    '/eos/set/group/1/chans','/eos/ds/1/Chan/10','/eos/color/hs','/eos/snap/fire'
+  ])('permits implemented native address %s', (address) => {
+    expect(getOscAddressOfficiality(address)?.official).toBe(true);
+    expect(() => assertOscAddressStrictModeAllowed(address)).not.toThrow();
   });
-
-  it('resout les templates utilises par les outils MCP', () => {
-    expect(getOscAddressOfficiality('/eos/fader/1/2')?.strictModeAllowed).toBe(true);
-    expect(getOscAddressOfficiality('/eos/group/4/level')?.official).toBe(true);
-    expect(getOscAddressOfficiality('/eos/key/go_0')?.official).toBe(true);
-    expect(getOscAddressOfficiality('/eos/out/user/3/cmd')).toMatchObject({ official: true, strictModeAllowed: true });
+  test.each([
+    '/eos/handshake','/eos/protocol','/eos/get/group/list','/eos/get/submaster/1',
+    '/eos/get/cmd_line','/eos/get/live/blind','/eos/get/param/active_wheels',
+    '/eos/cue/2/go','/eos/set/group/1/channels','/eos/address/1','/eos/out/cmd',
+    '/eos/user/100/newcmd','/eos/user/3/get/version','/eos/chan/1/param/Pan/Delete'
+  ])('rejects undocumented/output addresses even with strict mode off: %s', (address) => {
+    expect(() => assertOscAddressStrictModeAllowed(address, { EOS_STRICT_MODE:'0' })).toThrow('documentee');
   });
-
-  it('identifie les extensions MCP bloquees en mode strict', () => {
-    const extension = getOscAddressOfficiality('/eos/get/patch/{channel}/{part}/augment3d/position');
-    expect(extension).toMatchObject({ official: false, strictModeAllowed: false, source: 'MCP extension' });
-    expect(getOscAddressOfficiality('/eos/out/user/{number}/cmd')).toMatchObject({
-      official: false,
-      strictModeAllowed: false,
-      source: 'MCP extension'
-    });
-    expect(() => assertOscAddressStrictModeAllowed('/eos/get/patch/{channel}/{part}/augment3d/position', strictEnv)).toThrow(/EOS_STRICT_MODE bloque/);
-    expect(() => assertOscAddressStrictModeAllowed('/eos/out/user/{number}/cmd', strictEnv)).toThrow(/EOS_STRICT_MODE bloque/);
+  test('classifies passive output as documented but never transmits it', () => {
+    expect(getOscAddressOfficiality('/eos/out/user/3/cmd')?.official).toBe(true);
+    expect(() => assertOscAddressStrictModeAllowed('/eos/out/user/3/cmd')).toThrow();
   });
-
-  it('classe toutes les adresses /eos/get declarees dans les mappings MCP', () => {
-    const getAddresses = collectOscGetAddresses(oscMappings);
-    expect(getAddresses.size).toBeGreaterThan(0);
-
-    for (const address of getAddresses) {
-      expect(getOscAddressOfficiality(address)).toBeDefined();
-    }
-  });
-
-  it('bloque en mode strict les endpoints /eos/get non confirmes officiellement', () => {
-    const nonOfficialGetEndpoints = [
-      '/eos/get/patch/{channel}/{part}',
-      '/eos/out/softkey/{index}',
-      '/eos/get/setup',
-      '/eos/get/patch/{channel}/{part}',
-      '/eos/get/patch/{channel}/{part}/augment3d/position',
-      '/eos/get/patch/{channel}/{part}/augment3d/beam',
-      '/eos/get/fpe/count',
-      '/eos/get/fpe/{set}',
-      '/eos/get/fpe/{set}/{point}'
-    ];
-
-    for (const address of nonOfficialGetEndpoints) {
-      expect(getOscAddressOfficiality(address)).toMatchObject({ official: false, strictModeAllowed: false });
-      expect(() => assertOscAddressStrictModeAllowed(address, strictEnv)).toThrow(/EOS_STRICT_MODE bloque/);
-    }
-  });
-
-  it('autorise /eos/cmd et les commandes runtime necessaires en mode strict', () => {
-    expect(() => assertOscAddressStrictModeAllowed('/eos/cmd', strictEnv)).not.toThrow();
-    expect(() => assertOscAddressStrictModeAllowed('/eos/handshake', strictEnv)).not.toThrow();
-  });
-
-  it('autorise les chemins DMX /eos/addr et bloque les aliases legacy en mode strict', () => {
-    expect(() => assertOscAddressStrictModeAllowed('/eos/addr', strictEnv)).not.toThrow();
-    expect(() => assertOscAddressStrictModeAllowed('/eos/addr/1', strictEnv)).not.toThrow();
-    expect(() => assertOscAddressStrictModeAllowed('/eos/addr/1/DMX', strictEnv)).not.toThrow();
-    expect(() => assertOscAddressStrictModeAllowed('/eos/addr/{address}/DMX', strictEnv)).toThrow(/EOS_STRICT_MODE bloque/);
-  });
-
-  it('parse EOS_STRICT_MODE comme un booleen opt-in', () => {
-    expect(isEosStrictModeEnabled({ EOS_STRICT_MODE: 'true' } as NodeJS.ProcessEnv)).toBe(true);
-    expect(isEosStrictModeEnabled({ EOS_STRICT_MODE: '1' } as NodeJS.ProcessEnv)).toBe(true);
-    expect(isEosStrictModeEnabled({ EOS_STRICT_MODE: 'false' } as NodeJS.ProcessEnv)).toBe(false);
-    expect(isEosStrictModeEnabled({} as NodeJS.ProcessEnv)).toBe(false);
+  test('reads the optional command validation profile flag', () => {
+    expect(isEosStrictModeEnabled({ EOS_STRICT_MODE:'true' })).toBe(true);
+    expect(isEosStrictModeEnabled({ EOS_STRICT_MODE:'0' })).toBe(false);
   });
 });

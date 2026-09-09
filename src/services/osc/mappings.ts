@@ -80,8 +80,8 @@ export const oscMappings = {
     info: '/eos/get/curve/{number}'
   },
   effects: {
-    select: '/eos/cmd',
-    stop: '/eos/cmd',
+    select: '/eos/fx',
+    stop: '/eos/newcmd',
     info: '/eos/get/fx/{number}'
   },
   parameters: {
@@ -198,8 +198,8 @@ export const oscMappings = {
   cues: {
     fire: '/eos/cue/{cuelist}/{cue}/fire',
     fireWithoutCuelist: '/eos/cue/{cue}/fire',
-    go: '/eos/cue/{cuelist}/go',
-    stopBackCommand: '/eos/cmd',
+    go: '/eos/cues/{cuelist}/fire',
+    stopBackCommand: '/eos/cues/{cuelist}/stop',
     select: '/eos/cue',
     compatibility: {
       fire: '/eos/cmd',
@@ -246,8 +246,8 @@ export const oscPayloadAnnotations = {
     press: { wireFormat: 'eos-native-arguments', arguments: 'EOS-native key press float argument' }
   },
   effects: {
-    select: { wireFormat: 'eos-native-command', arguments: 'single OSC string containing `Effect <number>`' },
-    stop: { wireFormat: 'eos-native-command', arguments: 'single OSC string containing `Effect Stop` or `Effect <number> Stop`' }
+    select: { wireFormat: 'eos-native', arguments: 'one OSC int: effect number' },
+    stop: { wireFormat: 'eos-native-command', arguments: 'single terminated OSC string: `Effect <number> At#` or `Stop_Effect#`' }
   },
   faders: {
     bankCreate: { wireFormat: 'eos-native-address', arguments: 'EOS-native address path encodes bank, optional page, and fader count' }

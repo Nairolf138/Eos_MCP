@@ -416,7 +416,6 @@ function buildToolConfigForRegistration(tool: ToolDefinition): ToolDefinition['c
   return {
     ...baseConfig,
     ...(baseConfig.outputSchema ? { outputSchema: {
-      ...baseConfig.outputSchema,
       status: z.string().optional(), action: z.string().optional(), summary: z.string().optional(),
       commandsSent: z.array(z.string()).optional(), target: z.unknown().optional(),
       target_console: z.string().nullable().optional(), target_address: z.string().optional(), target_port: z.number().optional(),
@@ -426,7 +425,9 @@ function buildToolConfigForRegistration(tool: ToolDefinition): ToolDefinition['c
       request: z.unknown().optional(), exists: z.boolean().optional(), diagnostics: z.unknown().optional(),
       dry_run: z.boolean().optional(), commands_preview: z.array(z.string()).optional(),
       sent: z.boolean().optional(), accepted_by_eos: z.boolean().nullable().optional(), verified: z.boolean().optional(),
+      next_actions: z.array(z.string()).optional(), observed_at: z.number().optional(),
       verification: z.unknown().optional(), warnings: z.array(z.union([z.string(), z.object({ detail: z.string(), code: z.string().optional() })])).optional()
+      , ...baseConfig.outputSchema
     } } : {}),
     annotations: {
       ...(baseConfig.annotations ?? {}),

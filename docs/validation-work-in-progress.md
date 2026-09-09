@@ -11,21 +11,42 @@ explicit confirmation, patch collision/profile checks, selective groups/palettes
 and a new submaster recording tool. The old JSON-over-OSC mock protocol has been
 removed from the client. Some legacy tests still simulate that unsupported protocol.
 
-Validation so far: the new native client suite passed 39 tests. The most recent
-whole unit run reported 481 passing and 162 failing tests (35 failing suites).
-These failures include both obsolete test fixtures and corrections still needed;
-they must not be treated as a successful regression run. Documentation generation,
-native integration tests and the full contributor gate remain outstanding.
+Remote HEAD checked before resuming: `115db2ed882f871190fdf5b37a370f73bead7219`.
+Local changes left by the previous session were recovered on top of that exact
+commit; this checkpoint saves them rather than repeating the audit.
+
+Now implemented: plural cue-list playback paths, native cue-part firing and effect
+selection/stop, native label setters, ping echo/source correlation, published read
+schema validation, bounded workflow readbacks, multipart patch reads, and real
+UDP/TCP loopback tests. Gateway explicit-target routing is covered by these tests.
+
+Validation on resumption: **124/124 tests passed in four suites** (native client,
+native reads, preparation workflows, UDP/TCP conformance). Command:
+`npx jest --runInBand src/services/osc/__tests__/client.test.ts src/tools/__tests__/native_reads.test.ts src/tools/workflows/__tests__/native_preparation.test.ts src/services/osc/__tests__/eos-conformance.integration.test.ts`.
+
+The latest whole unit run, before subsequent targeted fixes, reported **573 passing
+and 73 failing tests**, 42 passing and 21 failing suites. It has NOT been rerun after
+all recovered edits. Last HTTP MCP E2E run: **3 passed, 3 failed** (read-only patch
+tool incorrectly needs confirmation, dry-run result lacks `verified: false`, and
+the concurrent-user test wrongly assumes arrival order). Last lint run: 43 unused
+imports/helpers left by legacy fixture replacement; some were subsequently removed.
+These are unfinished results, not a successful regression gate.
 
 Next work:
 
-1. Correct cue-list playback to ETC's `/eos/cues/<list>/fire` and `/stop`;
-   add native cue-part firing and `/eos/fx` selection.
-2. Finish ping correlation, output schema validation and workflow readback checks.
-3. Replace fictional wire fixtures with documented native replies; retain useful
-   negative, transport and workflow tests. Run `npm run check:agent-ready:e2e`.
-4. Update generated tool docs, setup instructions and native OSC coverage matrix.
-5. Review and merge the completed correction after the required checks pass.
+1. Fix the three HTTP MCP E2E failures above; validate safety metadata, dry-run
+   envelopes and actual published output schemas/readbacks.
+2. Complete remaining ETC semantics: cue fire without an explicit list/part;
+   unsupported effect-creation CLI and setup send/receive-string tools; safe cue
+   workflow labels; completeness of passive wheel/softkey and patch information.
+3. Migrate remaining fictional JSON wire fixtures and obsolete command/user/role
+   expectations; clean unused test code and refresh reviewed contract snapshots.
+   Preserve negative, transport and workflow coverage.
+4. Update generated tool docs, setup instructions and native OSC coverage matrix;
+   distinguish transport delivery, command acceptance and verified console state.
+5. Run `npm run check:agent-ready:e2e` in full. Merge only when every necessary
+   control is green and the implementation is ready. Push each coherent tested
+   batch, updating this checkpoint with exact results and the next action.
 
 Primary reference: [ETC OSC Dictionary](https://www.etcconnect.com/WebDocs/Controls/EosFamilyOnlineHelp/en/Content/23_Show_Control/08_OSC/OSC_Dictionary.htm)
 and [ETC OSC Get](https://www.etcconnect.com/WebDocs/Controls/EosFamilyOnlineHelp/en/Content/23_Show_Control/08_OSC/Using_OSC_with_Eos/OSC_Third-Party_Integration/OSC_Get.htm).

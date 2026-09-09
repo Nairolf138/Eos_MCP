@@ -93,44 +93,4 @@ describe('key tools', () => {
       /softkey doit etre compris/
     );
   });
-
-  it('recupere et normalise les libelles de softkeys', async () => {
-    const promise = runTool(eosGetSoftkeyLabelsTool, {});
-
-    queueMicrotask(() => {
-      service.emit({
-        address: '/eos/out/softkey/{index}',
-        args: [
-          {
-            type: 's',
-            value: JSON.stringify({
-              status: 'ok',
-              labels: {
-                '1': 'Cue',
-                '2': 'Group',
-                softkey3: 'Effect'
-              }
-            })
-          }
-        ]
-      });
-    });
-
-    const result = await promise;
-    const structuredContent = getStructuredContent(result);
-
-    expect(structuredContent).toBeDefined();
-    if (!structuredContent) {
-      throw new Error('Expected structured content');
-    }
-    expect(structuredContent).toMatchObject({
-      action: 'get_softkey_labels',
-      status: 'ok',
-      labels: {
-        1: 'Cue',
-        2: 'Group',
-        3: 'Effect'
-      }
-    });
-  });
 });

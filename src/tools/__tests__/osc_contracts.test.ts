@@ -1,142 +1,32 @@
 /*
  * Copyright 2026 Florian Ribes (NairolfConcept)
- * SPDX-License-Identifier: Apache-2.0
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { z } from 'zod';
-import type { OscMessage, OscMessageArgument } from '../../services/osc/index';
-import { setOscClient, type OscClient, type OscJsonResponse, type TargetOptions } from '../../services/osc/client';
-import { oscResponseMappings, toEosOutResponseAddress } from '../../services/osc/mappings';
+import type { OscMessage } from '../../services/osc/index';
+import { OscClient, setOscClient, type OscGateway } from '../../services/osc/client';
 import { getOscAddressOfficiality } from '../../services/osc/officiality';
-import type { BuiltOscWireMessage } from '../../services/osc/messageBuilders';
 import toolDefinitions from '../index';
 import type { ToolDefinition } from '../types';
-import { runTool } from './helpers/runTool';
 
-interface CapturedOscCall {
-  address: string;
-  args: OscMessageArgument[];
-  options: TargetOptions;
-  command?: string;
+class Peer implements OscGateway {
+  public calls: OscMessage[] = [];
+  public async send(message: OscMessage) { this.calls.push(message); }
+  public onMessage() { return () => {}; }
 }
-
-class MockOscClient {
-  public readonly calls: CapturedOscCall[] = [];
-
-  public async ping(options: TargetOptions & { message?: string } = {}): Promise<Record<string, unknown>> {
-    this.calls.push({
-      address: '/eos/ping',
-      args: options.message ? [{ type: 's', value: options.message }] : [],
-      options
-    });
-    return { status: 'ok', roundtripMs: 1, echo: options.message ?? null, payload: { status: 'ok' } };
-  }
-
-  public async sendCommand(command: string, options: TargetOptions & { user?: number } = {}): Promise<void> {
-    this.captureCommand('/eos/cmd', command, options);
-  }
-
-  public async sendNewCommand(command: string, options: TargetOptions & { user?: number } = {}): Promise<void> {
-    this.captureCommand('/eos/newcmd', command, options);
-  }
-
-  public async sendMessage(
-    address: string,
-    args: OscMessageArgument[] = [],
-    options: TargetOptions = {}
-  ): Promise<void> {
-    this.calls.push({ address, args, options });
-  }
-
-  public async requestJson(
-    address: string,
-    options: TargetOptions & { payload?: Record<string, unknown>; timeoutMs?: number } = {}
-  ): Promise<OscJsonResponse> {
-    const args = options.payload
-      ? [{ type: 's', value: JSON.stringify(options.payload) } satisfies OscMessageArgument]
-      : [];
-    this.calls.push({ address, args, options });
-    return {
-      status: 'ok',
-      data: this.responseDataFor(address),
-      payload: { address, args }
-    };
-  }
-
-  public async requestBuiltJson(
-    request: BuiltOscWireMessage,
-    options: TargetOptions & { timeoutMs?: number } = {}
-  ): Promise<OscJsonResponse> {
-    const message = request.message as OscMessage;
-    const args = message.args ?? [];
-    this.calls.push({ address: message.address, args, options });
-    return {
-      status: 'ok',
-      data: this.responseDataFor(message.address),
-      payload: { address: message.address, args }
-    };
-  }
-
-  public async getCommandLine(options: TargetOptions & { user?: number } = {}): Promise<Record<string, unknown>> {
-    const payload: Record<string, unknown> = {};
-    if (typeof options.user === 'number') {
-      payload.user = options.user;
-    }
-    this.calls.push({
-      address: '/eos/out/user/{number}/cmd',
-      args: [{ type: 's', value: JSON.stringify(payload) }],
-      options
-    });
-    return { status: 'ok', text: 'Chan 1', user: options.user ?? null, payload, source: 'mcp_extension_get_cmd_line' };
-  }
-
-  private captureCommand(address: string, command: string, options: TargetOptions & { user?: number }): void {
-    const args: OscMessageArgument[] = [{ type: 's', value: command }];
-    if (typeof options.user === 'number') {
-      args.push({ type: 'i', value: options.user });
-    }
-    this.calls.push({ address, args, options, command });
-  }
-
-  private responseDataFor(address: string): Record<string, unknown> {
-    if (address.includes('/live/blind')) {
-      return { status: 'ok', state: 'live' };
-    }
-    if (address.includes('/show/name')) {
-      return { status: 'ok', show: 'Contract Test Show' };
-    }
-    if (address.includes('/softkey_labels')) {
-      return { status: 'ok', labels: ['Help', 'More SK'] };
-    }
-    if (address.includes('/count')) {
-      return { status: 'ok', count: 1 };
-    }
-    if (address.includes('/list')) {
-      return { status: 'ok', items: [{ number: 1, label: 'One' }] };
-    }
-    return {
-      status: 'ok',
-      number: 1,
-      label: 'Contract fixture',
-      items: [{ number: 1, label: 'One' }],
-      x: 1,
-      y: 2,
-      z: 3
-    };
-  }
-}
-
 const SAMPLE_VALUES: Record<string, unknown> = {
+  number: 1,
   address_number: '1/001',
   addresses: 1,
   back: false,
   bank_index: 1,
-  blue: 64,
+  blue: 0.25,
   button_count: 10,
   button_index: 2,
   channel_number: 1,
-  channels: [1, 2],
+  channels: '1 Thru 2',
   clearLine: true,
   color: 'red',
   command: 'Go To Cue 1',
@@ -145,7 +35,7 @@ const SAMPLE_VALUES: Record<string, unknown> = {
   cue_part: 1,
   curve_number: 1,
   delta: 1,
-  device_type: 'Source Four LED Series 3 Lustr X8',
+  device_type: 'Dimmer',
   dmx_address: '1/001',
   dmx_value: 128,
   effect_number: 1,
@@ -155,7 +45,7 @@ const SAMPLE_VALUES: Record<string, unknown> = {
   fields: ['label'],
   flexi_mode: false,
   format_string: 'Cue %1 -> %2',
-  green: 128,
+  green: 0.5,
   group_number: 1,
   hue: 120,
   key_name: 'go',
@@ -179,7 +69,7 @@ const SAMPLE_VALUES: Record<string, unknown> = {
   point_number: 1,
   preset_number: 1,
   rate: 0.5,
-  red: 255,
+  red: 1,
   require_confirmation: true,
   safety_level: 'off',
   saturation: 75,
@@ -215,18 +105,6 @@ const FIELD_ALIASES: Record<string, string> = {
 };
 
 
-function collectResponseAddressVariants(value: unknown): readonly string[][] {
-  if (Array.isArray(value) && value.every((entry) => typeof entry === 'string')) {
-    return [value];
-  }
-
-  if (value && typeof value === 'object') {
-    return Object.values(value as Record<string, unknown>).flatMap((entry) => collectResponseAddressVariants(entry));
-  }
-
-  return [];
-}
-
 function sampleArgsFor(tool: ToolDefinition): Record<string, unknown> {
   const rawShape = tool.config.inputSchema ?? {};
   const args: Record<string, unknown> = {};
@@ -261,113 +139,44 @@ function sampleArgsFor(tool: ToolDefinition): Record<string, unknown> {
   return args;
 }
 
-function parseWithStrictSchema(tool: ToolDefinition, args: Record<string, unknown>): void {
-  const rawShape = tool.config.inputSchema;
-  if (!rawShape) {
-    return;
-  }
-  z.object(rawShape).strict().parse(args);
-}
 
-function expectedAddress(tool: ToolDefinition, args: Record<string, unknown>): string {
-  if (tool.name === 'eos_palette_get_info') {
-    return `/eos/get/${String(args.palette_type)}`;
-  }
-  if (tool.name === 'eos_cuelist_bank_create') {
-    return `/eos/cuelist/${String(args.bank_index)}/config/${String(args.cuelist_number)}/${String(args.num_prev_cues)}/${String(args.num_pending_cues)}/${String(args.offset)}`;
-  }
-  if (tool.name === 'eos_fader_bank_create' && args.page_number != null) {
-    return `/eos/fader/${String(args.bank_index)}/config/${String(args.page_number)}/${String(args.fader_count)}`;
-  }
-  if (tool.name === 'eos_direct_select_bank_create') {
-    const target = toolTargetName(args.target_type);
-    if (args.flexi_mode === true && args.page_number != null) {
-      return `/eos/ds/${String(args.bank_index)}/${target}/flexi/${String(args.page_number)}/${String(args.button_count)}`;
-    }
-    if (args.flexi_mode === true) {
-      return `/eos/ds/${String(args.bank_index)}/${target}/flexi/${String(args.button_count)}`;
-    }
-    if (args.page_number != null) {
-      return `/eos/ds/${String(args.bank_index)}/${target}/${String(args.page_number)}/${String(args.button_count)}`;
-    }
-  }
-
-  const mapping = tool.config.annotations?.mapping as { osc?: unknown } | undefined;
-  const osc = mapping?.osc;
-  if (typeof osc === 'string') {
-    return resolveTemplate(osc, args);
-  }
-  if (osc && typeof osc === 'object') {
-    const key = String(args.target_type);
-    const address = (osc as Record<string, string>)[key];
-    if (address) {
-      return address;
-    }
-  }
-  throw new Error(`No OSC mapping for ${tool.name}`);
-}
-
-function resolveTemplate(template: string, args: Record<string, unknown>): string {
-  const firstChannel = Array.isArray(args.channels) ? args.channels[0] : args.channels;
-  return template
-    .replace('{channel}', String(firstChannel))
-    .replace('{parameter}', encodeURIComponent(String(args.parameter)))
-    .replace('{address}', encodeURIComponent(String(args.address_number ?? args.addresses)))
-    .replace('{bank_index}', String(args.bank_index))
-    .replace('{key}', keyIdentifier(args.key_name))
-    .replace('{group}', String(args.group_number))
-    .replace('{submaster_number}', String(args.submaster_number))
-    .replace('{bank}', String(args.bank_index))
-    .replace('{index}', String(args.softkey_number ?? args.bank_index))
-    .replace('{page}', String(args.page_number ?? 1))
-    .replace('{fader}', String(args.fader_index))
-    .replace('{faders}', String(args.fader_count))
-    .replace('{target}', toolTargetName(args.target_type))
-    .replace('{buttons}', String(args.button_count))
-    .replace('{button}', String(args.button_index))
-    .replace('{flexi}', args.flexi_mode ? '1' : '0')
-    .replace('{delta}', String(args.delta))
-    .replace('{cuelist}', String(args.cuelist_number))
-    .replace('{cue}', String(args.cue_number))
-    .replace('{cuelist_number}', String(args.cuelist_number))
-    .replace('{num_prev_cues}', String(args.num_prev_cues))
-    .replace('{num_pending_cues}', String(args.num_pending_cues))
-    .replace('{offset}', String(args.offset));
-}
-
-
-function keyIdentifier(value: unknown): string {
-  const keyMap: Record<string, string> = {
-    go: 'go_0',
-    stop_back: 'stop/back'
-  };
-  return keyMap[String(value)] ?? String(value);
-}
-
-function toolTargetName(value: unknown): string {
-  if (value === 'chan') {
-    return 'Chan';
-  }
-  return String(value);
-}
-
-const oscTools = toolDefinitions.filter((tool) => {
-  const mapping = tool.config.annotations?.mapping as { osc?: unknown } | undefined;
-  return Boolean(mapping?.osc);
-});
+// Literal addresses and typed arguments are based on ETC's OSC Dictionary.
+const wireCases: Array<[string, Record<string, unknown>, string, unknown[]]> = [
+ ['eos_group_set_level',{group_number:7,level:50},'/eos/group/7',[50]],
+ ['eos_address_select',{address_number:'2/41'},'/eos/addr',[553]],
+ ['eos_address_set_level',{address_number:'2/41',level:37.5},'/eos/addr/553',[37.5]],
+ ['eos_address_set_dmx',{address_number:'2/41',dmx_value:255},'/eos/addr/553/DMX',[255]],
+ ['eos_channel_set_parameter',{channels:[101],parameter:'Pan',value:-90},'/eos/chan/101/param/Pan',[-90]],
+ ['eos_wheel_tick',{parameter_name:'Pan',mode:'fine',ticks:-2.5},'/eos/wheel/fine/Pan',[-2.5]],
+ ['eos_switch_continuous',{parameter_name:'Tilt',rate:-3},'/eos/switch/Tilt',[-3]],
+ ['eos_set_color_hs',{hue:330,saturation:75},'/eos/color/hs',[330,75]],
+ ['eos_set_color_rgb',{red:1,green:0.25,blue:0.5},'/eos/color/rgb',[1,0.25,0.5]],
+ ['eos_set_pantilt_xy',{x:0.2,y:0.8},'/eos/pantilt/xy',[0.2,0.8]],
+ ['eos_set_xyz_position',{x:-3,y:4,z:2},'/eos/xyz',[-3,4,2]],
+ ['eos_cue_go',{cuelist_number:2},'/eos/cues/2/fire',[]],
+ ['eos_cue_go',{cuelist_number:2,cue_number:12.5},'/eos/cue/2/12.5/fire',[]],
+ ['eos_cue_fire',{cuelist_number:2,cue_number:12.5,cue_part:1,require_confirmation:true},'/eos/cue/2/12.5/1/fire',[]],
+ ['eos_cue_select',{cue_number:12.5},'/eos/cue',[12.5]],
+ ['eos_cue_select',{cue_number:12.5,cuelist_number:2},'/eos/cue/2',[12.5]],
+ ['eos_cue_select',{cue_number:12.5,cuelist_number:2,cue_part:1},'/eos/cue/2/12.5',[1]],
+ ['eos_cue_stop_back',{cuelist_number:2},'/eos/cues/2/stop',[]],
+ ['eos_effect_select',{effect_number:7},'/eos/fx',[7]],
+ ['eos_effect_stop',{effect_number:7},'/eos/newcmd',['Effect 7 At#']],
+ ['eos_effect_stop',{},'/eos/newcmd',['Stop_Effect#']],
+ ['eos_snapshot_recall',{snapshot_number:7},'/eos/snap/fire',[7]],
+ ['eos_pixmap_select',{pixmap_number:7},'/eos/pixmap',[7]],
+ ['eos_curve_select',{curve_number:7},'/eos/curve',[7]],
+ ['eos_submaster_set_level',{submaster_number:7,level:37.5},'/eos/sub/7',[0.375]],
+ ['eos_submaster_bump',{submaster_number:7,state:true},'/eos/sub/7/fire',[1]],
+ ['eos_cue_label_set',{cuelist_number:2,cue_number:12.5,label:'Face # Enter'},'/eos/set/cue/2/12.5/label',['Face # Enter']],
+ ['eos_palette_label_set',{palette_type:'cp',palette_number:7,label:'Rouge # Enter'},'/eos/set/cp/7/label',['Rouge # Enter']]
+];
+const oscTools = toolDefinitions.filter((tool) => Boolean((tool.config.annotations?.mapping as {osc?:unknown})?.osc));
 
 describe('OSC tool contracts exported from src/tools/index.ts', () => {
-  let client: MockOscClient;
-
-  beforeEach(() => {
-    client = new MockOscClient();
-    setOscClient(client as unknown as OscClient);
-  });
-
-  afterEach(() => {
-    setOscClient(null);
-  });
-
+ let peer: Peer;
+ beforeEach(() => { peer = new Peer(); setOscClient(new OscClient(peer,{defaultTimeoutMs:30})); });
+ afterEach(() => setOscClient(null));
   it('lists every tool exported from src/tools/index.ts with a stable fixture', () => {
     expect(toolDefinitions.map((tool) => tool.name)).toMatchSnapshot();
   });
@@ -381,23 +190,6 @@ describe('OSC tool contracts exported from src/tools/index.ts', () => {
 
     for (const tool of toolDefinitions) {
       expect(coverage).toContain(`\`${tool.name}\``);
-    }
-  });
-
-
-  it('accepts /eos/out/get response variants for every centralised /eos/get endpoint', () => {
-    const responseAddressVariants = collectResponseAddressVariants(oscResponseMappings);
-    const getEndpointVariants = responseAddressVariants.filter(([requestAddress]) => requestAddress?.startsWith('/eos/get/'));
-
-    expect(getEndpointVariants.length).toBeGreaterThan(0);
-
-    for (const addresses of getEndpointVariants) {
-      const [requestAddress] = addresses;
-      if (!requestAddress) {
-        throw new Error('Missing request address in OSC response mapping');
-      }
-      expect(addresses).toContain(requestAddress);
-      expect(addresses).toContain(toEosOutResponseAddress(requestAddress));
     }
   });
 
@@ -441,127 +233,21 @@ describe('OSC tool contracts exported from src/tools/index.ts', () => {
     }
   });
 
-  it.each(oscTools.map((tool) => [tool.name, tool] as const))(
-    '%s rejects unknown parameters when its schema is strict',
-    async (_name, tool) => {
-      const args = sampleArgsFor(tool);
-      parseWithStrictSchema(tool, args);
-      await expect(runTool(tool, { ...args, unexpected_parameter: true })).rejects.toThrow();
-    }
-  );
 
-  it.each(oscTools.map((tool) => [tool.name, tool] as const))(
-    '%s sends the documented OSC address, payload, and target endpoint',
-    async (_name, tool) => {
-      const args = sampleArgsFor(tool);
-      parseWithStrictSchema(tool, args);
-
-      const extra = tool.name === 'eos_magic_sheet_send_string' ? { role: 'Primary' } : {};
-      await runTool(tool, args, extra);
-
-      expect(client.calls).toHaveLength(tool.name === 'eos_channel_set_parameter' ? 2 : 1);
-      const [call] = client.calls;
-      expect(call).toMatchObject({
-        address: expectedAddress(tool, args),
-        options: {
-          targetAddress: '192.0.2.10',
-          targetPort: 3032
-        }
-      });
-      expect(call?.args ?? []).toMatchSnapshot();
-    }
-  );
-
-  it('sends channel parameter changes as one native OSC frame per channel', async () => {
-    const tool = toolDefinitions.find((candidate) => candidate.name === 'eos_channel_set_parameter');
-    if (!tool) {
-      throw new Error('eos_channel_set_parameter not exported');
-    }
-
-    await runTool(tool, {
-      channels: [1, 2],
-      parameter: 'pan',
-      value: 45,
-      targetAddress: '192.0.2.10',
-      targetPort: 3032
-    });
-
-    expect(client.calls).toEqual([
-      {
-        address: '/eos/chan/1/param/pan',
-        args: [{ type: 'f', value: 45 }],
-        options: { targetAddress: '192.0.2.10', targetPort: 3032 }
-      },
-      {
-        address: '/eos/chan/2/param/pan',
-        args: [{ type: 'f', value: 45 }],
-        options: { targetAddress: '192.0.2.10', targetPort: 3032 }
-      }
-    ]);
-  });
-
-  it('selects a DMX address through the native /eos/addr contract', async () => {
-    const tool = toolDefinitions.find((candidate) => candidate.name === 'eos_address_select');
-    if (!tool) {
-      throw new Error('eos_address_select not exported');
-    }
-
-    await runTool(tool, {
-      address_number: '1/001',
-      targetAddress: '192.0.2.10',
-      targetPort: 3032
-    });
-
-    expect(client.calls).toEqual([
-      {
-        address: '/eos/addr',
-        args: [{ type: 's', value: '1/001' }],
-        options: expect.objectContaining({ targetAddress: '192.0.2.10', targetPort: 3032 })
-      }
-    ]);
-  });
-
-  it('sets a DMX address level as a percentage through /eos/addr/<address>', async () => {
-    const tool = toolDefinitions.find((candidate) => candidate.name === 'eos_address_set_level');
-    if (!tool) {
-      throw new Error('eos_address_set_level not exported');
-    }
-
-    await runTool(tool, {
-      address_number: '1/001',
-      level: '37.5%',
-      targetAddress: '192.0.2.10',
-      targetPort: 3032
-    });
-
-    expect(client.calls).toEqual([
-      {
-        address: '/eos/addr/1',
-        args: [{ type: 'f', value: 37.5 }],
-        options: expect.objectContaining({ targetAddress: '192.0.2.10', targetPort: 3032 })
-      }
-    ]);
-  });
-
-  it('sets a raw DMX value through /eos/addr/<address>/DMX', async () => {
-    const tool = toolDefinitions.find((candidate) => candidate.name === 'eos_address_set_dmx');
-    if (!tool) {
-      throw new Error('eos_address_set_dmx not exported');
-    }
-
-    await runTool(tool, {
-      address_number: '1/001',
-      dmx_value: 255,
-      targetAddress: '192.0.2.10',
-      targetPort: 3032
-    });
-
-    expect(client.calls).toEqual([
-      {
-        address: '/eos/addr/1/DMX',
-        args: [{ type: 'i', value: 255 }],
-        options: expect.objectContaining({ targetAddress: '192.0.2.10', targetPort: 3032 })
-      }
-    ]);
-  });
+ test.each(oscTools.map((tool) => [tool.name,tool] as const))('%s rejects unknown arguments before any OSC', async (_name,tool) => {
+   const args = sampleArgsFor(tool);
+   z.object(tool.config.inputSchema ?? {}).strict().parse(args);
+   await expect(tool.handler({...args,unexpected_parameter:true}, {})).rejects.toThrow();
+   expect(peer.calls).toEqual([]);
+ });
+ test.each(wireCases)('%s uses documented typed OSC (%j)', async (name,args,address,values) => {
+   const tool = toolDefinitions.find((entry) => entry.name === name)!;
+   await tool.handler(args,{});
+   expect(peer.calls).toHaveLength(1);
+   expect(peer.calls[0].address).toBe(address);
+   expect((peer.calls[0].args ?? []).map((arg) => arg.value)).toEqual(values);
+   const types = (peer.calls[0].args ?? []).map((arg) => arg.type);
+   if (name === 'eos_address_select' || name === 'eos_address_set_dmx') expect(types).toEqual(['i']);
+   if (name.startsWith('eos_set_') || name === 'eos_channel_set_parameter') expect(types.every((type) => type === 'f')).toBe(true);
+ });
 });

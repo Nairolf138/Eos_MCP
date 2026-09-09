@@ -2,6 +2,7 @@
  * Copyright 2026 Florian Ribes (NairolfConcept)
  * SPDX-License-Identifier: Apache-2.0
  */
+import { buildCueStopBackAddress } from '../../services/osc/addressBuilders';
 import { z, type ZodRawShape } from 'zod';
 import { getOscClient } from '../../services/osc/client';
 import { oscMappings } from '../../services/osc/mappings';
@@ -19,7 +20,6 @@ import {
 
 const stopBackInputSchema = {
   cuelist_number: cuelistNumberSchema,
-  back: z.boolean().optional(),
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
@@ -36,12 +36,11 @@ export const eosCueStopBackTool: ToolDefinition<typeof stopBackInputSchema> = {
   name: 'eos_cue_stop_back',
   config: {
     title: 'Stop ou Back sur liste de cues',
-    description: 'Stoppe la lecture de la liste ou effectue un back selon l\'option fournie.',
+    description: 'Appuie une fois sur Stop/Back pour la liste indiquee. Eos arrete un fondu en cours; sinon recule d’une cue. Le protocole ne fournit pas ici de commande Stop-seulement ou Back-seulement.',
     inputSchema: stopBackInputSchema,
     annotations: {
       mapping: {
-        osc: oscMappings.cues.stopBackCommand,
-        commandExample: 'Cue {cuelist_number} Stop#'
+        osc: oscMappings.cues.stopBackCommand
       },
       highlighted: true
     }
@@ -56,47 +55,33 @@ export const eosCueStopBackTool: ToolDefinition<typeof stopBackInputSchema> = {
       throw new Error('Numero de liste de cues manquant apres validation.');
     }
 
-    const action = options.back ? 'cue_back' : 'cue_stop';
-    const command = `Cue ${listNumber} ${options.back ? 'Back#' : 'Stop#'}`;
+    const action = 'cue_stop_back';
+    const address = buildCueStopBackAddress(listNumber);
     const safety = resolveSafetyOptions(options);
 
     if (safety.dryRun) {
       return createDryRunResult({
-        text: `${options.back ? 'Back' : 'Stop'} simule sur ${formatCueDescription(identifier)}`,
+        text: `Stop/Back simule sur ${formatCueDescription(identifier)}`,
         action,
-        request: { command },
-        oscAddress: oscMappings.cues.stopBackCommand,
-        oscArgs: [
-          {
-            type: 's',
-            value: command
-          }
-        ],
-        cli: { text: command }
+        request: { cuelist: listNumber },
+        oscAddress: address,
+        oscArgs: []
       });
     }
 
-    await client.sendCommand(command, extractTargetOptions(options));
+    await client.sendMessage(address, [], extractTargetOptions(options));
     notifyCueResourceChange(identifier);
 
     return createCueCommandResult(
       action,
       identifier,
-      { command },
-      oscMappings.cues.stopBackCommand,
+      { cuelist: listNumber },
+      address,
       {
-        summary: `${options.back ? 'Back' : 'Stop'} sur ${formatCueDescription(identifier)}`
+        summary: `Stop/Back envoye sur ${formatCueDescription(identifier)}; resultat dependant du fondu en cours.`
       },
       {
-        oscArgs: [
-          {
-            type: 's',
-            value: command
-          }
-        ],
-        cli: {
-          text: command
-        }
+        oscArgs: []
       }
     );
   }

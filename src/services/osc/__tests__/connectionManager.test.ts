@@ -36,6 +36,9 @@ describe('OscConnectionManager', () => {
   }
 
   class MockUdpSocket extends EventEmitter {
+    public readonly bind = jest.fn((_options: unknown, callback: () => void) => { callback(); return this; });
+    public readonly setRecvBufferSize = jest.fn();
+    public readonly setSendBufferSize = jest.fn();
     public readonly send = jest.fn(
       (
         msg: Uint8Array | string,

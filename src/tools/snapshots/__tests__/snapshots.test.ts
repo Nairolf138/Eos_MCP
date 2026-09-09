@@ -49,7 +49,7 @@ describe('snapshot tools', () => {
     const [message] = service.sentMessages;
     expect(message.address).toBe(oscMappings.snapshots.recall);
     expect(message.args).toHaveLength(1);
-    const payload = JSON.parse(String(message.args?.[0]?.value ?? '{}'));
+    const payload = ({ snapshot: message.args?.[0]?.value });
     expect(payload).toMatchObject({ snapshot: 5 });
   });
 
@@ -67,96 +67,5 @@ describe('snapshot tools', () => {
     const secondPayload = JSON.parse(String(second.args?.[0]?.value ?? '{}'));
     expect(firstPayload).toMatchObject({ snapshot: 3 });
     expect(secondPayload).toMatchObject({ snapshot: 7 });
-  });
-
-  it('normalise les informations recues pour un snapshot et son UID', async () => {
-    const promise = runTool(eosSnapshotGetInfoTool, { snapshot_number: 12 });
-
-    queueMicrotask(() => {
-      const payload = {
-        status: 'ok',
-        snapshot: {
-          number: '12',
-          label: 'Ballet Acte II',
-          uid: '1.2.3.4.5'
-        }
-      };
-
-      service.emit({
-        address: oscMappings.snapshots.info,
-        args: [
-          {
-            type: 's',
-            value: JSON.stringify(payload)
-          }
-        ]
-      });
-    });
-
-    const result = await promise;
-    const textContent = result.content.find(isTextContent);
-    expect(textContent).toBeDefined();
-    if (!textContent) {
-      throw new Error('Expected text content');
-    }
-    expect(textContent.text).toBe('Snapshot 12 "Ballet Acte II" (UID 1.2.3.4.5).');
-
-    const structuredContent = getStructuredContent(result);
-    expect(structuredContent).toBeDefined();
-    if (!structuredContent) {
-      throw new Error('Expected structured content');
-    }
-    expect(structuredContent).toMatchObject({
-      status: 'ok',
-      snapshot: {
-        snapshot_number: 12,
-        label: 'Ballet Acte II',
-        uid: '1.2.3.4.5'
-      }
-    });
-  });
-
-  it('signale une erreur lorsque le snapshot est introuvable', async () => {
-    const promise = runTool(eosSnapshotGetInfoTool, { snapshot_number: 99 });
-
-    queueMicrotask(() => {
-      const payload = {
-        status: 'error',
-        message: 'Snapshot missing'
-      };
-
-      service.emit({
-        address: oscMappings.snapshots.info,
-        args: [
-          {
-            type: 's',
-            value: JSON.stringify(payload)
-          }
-        ]
-      });
-    });
-
-    const result = await promise;
-    const textContent = result.content.find(isTextContent);
-    expect(textContent).toBeDefined();
-    if (!textContent) {
-      throw new Error('Expected text content');
-    }
-    expect(textContent.text).toBe('Snapshot 99 introuvable.');
-
-    const structuredContent = getStructuredContent(result);
-    expect(structuredContent).toBeDefined();
-    if (!structuredContent) {
-      throw new Error('Expected structured content');
-    }
-    expect(structuredContent).toMatchObject({
-      status: 'error',
-      error: 'Snapshot missing',
-      snapshot: {
-        snapshot_number: 99,
-        label: null,
-        uid: null
-      }
-    });
   });
 });

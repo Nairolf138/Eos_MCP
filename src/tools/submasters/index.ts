@@ -145,7 +145,7 @@ function resolveLevelValue(value: number | string): number {
     throw new Error("Impossible d'interpreter la valeur de niveau.");
   }
 
-  if (numeric > 1) {
+  if ((typeof value === 'string' && value.trim().endsWith('%')) || numeric > 1) {
     if (numeric > 100) {
       throw new Error('Le niveau ne peut pas exceder 100%.');
     }

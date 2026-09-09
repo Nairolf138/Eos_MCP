@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 import { z } from 'zod';
+import { buildChannelParameterAddress, buildChannelLevelAddress, buildChannelColorHsAddress } from '../../services/osc/addressBuilders';
+import { pollReadback } from '../common/readback';
 import { getOscClient } from '../../services/osc/client';
 import { parseNumberRangeString, safeChannelRangeTextSchema, userIdSchema } from '../../utils/validators';
 import { buildToolResult, type ToolExecutionResult } from '../types';
@@ -59,10 +61,10 @@ export async function prepareShowObjects(raw: unknown, workflow: string): Promis
     const channels = parseNumberRangeString(target.channels);
     const id = `${target.family}:${target.number}`;
     for (const channel of channels) {
-      if ('hue' in target && typeof target.hue === 'number' && 'saturation' in target && typeof target.saturation === 'number') operations.push({ address: `/eos/chan/${channel}/color/hs`, args: [{ type: 'f', value: target.hue }, { type: 'f', value: target.saturation }], target: id });
-      if ('pan' in target && typeof target.pan === 'number') operations.push({ address: `/eos/chan/${channel}/param/Pan`, args: [{ type: 'f', value: target.pan }], target: id });
-      if ('tilt' in target && typeof target.tilt === 'number') operations.push({ address: `/eos/chan/${channel}/param/Tilt`, args: [{ type: 'f', value: target.tilt }], target: id });
-      if ('level' in target && typeof target.level === 'number') operations.push({ address: `/eos/chan/${channel}`, args: [{ type: 'f', value: target.level }], target: id });
+      if ('hue' in target && typeof target.hue === 'number' && 'saturation' in target && typeof target.saturation === 'number') operations.push({ address: buildChannelColorHsAddress(channel), args: [{ type: 'f', value: target.hue }, { type: 'f', value: target.saturation }], target: id });
+      if ('pan' in target && typeof target.pan === 'number') operations.push({ address: buildChannelParameterAddress(channel, 'Pan'), args: [{ type: 'f', value: target.pan }], target: id });
+      if ('tilt' in target && typeof target.tilt === 'number') operations.push({ address: buildChannelParameterAddress(channel, 'Tilt'), args: [{ type: 'f', value: target.tilt }], target: id });
+      if ('level' in target && typeof target.level === 'number') operations.push({ address: buildChannelLevelAddress(channel), args: [{ type: 'f', value: target.level }], target: id });
     }
     const filter = 'intensity_only' in target && target.intensity_only ? ' Intensity' : '';
     operations.push({ address: commandAddress, args: [{ type: 's', value: `Chan ${channels.join(' + ')}${filter} Record ${target.kind} ${target.number}#` }], target: id });
@@ -73,7 +75,8 @@ export async function prepareShowObjects(raw: unknown, workflow: string): Promis
   if (options.dry_run === true) return buildToolResult({ status: 'dry_run', summary: 'Preparation simulee; aucune commande envoyee.', commandsSent: [], structuredContent: { ...common, dry_run: true } });
   if (options.require_confirmation !== true) throw new Error('Confirmation explicite requise pour enregistrer ces cibles.');
   const client = getOscClient();
-  const read = (target: typeof targets[number]) => client.requestJson(`/eos/get/${target.family}/${target.number}`, { targetAddress: options.targetAddress, targetPort: options.targetPort, timeoutMs: options.verification_timeout_ms ?? 2000 });
+  const timeoutMs = options.verification_timeout_ms ?? 2000;
+  const read = (target: typeof targets[number], budget = timeoutMs) => client.requestJson(`/eos/get/${target.family}/${target.number}`, { targetAddress: options.targetAddress, targetPort: options.targetPort, timeoutMs: budget });
   // An explicit native empty-target reply distinguishes a free number from a failed read.
   for (const target of targets) {
     const response = await read(target);
@@ -88,12 +91,16 @@ export async function prepareShowObjects(raw: unknown, workflow: string): Promis
         await client.sendMessage(operation.address, operation.args, options);
         sent.push(`${operation.address} ${JSON.stringify(operation.args.map((arg) => arg.value))}`);
       }
-      const response = await read(target);
+      const expectedMembers = parseNumberRangeString(target.channels);
+      const response = await pollReadback((remaining) => read(target, remaining), (data) => {
+        const object = data as { label?: string; channels?: number[] } | null;
+        return object?.label === target.label && (target.family === 'sub' || (Array.isArray(object.channels) && object.channels.length === expectedMembers.length && expectedMembers.every((channel) => object.channels!.includes(channel))));
+      }, timeoutMs);
       const actual = response.data as { label?: string; channels?: number[] } | null;
       if (response.status !== 'ok' || actual?.label !== target.label) throw new Error(`Enregistrement/label non confirme pour ${id}.`);
       if (target.family !== 'sub') {
         const expected = parseNumberRangeString(target.channels);
-        if (!actual.channels || expected.length !== actual.channels.length || expected.some((channel, index) => actual.channels![index] !== channel)) throw new Error(`Membres non conformes pour ${id}.`);
+        if (!actual.channels || expected.length !== actual.channels.length || expected.some((channel) => !actual.channels!.includes(channel))) throw new Error(`Membres non conformes pour ${id}.`);
       }
       completed.push(id);
     }

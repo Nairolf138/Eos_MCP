@@ -15,10 +15,12 @@ export function messagePeer(message: OscMessage): string | null {
 
 /** Passive feedback is an observation with an age, never a fabricated request/reply. */
 export class OscObservations {
-  private readonly entries = new Map<string, { message: OscMessage; receivedAt: number }>();
+  private readonly entries = new Map<string, { message: OscMessage; receivedAt: number; sequence: number }>();
+  private sequence = 0;
+  public clear(): void { this.entries.clear(); }
   public remember(message: OscMessage): void {
     if (!/^\/eos\/out\/(?:event\/state|active\/cue|pending\/cue|active\/wheel|softkey)(?:\/|$)/.test(message.address)) return;
-    this.entries.set(`${messagePeer(message) ?? '*'}:${message.address}`, { message, receivedAt: Date.now() });
+    this.entries.set(`${messagePeer(message) ?? '*'}:${message.address}`, { message, receivedAt: Date.now(), sequence: ++this.sequence });
     while (this.entries.size > 512) this.entries.delete(this.entries.keys().next().value!);
   }
   public read(address: string, payload: Record<string, unknown>, peer: string, maxAgeMs = 2000): { data: unknown; payload: OscMessage; observed_at: number; is_complete: boolean } | null {
@@ -26,7 +28,7 @@ export class OscObservations {
     const rows = [...this.entries.values()].filter(({ message, receivedAt }) =>
       Date.now() - receivedAt <= maxAgeMs && (messagePeer(message) === null || messagePeer(message) === normalizePeer(peer))
       && (message.address === prefix || message.address.startsWith(`${prefix}/`)))
-      .sort((a, b) => b.receivedAt - a.receivedAt);
+      .sort((a, b) => b.sequence - a.sequence);
     const list = Number(payload.cuelist ?? payload.cuelist_number ?? payload.list ?? 1);
     for (const row of rows) {
       const values = oscValues(row.message);

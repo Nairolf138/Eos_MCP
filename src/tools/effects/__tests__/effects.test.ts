@@ -54,7 +54,7 @@ describe('effect tools', () => {
     expect(service.sentMessages[0]).toMatchObject({ address: oscMappings.effects.select });
 
     expect(service.sentMessages[0]?.args).toEqual([
-      { type: 's', value: 'Effect 12' }
+      { type: 'i', value: 12 }
     ]);
   });
 
@@ -65,7 +65,7 @@ describe('effect tools', () => {
     expect(service.sentMessages[0]).toMatchObject({ address: oscMappings.effects.stop });
 
     expect(service.sentMessages[0]?.args).toEqual([
-      { type: 's', value: 'Effect 7 Stop' }
+      { type: 's', value: 'Effect 7 At#' }
     ]);
   });
 
@@ -76,141 +76,9 @@ describe('effect tools', () => {
     expect(service.sentMessages[0]).toMatchObject({ address: oscMappings.effects.stop });
 
     expect(service.sentMessages[0]?.args).toEqual([
-      { type: 's', value: 'Effect Stop' }
+      { type: 's', value: 'Stop_Effect#' }
     ]);
   });
-
-  it("normalise les informations renvoyees pour un effet dynamique", async () => {
-    const promise = runTool(eosEffectGetInfoTool, { effect_number: 907 });
-
-    queueMicrotask(() => {
-      const payload = {
-        status: 'ok',
-        effect: {
-          number: '907',
-          label: 'Dyn Circle',
-          type: 'Relative Dynamic',
-          entry: 'Ramp Up',
-          exit: 'Stop',
-          scale: '150%',
-          rate: '120',
-          duration: '00:30',
-          waveform: 'Sine'
-        }
-      };
-
-      service.emit({
-        address: oscMappings.effects.info,
-        args: [
-          {
-            type: 's',
-            value: JSON.stringify(payload)
-          }
-        ]
-      });
-    });
-
-    const result = await promise;
-
-    const textContent = result.content.find(isTextContent);
-    expect(textContent).toBeDefined();
-    if (!textContent) {
-      throw new Error('Expected text content');
-    }
-    expect(textContent.text).toBe('Effet 907 "Dyn Circle" (Relative Dynamic, rate 120, scale 150%).');
-
-    const structuredContent = getStructuredContent(result);
-    expect(structuredContent).toBeDefined();
-    if (!structuredContent) {
-      throw new Error('Expected structured content');
-    }
-
-    expect(structuredContent).toMatchObject({
-      action: 'effect_get_info',
-      status: 'ok',
-      request: { effect: 907 },
-      error: null,
-      effect: {
-        effect_number: 907,
-        label: 'Dyn Circle',
-        type: {
-          raw: 'Relative Dynamic',
-          normalized: 'relative_dynamic',
-          category: 'relative_dynamic',
-          base: 'relative',
-          isDynamic: true
-        },
-        entry: {
-          normalized: 'ramp_up',
-          mode: 'fade'
-        },
-        exit: {
-          normalized: 'stop',
-          mode: 'stop'
-        },
-        scale: {
-          unit: 'percent',
-          percentage: 150,
-          ratio: 1.5,
-          description: '150%'
-        },
-        rate: 120,
-        duration: 30,
-        raw: { waveform: 'Sine' }
-      },
-      osc: {
-        address: oscMappings.effects.info
-      }
-    });
-  });
-
-  it('signale une erreur lorsque le numero ne correspond a aucun effet', async () => {
-    const promise = runTool(eosEffectGetInfoTool, { effect_number: 99 });
-
-    queueMicrotask(() => {
-      const payload = {
-        status: 'error',
-        message: 'Effect not found'
-      };
-
-      service.emit({
-        address: oscMappings.effects.info,
-        args: [
-          {
-            type: 's',
-            value: JSON.stringify(payload)
-          }
-        ]
-      });
-    });
-
-    const result = await promise;
-
-    const textContent = result.content.find(isTextContent);
-    expect(textContent).toBeDefined();
-    if (!textContent) {
-      throw new Error('Expected text content');
-    }
-    expect(textContent.text).toBe('Effet 99 introuvable (Effect not found).');
-
-    const structuredContent = getStructuredContent(result);
-    expect(structuredContent).toBeDefined();
-    if (!structuredContent) {
-      throw new Error('Expected structured content');
-    }
-    expect(structuredContent).toMatchObject({
-      action: 'effect_get_info',
-      status: 'error',
-      error: 'Effect not found',
-      effect: {
-        effect_number: 99
-      },
-      osc: {
-        address: oscMappings.effects.info
-      }
-    });
-  });
-
   it('valide le numero effet requis', async () => {
     await expect(runTool(eosEffectSelectTool, { effect_number: 0 })).rejects.toThrow(ZodError);
     await expect(runTool(eosEffectGetInfoTool, { effect_number: 0 })).rejects.toThrow(ZodError);

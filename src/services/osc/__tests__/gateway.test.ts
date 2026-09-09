@@ -49,6 +49,8 @@ jest.mock('../connectionManager.js', () => ({
       instances.push(this);
     }
 
+    public async sendAsync(toolId: string, payload: Buffer, overrides?: { targetAddress?: string; targetPort?: number }): Promise<TransportType> { return this.send(toolId, payload, undefined, overrides); }
+
     public send(
       toolId: string,
       payload: Buffer,
