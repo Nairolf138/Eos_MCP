@@ -47,9 +47,9 @@ historical, not results for this batch.
 
 Next work:
 
-1. Finish completeness of passive wheel/softkey and multipart patch information.
-2. Finish completeness and published-schema/readback checks, including passive
-   observations, multipart patch data and submaster contents limitations.
+1. Update remaining result/OSC snapshots and manifest recommendations after the
+   native protocol and catalogue changes.
+2. Update generated and reference documentation with actual native limits.
 3. Migrate remaining fictional JSON wire fixtures and obsolete command/user/role
    expectations; clean unused test code and refresh reviewed contract snapshots.
    Preserve negative, transport and workflow coverage.
@@ -121,6 +121,21 @@ not counted as a completed regression run. The last completed workflow/E2E run
 remains the 54-test run above. Next: passive/multipart read completeness; update
 manifest recommendations, tool documentation and legacy result/OSC snapshots;
 then the full unit, native conformance and SDK E2E gates with final summaries.
+
+Completed batch after `271a790`: patch DTOs retain absolute start/end addresses
+and known DMX spans, including unpatched parts. Channel collections fetch every
+part; missing later parts fail instead of returning part one as complete. Native
+enumerations, channel collections and multipart reads share a global exchange
+timeout. Passive wheel/softkey results expose age/completeness and invalid softkey
+indices cannot complete a list. Submaster timing strings preserve `Man` and other
+ETC values; fractional percent inputs retain the correct 0–1 OSC scale.
+
+Validation: **141/141 tests passed in six suites**, with a final Jest JSON report
+(67 native read/schema cases, 39 native client, 19 preparation, 6 submaster, 4 real
+UDP/TCP conformance, 6 SDK/HTTP E2E). **TypeScript and global ESLint passed**.
+Next: remaining contract/result snapshots, manifest and documentation (including
+the obsolete claim that JSON conformance fixtures are console captures), followed
+by `npm run check:agent-ready:e2e`. No physical console/Nomad validation performed.
 
 Primary reference: [ETC OSC Dictionary](https://www.etcconnect.com/WebDocs/Controls/EosFamilyOnlineHelp/en/Content/23_Show_Control/08_OSC/OSC_Dictionary.htm)
 and [ETC OSC Get](https://www.etcconnect.com/WebDocs/Controls/EosFamilyOnlineHelp/en/Content/23_Show_Control/08_OSC/Using_OSC_with_Eos/OSC_Third-Party_Integration/OSC_Get.htm).

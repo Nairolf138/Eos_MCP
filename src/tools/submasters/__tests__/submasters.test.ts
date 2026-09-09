@@ -53,6 +53,11 @@ describe('submaster tools', () => {
     expect(service.sentMessages[0]?.args?.[0]).toMatchObject({ type: 'f', value: 0.75 });
   });
 
+  it.each([[0.5,0.5],['0.5%',0.005],[37.5,0.375],['37.5%',0.375]])('preserve les unites submaster de %s', async (level,value)=>{
+    await runTool(eosSubmasterSetLevelTool,{submaster_number:7,level});
+    expect(service.sentMessages).toEqual([{address:'/eos/sub/7',args:[{type:'f',value}]}]);
+  });
+
   it('convertit la commande de bump en indicateur booleen', async () => {
     await runTool(eosSubmasterBumpTool, { submaster_number: 5, state: 'on' });
     await runTool(eosSubmasterBumpTool, { submaster_number: 5, state: 0 });

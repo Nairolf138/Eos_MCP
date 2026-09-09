@@ -89,6 +89,9 @@ export interface PatchChannelPartInfo {
   manufacturer: string | null;
   model: string | null;
   dmx_address: string | null;
+  address: number | null;
+  ending_address: number | null;
+  dmx_span: number | null;
   gel: string | null;
   text: PatchChannelTextFields;
   notes: string | null;
@@ -146,6 +149,9 @@ export const patchChannelPartOutputSchema = z.object({
   manufacturer: z.string().nullable(),
   model: z.string().nullable(),
   dmx_address: z.string().nullable(),
+  address: z.number().int().nonnegative().nullable(),
+  ending_address: z.number().int().nonnegative().nullable(),
+  dmx_span: z.number().int().positive().nullable(),
   gel: z.string().nullable(),
   text: patchChannelTextOutputSchema,
   notes: z.string().nullable()
@@ -404,6 +410,12 @@ interface PartNormalisationContext {
   index: number;
 }
 
+function nativePatchAddresses(data: Record<string, unknown>): Pick<PatchChannelPartInfo,'address'|'ending_address'|'dmx_span'> {
+  const address = typeof data.address === 'number' ? asFiniteInteger(data.address) : null;
+  const ending = typeof data.ending_address === 'number' ? asFiniteInteger(data.ending_address) : null;
+  return {address, ending_address:ending, dmx_span:address != null && address > 0 && ending != null && ending >= address ? ending-address+1 : null};
+}
+
 function normaliseChannelPart(raw: unknown, context: PartNormalisationContext): PatchChannelPartInfo {
   const base = context.fallbackData;
   if (!raw || typeof raw !== 'object') {
@@ -426,11 +438,12 @@ function normaliseChannelPart(raw: unknown, context: PartNormalisationContext): 
   const mergedTexts = mergeTexts(base.text, extractedTexts);
 
   const part: PatchChannelPartInfo = {
+    ...nativePatchAddresses(data),
     part_number: partNumber,
     label: asNonEmptyString(data.label ?? data.name ?? data.fixture_label) ?? base.label,
     manufacturer: asNonEmptyString(data.manufacturer ?? data.mfg ?? data.brand ?? data.make) ?? base.manufacturer,
     model: asNonEmptyString(data.model ?? data.fixture ?? data.type ?? data.mode) ?? base.model,
-    dmx_address:
+    dmx_address: data.dmx_address === null || data.address === 0 ? null :
       normaliseDmxAddress(
         data.dmx_address ?? data.address ?? data.addr ?? data.dmx ?? data.patch ?? data.patch_address
       ) ?? base.dmx_address,
@@ -462,6 +475,7 @@ function normaliseChannelInfo(
       manufacturer: null,
       model: null,
       dmx_address: null,
+      address: null, ending_address: null, dmx_span: null,
       gel: null,
       text: extractTexts(undefined),
       notes: null
@@ -479,6 +493,7 @@ function normaliseChannelInfo(
   const requestedPart = requestedPartNumber && requestedPartNumber > 0 ? requestedPartNumber : null;
   const basePartTexts = extractTexts(data);
   const fallbackPart: PatchChannelPartInfo = {
+    ...nativePatchAddresses(data),
     part_number: requestedPart ?? fallbackPartNumber ?? 1,
     label: asNonEmptyString(data.label ?? data.channel_label ?? data.name ?? data.fixture_label) ?? null,
     manufacturer: asNonEmptyString(data.manufacturer ?? data.mfg ?? data.brand ?? data.make) ?? null,

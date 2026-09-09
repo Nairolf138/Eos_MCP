@@ -632,8 +632,11 @@ export const eosGetActiveWheelsTool: ToolDefinition<typeof getActiveWheelsSchema
 
     const wheels = extractActiveWheels(response.data);
 
-    return createResult(`Encodeurs actifs (${wheels.length})`, {
+    return createResult(`Encodeurs observes (${wheels.length}); liste potentiellement partielle.`, {
       status: response.status,
+      is_complete: false,
+      observed_at: response.observed_at,
+      limitations: ['Eos diffuse les encodeurs individuellement; aucun total ne permet de garantir une liste complete.'],
       wheels,
       osc: {
         request: oscMappings.parameters.activeWheels,

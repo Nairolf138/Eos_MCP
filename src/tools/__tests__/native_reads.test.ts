@@ -9,7 +9,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { ToolRegistry } from '../../server/toolRegistry';
 import { OscClient, setOscClient, type OscGateway } from '../../services/osc/client';
 import type { OscMessage } from '../../services/osc/index';
-import { frame, replyToNativeRequest } from '../../services/osc/__tests__/fixtures/nativePeer';
+import { frame, nativeObject, replyToNativeRequest } from '../../services/osc/__tests__/fixtures/nativePeer';
 import { getResourceCache } from '../../services/cache';
 import tools from '../index';
 import type { ToolDefinition } from '../types';
@@ -28,7 +28,7 @@ const cases: Array<[string, Record<string, unknown>, string, Record<string, unkn
   ['eos_group_get_info', { group_number: 7 }, '/eos/get/group/7', { group: { label: 'group 7', members: [{ channel: 101, label: null }, { channel: 102, label: null }] } }],
   ['eos_macro_get_info', { macro_number: 7 }, '/eos/get/macro/7', { macro: { label: 'macro 7' } }],
   ['eos_magic_sheet_get_info', { ms_number: 7 }, '/eos/get/ms/7', { magic_sheet: { label: 'ms 7' } }],
-  ['eos_submaster_get_info', { submaster_number: 7 }, '/eos/get/sub/7', { submaster: { label: 'sub 7', priority: 'P3' } }],
+  ['eos_submaster_get_info', { submaster_number: 7 }, '/eos/get/sub/7', { submaster: { label: 'sub 7', priority: 'P3', timings: {up:'0',dwell:'Man',down:'0'} } }],
   ['eos_effect_get_info', { effect_number: 7 }, '/eos/get/fx/7', { effect: { label: 'fx 7' } }],
   ['eos_curve_get_info', { curve_number: 7 }, '/eos/get/curve/7', { curve: { label: 'curve 7' } }],
   ['eos_snapshot_get_info', { snapshot_number: 7 }, '/eos/get/snap/7', { snapshot: { label: 'snap 7' } }],
@@ -94,4 +94,57 @@ describe('Native read tools and their published JSON output schemas', () => {
     }
     expect(peer.sent).toEqual([]);
   });
+  test.each([0,514])('reads all patch parts and preserves unpatched/real addresses: %s', async secondAddress => {
+    peer.respond = message => {
+      const match=message.address.match(/patch\/101\/([12])$/);
+      if(!match)return [];
+      const part=Number(match[1]);const replies=nativeObject('patch',101,-1,'Multipart',2,part);
+      const values=replies[0].args!.map(arg=>arg.value);values[19]=2;
+      if(part===2){values[5]=secondAddress;values[20]=secondAddress?516:0;}
+      replies[0]=frame(`/eos/out/get/patch/101/${part}`,values);return replies;
+    };
+    const definition=tool('eos_patch_get_channel_info');
+    const result=await definition.handler({channel_number:101,part_number:0},{});
+    expect(result.structuredContent).toMatchObject({status:'ok',channel:{part_count:2,parts:[
+      {part_number:1,address:513,ending_address:513,dmx_span:1},
+      {part_number:2,address:secondAddress,ending_address:secondAddress?516:0,dmx_address:secondAddress?'2/2':null,dmx_span:secondAddress?3:null}
+    ]}});
+    validateSchema(definition,result.structuredContent);
+    expect(peer.sent.map(message=>message.address)).toEqual(['/eos/get/patch/101/1','/eos/get/patch/101/2']);
+  });
+  test('never substitutes the first part when a later part is missing', async()=>{
+    peer.respond=message=>{
+      if(!message.address.endsWith('/1'))return [];
+      const replies=nativeObject('patch',101);const values=replies[0].args!.map(arg=>arg.value);values[19]=2;
+      replies[0]=frame('/eos/out/get/patch/101/1',values);return replies;
+    };
+    const definition=tool('eos_patch_get_channel_info');
+    const result=await definition.handler({channel_number:101,part_number:0,timeoutMs:50},{});
+    expect(result.structuredContent).toMatchObject({status:'timeout',is_complete:false});
+    expect(result.structuredContent?.channel).toBeUndefined();validateSchema(definition,result.structuredContent);
+  });
+  test('bounds enumeration by one deadline, retaining only partial read data on timeout', async()=>{
+    peer.send=async message=>{
+      peer.sent.push(message);
+      if(message.address.endsWith('/count')){peer.emit(frame('/eos/out/get/group/count',[100]));return;}
+      const targetPeer=peer;
+      setTimeout(()=>{ for(const response of nativeObject('group',7,Number(message.address.split('/').pop())))targetPeer.emit(response); },50);
+    };
+    const result=await client.requestJson('/eos/get/group/index/{index}',{timeoutMs:120});
+    expect(result).toMatchObject({status:'timeout',data:{is_complete:false}});
+    expect(peer.sent.length).toBeLessThan(10);
+  });
+  test('exposes passive wheel/softkey completeness instead of a fabricated full list', async()=>{
+    peer.emit(frame('/eos/out/active/wheel/1',['Pan','Focus',45]));
+    const wheels=await tool('eos_get_active_wheels').handler({},{});
+    expect(wheels.structuredContent).toMatchObject({status:'ok',is_complete:false,observed_at:expect.any(Number)});
+    for(let i=1;i<12;i++)peer.emit(frame(`/eos/out/softkey/${i}`,[`Key ${i}`]));
+    peer.emit(frame('/eos/out/softkey/999',['Invalid']));
+    const partial=await tool('eos_get_softkey_labels').handler({},{});
+    expect(partial.structuredContent).toMatchObject({status:'ok',is_complete:false,observed_at:expect.any(Number)});
+    peer.emit(frame('/eos/out/softkey/12',['Key 12']));
+    const complete=await tool('eos_get_softkey_labels').handler({},{});
+    expect(complete.structuredContent).toMatchObject({status:'ok',is_complete:true});expect(peer.sent).toEqual([]);
+  });
+
 });

@@ -185,6 +185,9 @@ function buildSoftkeyLabelsResult(
   return buildResult(text, {
     action: 'get_softkey_labels',
     status: response.status,
+    is_complete: response.is_complete === true,
+    observed_at: response.observed_at,
+    limitations: response.is_complete === true ? [] : ['Seuls les libelles recemment diffuses par Eos sont disponibles.'],
     labels,
     payload: response.data
   });

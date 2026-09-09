@@ -18,10 +18,9 @@ import { levelValueSchema, submasterNumberSchema } from '../../utils/validators'
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 
 export interface SubmasterTimings {
-  up: number | null;
-  down: number | null;
-  assert: number | null;
-  release: number | null;
+  up: string | null;
+  dwell: string | null;
+  down: string | null;
 }
 
 export interface SubmasterInfo {
@@ -60,15 +59,6 @@ const getInfoInputSchema = {
   timeoutMs: z.coerce.number().int().min(50).optional(),
   ...targetOptionsSchema
 } satisfies ZodRawShape;
-
-const defaultTimings: SubmasterTimings = {
-  up: null,
-  down: null,
-  assert: null,
-  release: null
-};
-
-type MutableTimings = { -readonly [K in keyof SubmasterTimings]: SubmasterTimings[K] };
 
 function extractTargetOptions(options: { targetAddress?: string; targetPort?: number }): {
   targetAddress?: string;
@@ -251,41 +241,8 @@ function normaliseBoolean(value: unknown): boolean {
 }
 
 function normaliseTimings(raw: unknown): SubmasterTimings {
-  const timings: MutableTimings = { ...defaultTimings };
-  if (!isRecord(raw)) {
-    return timings;
-  }
-
-  const source = raw as Record<string, unknown>;
-  timings.up =
-    asFiniteNumber(
-      source.up ??
-        source.up_time ??
-        source.fade_up ??
-        source.raise ??
-        source.rise ??
-        source.time_up
-    ) ?? timings.up;
-
-  timings.down =
-    asFiniteNumber(
-      source.down ??
-        source.down_time ??
-        source.fade_down ??
-        source.lower ??
-        source.fall ??
-        source.time_down
-    ) ?? timings.down;
-
-  timings.assert =
-    asFiniteNumber(source.assert ?? source.assert_time ?? source.time_assert ?? source.assertion) ?? timings.assert;
-
-  timings.release =
-    asFiniteNumber(
-      source.release ?? source.release_time ?? source.time_release ?? source.rel ?? source.fade_release
-    ) ?? timings.release;
-
-  return timings;
+  const source = isRecord(raw) ? raw : {};
+  return {up:asString(source.up_time ?? source.up),dwell:asString(source.dwell_time ?? source.dwell),down:asString(source.down_time ?? source.down)};
 }
 
 function normaliseSubmasterInfo(raw: unknown, fallbackNumber: number): SubmasterInfo {
@@ -323,7 +280,8 @@ function normaliseSubmasterInfo(raw: unknown, fallbackNumber: number): Submaster
     null;
 
   const timingsSource =
-    source.timings ?? source.timing ?? source.fade ?? source.time ?? source.times ?? container.timings ?? container.timing;
+    source.up_time != null || source.dwell_time != null || source.down_time != null ? source :
+    source.timings ?? source.timing ?? container.timings ?? container.timing;
   const timings = timingsSource == null ? null : normaliseTimings(timingsSource);
 
   const htpCandidate =
@@ -477,10 +435,9 @@ export const eosSubmasterGetInfoTool: ToolDefinition<typeof getInfoInputSchema> 
         priority: z.union([z.string(), z.number()]).nullable(),
         timings: z
           .object({
-            up: z.number().nullable(),
-            down: z.number().nullable(),
-            assert: z.number().nullable(),
-            release: z.number().nullable()
+            up: z.string().nullable(),
+            dwell: z.string().nullable(),
+            down: z.string().nullable()
           })
           .nullable()
       }),

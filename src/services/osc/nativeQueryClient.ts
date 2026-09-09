@@ -28,35 +28,36 @@ export class NativeQueryClient {
     // OSC has no request IDs. Only one show query uses this gateway at a time.
     return this.lock.run('queries', async () => {
       try {
+        const deadline = Date.now() + timeoutMs;
         if (Array.isArray(payload.channels)) {
           const channels: unknown[] = [];
           for (const channel of payload.channels) {
-            const result = await this.execute(planNativeQuery('/eos/get/patch/{channel}/{part}', { channel, part: 1 }), timeoutMs, io);
+            const result = await this.execute(planNativeQuery('/eos/get/patch/{channel}/{part}', { channel, part: 0 }), deadline, io);
             if (result.status !== 'ok') return result;
             channels.push(result.data);
           }
           return { status: 'ok', data: { channels }, payload: null, request_address: '/eos/get/patch/{channel}/{part}' };
         }
-        return await this.execute(planNativeQuery(template, payload), timeoutMs, io);
+        return await this.execute(planNativeQuery(template, payload), deadline, io);
       } catch (error) {
         return { status: 'error', data: null, payload: null, error: error instanceof Error ? error.message : String(error), request_address: template };
       }
     });
   }
 
-  private async execute(plan: NativeQueryPlan, timeoutMs: number, io: NativeQueryIo): Promise<NativeQueryResult> {
+  private async execute(plan: NativeQueryPlan, deadline: number, io: NativeQueryIo): Promise<NativeQueryResult> {
     if (plan.kind === 'observe') {
       return { status: 'error', data: null, payload: null, request_address: plan.address, error: 'Cette information est diffusee par Eos; aucune requete /get equivalente n’est documentee. Attendre un evenement OSC recent.' };
     }
     if (plan.family === 'patch' && plan.kind === 'resource' && /\/0$/.test(plan.address)) {
-      const first = await this.exchange({ ...plan, address: plan.address.replace(/\/0$/, '/1') }, timeoutMs, io);
+      const first = await this.exchange({ ...plan, address: plan.address.replace(/\/0$/, '/1') }, deadline, io);
       if (first.status !== 'ok') return first;
       const main = first.data as Record<string, unknown>;
       const count = Number(main.part_count);
       if (!Number.isInteger(count) || count < 1 || count > 99) throw new Error('Nombre de parties patch invalide.');
       const parts = [main];
       for (let part = 2; part <= count; part++) {
-        const response = await this.exchange({ ...plan, address: plan.address.replace(/\/0$/, `/${part}`) }, timeoutMs, io);
+        const response = await this.exchange({ ...plan, address: plan.address.replace(/\/0$/, `/${part}`) }, deadline, io);
         if (response.status !== 'ok') return response;
         parts.push(response.data as Record<string, unknown>);
       }
@@ -64,22 +65,24 @@ export class NativeQueryClient {
     }
     if (plan.kind === 'enumerate') {
       const countAddress = plan.address.replace('/index/{index}', '/count');
-      const countResult = await this.exchange({ ...plan, address: countAddress, kind: 'scalar' }, timeoutMs, io);
+      const countResult = await this.exchange({ ...plan, address: countAddress, kind: 'scalar' }, deadline, io);
       if (countResult.status !== 'ok') return countResult;
       const count = Number((countResult.data as { count: number }).count);
       if (count > 10_000) throw new Error('Enumeration trop volumineuse (> 10000 objets). Restreindre la requete.');
       const items: unknown[] = [];
       for (let index = 0; index < count; index++) {
-        const item = await this.exchange({ ...plan, address: plan.address.replace('{index}', String(index)), kind: 'resource', index }, timeoutMs, io);
+        const item = await this.exchange({ ...plan, address: plan.address.replace('{index}', String(index)), kind: 'resource', index }, deadline, io);
         if (item.status !== 'ok') return { ...item, data: { items, expected_count: count, is_complete: false } };
         items.push(item.data);
       }
       return { status: 'ok', data: { items, [listKeys[plan.family] ?? 'items']: items, count }, payload: null, request_address: plan.address };
     }
-    return this.exchange(plan, timeoutMs, io);
+    return this.exchange(plan, deadline, io);
   }
 
-  private async exchange(plan: NativeQueryPlan, timeoutMs: number, io: NativeQueryIo): Promise<NativeQueryResult> {
+  private async exchange(plan: NativeQueryPlan, deadline: number, io: NativeQueryIo): Promise<NativeQueryResult> {
+    const timeoutMs = deadline - Date.now();
+    if (timeoutMs <= 0) return {status:'timeout',data:null,payload:null,request_address:plan.address,error:'Delai global de la requete OSC depasse.'};
     const expected = plan.address.replace('/eos/get/', '/eos/out/get/');
     const assembler = new NativeListAssembler();
     const sections = new Map<string, unknown[]>();

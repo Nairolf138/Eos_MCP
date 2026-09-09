@@ -260,6 +260,8 @@ export interface OscJsonResponse {
   payload: unknown;
   diagnostics?: OscJsonDiagnostics;
   error?: string;
+  observed_at?: number;
+  is_complete?: boolean;
 }
 
 interface InternalOscJsonRequestOptions {

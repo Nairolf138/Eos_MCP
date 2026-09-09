@@ -20,6 +20,10 @@ export class OscObservations {
   public clear(): void { this.entries.clear(); }
   public remember(message: OscMessage): void {
     if (!/^\/eos\/out\/(?:event\/state|active\/cue|pending\/cue|active\/wheel|softkey)(?:\/|$)/.test(message.address)) return;
+    if (message.address.startsWith('/eos/out/softkey/')) {
+      const index = Number(message.address.split('/').pop());
+      if (!Number.isInteger(index) || index < 1 || index > 12 || typeof oscValues(message)[0] !== 'string') return;
+    }
     this.entries.set(`${messagePeer(message) ?? '*'}:${message.address}`, { message, receivedAt: Date.now(), sequence: ++this.sequence });
     while (this.entries.size > 512) this.entries.delete(this.entries.keys().next().value!);
   }
