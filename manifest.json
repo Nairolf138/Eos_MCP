@@ -32,7 +32,7 @@
           {
             "id": "eos_workflow_autopatch_band",
             "title": "Patch complet du groupe sur scene",
-            "description": "Point d entree naturel pour patcher tout un patch band: blocs de fixtures, adresses DMX, labels et option face trad en une seule sequence.",
+            "description": "Préparer un patch par blocs avec profils exacts, empreintes DMX explicites, contrôle des collisions et relecture native.",
             "recommended": true,
             "primary_entry_point": true,
             "annotations": {
@@ -54,7 +54,7 @@
           {
             "id": "eos_workflow_build_groups_and_palettes",
             "title": "Construire groupes et palettes",
-            "description": "Point d entree naturel pour preparer un show: enregistrer des groupes de canaux puis creer et nommer les color palettes et focus palettes associees.",
+            "description": "Préparer des groupes, palettes et submasters sélectifs sur des cibles libres, avec valeurs explicites et limites de relecture annoncées.",
             "recommended": true,
             "primary_entry_point": true,
             "annotations": {
@@ -65,18 +65,7 @@
           {
             "id": "eos_workflow_update_cue_look",
             "title": "Mettre a jour le look d une cue",
-            "description": "Point d entree naturel pour modifier une cue existante ou courante: aller a la cue, selectionner les canaux, ajuster l intensite puis lancer Update.",
-            "recommended": true,
-            "primary_entry_point": true,
-            "annotations": {
-              "recommended": true,
-              "primaryEntryPoint": true
-            }
-          },
-          {
-            "id": "eos_workflow_create_effect",
-            "title": "Creer un effet fly-out",
-            "description": "Point d entree naturel pour creer un fly-out ou effet de mouvement: assignation aux canaux, groupe optionnel, direction center-out/left-right, speed et size.",
+            "description": "Rappeler une cue identifiée par sa liste et son numéro, régler une intensité absolue puis Update ; modifie la sortie live.",
             "recommended": true,
             "primary_entry_point": true,
             "annotations": {
@@ -90,7 +79,6 @@
           "eos_workflow_create_cue_series",
           "eos_workflow_build_groups_and_palettes",
           "eos_workflow_update_cue_look",
-          "eos_workflow_create_effect",
           "eos_workflow_create_look",
           "eos_workflow_patch_fixture",
           "eos_workflow_patch_scan",

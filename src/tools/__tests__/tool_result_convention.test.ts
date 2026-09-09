@@ -4,7 +4,7 @@
  */
 import type { OscMessage } from '../../services/osc/index';
 import { OscClient, setOscClient, type OscGateway, type OscGatewaySendOptions } from '../../services/osc/client';
-import { oscMappings } from '../../services/osc/mappings';
+import { replyToNativeRequest } from '../../services/osc/__tests__/fixtures/nativePeer';
 import { eosCommandTool } from '../commands/command_tools';
 import { eosCueGoTool } from '../cues';
 import { eosAddressSelectTool } from '../dmx';
@@ -21,6 +21,7 @@ class FakeOscService implements OscGateway {
 
   public async send(message: OscMessage, _options?: OscGatewaySendOptions): Promise<void> {
     this.sentMessages.push(message);
+    for (const reply of replyToNativeRequest(message)) this.emit(reply);
   }
 
   public onMessage(listener: (message: OscMessage) => void): () => void {
@@ -71,32 +72,12 @@ describe('tool result convention snapshots', () => {
 
   it('standardise les resumes lisibles des familles prioritaires', async () => {
     const dmxPromise = runTool(eosAddressSelectTool, { address_number: '2/041' });
-    queueMicrotask(() => {
-      service.emit({
-        address: oscMappings.dmx.addressSelect,
-        args: [{ type: 's', value: JSON.stringify({ status: 'ok' }) }]
-      });
-    });
-
     const showNamePromise = runTool(eosGetShowNameTool, {});
-    queueMicrotask(() => {
-      service.emit({
-        address: oscMappings.showControl.showName,
-        args: [{ type: 's', value: JSON.stringify({ status: 'ok', show: 'Festival 2026' }) }]
-      });
-    });
-
     const patchPromise = runTool(eosPatchGetChannelInfoTool, { channel_number: 12 });
-    queueMicrotask(() => {
-      service.emit({
-        address: oscMappings.patch.channelInfo,
-        args: [{ type: 's', value: JSON.stringify({ status: 'ok', channel: { channel: 12, parts: [] } }) }]
-      });
-    });
 
     const results = {
       commands: readableEnvelope(await runTool(eosCommandTool, { command: 'Go To Cue 9', dry_run: true, user: 3 })),
-      cues: readableEnvelope(await runTool(eosCueGoTool, { cuelist_number: 5 })),
+      cues: readableEnvelope(await runTool(eosCueGoTool, { cuelist_number: 5, require_confirmation: true })),
       patch: readableEnvelope(await patchPromise),
       dmx: readableEnvelope(await dmxPromise),
       macros: readableEnvelope(await runTool(eosMacroFireTool, { macro_number: 7 })),
@@ -104,6 +85,8 @@ describe('tool result convention snapshots', () => {
       showControl: readableEnvelope(await showNamePromise)
     };
 
+    expect(results.patch.status).toBe('ok');
+    expect(results.showControl.status).toBe('ok');
     expect(results).toMatchSnapshot();
   });
 });

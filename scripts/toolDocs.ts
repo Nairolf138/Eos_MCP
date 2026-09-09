@@ -18,7 +18,6 @@ import {
 interface ToolMetadata {
   tool: ToolDefinition;
   schema?: z.ZodTypeAny;
-  exampleArgs?: Record<string, unknown> | undefined;
   properties: ToolProperty[];
 }
 
@@ -59,16 +58,11 @@ function patchModuleResolution(): () => void {
   };
 }
 
-function isWorkflowTool(tool: ToolDefinition): boolean {
-  return tool.name.startsWith('eos_workflow_');
+function createZodObject(shape: Record<string, ZodTypeAny>): z.ZodObject<Record<string, ZodTypeAny>> {
+  return z.object(shape).strict();
 }
 
-function createZodObject(shape: Record<string, ZodTypeAny>, tool: ToolDefinition): z.ZodObject<Record<string, ZodTypeAny>> {
-  const objectSchema = z.object(shape);
-  return isWorkflowTool(tool) ? objectSchema.passthrough() : objectSchema.strict();
-}
-
-function createZodSchema(tool: ToolDefinition, schemaLike: unknown): z.ZodTypeAny | undefined {
+function createZodSchema(schemaLike: unknown): z.ZodTypeAny | undefined {
   if (!schemaLike) {
     return undefined;
   }
@@ -80,7 +74,7 @@ function createZodSchema(tool: ToolDefinition, schemaLike: unknown): z.ZodTypeAn
   if (typeof schemaLike === 'object' && schemaLike != null && !Array.isArray(schemaLike)) {
     const entries = Object.entries(schemaLike as Record<string, unknown>);
     if (entries.length === 0) {
-      return createZodObject({}, tool);
+      return createZodObject({});
     }
 
     const shape: Record<string, ZodTypeAny> = {};
@@ -91,7 +85,7 @@ function createZodSchema(tool: ToolDefinition, schemaLike: unknown): z.ZodTypeAn
     }
 
     if (Object.keys(shape).length > 0) {
-      return createZodObject(shape, tool);
+      return createZodObject(shape);
     }
   }
 
@@ -248,199 +242,62 @@ function buildProperties(schema?: z.ZodTypeAny): ToolProperty[] {
   return properties.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function buildExample(schema?: z.ZodTypeAny): Record<string, unknown> | undefined {
-  if (!schema) {
-    return undefined;
-  }
-
-  const { type: base } = unwrap(schema);
-  if (!(base instanceof z.ZodObject)) {
-    return undefined;
-  }
-
-  const result: Record<string, unknown> = {};
-  const optionalFallback: Array<{ key: string; type: ZodTypeAny }> = [];
-
-  const shape = base.shape;
-  for (const key of Object.keys(shape)) {
-    const propertyType = shape[key] as ZodTypeAny;
-    const { type: unwrapped, optional } = unwrap(propertyType);
-    if (!optional) {
-      result[key] = buildSampleValue(unwrapped);
-    } else {
-      optionalFallback.push({ key, type: unwrapped });
-    }
-  }
-
-  if (Object.keys(result).length === 0 && optionalFallback.length > 0) {
-    const fallback = optionalFallback[0];
-    result[fallback.key] = buildSampleValue(fallback.type);
-  }
-
-  return Object.keys(result).length > 0 ? result : undefined;
+function mappingSummary(tool: ToolDefinition): string {
+  const mapping = tool.config.annotations?.mapping as { osc?: unknown } | undefined;
+  const paths = typeof mapping?.osc === 'string' ? [mapping.osc]
+    : Array.isArray(mapping?.osc) ? mapping.osc.filter((entry): entry is string => typeof entry === 'string') : [];
+  const special: Record<string, string> = {
+    eos_connect: '`/eos/get/version` (connexion locale et lecture native)',
+    eos_get_count: '`/eos/get/{family}/count` ; cues : `/eos/get/cue/{list}/count`',
+    eos_get_list_all: 'Get count puis `/eos/get/{family}/index/{index}` ; cues : liste explicite',
+    eos_reset: '`/eos/reset` (sans arguments, sans accusé de réception)',
+    eos_subscribe: '`/eos/subscribe`, `/eos/subscribe/param/{name}` (entier 0 ou 1)',
+    eos_capabilities_get: 'Contexte local et capacités observées ; voir eos_connect',
+    eos_workflow_patch_scan: 'Lectures natives `/eos/get/patch/{channel}/{part}`',
+    eos_submaster_record: 'Préparation sélective : Get sub, commandes utilisateur et Set label'
+  };
+  if (special[tool.name]) return special[tool.name];
+  if (paths.length) return paths.map((entry) => `\`${entry}\``).join(', ');
+  if (tool.name.startsWith('eos_workflow_')) return 'Orchestration de lectures Get, commandes utilisateur et Set natifs ; voir cookbook';
+  return 'Pas de mapping direct déclaré ; voir description (outil local ou orchestration)';
 }
 
-function buildSampleValue(type: ZodTypeAny): unknown {
-  const { type: base } = unwrap(type);
-
-  if (base instanceof z.ZodString) {
-    return base.description?.includes('UUID') ? '00000000-0000-0000-0000-000000000000' : 'exemple';
-  }
-  if (base instanceof z.ZodNumber) {
-    return 1;
-  }
-  if (base instanceof z.ZodBoolean) {
-    return true;
-  }
-  if (base instanceof z.ZodArray) {
-    return [buildSampleValue(base.element)];
-  }
-  if (base instanceof z.ZodEnum) {
-    return base.options[0];
-  }
-  if (base instanceof z.ZodNativeEnum) {
-    const values = Object.values(base.enum).filter((value) => typeof value === 'string' || typeof value === 'number');
-    return values[0];
-  }
-  if (base instanceof z.ZodLiteral) {
-    return base.value;
-  }
-  if (base instanceof z.ZodRecord) {
-    const valueType = (base._def as { valueType: ZodTypeAny }).valueType;
-    return { cle: buildSampleValue(valueType) };
-  }
-  if (base instanceof z.ZodTuple) {
-    const items = base.items as ZodTypeAny[];
-    return items.map((item) => buildSampleValue(item));
-  }
-  if (base instanceof z.ZodObject) {
-    return buildExample(base) ?? {};
-  }
-  if (base instanceof z.ZodUnion) {
-    return buildSampleValue(base.options[0]);
-  }
-  if (base instanceof z.ZodDiscriminatedUnion) {
-    const first = base.options.values().next();
-    if (!first.done) {
-      return buildSampleValue(first.value as ZodTypeAny);
-    }
-  }
-  if (base instanceof z.ZodBigInt) {
-    return BigInt(1);
-  }
-  if (base instanceof z.ZodDate) {
-    return new Date().toISOString();
-  }
-
-  return `<${base._def?.typeName ?? 'valeur'}>`;
-}
-
-function formatCliArgs(args?: Record<string, unknown>): string {
-  const payload = args ?? {};
-  const json = JSON.stringify(payload);
-  return json.replace(/'/g, "\\'");
-}
-
-function normaliseOscPath(value: unknown): string | undefined {
-  if (typeof value === 'string') {
-    return value;
-  }
-
-  if (Array.isArray(value)) {
-    for (const entry of value) {
-      if (typeof entry === 'string') {
-        return entry;
-      }
-    }
-  }
-
-  return undefined;
-}
-
-function applyCommandTemplate(template: string, args?: Record<string, unknown>): string {
-  if (!args) {
-    return template;
-  }
-
-  return template.replace(/\{([^}]+)\}/g, (match, key) => {
-    const value = key === 'channel' && args.channels != null
-      ? (Array.isArray(args.channels) ? args.channels[0] : args.channels)
-      : key === 'index' && args.softkey_number != null
-        ? args.softkey_number
-        : args[key];
-    if (value == null) {
-      return match;
-    }
-    if (Array.isArray(value)) {
-      return value.map((item) => String(item)).join(',');
-    }
-    return String(value);
-  });
-}
-
-function formatOscExample(mappingValue: unknown, args?: Record<string, unknown>): string[] {
-  if (!mappingValue) {
-    return ['_Pas de mapping OSC documenté._'];
-  }
-
-  let targetPath: string | undefined;
-  let commandTemplate: string | undefined;
-  let argTemplates: string[] | undefined;
-
-  if (typeof mappingValue === 'string' || Array.isArray(mappingValue)) {
-    targetPath = normaliseOscPath(mappingValue);
-  } else if (typeof mappingValue === 'object') {
-    const details = mappingValue as Record<string, unknown>;
-    targetPath = normaliseOscPath(details.osc);
-    if (typeof details.commandExample === 'string') {
-      commandTemplate = details.commandExample;
-    }
-    if (Array.isArray(details.args)) {
-      argTemplates = details.args.filter((item): item is string => typeof item === 'string');
-    }
-  }
-
-  if (!targetPath) {
-    return ['_Pas de mapping OSC documenté._'];
-  }
-
-  const resolvedPath = applyCommandTemplate(targetPath, args);
-  const isCommandAddress = resolvedPath === '/eos/cmd' || resolvedPath === '/eos/newcmd';
-
-  if (commandTemplate && isCommandAddress) {
-    const command = applyCommandTemplate(commandTemplate, args);
-    const escapedCommand = command.replace(/'/g, "\\'");
-    return [
-      '```bash',
-      "# Exemple d'envoi OSC via oscsend",
-      `oscsend 127.0.0.1 8001 ${resolvedPath} s:'${escapedCommand}'`,
-      '```'
-    ];
-  }
-
-  if (argTemplates) {
-    const resolvedArgs = argTemplates.map((template) => applyCommandTemplate(template, args));
-    const escapedArgs = resolvedArgs.map((value) => value.replace(/'/g, "\\'"));
-    const suffix = escapedArgs.length > 0 ? ` ${escapedArgs.join(' ')}` : '';
-    return [
-      '```bash',
-      "# Exemple d'envoi OSC via oscsend",
-      `oscsend 127.0.0.1 8001 ${resolvedPath}${suffix}`,
-      '```'
-    ];
-  }
-
-  const payload = args ?? {};
-  const json = JSON.stringify(payload);
-  const escaped = json.replace(/'/g, "\\'");
-  return [
-    '```bash',
-    "# Exemple d'envoi OSC via oscsend",
-    `oscsend 127.0.0.1 8001 ${resolvedPath} s:'${escaped}'`,
-    '```'
+function buildCoverage(tools: ToolDefinition[]): string {
+  const lines = [
+    '# Couverture OSC ↔ MCP', '',
+    '> Catalogue généré avec `npm run docs:generate -- --skip-jsdoc`.', '',
+    'Les chemins ci-dessous sont des modèles de routage, pas des commandes shell. Les arguments MCP sont du JSON ; les paquets OSC contiennent des arguments typés ETC, jamais une sérialisation JSON de ces arguments.', '',
+    'Sources : [dictionnaire ETC](https://www.etcconnect.com/WebDocs/Controls/EosFamilyOnlineHelp/en/Content/23_Show_Control/08_OSC/OSC_Dictionary.htm), [OSC Get](https://www.etcconnect.com/WebDocs/Controls/EosFamilyOnlineHelp/en/Content/23_Show_Control/08_OSC/Using_OSC_with_Eos/OSC_Third-Party_Integration/OSC_Get.htm), [EosSyncLib ETC](https://github.com/ETCLabs/EosSyncLib).', '',
+    '## Contrats natifs', '',
+    '| Usage | Requête / sortie | Arguments et portée |',
+    '| --- | --- | --- |',
+    '| Version | `/eos/get/version` → `/eos/out/get/version` | Requête vide ; version et bibliothèque en chaînes, drapeau gel en booléen |',
+    '| Objets | `/eos/get/{family}/{number}` | Réponses `/eos/out/get/...` typées ; familles `sub`, `fx`, `snap`, `ms` |',
+    '| Énumération | `/eos/get/{family}/count`, puis `/index/{index}` | Les cues nécessitent une liste : `/eos/get/cue/{list}/count` et `/index/{index}` |',
+    '| Patch | `/eos/get/patch/{channel}/{part}` | Parties natives à partir de 1 ; toutes les parties sont réunies localement pour une lecture globale |',
+    '| Fragments reçus | `/eos/out/get/.../list/{start}/{total}` | Offsets sur les arguments complets, sections obligatoires et UID cohérents ; absence ou délai = erreur |',
+    '| Commande texte | `/eos/cmd`, `/eos/newcmd`, `/eos/user/{user}/cmd`, `/eos/user/{user}/newcmd` | Un argument chaîne ; `#` termine la commande ; adresse utilisateur atomique |',
+    '| Ligne de commande | `/eos/out/cmd`, `/eos/out/user/{user}/cmd` | Observation passive, texte et drapeau erreur ; aucune requête Get inventée |',
+    '| GO / Stop-Back | `/eos/cues/{list}/fire`, `/eos/cues/{list}/stop` | Stop-Back dépend de l’état de lecture ; aucune option back indépendante |',
+    '| Cue déterminée | `/eos/cue/{cue}/fire`, `/eos/cue/{list}/{cue}[/part]/fire` | Liste absente conservée ; partie explicite exige une liste explicite |',
+    '| Groupe / sub | `/eos/group/{n}`, `/eos/sub/{n}` | Niveau groupe flottant 0–100 ; sub flottant 0–1 |',
+    '| Adresse DMX | `/eos/addr`, `/eos/addr/{n}`, `/eos/addr/{n}/DMX` | Adresse absolue entière ; niveau flottant 0–100 ou valeur DMX entière 0–255 |',
+    '| Couleur | `/eos/color/hs`, `/eos/color/rgb` | H 0–360, S 0–100 ; RGB 0–1 |',
+    '| Étiquettes | `/eos/set/.../label` | Une chaîne native, pas une commande Label construite avec du texte utilisateur |',
+    '| État, roues, softkeys | `/eos/out/event/state`, `/eos/out/active/wheel/{index}`, `/eos/out/softkey/{index}` | Cache daté ; données incomplètes ou périmées signalées |', '',
+    '## Niveau de preuve', '',
+    'Les fixtures de `nativePeer.ts` sont synthétiques, construites à partir des tables ETC. Les tests de conformance utilisent de vraies sockets UDP/TCP en boucle locale. Ce ne sont pas des captures de console ni une certification de versions Eos.', '',
+    '`sent_to_transport` prouve un envoi au transport. `accepted_by_eos` repose sur un retour de commande récent, corrélé à la cible et à l’utilisateur. `verified` exige une relecture du résultat annoncé. Un ACK, une existence ou une étiquette relue ne prouvent pas les valeurs enregistrées dans une cue, palette ou un sub.', '',
+    'Les métadonnées `validated_cmd_fallback` indiquent un routage par l’entrée de commande ETC ; elles ne certifient pas toute syntaxe de commande fournie par un utilisateur. Aucun endpoint sortant inconnu n’est autorisé, même hors mode strict.', '',
+    'Tests : `osc_contracts.test.ts` (catalogue et écritures natives), `native_reads.test.ts` (schémas publiés), `client.test.ts` (décodage, fragmentation, délais, provenance), `native_preparation.test.ts` et `workflows.test.ts` (préconditions, séquences, readbacks), `mcp-e2e.test.ts` (client SDK). Voir [limites natives](native-osc-limitations.md), [validation](validation-work-in-progress.md) et [tests E2E](testing-e2e.md).', '',
+    '## Catalogue courant', '',
+    '| Outil MCP | Routage / observation |', '| --- | --- |'
   ];
+  for (const tool of [...tools].sort((a, b) => a.name.localeCompare(b.name))) {
+    lines.push(`| \`${tool.name}\` | ${mappingSummary(tool).replace(/\|/g, '\\|')} |`);
+  }
+  return `${lines.join('\n')}\n`;
 }
-
 
 function formatMetadataValue(value: unknown): string {
   if (Array.isArray(value)) {
@@ -526,318 +383,45 @@ function isHighlighted(annotations: Record<string, unknown> | undefined): boolea
   return value === true;
 }
 
-const workflowNaturalExamplesLines = [
-  "## Exemples rapides par workflow naturel",
-  "",
-  "Les payloads ci-dessous utilisent le format MCP `tools/call` complet. Les exemples gardent `dry_run=true` pour previsualiser les commandes sans modifier la console; passez `dry_run=false` ou omettez le champ pour executer reellement le workflow.",
-  "",
-  "### Workflow autopatch band",
-  "",
-  "**Phrase utilisateur :** \"patch moi 10 Mac Aura a partir du 1/1, puis 4 faces trad en univers 2.\"",
-  "",
-  "**Payload MCP complet :**",
-  "",
-  "```json",
-  "{",
-  "  \"jsonrpc\": \"2.0\",",
-  "  \"id\": \"workflow-autopatch-band-1\",",
-  "  \"method\": \"tools/call\",",
-  "  \"params\": {",
-  "    \"name\": \"eos_workflow_autopatch_band\",",
-  "    \"arguments\": {",
-  "      \"fixtures\": [",
-  "        {",
-  "          \"count\": 10,",
-  "          \"fixture_manufacturer\": \"Martin\",",
-  "          \"fixture_model\": \"MAC Aura\",",
-  "          \"fixture_mode\": \"Extended\",",
-  "          \"universe\": 1,",
-  "          \"start_address\": 1,",
-  "          \"label_prefix\": \"Mac Aura\"",
-  "        }",
-  "      ],",
-  "      \"include_face_trad\": true,",
-  "      \"face_trad_count\": 4,",
-  "      \"face_trad_universe\": 2,",
-  "      \"face_trad_start_address\": 1,",
-  "      \"face_trad_label_prefix\": \"Face Trad\",",
-  "      \"dry_run\": true",
-  "    }",
-  "  }",
-  "}",
-  "```",
-  "",
-  "**Options et valeurs par defaut :** `fixtures` est obligatoire. Chaque fixture du bloc est espacee automatiquement de 10 adresses DMX estimees. `include_face_trad=false` par defaut; si `include_face_trad=true`, les valeurs par defaut sont `face_trad_count=4`, `face_trad_universe=1`, `face_trad_start_address=1`, `face_trad_label_prefix=\"Face Trad\"` et `fixture_query=\"trad\"`. `dry_run` absent vaut `false`. `targetAddress`, `targetPort` et `user` sont optionnels.",
-  "",
-  "### Workflow cue series",
-  "",
-  "**Phrase utilisateur :** \"crée moi 10 cues reggae avec des ambiances rouge, jaune et vert sur les Mac Aura.\"",
-  "",
-  "**Payload MCP complet :**",
-  "",
-  "```json",
-  "{",
-  "  \"jsonrpc\": \"2.0\",",
-  "  \"id\": \"workflow-cue-series-1\",",
-  "  \"method\": \"tools/call\",",
-  "  \"params\": {",
-  "    \"name\": \"eos_workflow_create_cue_series\",",
-  "    \"arguments\": {",
-  "      \"base_cuelist_number\": 1,",
-  "      \"start_cue_number\": 10,",
-  "      \"looks\": [",
-  "        {",
-  "          \"channels\": \"1 Thru 10\",",
-  "          \"intensity\": \"Full\",",
-  "          \"color_palette\": 101,",
-  "          \"focus_palette\": 201,",
-  "          \"beam_palette\": 301,",
-  "          \"cue_label\": \"Reggae rouge\"",
-  "        },",
-  "        {",
-  "          \"channels\": \"1 Thru 10\",",
-  "          \"color_palette\": 102,",
-  "          \"focus_palette\": 202,",
-  "          \"beam_palette\": 301,",
-  "          \"cue_label\": \"Reggae jaune\"",
-  "        },",
-  "        {",
-  "          \"channels\": \"1 Thru 10\",",
-  "          \"color_palette\": 103,",
-  "          \"focus_palette\": 203,",
-  "          \"beam_palette\": 302,",
-  "          \"cue_label\": \"Reggae vert\"",
-  "        }",
-  "      ],",
-  "      \"dry_run\": true",
-  "    }",
-  "  }",
-  "}",
-  "```",
-  "",
-  "**Options et valeurs par defaut :** `looks` est obligatoire et doit contenir au moins un look; chaque look requiert `channels`. Pour regler un niveau, renseignez `intensity` (ou l'alias `level`) avec `Full`, `Out`, une valeur `0` a `100`, ou une valeur EOS textuelle sure (`On`, `Home`, `FL`) : le workflow genere alors une commande separee `Chan <channels> At <intensity>` avant les palettes. Ne concatenez pas `At`, `Record` ou `Label` dans `channels`. `start_cue_number` vaut `1` par defaut et s'auto-incremente si un look ne precise pas `cue_number`. `base_cuelist_number` absent utilise la cuelist master. `color_palette`, `focus_palette`, `beam_palette` et `cue_label` sont optionnels par look. Pour \"10 cues\", envoyez 10 objets dans `looks` ou ajoutez des `cue_number` explicites pour les positions particulieres.",
-  "",
-  "### Workflow groups/palettes",
-  "",
-  "**Phrase utilisateur :** \"prépare les groupes Mac Aura et Trad, puis les palettes rouge, ambre et centre.\"",
-  "",
-  "**Payload MCP complet :**",
-  "",
-  "```json",
-  "{",
-  "  \"jsonrpc\": \"2.0\",",
-  "  \"id\": \"workflow-groups-palettes-1\",",
-  "  \"method\": \"tools/call\",",
-  "  \"params\": {",
-  "    \"name\": \"eos_workflow_build_groups_and_palettes\",",
-  "    \"arguments\": {",
-  "      \"groups\": [",
-  "        {",
-  "          \"number\": 1,",
-  "          \"label\": \"Mac Aura\",",
-  "          \"channels\": \"1 Thru 10\"",
-  "        },",
-  "        {",
-  "          \"number\": 2,",
-  "          \"label\": \"Face Trad\",",
-  "          \"channels\": \"11 Thru 14\"",
-  "        }",
-  "      ],",
-  "      \"color_palettes\": [",
-  "        {",
-  "          \"number\": 101,",
-  "          \"label\": \"Rouge reggae\",",
-  "          \"channels\": \"1 Thru 10\",",
-  "          \"hue\": \"Red\",",
-  "          \"saturation\": 100",
-  "        },",
-  "        {",
-  "          \"number\": 102,",
-  "          \"label\": \"Ambre reggae\",",
-  "          \"channels\": \"1 Thru 14\",",
-  "          \"hue\": \"Amber\",",
-  "          \"saturation\": 80",
-  "        }",
-  "      ],",
-  "      \"focus_palettes\": [",
-  "        {",
-  "          \"number\": 201,",
-  "          \"label\": \"Centre scene\",",
-  "          \"channels\": \"1 Thru 10\",",
-  "          \"description\": \"Pan 0 Tilt -20\"",
-  "        }",
-  "      ],",
-  "      \"dry_run\": true",
-  "    }",
-  "  }",
-  "}",
-  "```",
-  "",
-  "**Options et valeurs par defaut :** `groups`, `color_palettes` et `focus_palettes` sont tous optionnels, ce qui permet d'envoyer seulement les blocs necessaires. Dans un groupe, `number`, `label` et `channels` sont requis. Dans une color palette, `hue` et `saturation` sont optionnels. Dans une focus palette, `description` est optionnel et envoye comme commande libre avant l'enregistrement de la palette. `dry_run` absent vaut `false`.",
-  "",
-  "### Workflow update cue look",
-  "",
-  "**Phrase utilisateur :** \"mets a jour la cue 12 en baissant les Mac Aura a 70% et en rechauffant le look.\"",
-  "",
-  "**Payload MCP complet :**",
-  "",
-  "```json",
-  "{",
-  "  \"jsonrpc\": \"2.0\",",
-  "  \"id\": \"workflow-update-cue-look-1\",",
-  "  \"method\": \"tools/call\",",
-  "  \"params\": {",
-  "    \"name\": \"eos_workflow_update_cue_look\",",
-  "    \"arguments\": {",
-  "      \"cuelist_number\": 1,",
-  "      \"cue_number\": 12,",
-  "      \"channels\": \"1 Thru 10\",",
-  "      \"intensity_factor\": 0.7,",
-  "      \"warmify\": true,",
-  "      \"dry_run\": true",
-  "    }",
-  "  }",
-  "}",
-  "```",
-  "",
-  "**Options et valeurs par defaut :** `channels` est obligatoire. Si `cue_number` est absent, le workflow applique `Update Cue` sur la cue courante. Si `cue_number` est fourni sans `cuelist_number`, la cuelist master est utilisee. `intensity_factor` est optionnel et genere `At * <valeur>`. `warmify` et `desaturate` sont acceptes mais documentes comme transformations artistiques non calculees en v1; aucune commande implicite supplementaire n'est envoyee pour ces deux options. `dry_run` absent vaut `false`.",
-  "",
-  "### Workflow flyout effect",
-  "",
-  "**Phrase utilisateur :** \"crée un flyout center-out sur les Mac Aura, effet 21, rapide et assez large.\"",
-  "",
-  "**Payload MCP complet :**",
-  "",
-  "```json",
-  "{",
-  "  \"jsonrpc\": \"2.0\",",
-  "  \"id\": \"workflow-flyout-effect-1\",",
-  "  \"method\": \"tools/call\",",
-  "  \"params\": {",
-  "    \"name\": \"eos_workflow_create_effect\",",
-  "    \"arguments\": {",
-  "      \"channels\": \"1 Thru 10\",",
-  "      \"effect_number\": 21,",
-  "      \"group_number\": 1,",
-  "      \"direction\": \"center_out\",",
-  "      \"speed\": 1.8,",
-  "      \"size\": 140,",
-  "      \"dry_run\": true",
-  "    }",
-  "  }",
-  "}",
-  "```",
-  "",
-  "**Options et valeurs par defaut :** `channels` et `effect_number` sont obligatoires. `group_number` est optionnel; s'il est fourni, le workflow enregistre d'abord le groupe correspondant. `direction` vaut `left_to_right` par defaut et accepte aussi `right_to_left` ou `center_out`. `speed` vaut `1` par defaut et `size` vaut `100` par defaut. `dry_run` absent vaut `false`."
-];
-
 function buildDocumentation(tools: ToolDefinition[]): { markdown: string; metadata: Map<string, ToolMetadata> } {
   const metadata = new Map<string, ToolMetadata>();
   const sortedTools = [...tools].sort((a, b) => a.name.localeCompare(b.name));
 
   for (const tool of sortedTools) {
-    const schema = createZodSchema(tool, tool.config.inputSchema);
+    const schema = createZodSchema(tool.config.inputSchema);
     const properties = buildProperties(schema);
-    const exampleArgs = buildExample(schema);
-    metadata.set(tool.name, { tool, schema, properties, exampleArgs });
+    metadata.set(tool.name, { tool, schema, properties });
   }
 
-  const lines: string[] = [];
-  lines.push('# Documentation des outils');
-  lines.push('');
-  lines.push('> Ce document est généré automatiquement via `npm run docs:generate`.');
-  lines.push('> Merci de ne pas le modifier manuellement.');
-  lines.push('');
-  lines.push("Chaque outil expose son nom MCP, une description, la liste des arguments attendus ainsi qu'un exemple d'appel en CLI et par OSC.");
-  lines.push('');
-  lines.push('## Convention commune des resultats');
-  lines.push('');
-  lines.push('Les handlers LLM-facing doivent construire leurs reponses via `buildToolResult` (ou un helper local qui l appelle) afin de conserver une enveloppe stable dans `content[0].text` et `structuredContent`.');
-  lines.push('');
-  lines.push('- `content[0].text` : resume humain court, directement lisible par un operateur.');
-  lines.push('- `structuredContent.status` : statut haut niveau (`ok`, `dry_run`, `partial_failure`, `error` ou statut EOS brut si applicable).');
-  lines.push('- `structuredContent.summary` : meme information lisible que le texte, disponible pour les clients qui ne lisent que le contenu structure.');
-  lines.push('- `structuredContent.commandsSent` : tableau des commandes effectivement envoyees; vide si aucune commande texte EOS n a ete envoyee.');
-  lines.push('- `structuredContent.commands_preview` : tableau des commandes prevues/simulees, notamment en `dry_run`.');
-  lines.push('- `structuredContent.warnings` : tableau d objets `{ detail, code? }`, vide en absence d avertissement.');
-  lines.push('- `structuredContent.next_actions` : tableau d actions recommandees pour l assistant ou l operateur; vide si rien n est requis.');
-  lines.push('- `structuredContent.target_console`, `structuredContent.target_address` et `structuredContent.target_port` : cible console resolue pour l appel courant.');
-  lines.push('');
-  lines.push('Tous les outils enregistres acceptent aussi l argument global optionnel `targetConsole`, resolu depuis `EOS_CONSOLES`, en complement de `targetAddress`/`targetPort` quand ces champs sont exposes par l outil.');
-  lines.push('');
-  lines.push('Cette convention est appliquee en priorite aux familles `cues`, `commands`, `patch`, `dmx`, `macros`, `pixelMaps` et `showControl`; les nouveaux handlers doivent suivre la meme forme afin que les snapshots de lisibilite restent stables.');
-  lines.push('');
-  lines.push('## Comportement dry-run des workflows');
-  lines.push('');
-  lines.push('Tous les workflows `eos_workflow_*` exposent `dry_run` et `require_confirmation` en option. Quand `dry_run` est absent ou vaut `false`, le workflow refuse l execution reelle tant que `require_confirmation` ne vaut pas explicitement `true`; cette confirmation ne doit etre ajoutee qu apres validation utilisateur explicite de `structuredContent.commands_preview`.');
-  lines.push('');
-  lines.push("Quand `dry_run=true`, aucune commande EOS n'est envoyee via `sendDeterministicCommand`; la sequence EOS complete est retournee dans `structuredContent.commands_preview`, et `structuredContent.commandsSent` reste vide. Les executions refusees faute de `require_confirmation=true` retournent aussi systematiquement `structuredContent.commands_preview` pour permettre a Claude de relire exactement les commandes avec l operateur.");
-  lines.push('');
-  lines.push('Tous les workflows retournent aussi une structure stable et lisible par les LLM : `structuredContent.steps` (alias moderne de `executedSteps`), `structuredContent.commands_preview` (toujours present), `structuredContent.applied_defaults` (defaults explicites comme `start_cue_number=1` ou fallback cuelist master) et `structuredContent.warnings` (avertissements non bloquants et erreurs partielles resumées).');
-  lines.push('');
-  lines.push('## Safety pattern');
-  lines.push('');
-  lines.push('> **Plan -> dry-run -> confirmation -> execution.** Pour toute modification de show (cue, patch, palette, commande texte ou declenchement live), l’assistant doit annoncer le plan d’action, proposer un dry-run avec preview des commandes, puis executer en reel uniquement apres confirmation explicite de l’operateur.');
-  lines.push('');
-  lines.push('Exemple concret pour modifier une cue :');
-  lines.push('');
-  lines.push('1. **Plan annonce** : "Je vais mettre a jour la cue 12 de la liste 1 sur les canaux `1 Thru 10`, appliquer un facteur d’intensite `0.7`, puis preparer l’update sans l’envoyer."');
-  lines.push('2. **Dry-run propose** : appeler `eos_workflow_update_cue_look` avec `dry_run=true` afin de retourner `structuredContent.commands_preview`, par exemple `Chan 1 Thru 10 At * 0.7` puis `Update Cue 1 / 12`.');
-  lines.push('3. **Confirmation explicite** : attendre une reponse non ambigue, par exemple "Confirme, execute la mise a jour de la cue 12".');
-  lines.push('4. **Execution reelle** : relancer le meme workflow avec les memes arguments metier, `dry_run=false` (ou sans `dry_run`) et `require_confirmation=true` seulement apres cette confirmation explicite, puis verifier `structuredContent.command_log` et `structuredContent.commandsSent`.');
-  lines.push('');
-  lines.push('Les **outils bas niveau sensibles** (`eos_cue_record`, `eos_cue_update`, `eos_patch_*`, `eos_command`, `eos_new_command`, declenchements `fire`, etc.) exposent des garde-fous stricts comme `require_confirmation`, `safety_level` et le rejet des arguments inconnus. Ils sont adaptes aux integrations qui savent exactement quelle commande EOS envoyer. `eos_new_command` refuse aussi les commandes composees de programmation de cues (par exemple `At` + `Record` + `Label`). Pour une serie de cues, Claude doit privilegier `eos_workflow_create_cue_series` avec `looks[].intensity` (ou `looks[].level`) afin que le workflow emette `Chan 1 Thru 10 At Full`, puis `Record Cue 3`, puis `Cue 3 Label "Reggae"` comme commandes separees.');
-  lines.push('');
-  lines.push('Les **workflows haut niveau guides** (`eos_workflow_*`) orchestrent plusieurs commandes metier, acceptent des metadonnees clientes inconnues sans les executer et fournissent une preview complete via `dry_run=true`. Pour les workflows qui modifient le show (creation de looks/cues/effects, patch/autopatch, groupes/palettes, update de cue et rehearsal/go), l execution reelle est bloquee sans `require_confirmation=true`; Claude doit donc relancer exactement le meme workflow avec ce champ uniquement apres validation utilisateur explicite. Ils sont a privilegier pour les assistants conversationnels, car ils imposent un parcours operateur plus lisible avant toute action destructive ou visible en live.');
-  lines.push('');
-  lines.push('## Capacites de lecture OSC');
-  lines.push('');
-  lines.push('Avant de raisonner sur le contenu du show, Claude doit lire `eos_connect.structuredContent` ou `eos_capabilities_get.structuredContent.context.osc_limitations`. Si `can_read_queries=false`, Claude ne doit pas inventer le patch, la cuelist, les cues ou les objets EOS : il doit les presenter comme inconnus et demander une lecture reussie ou une confirmation utilisateur explicite. En `handshake_mode=degraded`, le serveur indique seulement que l’envoi est possible; la lecture reste non garantie tant qu’une requete de lecture ne retourne pas `status=ok`.');
-  lines.push('');
-  lines.push('### Adresses de reponse OSC acceptees pour les lectures cues/cuelists');
-  lines.push('');
-  lines.push('Les requetes JSON EOS attendent par defaut une reponse sur l’adresse de requete, et les outils de lecture transmettent explicitement les variantes `/eos/out/...` observees sur EOS quand elles sont supportees. Les adresses actuellement acceptees sont :');
-  lines.push('');
-  lines.push('| Famille | Requete envoyee | Reponses acceptees | Outils concernes |');
-  lines.push('| --- | --- | --- | --- |');
-  lines.push('| `queries.cue.count` | `/eos/get/cue/count` | `/eos/get/cue/count`, `/eos/out/get/cue/count` | `eos_get_count` avec `target_type: "cue"` |');
-  lines.push('| `queries.cue.list` | `/eos/get/cue/list` | `/eos/get/cue/list`, `/eos/out/get/cue/list` | `eos_get_list_all` avec `target_type: "cue"` |');
-  lines.push('| `queries.cuelist.list` | `/eos/get/cuelist/list` | `/eos/get/cuelist/list`, `/eos/out/get/cuelist/list` | `eos_get_list_all` avec `target_type: "cuelist"` |');
-  lines.push('| `cues.list` | `/eos/get/cuelist` | `/eos/get/cuelist`, `/eos/out/get/cuelist` | `eos_cue_list_all` |');
-  lines.push('| `cues.info` | `/eos/get/cue` | `/eos/get/cue`, `/eos/out/get/cue` | `eos_cue_get_info` |');
-  lines.push('');
-  lines.push('## Options communes de securite (outils critiques)');
-  lines.push('');
-  lines.push('Les outils critiques des familles **cues**, **patch**, **palettes** et **commandes texte** exposent les options suivantes :');
-  lines.push('');
-  lines.push('- `dry_run` (`boolean`) : calcule la commande OSC/Eos et la retourne dans `structuredContent.osc` sans envoi vers la console.');
-  lines.push('- `require_confirmation` (`boolean`) : confirmation explicite requise pour les actions sensibles.');
-  lines.push("- `safety_level` (`strict` | `standard` | `off`) : niveau de garde-fou applique (par defaut `strict`).");
-  lines.push('');
-  lines.push('En mode `strict`/`standard`, les actions sensibles (`record`, `update`, `delete`, `live fire`, et declenchements `fire`) sont bloquees sans `require_confirmation=true`.');
-  lines.push('');
-  lines.push("## Politique d'arguments inconnus");
-  lines.push('');
-  lines.push("Les workflows `eos_workflow_*` sont tolerants : leurs schemas Zod utilisent `passthrough()` pour accepter les champs MCP inconnus. Ces champs sont conserves par la validation mais ne sont pas lus par la logique metier, ce qui permet d'ignorer des metadonnees clientes sans modifier les commandes OSC generees.");
-  lines.push('');
-  lines.push("Les tools bas niveau et sensibles restent stricts (`strict()`) afin de rejeter les arguments non prevus avant toute action directe : GO brut (`eos_cue_go`), patch brut (`eos_patch_*`, `eos_programming_patch_set_channel`), show control (`eos_show_*`), commandes texte et reglages directs.");
-  lines.push('');
-  lines.push('Workflows tolerants recenses :');
-  lines.push('');
-  for (const tool of sortedTools.filter(isWorkflowTool)) {
-    lines.push(`- \`${tool.name}\``);
-  }
-  lines.push('');
-  lines.push('## Checklist release interne — LLM-friendly workflows');
-  lines.push('');
-  lines.push('- [ ] Verifier que chaque nouveau workflow `eos_workflow_*` utilise un schema `passthrough()` au niveau racine et sur les objets imbriques pertinents afin d accepter les metadonnees clientes sans les executer.');
-  lines.push('- [ ] Documenter chaque valeur par defaut observable (`dry_run=false`, `start_cue_number=1`, fallback cuelist master si `cuelist_number` ou `base_cuelist_number` est absent, defaults `direction/speed/size`, defaults `face_trad_*`, position 3D `0/0/0`).');
-  lines.push('- [ ] Confirmer que `structuredContent.steps`, `commands_preview`, `applied_defaults` et `warnings` sont toujours presents et restent des tableaux lisibles par un LLM.');
-  lines.push('- [ ] Comparer les noms des tools entre `src/tools/workflows/index.ts`, `manifest.json` (`featured_workflows` et `presentation_order`) et `docs/tools.md`; aucun alias divergent ne doit etre publie.');
-  lines.push('- [ ] Executer `npm run docs:check`, `npm run lint:manifest` et les tests workflows avant tag/release.');
-  lines.push('');
-  lines.push(...workflowNaturalExamplesLines);
-  lines.push('');
+  const lines: string[] = [
+  "# Documentation des outils",
+  "",
+  "> Générée avec `npm run docs:generate -- --skip-jsdoc`. Ne pas modifier manuellement.",
+  "",
+  "Le catalogue décrit les arguments métier et les métadonnées des outils exportés. Pour les schémas complets, y compris objets imbriqués et contrôles ajoutés à l’exécution, utiliser MCP `tools/list` ou `/schemas/tools/{toolName}.json`. Le [cookbook](cookbook.md) donne des appels MCP concrets ; le [guide agent](llm-agent-guide.md) précise la démarche de préparation.",
+  "",
+  "## Appels et résultats",
+  "",
+  "Les appels MCP utilisent la méthode `tools/call`, avec `params.name` et `params.arguments`. Le serveur traduit ces arguments en messages OSC natifs typés ETC. Le JSON MCP ne doit jamais être envoyé comme chaîne OSC à une adresse Get ou de contrôle.",
+  "",
+  "- `content[0].text` et `structuredContent.summary` décrivent le résultat ; consulter aussi `isError`, `status`, `warnings` et `next_actions`.",
+  "- `commandsSent` contient les commandes texte envoyées, pas l’ensemble des messages OSC. `commands_preview` et `osc_preview` décrivent les simulations quand disponibles.",
+  "- `sent_to_transport` signifie envoyé ; `accepted_by_eos` signifie retour corrélé de la ligne de commande ; `verified` ne vaut vrai que pour l’état effectivement relu. Ces preuves ne sont pas interchangeables.",
+  "- `source`, `is_complete`, `observed_at`, `limitations` et les champs de vérification indiquent les limites des lectures. Une réponse absente ou incomplète n’est pas un objet vide valide.",
+  "",
+  "## Contrôles communs",
+  "",
+  "Le registre ajoute `targetConsole` (alias déclaré dans `EOS_CONSOLES`) et les contrôles applicables à l’outil. `dry_run: true` empêche l’envoi et les mutations locales du handler. Les simulations ne vérifient pas l’état de la console. Une exécution sensible exige `require_confirmation: true` et les droits de programmation configurés côté serveur ; la confirmation ne relève pas le rôle autorisé.",
+  "",
+  "Établir la cible, le plan et l’accord de l’opérateur pour le périmètre demandé, puis contrôler la prévisualisation avant l’exécution. Ne pas redemander un accord déjà donné pour ce même périmètre. Les écritures modifiant la sortie doivent être annoncées comme telles. Les arguments inconnus sont rejetés, y compris dans les workflows.",
+  "",
+  "Les workflows de cues exigent la liste explicitement ; les palettes exigent des valeurs ou `use_current_values: true` ; le patch exige le profil exact, son empreinte DMX et un utilisateur explicite pour les écritures. Aucune inférence de footprint, position 3D ou intention artistique ne remplace ces données.",
+  "",
+  "## Références OSC",
+  "",
+  "La [matrice OSC](osc-coverage.md) expose les chemins et les unités natifs. Les lectures Get attendent `/eos/out/get/...`, avec des arguments typés et des fragments réassemblés. Les lignes de commande, roues et softkeys sont des observations passives datées. Les [limites](native-osc-limitations.md) distinguent les capacités disponibles des opérations retirées. Les tests simulés ne certifient pas une console réelle.",
+  ""
+];
 
   const highlightedTools = sortedTools.filter((tool) =>
     isHighlighted(tool.config.annotations as Record<string, unknown> | undefined)
@@ -897,23 +481,19 @@ function buildDocumentation(tools: ToolDefinition[]): { markdown: string; metada
       }
     }
     lines.push('');
-    lines.push('**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.');
+    lines.push('**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.');
     lines.push('');
-    lines.push('**Exemples :**');
+    const outputProperties = buildProperties(createZodSchema(tool.config.outputSchema));
+    if (outputProperties.length) {
+      lines.push('| Champ de sortie spécifique | Type | Requis | Description |', '| --- | --- | --- | --- |');
+      for (const property of outputProperties) {
+        lines.push(`| \`${property.name}\` | ${property.type.replace(/\|/g, '\\|')} | ${property.required ? 'Oui' : 'Non'} | ${(property.description ?? '—').replace(/\n/g, ' ').replace(/\|/g, '\\|')} |`);
+      }
+      lines.push('');
+    }
+    lines.push(`**Routage OSC :** ${mappingSummary(tool)}.`);
     lines.push('');
-    const cliArgs = formatCliArgs(data.exampleArgs);
-    lines.push('_CLI_');
-    lines.push('');
-    lines.push('```bash');
-    lines.push(`npx @modelcontextprotocol/cli call --tool ${tool.name} --args '${cliArgs}'`);
-    lines.push('```');
-    lines.push('');
-    lines.push('_OSC_');
-    lines.push('');
-    const mapping = (tool.config.annotations as Record<string, unknown> | undefined)?.mapping;
-    const oscExample = formatOscExample(mapping, data.exampleArgs);
-    lines.push(...oscExample);
-    lines.push('');
+
   }
 
   return { markdown: `${lines.join('\n').trim()}\n`, metadata };
@@ -1058,8 +638,8 @@ function ensureJsDoc(metadata: Map<string, ToolMetadata>): boolean {
           `@description ${description}`,
           `@arguments Voir docs/tools.md#${slug} pour le schema complet.`,
           '@returns ToolExecutionResult avec contenu texte et objet.',
-          `@example CLI Consultez docs/tools.md#${slug} pour un exemple CLI.`,
-          `@example OSC Consultez docs/tools.md#${slug} pour un exemple OSC.`
+          `@example MCP Consultez docs/cookbook.md pour des appels tools/call.`,
+          `@example OSC Consultez docs/osc-coverage.md pour les contrats natifs.`
         ];
 
         const jsDocTarget = statement as VariableStatement;
@@ -1110,31 +690,23 @@ async function main(): Promise<void> {
 
   const definitions = loadToolDefinitions();
   const { markdown, metadata } = buildDocumentation(definitions);
-  const docsPath = path.resolve(process.cwd(), 'docs', 'tools.md');
-
-  if (!fs.existsSync(path.dirname(docsPath))) {
-    fs.mkdirSync(path.dirname(docsPath), { recursive: true });
-  }
-
-  if (!shouldSkipJsDoc) {
-    ensureJsDoc(metadata);
-  }
-
-  if (shouldCheck) {
-    if (!fs.existsSync(docsPath)) {
-      console.error('La documentation des outils est manquante.');
-      process.exitCode = 1;
-      return;
+  const documents = new Map([
+    ['tools.md', markdown],
+    ['osc-coverage.md', buildCoverage(definitions)]
+  ]);
+  if (!shouldSkipJsDoc) ensureJsDoc(metadata);
+  for (const [filename, content] of documents) {
+    const docsPath = path.resolve(process.cwd(), 'docs', filename);
+    if (shouldCheck) {
+      if (!fs.existsSync(docsPath) || fs.readFileSync(docsPath, 'utf8').trim() !== content.trim()) {
+        console.error(`${filename} doit être régénéré : npm run docs:generate -- --skip-jsdoc`);
+        process.exitCode = 1;
+      }
+    } else {
+      fs.mkdirSync(path.dirname(docsPath), { recursive: true });
+      fs.writeFileSync(docsPath, content, 'utf8');
     }
-    const current = fs.readFileSync(docsPath, 'utf8');
-    if (current.trim() !== markdown.trim()) {
-      console.error('La documentation des outils doit etre regeneree (executer `npm run docs:generate`).');
-      process.exitCode = 1;
-    }
-    return;
   }
-
-  fs.writeFileSync(docsPath, markdown, 'utf8');
 }
 
 main().catch((error) => {

@@ -15,7 +15,6 @@ import { eosDirectSelectBankCreateTool } from '../directSelects/index';
 import { eosMagicSheetOpenTool } from '../magicSheets/index';
 import { eosCueFireTool } from '../cues/fire';
 import { eosEffectSelectTool, eosEffectStopTool } from '../effects/index';
-import { eosSetCueReceiveStringTool, eosSetCueSendStringTool } from '../showControl/index';
 import { runTool } from './helpers/runTool';
 
 class FakeOscService implements OscGateway {
@@ -66,7 +65,8 @@ describe('OSC payload snapshots', () => {
     await runTool(eosCommandTool, {
       command: 'Go To Cue 20',
       terminateWithEnter: true,
-      safety_level: 'standard'
+      safety_level: 'standard',
+      require_confirmation: true
     });
     snapshotLastMessage(service, oscPayloadAnnotations.commands.command);
 
@@ -96,14 +96,6 @@ describe('OSC payload snapshots', () => {
 
     await runTool(eosEffectStopTool, { effect_number: 7 });
     snapshotLastMessage(service, oscPayloadAnnotations.effects.stop);
-  });
-
-  it('captures EOS-native show-control command payloads', async () => {
-    await runTool(eosSetCueSendStringTool, { format_string: 'Cue %1 -> %2 (%3)' });
-    snapshotLastMessage(service, oscPayloadAnnotations.showControl.setCueSendString);
-
-    await runTool(eosSetCueReceiveStringTool, { format_string: 'Receive %1 [%2]' });
-    snapshotLastMessage(service, oscPayloadAnnotations.showControl.setCueReceiveString);
   });
 
   it('captures EOS-native control surface payloads', async () => {

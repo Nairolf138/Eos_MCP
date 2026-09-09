@@ -1,258 +1,166 @@
 # Couverture OSC ↔ MCP
 
-Ce document liste tous les outils exportés par `src/tools/index.ts` et relie chaque outil à sa commande OSC déclarée et au test de contrat associé.
+> Catalogue généré avec `npm run docs:generate -- --skip-jsdoc`.
 
-## Matrice de conformité EOS par version
+Les chemins ci-dessous sont des modèles de routage, pas des commandes shell. Les arguments MCP sont du JSON ; les paquets OSC contiennent des arguments typés ETC, jamais une sérialisation JSON de ces arguments.
 
-Cette matrice synthétise les trames rejouées hors ligne par `src/services/osc/__tests__/eos-conformance.integration.test.ts` depuis `src/services/osc/__tests__/fixtures/eos-conformance.frames.json`. Elle distingue l'adresse de requête envoyée par l'outil MCP, la forme de réponse attendue et la variante `/eos/out` acceptée par le client quand elle est supportée.
+Sources : [dictionnaire ETC](https://www.etcconnect.com/WebDocs/Controls/EosFamilyOnlineHelp/en/Content/23_Show_Control/08_OSC/OSC_Dictionary.htm), [OSC Get](https://www.etcconnect.com/WebDocs/Controls/EosFamilyOnlineHelp/en/Content/23_Show_Control/08_OSC/Using_OSC_with_Eos/OSC_Third-Party_Integration/OSC_Get.htm), [EosSyncLib ETC](https://github.com/ETCLabs/EosSyncLib).
 
-| Version EOS | Endpoint | Outil MCP | Requête OSC | Réponse attendue | Variante `/eos/out` | Statut supporté |
-| --- | --- | --- | --- | --- | --- | --- |
-| 2.9.1 | `version` | `eos_get_version` | `/eos/get/version` sans argument | Objet JSON contenant `status: "ok"` et `version` | Acceptée : `/eos/out/get/version` | Supporté, réponse directe capturée |
-| 3.2.1 | `version` | `eos_get_version` | `/eos/get/version` sans argument | Objet JSON contenant `status: "ok"` et `version` | Acceptée et rejouée : `/eos/out/get/version` | Supporté |
-| 3.2.1 | `get/count` (`cue`) | `eos_get_count` | `/eos/get/cue/count` sans argument | Objet JSON contenant `status: "ok"` et `count` numérique | Acceptée et rejouée : `/eos/out/get/cue/count` | Supporté |
-| 3.2.1 | `get/list` (`group`) | `eos_get_list_all` | `/eos/get/group/list` sans argument | Objet JSON contenant `status: "ok"` et une liste `groups`/`items` | Acceptée et rejouée : `/eos/out/get/group/list` | Supporté |
-| 3.2.1 | `patch/chan_info` | `eos_patch_get_channel_info` | `/eos/get/patch/chan_info` avec JSON `{ "channel": <n>, "part": <n> }` | Objet JSON contenant `status: "ok"` et les champs normalisés de canal/part | Acceptée et rejouée : `/eos/out/get/patch/chan_info` | Supporté |
-| 3.2.1 | `show/name` | `eos_get_show_name` | `/eos/get/show/name` sans argument | Objet JSON contenant `status: "ok"` et `show_name`/`name`/`text` | Documentée côté EOS comme `/eos/out/show/name`, non rejouée par l'outil actuel | Supporté en réponse directe |
-| 3.2.1 | `cmd_line` | `eos_get_command_line` | `/eos/get/cmd_line` avec JSON `{}` ou `{ "user": <id> }` | Objet JSON contenant `status: "ok"`, `text` et `user` | Non acceptée par l'awaiter actuel ; réponse directe `/eos/get/cmd_line` requise | Supporté en réponse directe |
+## Contrats natifs
 
-Notes de lecture :
+| Usage | Requête / sortie | Arguments et portée |
+| --- | --- | --- |
+| Version | `/eos/get/version` → `/eos/out/get/version` | Requête vide ; version et bibliothèque en chaînes, drapeau gel en booléen |
+| Objets | `/eos/get/{family}/{number}` | Réponses `/eos/out/get/...` typées ; familles `sub`, `fx`, `snap`, `ms` |
+| Énumération | `/eos/get/{family}/count`, puis `/index/{index}` | Les cues nécessitent une liste : `/eos/get/cue/{list}/count` et `/index/{index}` |
+| Patch | `/eos/get/patch/{channel}/{part}` | Parties natives à partir de 1 ; toutes les parties sont réunies localement pour une lecture globale |
+| Fragments reçus | `/eos/out/get/.../list/{start}/{total}` | Offsets sur les arguments complets, sections obligatoires et UID cohérents ; absence ou délai = erreur |
+| Commande texte | `/eos/cmd`, `/eos/newcmd`, `/eos/user/{user}/cmd`, `/eos/user/{user}/newcmd` | Un argument chaîne ; `#` termine la commande ; adresse utilisateur atomique |
+| Ligne de commande | `/eos/out/cmd`, `/eos/out/user/{user}/cmd` | Observation passive, texte et drapeau erreur ; aucune requête Get inventée |
+| GO / Stop-Back | `/eos/cues/{list}/fire`, `/eos/cues/{list}/stop` | Stop-Back dépend de l’état de lecture ; aucune option back indépendante |
+| Cue déterminée | `/eos/cue/{cue}/fire`, `/eos/cue/{list}/{cue}[/part]/fire` | Liste absente conservée ; partie explicite exige une liste explicite |
+| Groupe / sub | `/eos/group/{n}`, `/eos/sub/{n}` | Niveau groupe flottant 0–100 ; sub flottant 0–1 |
+| Adresse DMX | `/eos/addr`, `/eos/addr/{n}`, `/eos/addr/{n}/DMX` | Adresse absolue entière ; niveau flottant 0–100 ou valeur DMX entière 0–255 |
+| Couleur | `/eos/color/hs`, `/eos/color/rgb` | H 0–360, S 0–100 ; RGB 0–1 |
+| Étiquettes | `/eos/set/.../label` | Une chaîne native, pas une commande Label construite avec du texte utilisateur |
+| État, roues, softkeys | `/eos/out/event/state`, `/eos/out/active/wheel/{index}`, `/eos/out/softkey/{index}` | Cache daté ; données incomplètes ou périmées signalées |
 
-- Les endpoints de requête JSON génériques (`get/count`, `get/list`, `patch/chan_info`) utilisent les variantes directes et `/eos/out/get/...` déclarées dans `oscResponseMappings`.
-- `version` accepte désormais la réponse directe `/eos/get/version` et la variante `/eos/out/get/version`, ce qui aligne l'outil avec le probe de capabilities.
-- `show/name` et `cmd_line` restent volontairement indiqués comme direct-only dans les tests de conformance tant qu'aucune capture rejouée ne prouve une variante `/eos/out` compatible avec les awaiters actuels.
+## Niveau de preuve
 
-## Couverture officielle/non officielle des endpoints `/eos/get/`
+Les fixtures de `nativePeer.ts` sont synthétiques, construites à partir des tables ETC. Les tests de conformance utilisent de vraies sockets UDP/TCP en boucle locale. Ce ne sont pas des captures de console ni une certification de versions Eos.
 
-Toutes les adresses `/eos/get/` declarees par les services OSC, les outils MCP, la documentation et les tests de contrat ont une entree dans `OSC_ADDRESS_OFFICIALITY`. Le tableau ci-dessous indique aussi l'effet du mode strict pour chaque endpoint couvert.
+`sent_to_transport` prouve un envoi au transport. `accepted_by_eos` repose sur un retour de commande récent, corrélé à la cible et à l’utilisateur. `verified` exige une relecture du résultat annoncé. Un ACK, une existence ou une étiquette relue ne prouvent pas les valeurs enregistrées dans une cue, palette ou un sub.
 
-| Endpoint | Outil/usage MCP | Statut | Alternative officielle | Strict |
-| --- | --- | --- | --- | --- |
-| `/eos/get/cmd_line` | eos_get_command_line, eos_get_user_command_line; precheck de workflow | Non officiel (MCP extension) | /eos/out/cmd et /eos/out/user/{number}/cmd memorises | Bloque |
-| `/eos/get/softkey_labels` | eos_get_softkey_labels | Non officiel (non confirme dans le manuel v3.0.0) | Aucune alternative de lecture confirmee; /eos/softkey/{index} couvre seulement l'appui | Bloque |
-| `/eos/get/channels` | eos_channel_get_info | Non officiel (non confirme dans le manuel v3.0.0) | /eos/chan et /eos/chan/{channel}/param/{parameter} pour piloter; pas de lecture globale confirmee | Bloque |
-| `/eos/get/group` | eos_group_get_info | Officiel | Famille officielle /eos/get/group/... | Autorise |
-| `/eos/get/group/count` | eos_get_count(type=group) | Officiel | n/a | Autorise |
-| `/eos/get/group/list` | eos_group_list_all, eos_get_list_all(type=group) | Officiel | n/a | Autorise |
-| `/eos/get/palette` | eos_palette_get_info (type palette generique) | Officiel | Familles IP/FP/CP/BP selon le type | Autorise |
-| `/eos/get/ip` | eos_intensity_palette_get_info | Officiel | n/a | Autorise |
-| `/eos/get/fp` | eos_focus_palette_get_info | Officiel | n/a | Autorise |
-| `/eos/get/cp` | eos_color_palette_get_info | Officiel | n/a | Autorise |
-| `/eos/get/bp` | eos_beam_palette_get_info | Officiel | n/a | Autorise |
-| `/eos/get/ip/count` | eos_get_count(type=ip) | Officiel | n/a | Autorise |
-| `/eos/get/fp/count` | eos_get_count(type=fp) | Officiel | n/a | Autorise |
-| `/eos/get/cp/count` | eos_get_count(type=cp) | Officiel | n/a | Autorise |
-| `/eos/get/bp/count` | eos_get_count(type=bp) | Officiel | n/a | Autorise |
-| `/eos/get/ip/list` | eos_get_list_all(type=ip) | Officiel | n/a | Autorise |
-| `/eos/get/fp/list` | eos_get_list_all(type=fp) | Officiel | n/a | Autorise |
-| `/eos/get/cp/list` | eos_get_list_all(type=cp) | Officiel | n/a | Autorise |
-| `/eos/get/bp/list` | eos_get_list_all(type=bp) | Officiel | n/a | Autorise |
-| `/eos/get/preset` | eos_preset_get_info | Officiel | n/a | Autorise |
-| `/eos/get/preset/count` | eos_get_count(type=preset) | Officiel | n/a | Autorise |
-| `/eos/get/preset/list` | eos_get_list_all(type=preset) | Officiel | n/a | Autorise |
-| `/eos/get/macro` | eos_macro_get_info | Officiel | n/a | Autorise |
-| `/eos/get/macro/count` | eos_get_count(type=macro) | Officiel | n/a | Autorise |
-| `/eos/get/macro/list` | eos_get_list_all(type=macro) | Officiel | n/a | Autorise |
-| `/eos/get/snapshot` | eos_snapshot_get_info | Officiel | /eos/get/snap/... est la forme abregee citee dans le tableau de conformite | Autorise |
-| `/eos/get/snapshot/count` | eos_get_count(type=snap) | Officiel | n/a | Autorise |
-| `/eos/get/snapshot/list` | eos_get_list_all(type=snap) | Officiel | n/a | Autorise |
-| `/eos/get/curve` | eos_curve_get_info | Officiel | n/a | Autorise |
-| `/eos/get/curve/count` | eos_get_count(type=curve) | Officiel | n/a | Autorise |
-| `/eos/get/curve/list` | eos_get_list_all(type=curve) | Officiel | n/a | Autorise |
-| `/eos/get/effect` | eos_effect_get_info | Officiel | /eos/get/fx/... est l alias manuel pour la famille effet | Autorise |
-| `/eos/get/effect/count` | eos_get_count(type=fx) | Officiel | n/a | Autorise |
-| `/eos/get/effect/list` | eos_get_list_all(type=fx) | Officiel | n/a | Autorise |
-| `/eos/get/active/wheels` | eos_get_active_wheels | Officiel | /eos/out/active/wheel/{number} comme sortie implicite observee/documentee | Autorise |
-| `/eos/get/fpe/set/count` | eos_fpe_get_set_count | Non officiel (endpoint FPE non confirme) | Aucune alternative OSC officielle confirmee | Bloque |
-| `/eos/get/fpe/set` | eos_fpe_get_set_info | Non officiel (endpoint FPE non confirme) | Aucune alternative OSC officielle confirmee | Bloque |
-| `/eos/get/fpe/point` | eos_fpe_get_point_info | Non officiel (endpoint FPE non confirme) | Aucune alternative OSC officielle confirmee | Bloque |
-| `/eos/get/pixmap` | eos_pixmap_get_info | Officiel | n/a | Autorise |
-| `/eos/get/pixmap/count` | eos_get_count(type=pixmap) | Officiel | n/a | Autorise |
-| `/eos/get/pixmap/list` | eos_get_list_all(type=pixmap) | Officiel | n/a | Autorise |
-| `/eos/get/magic_sheet` | eos_magic_sheet_get_info | Officiel | /eos/get/ms/... est la forme abregee citee dans le tableau de conformite | Autorise |
-| `/eos/get/magic_sheet/count` | eos_get_count(type=ms) | Officiel | n/a | Autorise |
-| `/eos/get/magic_sheet/list` | eos_get_list_all(type=ms) | Officiel | n/a | Autorise |
-| `/eos/get/submaster` | eos_submaster_get_info | Officiel | /eos/get/sub/... est la forme abregee citee dans le tableau de conformite | Autorise |
-| `/eos/get/submaster/count` | eos_get_count(type=sub) | Officiel | n/a | Autorise |
-| `/eos/get/submaster/list` | eos_get_list_all(type=sub) | Officiel | n/a | Autorise |
-| `/eos/get/cue` | eos_cue_get_info | Officiel | n/a | Autorise |
-| `/eos/get/cue/count` | eos_get_count(type=cue) | Officiel | n/a | Autorise |
-| `/eos/get/cue/list` | eos_get_list_all(type=cue) | Officiel | n/a | Autorise |
-| `/eos/get/cuelist` | eos_cue_list_all | Officiel | n/a | Autorise |
-| `/eos/get/cuelist/count` | eos_get_count(type=cuelist) | Officiel | n/a | Autorise |
-| `/eos/get/cuelist/list` | eos_get_list_all(type=cuelist) | Officiel | n/a | Autorise |
-| `/eos/get/cuelist/info` | eos_cuelist_get_info | Non officiel (endpoint info dedie non confirme) | /eos/get/cuelist, /eos/get/cuelist/count et /eos/get/cuelist/list | Bloque |
-| `/eos/get/active/cue` | eos_get_active_cue | Non officiel (requete explicite MCP) | /eos/out/active/cue en sortie implicite | Bloque |
-| `/eos/get/pending/cue` | eos_get_pending_cue | Non officiel (requete explicite MCP) | /eos/out/pending/cue en sortie implicite | Bloque |
-| `/eos/get/show/name` | eos_get_show_name | Non officiel (requete explicite MCP) | /eos/out/show/name en sortie implicite | Bloque |
-| `/eos/get/live/blind` | eos_get_live_blind_state | Non officiel (requete explicite MCP) | /eos/out/event/state | Bloque |
-| `/eos/get/patch/chan_info` | eos_patch_get_channel_info | Non officiel (endpoint JSON non confirme) | /eos/get/patch/{channel} | Bloque |
-| `/eos/get/patch/chan_pos` | eos_patch_get_augment3d_position | Non officiel (extension Augment3d non confirmee) | Aucune alternative OSC officielle confirmee | Bloque |
-| `/eos/get/patch/chan_beam` | eos_patch_get_augment3d_beam | Non officiel (extension Augment3d non confirmee) | Aucune alternative OSC officielle confirmee | Bloque |
-| `/eos/get/version` | eos_get_version | Officiel | n/a | Autorise |
-| `/eos/get/setup_defaults` | eos_get_setup_defaults | Non officiel (diagnostic/setup non confirme) | Aucune alternative OSC officielle confirmee | Bloque |
+Les métadonnées `validated_cmd_fallback` indiquent un routage par l’entrée de commande ETC ; elles ne certifient pas toute syntaxe de commande fournie par un utilisateur. Aucun endpoint sortant inconnu n’est autorisé, même hors mode strict.
 
-Les contrats centralisés sont vérifiés dans `src/tools/__tests__/osc_contracts.test.ts` : adresse OSC, arguments OSC (snapshots), propagation `targetAddress` / `targetPort`, transformation d'erreur OSC en résultat MCP stable et rejet des paramètres inconnus pour les schémas stricts. Les tests de famille sous `src/tools/**/__tests__` conservent les scénarios métier détaillés.
+Tests : `osc_contracts.test.ts` (catalogue et écritures natives), `native_reads.test.ts` (schémas publiés), `client.test.ts` (décodage, fragmentation, délais, provenance), `native_preparation.test.ts` et `workflows.test.ts` (préconditions, séquences, readbacks), `mcp-e2e.test.ts` (client SDK). Voir [limites natives](native-osc-limitations.md), [validation](validation-work-in-progress.md) et [tests E2E](testing-e2e.md).
 
-## Couverture détaillée des outils MCP exposés
+## Catalogue courant
 
-Les lignes ci-dessous sont alignées sur `toolDefinitions` exporté par `src/tools/index.ts`. La colonne `Statut strict officiel` reprend le comportement `strictModeBehavior` injecté par `buildOscToolStrictModePolicy`; lorsqu'un outil appelle le client OSC sans annotation `mapping.osc`, la documentation signale l'adresse réellement appelée par le handler et conserve le statut strict déclaré par le code.
-
-| Outil MCP | Fichier source | Adresse OSC envoyée | Builder utilisé | Test de contrat associé | Statut strict officiel | Statut extension MCP | Notes de compatibilité |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| `eos_capabilities_get` | `src/tools/capabilities/index.ts` | `/eos/get/live/blind; /eos/get/version` | client.requestJson() best-effort | `src/tools/capabilities/__tests__/capabilities.test.ts`<br>`src/tools/diagnostics/index.ts` (couvert indirectement par tests diagnostics/contrats globaux) | `no_osc_transport`; Non officiel — Undocumented endpoint<br>Officiel — ETC Eos OSC manual v3.0.0 | Endpoint non documenté<br>Non | À corriger si une alternative officielle existe. |
-| `ping` | `src/tools/ping.ts` | — | — | — | `no_osc_transport`; Sans OSC | n/a | Outil local/orchestrateur; aucune trame OSC directe déclarée. |
-| `eos_connect` | `src/tools/connection/eos_connect.ts` | `/eos/handshake; /eos/protocol/select` | client.connect() | `src/tools/diagnostics/index.ts` (couvert indirectement par tests diagnostics/contrats globaux) | `no_osc_transport`; Non officiel — MCP transport contract | Contrat runtime MCP |  |
-| `eos_configure` | `src/tools/connection/eos_configure.ts` | — | — | — | `no_osc_transport`; Sans OSC | n/a | Outil local/orchestrateur; aucune trame OSC directe déclarée. |
-| `eos_ping` | `src/tools/connection/eos_ping.ts` | `/eos/ping` | client.ping() | `src/tools/__tests__/osc_contracts.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_reset` | `src/tools/connection/eos_reset.ts` | `/eos/reset` | client.reset() | `src/tools/diagnostics/index.ts` (couvert indirectement par tests diagnostics/contrats globaux) | `no_osc_transport`; Officiel — ETC Eos OSC manual v3.0.0 | Non |  |
-| `eos_subscribe` | `src/tools/connection/eos_subscribe.ts` | `/eos/subscribe` | client.subscribe() | `src/tools/diagnostics/index.ts` (couvert indirectement par tests diagnostics/contrats globaux) | `no_osc_transport`; Officiel — ETC Eos OSC manual v3.0.0 | Non |  |
-| `eos_workflow_create_look` | `src/tools/workflows/index.ts` | — | — | `src/tools/workflows/__tests__/workflows.test.ts` | `no_osc_transport`; Sans OSC | n/a | Outil local/orchestrateur; aucune trame OSC directe déclarée. |
-| `eos_workflow_create_effect` | `src/tools/workflows/index.ts` | — | — | `src/tools/workflows/__tests__/workflows.test.ts` | `no_osc_transport`; Sans OSC | n/a | Outil local/orchestrateur; aucune trame OSC directe déclarée. |
-| `eos_workflow_create_cue_series` | `src/tools/workflows/index.ts` | — | — | `src/tools/workflows/__tests__/workflows.test.ts` | `no_osc_transport`; Sans OSC | n/a | Outil local/orchestrateur; aucune trame OSC directe déclarée. |
-| `eos_workflow_patch_fixture` | `src/tools/workflows/index.ts` | — | — | `src/tools/workflows/__tests__/workflows.test.ts` | `no_osc_transport`; Sans OSC | n/a | Outil local/orchestrateur; aucune trame OSC directe déclarée. |
-| `eos_workflow_patch_scan` | `src/tools/workflows/patchScan.ts` | — | — | `src/tools/workflows/__tests__/workflows.test.ts` | `no_osc_transport`; Sans OSC | n/a | Outil local/orchestrateur; aucune trame OSC directe déclarée. |
-| `eos_workflow_autopatch_band` | `src/tools/workflows/index.ts` | — | — | `src/tools/workflows/__tests__/workflows.test.ts` | `no_osc_transport`; Sans OSC | n/a | Outil local/orchestrateur; aucune trame OSC directe déclarée. |
-| `eos_workflow_rehearsal_go_safe` | `src/tools/workflows/index.ts` | — | — | `src/tools/workflows/__tests__/workflows.test.ts` | `no_osc_transport`; Sans OSC | n/a | Outil local/orchestrateur; aucune trame OSC directe déclarée. |
-| `eos_workflow_build_groups_and_palettes` | `src/tools/workflows/index.ts` | — | — | `src/tools/workflows/__tests__/workflows.test.ts` | `no_osc_transport`; Sans OSC | n/a | Outil local/orchestrateur; aucune trame OSC directe déclarée. |
-| `eos_workflow_update_cue_look` | `src/tools/workflows/index.ts` | — | — | `src/tools/workflows/__tests__/workflows.test.ts` | `no_osc_transport`; Sans OSC | n/a | Outil local/orchestrateur; aucune trame OSC directe déclarée. |
-| `eos_command` | `src/tools/commands/command_tools.ts` | `/eos/cmd` | client.sendCommand() | `src/tools/__tests__/osc_contracts.test.ts` | `validated_cmd_fallback`; Officiel — ETC Eos command-line via /eos/cmd | Non | Commande texte validée via `/eos/cmd` ou `/eos/newcmd`. |
-| `eos_new_command` | `src/tools/commands/command_tools.ts` | `/eos/newcmd` | client OSC direct / mapping inline | `src/tools/__tests__/osc_contracts.test.ts` | `validated_cmd_fallback`; Officiel — ETC Eos command-line via /eos/cmd | Non | Commande texte validée via `/eos/cmd` ou `/eos/newcmd`. |
-| `eos_command_with_substitution` | `src/tools/commands/command_tools.ts` | `/eos/cmd` | client.sendCommand() | `src/tools/__tests__/osc_contracts.test.ts` | `validated_cmd_fallback`; Officiel — ETC Eos command-line via /eos/cmd | Non | Commande texte validée via `/eos/cmd` ou `/eos/newcmd`. |
-| `eos_get_command_line` | `src/tools/commands/command_tools.ts` | `/eos/get/cmd_line` | client OSC direct / mapping inline | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/__tests__/osc_priority_tools.test.ts` | `blocked_without_validated_cmd_fallback`; Non officiel — MCP extension | Extension MCP | Bloqué par `EOS_STRICT_MODE=true` tant que le chemin reste non officiel/non documenté. À corriger si une alternative officielle existe. |
-| `eos_get_user_command_line` | `src/tools/commands/command_tools.ts` | `/eos/get/cmd_line` | client OSC direct / mapping inline | `src/tools/__tests__/osc_contracts.test.ts` | `blocked_without_validated_cmd_fallback`; Non officiel — MCP extension | Extension MCP | Bloqué par `EOS_STRICT_MODE=true` tant que le chemin reste non officiel/non documenté. À corriger si une alternative officielle existe. |
-| `eos_channel_select` | `src/tools/channels/index.ts` | `/eos/newcmd` | client OSC direct / mapping inline | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/channels/__tests__/channels.test.ts` | `validated_cmd_fallback`; Officiel — ETC Eos command-line via /eos/cmd | Non | Commande texte validée via `/eos/cmd` ou `/eos/newcmd`. |
-| `eos_channel_set_level` | `src/tools/channels/index.ts` | `/eos/newcmd` | client OSC direct / mapping inline | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/channels/__tests__/channels.test.ts` | `validated_cmd_fallback`; Officiel — ETC Eos command-line via /eos/cmd | Non | Commande texte validée via `/eos/cmd` ou `/eos/newcmd`. |
-| `eos_channel_set_dmx` | `src/tools/channels/index.ts` | `/eos/newcmd` | client OSC direct / mapping inline | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/channels/__tests__/channels.test.ts` | `validated_cmd_fallback`; Officiel — ETC Eos command-line via /eos/cmd | Non | Commande texte validée via `/eos/cmd` ou `/eos/newcmd`. |
-| `eos_set_dmx` | `src/tools/channels/index.ts` | `/eos/addr/{address}/DMX` | buildDmxAddressDmxMessage()<br>client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/channels/__tests__/channels.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_channel_set_parameter` | `src/tools/channels/index.ts` | `/eos/chan/{channel}/param/{parameter}` | client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/channels/__tests__/channels.test.ts`<br>`src/tools/__tests__/osc_priority_tools.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_channel_get_info` | `src/tools/channels/index.ts` | `/eos/get/channels` | client.requestJson() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/channels/__tests__/channels.test.ts` | `blocked_without_validated_cmd_fallback`; Non officiel — Undocumented endpoint | Endpoint non documenté | Bloqué par `EOS_STRICT_MODE=true` tant que le chemin reste non officiel/non documenté. À corriger si une alternative officielle existe. |
-| `eos_group_select` | `src/tools/groups/index.ts` | `/eos/group` | buildGroupSelectMessage()<br>client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/groups/__tests__/groups.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_group_set_level` | `src/tools/groups/index.ts` | `/eos/group/{group}/level` | client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/groups/__tests__/groups.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_group_get_info` | `src/tools/groups/index.ts` | `/eos/get/group` | buildGroupJsonMessage()<br>client.requestBuiltJson() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/groups/__tests__/groups.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_group_list_all` | `src/tools/groups/index.ts` | `/eos/get/group/list` | buildGroupJsonMessage()<br>client.requestBuiltJson() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/groups/__tests__/groups.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_enable_logging` | `src/tools/diagnostics/index.ts` | — | — | — | `no_osc_transport`; Sans OSC | n/a | Outil local/orchestrateur; aucune trame OSC directe déclarée. |
-| `eos_readiness_check` | `src/tools/diagnostics/index.ts` | `/eos/ping; /eos/handshake; /eos/protocol/select; /eos/get/version; /eos/get/cmd_line; /eos/get/show/name; /eos/get/{cue|group|preset}/count; optionnel /eos/get/patch/chan_info` | client.ping(), client.connect(), client.getCommandLine(), client.requestJson() | `src/tools/diagnostics/index.ts` (couvert indirectement par tests diagnostics/contrats globaux) | `no_osc_transport`; Officiel — ETC Eos OSC manual v3.0.0<br>Non officiel — MCP transport contract<br>Non officiel — MCP extension<br>Non officiel — Undocumented endpoint<br>Non classé | Non<br>Contrat runtime MCP<br>Extension MCP<br>Endpoint non documenté<br>Non classé | À corriger si une alternative officielle existe. |
-| `eos_get_diagnostics` | `src/tools/diagnostics/index.ts` | — | — | — | `no_osc_transport`; Sans OSC | n/a | Outil local/orchestrateur; aucune trame OSC directe déclarée. |
-| `eos_console_targets` | `src/tools/diagnostics/index.ts` | — | — | — | `no_osc_transport`; Sans OSC | n/a | Outil local/orchestrateur; aucune trame OSC directe déclarée. |
-| `eos_get_version` | `src/tools/diagnostics/index.ts` | `/eos/get/version` | client.requestJson() | `src/tools/diagnostics/index.ts` (couvert indirectement par tests diagnostics/contrats globaux) | `no_osc_transport`; Officiel — ETC Eos OSC manual v3.0.0 | Non |  |
-| `eos_get_setup_defaults` | `src/tools/diagnostics/index.ts` | `/eos/get/setup_defaults` | client.requestJson() | `src/tools/diagnostics/index.ts` (couvert indirectement par tests diagnostics/contrats globaux) | `no_osc_transport`; Non officiel — Undocumented endpoint | Endpoint non documenté | À corriger si une alternative officielle existe. |
-| `eos_cue_fire` | `src/tools/cues/fire.ts` | `/eos/cue/{cuelist}/{cue}/fire` | client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/cues/__tests__/cues.test.ts`<br>`src/tools/__tests__/osc_priority_tools.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_cue_go` | `src/tools/cues/go.ts` | `/eos/cue/{cuelist}/go` | client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/cues/__tests__/cues.test.ts`<br>`src/tools/__tests__/osc_priority_tools.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_cue_stop_back` | `src/tools/cues/stop_back.ts` | `/eos/cmd` | client.sendCommand() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/cues/__tests__/cues.test.ts` | `validated_cmd_fallback`; Officiel — ETC Eos command-line via /eos/cmd | Non | Commande texte validée via `/eos/cmd` ou `/eos/newcmd`. |
-| `eos_cue_select` | `src/tools/cues/select.ts` | `/eos/cue/{cue}` | client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/cues/__tests__/cues.test.ts`<br>`src/tools/__tests__/osc_priority_tools.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_cue_get_info` | `src/tools/cues/get_info.ts` | `/eos/get/cue` | buildCueJsonMessage()<br>client.requestBuiltJson() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/cues/__tests__/cues.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_cue_list_all` | `src/tools/cues/list_all.ts` | `/eos/get/cuelist` | buildCueJsonMessage()<br>client.requestBuiltJson() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/cues/__tests__/cues.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_cuelist_get_info` | `src/tools/cues/cuelist_get_info.ts` | `/eos/get/cuelist/info` | buildCueJsonMessage()<br>client.requestBuiltJson() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/cues/__tests__/cues.test.ts` | `blocked_without_validated_cmd_fallback`; Non officiel — Undocumented endpoint | Endpoint non documenté | Bloqué par `EOS_STRICT_MODE=true` tant que le chemin reste non officiel/non documenté. À corriger si une alternative officielle existe. |
-| `eos_cuelist_bank_create` | `src/tools/cues/cuelist_bank_create.ts` | `/eos/cuelist/{bank_index}/config/{cuelist_number}/{num_prev_cues}/{num_pending_cues}` | client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/cues/__tests__/cues.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_cuelist_bank_page` | `src/tools/cues/cuelist_bank_page.ts` | `/eos/cuelist/{bank_index}/page/{delta}` | client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/cues/__tests__/cues.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_get_active_cue` | `src/tools/cues/get_active_cue.ts` | `/eos/get/active/cue` | buildCueJsonMessage()<br>client.requestBuiltJson() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/cues/__tests__/cues.test.ts` | `blocked_without_validated_cmd_fallback`; Non officiel — Undocumented endpoint | Endpoint non documenté | Bloqué par `EOS_STRICT_MODE=true` tant que le chemin reste non officiel/non documenté. À corriger si une alternative officielle existe. |
-| `eos_get_pending_cue` | `src/tools/cues/get_pending_cue.ts` | `/eos/get/pending/cue` | buildCueJsonMessage()<br>client.requestBuiltJson() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/cues/__tests__/cues.test.ts` | `blocked_without_validated_cmd_fallback`; Non officiel — Undocumented endpoint | Endpoint non documenté | Bloqué par `EOS_STRICT_MODE=true` tant que le chemin reste non officiel/non documenté. À corriger si une alternative officielle existe. |
-| `eos_intensity_palette_fire` | `src/tools/palettes/index.ts` | `/eos/ip/fire` | client OSC direct / mapping inline | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/palettes/__tests__/palettes.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_focus_palette_fire` | `src/tools/palettes/index.ts` | `/eos/fp/fire` | client OSC direct / mapping inline | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/palettes/__tests__/palettes.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_color_palette_fire` | `src/tools/palettes/index.ts` | `/eos/cp/fire` | client OSC direct / mapping inline | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/palettes/__tests__/palettes.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_beam_palette_fire` | `src/tools/palettes/index.ts` | `/eos/bp/fire` | client OSC direct / mapping inline | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/palettes/__tests__/palettes.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_palette_get_info` | `src/tools/palettes/index.ts` | `/eos/get/palette` | buildPaletteInfoJsonMessage()<br>client.requestBuiltJson() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/palettes/__tests__/palettes.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_preset_fire` | `src/tools/presets/index.ts` | `/eos/preset/fire` | client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/presets/__tests__/presets.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_preset_select` | `src/tools/presets/index.ts` | `/eos/preset` | client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/presets/__tests__/presets.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_preset_get_info` | `src/tools/presets/index.ts` | `/eos/get/preset` | client.requestJson() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/presets/__tests__/presets.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_submaster_set_level` | `src/tools/submasters/index.ts` | `/eos/sub/{submaster_number}` | client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/submasters/__tests__/submasters.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Aligné sur `/eos/sub/<number>` officiel; compatible strict. |
-| `eos_submaster_bump` | `src/tools/submasters/index.ts` | `/eos/sub/{submaster_number}/fire` | client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/submasters/__tests__/submasters.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Remplace l'ancien alias MCP `/bump` par `/fire`; compatible strict. |
-| `eos_submaster_get_info` | `src/tools/submasters/index.ts` | `/eos/get/submaster` | client.requestJson() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/submasters/__tests__/submasters.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_fader_bank_create` | `src/tools/faders/index.ts` | `/eos/fader/{index}/config/{faders}` ou `/eos/fader/{index}/config/{page}/{faders}` | buildFaderBankCreateMessage()<br>client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/faders/__tests__/faders.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Ordre officiel ETC: page optionnelle avant le nombre de faders; compatible strict. |
-| `eos_fader_set_level` | `src/tools/faders/index.ts` | `/eos/fader/{index}/{fader}` | buildFaderSetLevelMessage()<br>client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/faders/__tests__/faders.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | La page est gérée par `/eos/fader/{index}/page/{delta}`; compatible strict. |
-| `eos_fader_load` | `src/tools/faders/index.ts` | `/eos/fader/{index}/{fader}/load` | client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/faders/__tests__/faders.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_fader_unload` | `src/tools/faders/index.ts` | `/eos/fader/{index}/{fader}/unload` | client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/faders/__tests__/faders.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_fader_page` | `src/tools/faders/index.ts` | `/eos/fader/{index}/page/{delta}` | client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/faders/__tests__/faders.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_macro_fire` | `src/tools/macros/index.ts` | `/eos/macro/fire` | client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/macros/__tests__/macros.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_macro_select` | `src/tools/macros/index.ts` | `/eos/macro` | client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/macros/__tests__/macros.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_macro_get_info` | `src/tools/macros/index.ts` | `/eos/get/macro` | client.requestJson() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/macros/__tests__/macros.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_effect_select` | `src/tools/effects/index.ts` | `/eos/cmd` | client.sendCommand() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/effects/__tests__/effects.test.ts` | `validated_cmd_fallback`; Officiel — ETC Eos command-line via /eos/cmd | Non | Commande texte validée via `/eos/cmd` ou `/eos/newcmd`. |
-| `eos_effect_stop` | `src/tools/effects/index.ts` | `/eos/cmd` | client.sendCommand() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/effects/__tests__/effects.test.ts` | `validated_cmd_fallback`; Officiel — ETC Eos command-line via /eos/cmd | Non | Commande texte validée via `/eos/cmd` ou `/eos/newcmd`. |
-| `eos_effect_get_info` | `src/tools/effects/index.ts` | `/eos/get/effect` | client.requestJson() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/effects/__tests__/effects.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_wheel_tick` | `src/tools/parameters/index.ts` | `/eos/param/wheel/tick` | client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/parameters/__tests__/parameters.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_switch_continuous` | `src/tools/parameters/index.ts` | `/eos/param/wheel/rate` | client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/parameters/__tests__/parameters.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_set_color_hs` | `src/tools/parameters/index.ts` | `/eos/param/color/hs` | client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/parameters/__tests__/parameters.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_set_color_rgb` | `src/tools/parameters/index.ts` | `/eos/param/color/rgb` | client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/parameters/__tests__/parameters.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_set_pantilt_xy` | `src/tools/parameters/index.ts` | `/eos/param/position/xy` | client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/parameters/__tests__/parameters.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_set_xyz_position` | `src/tools/parameters/index.ts` | `/eos/param/position/xyz` | client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/parameters/__tests__/parameters.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_get_active_wheels` | `src/tools/parameters/index.ts` | `/eos/get/active/wheels` | client.requestJson() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/parameters/__tests__/parameters.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_key_press` | `src/tools/keys/index.ts` | `/eos/key/{key}` | client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/keys/__tests__/keys.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_softkey_press` | `src/tools/keys/index.ts` | `/eos/softkey/{index}` | client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/keys/__tests__/keys.test.ts`<br>`src/tools/__tests__/osc_priority_tools.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_get_softkey_labels` | `src/tools/keys/index.ts` | `/eos/get/softkey_labels` | client.requestJson() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/keys/__tests__/keys.test.ts` | `blocked_without_validated_cmd_fallback`; Non officiel — Undocumented endpoint | Endpoint non documenté | Bloqué par `EOS_STRICT_MODE=true` tant que le chemin reste non officiel/non documenté. À corriger si une alternative officielle existe. |
-| `eos_direct_select_bank_create` | `src/tools/directSelects/index.ts` | `/eos/ds/{index}/{target}/{buttons}`; `/eos/ds/{index}/{target}/flexi/{buttons}`; `/eos/ds/{index}/{target}/{page}/{buttons}`; `/eos/ds/{index}/{target}/flexi/{page}/{buttons}` | client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/directSelects/__tests__/directSelects.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Chemins natifs ETC selon Flexi/page; compatible strict. |
-| `eos_direct_select_press` | `src/tools/directSelects/index.ts` | `/eos/ds/{index}/{button}` | client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/directSelects/__tests__/directSelects.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | La page est gérée par `/eos/ds/{index}/page/{delta}`; compatible strict. |
-| `eos_direct_select_page` | `src/tools/directSelects/index.ts` | `/eos/ds/{index}/page/{delta}` | client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/directSelects/__tests__/directSelects.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_magic_sheet_open` | `src/tools/magicSheets/index.ts` | `/eos/ms` | client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/magicSheets/__tests__/magicSheets.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_magic_sheet_send_string` | `src/tools/magicSheets/index.ts` | `/eos/newcmd` | client.sendNewCommand() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/magicSheets/__tests__/magicSheets.test.ts` | `validated_cmd_fallback`; Officiel — ETC Eos command-line via /eos/cmd | Non | Commande texte validée via `/eos/cmd` ou `/eos/newcmd`. |
-| `eos_magic_sheet_get_info` | `src/tools/magicSheets/index.ts` | `/eos/get/magic_sheet` | client.requestJson() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/magicSheets/__tests__/magicSheets.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_pixmap_select` | `src/tools/pixelMaps/index.ts` | `/eos/pixmap` | client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/pixelMaps/__tests__/pixelMaps.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_pixmap_get_info` | `src/tools/pixelMaps/index.ts` | `/eos/get/pixmap` | client.requestJson() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/pixelMaps/__tests__/pixelMaps.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_curve_select` | `src/tools/curves/index.ts` | `/eos/curve/select` | client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/curves/__tests__/curves.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_curve_get_info` | `src/tools/curves/index.ts` | `/eos/get/curve` | client.requestJson() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/curves/__tests__/curves.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_fixture_search` | `src/tools/fixtures/index.ts` | — | — | — | `no_osc_transport`; Sans OSC | n/a | Outil local/orchestrateur; aucune trame OSC directe déclarée. |
-| `eos_patch_get_channel_info` | `src/tools/patch/index.ts` | `/eos/get/patch/chan_info` | client OSC direct / mapping inline | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/patch/__tests__/patch.test.ts` | `blocked_without_validated_cmd_fallback`; Non officiel — Undocumented endpoint | Endpoint non documenté | Bloqué par `EOS_STRICT_MODE=true` tant que le chemin reste non officiel/non documenté. À corriger si une alternative officielle existe. |
-| `eos_patch_get_augment3d_position` | `src/tools/patch/index.ts` | `/eos/get/patch/chan_pos` | client.requestJson() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/patch/__tests__/patch.test.ts` | `blocked_without_validated_cmd_fallback`; Non officiel — MCP extension | Extension MCP | Bloqué par `EOS_STRICT_MODE=true` tant que le chemin reste non officiel/non documenté. À corriger si une alternative officielle existe. |
-| `eos_patch_get_augment3d_beam` | `src/tools/patch/index.ts` | `/eos/get/patch/chan_beam` | client.requestJson() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/patch/__tests__/patch.test.ts` | `blocked_without_validated_cmd_fallback`; Non officiel — MCP extension | Extension MCP | Bloqué par `EOS_STRICT_MODE=true` tant que le chemin reste non officiel/non documenté. À corriger si une alternative officielle existe. |
-| `eos_snapshot_recall` | `src/tools/snapshots/index.ts` | `/eos/snap` | client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/snapshots/__tests__/snapshots.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_snapshot_get_info` | `src/tools/snapshots/index.ts` | `/eos/get/snapshot` | client.requestJson() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/snapshots/__tests__/snapshots.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_get_show_name` | `src/tools/showControl/index.ts` | `/eos/get/show/name` | client.requestJson() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/showControl/__tests__/showControl.test.ts` | `blocked_without_validated_cmd_fallback`; Non officiel — Undocumented endpoint | Endpoint non documenté | Bloqué par `EOS_STRICT_MODE=true` tant que le chemin reste non officiel/non documenté. À corriger si une alternative officielle existe. |
-| `eos_get_live_blind_state` | `src/tools/showControl/index.ts` | `/eos/get/live/blind` | client.requestJson() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/showControl/__tests__/showControl.test.ts` | `blocked_without_validated_cmd_fallback`; Non officiel — Undocumented endpoint | Endpoint non documenté | Bloqué par `EOS_STRICT_MODE=true` tant que le chemin reste non officiel/non documenté. À corriger si une alternative officielle existe. |
-| `eos_toggle_staging_mode` | `src/tools/showControl/index.ts` | `/eos/newcmd` | client.sendNewCommand() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/showControl/__tests__/showControl.test.ts` | `validated_cmd_fallback`; Officiel — ETC Eos command-line via /eos/cmd | Non | Commande texte validée via `/eos/cmd` ou `/eos/newcmd`. |
-| `eos_set_cue_send_string` | `src/tools/showControl/index.ts` | `/eos/newcmd` | client.sendNewCommand() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/showControl/__tests__/showControl.test.ts` | `validated_cmd_fallback`; Officiel — ETC Eos command-line via /eos/cmd | Non | Commande texte validée via `/eos/cmd` ou `/eos/newcmd`. |
-| `eos_set_cue_receive_string` | `src/tools/showControl/index.ts` | `/eos/newcmd` | client.sendNewCommand() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/showControl/__tests__/showControl.test.ts` | `validated_cmd_fallback`; Officiel — ETC Eos command-line via /eos/cmd | Non | Commande texte validée via `/eos/cmd` ou `/eos/newcmd`. |
-| `eos_showfile_import` | `src/tools/showfile/index.ts` | — | — | `src/tools/showfile/__tests__/showfile.test.ts` | `no_osc_transport`; Sans OSC | n/a | Outil local/orchestrateur; aucune trame OSC directe déclarée. |
-| `eos_showfile_get_patch` | `—` | — | — | — | `no_osc_transport`; Sans OSC | n/a | Outil local/orchestrateur; aucune trame OSC directe déclarée. |
-| `eos_showfile_list_groups` | `—` | — | — | — | `no_osc_transport`; Sans OSC | n/a | Outil local/orchestrateur; aucune trame OSC directe déclarée. |
-| `eos_showfile_list_labels` | `—` | — | — | — | `no_osc_transport`; Sans OSC | n/a | Outil local/orchestrateur; aucune trame OSC directe déclarée. |
-| `eos_showfile_list_cues` | `—` | — | — | — | `no_osc_transport`; Sans OSC | n/a | Outil local/orchestrateur; aucune trame OSC directe déclarée. |
-| `eos_showfile_list_palettes` | `—` | — | — | — | `no_osc_transport`; Sans OSC | n/a | Outil local/orchestrateur; aucune trame OSC directe déclarée. |
-| `eos_showfile_list_fixtures` | `—` | — | — | — | `no_osc_transport`; Sans OSC | n/a | Outil local/orchestrateur; aucune trame OSC directe déclarée. |
-| `eos_get_count` | `src/tools/queries/index.ts` | `cue`: `/eos/get/cue/count`<br>`cuelist`: `/eos/get/cuelist/count`<br>`group`: `/eos/get/group/count`<br>`macro`: `/eos/get/macro/count`<br>`ms`: `/eos/get/magic_sheet/count`<br>`ip`: `/eos/get/ip/count`<br>`fp`: `/eos/get/fp/count`<br>`cp`: `/eos/get/cp/count`<br>`bp`: `/eos/get/bp/count`<br>`preset`: `/eos/get/preset/count`<br>`sub`: `/eos/get/submaster/count`<br>`fx`: `/eos/get/effect/count`<br>`curve`: `/eos/get/curve/count`<br>`snap`: `/eos/get/snapshot/count`<br>`pixmap`: `/eos/get/pixmap/count` | client.requestJson() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/queries/__tests__/queries.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_get_list_all` | `src/tools/queries/index.ts` | `cue`: `/eos/get/cue/list`<br>`cuelist`: `/eos/get/cuelist/list`<br>`group`: `/eos/get/group/list`<br>`macro`: `/eos/get/macro/list`<br>`ms`: `/eos/get/magic_sheet/list`<br>`ip`: `/eos/get/ip/list`<br>`fp`: `/eos/get/fp/list`<br>`cp`: `/eos/get/cp/list`<br>`bp`: `/eos/get/bp/list`<br>`preset`: `/eos/get/preset/list`<br>`sub`: `/eos/get/submaster/list`<br>`fx`: `/eos/get/effect/list`<br>`curve`: `/eos/get/curve/list`<br>`snap`: `/eos/get/snapshot/list`<br>`pixmap`: `/eos/get/pixmap/list` | client.requestJson() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/queries/__tests__/queries.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_fpe_get_set_count` | `src/tools/fpe/index.ts` | `/eos/get/fpe/set/count` | client.requestJson() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/fpe/__tests__/fpe.test.ts` | `blocked_without_validated_cmd_fallback`; Non officiel — Undocumented endpoint | Endpoint non documenté | Bloqué par `EOS_STRICT_MODE=true` tant que le chemin reste non officiel/non documenté. À corriger si une alternative officielle existe. |
-| `eos_fpe_get_set_info` | `src/tools/fpe/index.ts` | `/eos/get/fpe/set` | client.requestJson() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/fpe/__tests__/fpe.test.ts` | `blocked_without_validated_cmd_fallback`; Non officiel — Undocumented endpoint | Endpoint non documenté | Bloqué par `EOS_STRICT_MODE=true` tant que le chemin reste non officiel/non documenté. À corriger si une alternative officielle existe. |
-| `eos_fpe_get_point_info` | `src/tools/fpe/index.ts` | `/eos/get/fpe/point` | client.requestJson() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/fpe/__tests__/fpe.test.ts` | `blocked_without_validated_cmd_fallback`; Non officiel — Undocumented endpoint | Endpoint non documenté | Bloqué par `EOS_STRICT_MODE=true` tant que le chemin reste non officiel/non documenté. À corriger si une alternative officielle existe. |
-| `eos_address_select` | `src/tools/dmx/index.ts` | `/eos/addr` | buildDmxAddressSelectMessage()<br>client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/dmx/__tests__/dmx.test.ts`<br>`src/tools/__tests__/osc_priority_tools.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_address_set_level` | `src/tools/dmx/index.ts` | `/eos/addr/{address}` | buildDmxAddressLevelMessage()<br>client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/dmx/__tests__/dmx.test.ts`<br>`src/tools/__tests__/osc_priority_tools.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_address_set_dmx` | `src/tools/dmx/index.ts` | `/eos/addr/{address}/DMX` | buildDmxAddressDmxMessage()<br>client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/dmx/__tests__/dmx.test.ts`<br>`src/tools/__tests__/osc_priority_tools.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `eos_set_user_id` | `src/tools/session/index.ts` | `/eos/user` | client.sendMessage() | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/session/__tests__/session.test.ts`<br>`src/tools/__tests__/osc_priority_tools.test.ts` | `native_official_required`; Officiel — ETC Eos OSC manual v3.0.0 | Non | Compatible strict sur endpoint natif officiel. |
-| `session_set_current_user` | `src/tools/session/index.ts` | — | — | `src/tools/session/__tests__/session.test.ts` | `no_osc_transport`; Sans OSC | n/a | Outil local/orchestrateur; aucune trame OSC directe déclarée. |
-| `session_get_current_user` | `src/tools/session/index.ts` | — | — | `src/tools/session/__tests__/session.test.ts` | `no_osc_transport`; Sans OSC | n/a | Outil local/orchestrateur; aucune trame OSC directe déclarée. |
-| `session_set_context` | `src/tools/session/index.ts` | — | — | `src/tools/session/__tests__/session.test.ts` | `no_osc_transport`; Sans OSC | n/a | Outil local/orchestrateur; aucune trame OSC directe déclarée. |
-| `session_get_context` | `src/tools/session/index.ts` | — | — | `src/tools/session/__tests__/session.test.ts` | `no_osc_transport`; Sans OSC | n/a | Outil local/orchestrateur; aucune trame OSC directe déclarée. |
-| `session_clear_context` | `src/tools/session/index.ts` | — | — | `src/tools/session/__tests__/session.test.ts` | `no_osc_transport`; Sans OSC | n/a | Outil local/orchestrateur; aucune trame OSC directe déclarée. |
-| `eos_cue_record` | `src/tools/programming/index.ts` | `/eos/newcmd` | client OSC direct / mapping inline | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/programming/__tests__/programming.test.ts` | `validated_cmd_fallback`; Officiel — ETC Eos command-line via /eos/cmd | Non | Commande texte validée via `/eos/cmd` ou `/eos/newcmd`. |
-| `eos_cue_update` | `src/tools/programming/index.ts` | `/eos/newcmd` | client OSC direct / mapping inline | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/programming/__tests__/programming.test.ts` | `validated_cmd_fallback`; Officiel — ETC Eos command-line via /eos/cmd | Non | Commande texte validée via `/eos/cmd` ou `/eos/newcmd`. |
-| `eos_cue_label_set` | `src/tools/programming/index.ts` | `/eos/newcmd` | client OSC direct / mapping inline | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/programming/__tests__/programming.test.ts` | `validated_cmd_fallback`; Officiel — ETC Eos command-line via /eos/cmd | Non | Commande texte validée via `/eos/cmd` ou `/eos/newcmd`. |
-| `eos_palette_record` | `src/tools/programming/index.ts` | `/eos/newcmd` | client OSC direct / mapping inline | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/programming/__tests__/programming.test.ts` | `validated_cmd_fallback`; Officiel — ETC Eos command-line via /eos/cmd | Non | Commande texte validée via `/eos/cmd` ou `/eos/newcmd`. |
-| `eos_palette_label_set` | `src/tools/programming/index.ts` | `/eos/newcmd` | client OSC direct / mapping inline | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/programming/__tests__/programming.test.ts` | `validated_cmd_fallback`; Officiel — ETC Eos command-line via /eos/cmd | Non | Commande texte validée via `/eos/cmd` ou `/eos/newcmd`. |
-| `eos_patch_set_channel` | `src/tools/programming/index.ts` | `/eos/newcmd` | client OSC direct / mapping inline | `src/tools/__tests__/osc_contracts.test.ts`<br>`src/tools/programming/__tests__/programming.test.ts` | `validated_cmd_fallback`; Officiel — ETC Eos command-line via /eos/cmd | Non | Commande texte validée via `/eos/cmd` ou `/eos/newcmd`. |
-
-## Écarts restants classés
-
-- **Officiel** : faders (`/eos/fader/<index>/<fader>` et actions), direct selects (`/eos/ds/<index>/<button>` et créations de bank), submasters (`/eos/sub/<number>` et `/fire`) et commandes documentées ETC; autorisés en mode strict.
-- **Compatible mais non natif** : outils traduits en commandes texte `/eos/cmd` ou `/eos/newcmd`, variantes `/eos/out/...` acceptées en réception et workflows dry-run; autorisés seulement quand `officiality.ts` classe l'adresse effective comme stricte.
-- **Extension MCP** : endpoints d'ergonomie/diagnostic (`/eos/get/cmd_line`, `/eos/get/patch/chan_pos`, `/eos/get/patch/chan_beam`) et anciens chemins legacy fader/direct-select; bloqués en strict.
-- **Non supporté en mode strict** : endpoints non documentés listés ci-dessous; ils doivent être désactivés ou remplacés avant exploitation stricte.
-
-## À corriger — chemins non officiels ou non classés
-
-- `eos_capabilities_get` — `/eos/get/live/blind; /eos/get/version` — Non officiel — Undocumented endpoint<br>Officiel — ETC Eos OSC manual v3.0.0 — À corriger si une alternative officielle existe.
-- `eos_get_command_line` — `/eos/get/cmd_line` — Non officiel — MCP extension — Bloqué par `EOS_STRICT_MODE=true` tant que le chemin reste non officiel/non documenté. À corriger si une alternative officielle existe.
-- `eos_get_user_command_line` — `/eos/get/cmd_line` — Non officiel — MCP extension — Bloqué par `EOS_STRICT_MODE=true` tant que le chemin reste non officiel/non documenté. À corriger si une alternative officielle existe.
-- `eos_channel_get_info` — `/eos/get/channels` — Non officiel — Undocumented endpoint — Bloqué par `EOS_STRICT_MODE=true` tant que le chemin reste non officiel/non documenté. À corriger si une alternative officielle existe.
-- `eos_readiness_check` — `/eos/ping; /eos/handshake; /eos/protocol/select; /eos/get/version; /eos/get/cmd_line; /eos/get/show/name; /eos/get/{cue|group|preset}/count; optionnel /eos/get/patch/chan_info` — Officiel — ETC Eos OSC manual v3.0.0<br>Non officiel — MCP transport contract<br>Non officiel — MCP extension<br>Non officiel — Undocumented endpoint<br>Non classé — À corriger si une alternative officielle existe.
-- `eos_get_setup_defaults` — `/eos/get/setup_defaults` — Non officiel — Undocumented endpoint — À corriger si une alternative officielle existe.
-- `eos_cuelist_get_info` — `/eos/get/cuelist/info` — Non officiel — Undocumented endpoint — Bloqué par `EOS_STRICT_MODE=true` tant que le chemin reste non officiel/non documenté. À corriger si une alternative officielle existe.
-- `eos_get_active_cue` — `/eos/get/active/cue` — Non officiel — Undocumented endpoint — Bloqué par `EOS_STRICT_MODE=true` tant que le chemin reste non officiel/non documenté. À corriger si une alternative officielle existe.
-- `eos_get_pending_cue` — `/eos/get/pending/cue` — Non officiel — Undocumented endpoint — Bloqué par `EOS_STRICT_MODE=true` tant que le chemin reste non officiel/non documenté. À corriger si une alternative officielle existe.
-- `eos_get_softkey_labels` — `/eos/get/softkey_labels` — Non officiel — Undocumented endpoint — Bloqué par `EOS_STRICT_MODE=true` tant que le chemin reste non officiel/non documenté. À corriger si une alternative officielle existe.
-- `eos_patch_get_channel_info` — `/eos/get/patch/chan_info` — Non officiel — Undocumented endpoint — Bloqué par `EOS_STRICT_MODE=true` tant que le chemin reste non officiel/non documenté. À corriger si une alternative officielle existe.
-- `eos_patch_get_augment3d_position` — `/eos/get/patch/chan_pos` — Non officiel — MCP extension — Bloqué par `EOS_STRICT_MODE=true` tant que le chemin reste non officiel/non documenté. À corriger si une alternative officielle existe.
-- `eos_patch_get_augment3d_beam` — `/eos/get/patch/chan_beam` — Non officiel — MCP extension — Bloqué par `EOS_STRICT_MODE=true` tant que le chemin reste non officiel/non documenté. À corriger si une alternative officielle existe.
-- `eos_get_show_name` — `/eos/get/show/name` — Non officiel — Undocumented endpoint — Bloqué par `EOS_STRICT_MODE=true` tant que le chemin reste non officiel/non documenté. À corriger si une alternative officielle existe.
-- `eos_get_live_blind_state` — `/eos/get/live/blind` — Non officiel — Undocumented endpoint — Bloqué par `EOS_STRICT_MODE=true` tant que le chemin reste non officiel/non documenté. À corriger si une alternative officielle existe.
-- `eos_fpe_get_set_count` — `/eos/get/fpe/set/count` — Non officiel — Undocumented endpoint — Bloqué par `EOS_STRICT_MODE=true` tant que le chemin reste non officiel/non documenté. À corriger si une alternative officielle existe.
-- `eos_fpe_get_set_info` — `/eos/get/fpe/set` — Non officiel — Undocumented endpoint — Bloqué par `EOS_STRICT_MODE=true` tant que le chemin reste non officiel/non documenté. À corriger si une alternative officielle existe.
-- `eos_fpe_get_point_info` — `/eos/get/fpe/point` — Non officiel — Undocumented endpoint — Bloqué par `EOS_STRICT_MODE=true` tant que le chemin reste non officiel/non documenté. À corriger si une alternative officielle existe.
+| Outil MCP | Routage / observation |
+| --- | --- |
+| `eos_address_select` | `/eos/addr` |
+| `eos_address_set_dmx` | `/eos/addr/{address}/DMX` |
+| `eos_address_set_level` | `/eos/addr/{address}` |
+| `eos_beam_palette_fire` | `/eos/bp/fire` |
+| `eos_capabilities_get` | Contexte local et capacités observées ; voir eos_connect |
+| `eos_channel_get_info` | `/eos/get/patch/{channel}/{part}` |
+| `eos_channel_select` | `/eos/newcmd` |
+| `eos_channel_set_dmx` | `/eos/newcmd` |
+| `eos_channel_set_level` | `/eos/newcmd` |
+| `eos_channel_set_parameter` | `/eos/chan/{channel}/param/{parameter}` |
+| `eos_color_palette_fire` | `/eos/cp/fire` |
+| `eos_command` | `/eos/cmd` |
+| `eos_command_with_substitution` | `/eos/cmd` |
+| `eos_configure` | Pas de mapping direct déclaré ; voir description (outil local ou orchestration) |
+| `eos_connect` | `/eos/get/version` (connexion locale et lecture native) |
+| `eos_console_targets` | Pas de mapping direct déclaré ; voir description (outil local ou orchestration) |
+| `eos_cue_fire` | `/eos/cue/{cuelist}/{cue}/fire` |
+| `eos_cue_get_info` | `/eos/get/cue/{cuelist}/{cue}/{part}` |
+| `eos_cue_go` | `/eos/cues/{cuelist}/fire` |
+| `eos_cue_label_set` | `/eos/set/cue/{cuelist}/{number}/label` |
+| `eos_cue_list_all` | `/eos/get/cue/{cuelist}/index/{index}` |
+| `eos_cue_record` | `/eos/newcmd` |
+| `eos_cue_select` | `/eos/cue` |
+| `eos_cue_stop_back` | `/eos/cues/{cuelist}/stop` |
+| `eos_cue_update` | `/eos/newcmd` |
+| `eos_cuelist_bank_create` | `/eos/cuelist/{bank_index}/config/{cuelist_number}/{num_prev_cues}/{num_pending_cues}` |
+| `eos_cuelist_bank_page` | `/eos/cuelist/{bank_index}/page/{delta}` |
+| `eos_cuelist_get_info` | `/eos/get/cuelist/{cuelist}` |
+| `eos_curve_get_info` | `/eos/get/curve/{number}` |
+| `eos_curve_select` | `/eos/curve` |
+| `eos_direct_select_bank_create` | `/eos/ds/{index}/{target}/{buttons}` |
+| `eos_direct_select_page` | `/eos/ds/{index}/page/{delta}` |
+| `eos_direct_select_press` | `/eos/ds/{index}/{button}` |
+| `eos_effect_get_info` | `/eos/get/fx/{number}` |
+| `eos_effect_select` | `/eos/fx` |
+| `eos_effect_stop` | `/eos/newcmd` |
+| `eos_enable_logging` | Pas de mapping direct déclaré ; voir description (outil local ou orchestration) |
+| `eos_fader_bank_create` | `/eos/fader/{index}/config/{faders}` |
+| `eos_fader_load` | `/eos/fader/{index}/{fader}/load` |
+| `eos_fader_page` | `/eos/fader/{index}/page/{delta}` |
+| `eos_fader_set_level` | `/eos/fader/{index}/{fader}` |
+| `eos_fader_unload` | `/eos/fader/{index}/{fader}/unload` |
+| `eos_fixture_search` | Pas de mapping direct déclaré ; voir description (outil local ou orchestration) |
+| `eos_focus_palette_fire` | `/eos/fp/fire` |
+| `eos_fpe_get_point_info` | `/eos/get/fpe/{set}/{point}` |
+| `eos_fpe_get_set_count` | `/eos/get/fpe/count` |
+| `eos_fpe_get_set_info` | `/eos/get/fpe/{set}` |
+| `eos_get_active_cue` | `/eos/out/active/cue` |
+| `eos_get_active_wheels` | `/eos/out/active/wheel/{index}` |
+| `eos_get_command_line` | `/eos/out/user/{number}/cmd` |
+| `eos_get_count` | `/eos/get/{family}/count` ; cues : `/eos/get/cue/{list}/count` |
+| `eos_get_diagnostics` | Pas de mapping direct déclaré ; voir description (outil local ou orchestration) |
+| `eos_get_list_all` | Get count puis `/eos/get/{family}/index/{index}` ; cues : liste explicite |
+| `eos_get_live_blind_state` | `/eos/out/event/state` |
+| `eos_get_pending_cue` | `/eos/out/pending/cue` |
+| `eos_get_setup_defaults` | Pas de mapping direct déclaré ; voir description (outil local ou orchestration) |
+| `eos_get_show_name` | `/eos/get/show/path` |
+| `eos_get_softkey_labels` | `/eos/out/softkey/{index}` |
+| `eos_get_user_command_line` | `/eos/out/user/{number}/cmd` |
+| `eos_get_version` | Pas de mapping direct déclaré ; voir description (outil local ou orchestration) |
+| `eos_group_get_info` | `/eos/get/group/{number}` |
+| `eos_group_list_all` | `/eos/get/group/index/{index}` |
+| `eos_group_select` | `/eos/group` |
+| `eos_group_set_level` | `/eos/group/{group}` |
+| `eos_intensity_palette_fire` | `/eos/ip/fire` |
+| `eos_key_press` | `/eos/key/{key}` |
+| `eos_macro_fire` | `/eos/macro/fire` |
+| `eos_macro_get_info` | `/eos/get/macro/{number}` |
+| `eos_macro_select` | `/eos/macro` |
+| `eos_magic_sheet_get_info` | `/eos/get/ms/{number}` |
+| `eos_magic_sheet_open` | `/eos/ms` |
+| `eos_new_command` | `/eos/newcmd` |
+| `eos_palette_get_info` | `/eos/get/{palette_type}/{number}` |
+| `eos_palette_label_set` | `/eos/set/{palette_type}/{number}/label` |
+| `eos_palette_record` | `/eos/newcmd` |
+| `eos_patch_get_augment3d_beam` | `/eos/get/patch/{channel}/{part}/augment3d/beam` |
+| `eos_patch_get_augment3d_position` | `/eos/get/patch/{channel}/{part}/augment3d/position` |
+| `eos_patch_get_channel_info` | `/eos/get/patch/{channel}/{part}` |
+| `eos_patch_set_channel` | `/eos/newcmd` |
+| `eos_ping` | `/eos/ping` |
+| `eos_pixmap_get_info` | `/eos/get/pixmap/{number}` |
+| `eos_pixmap_select` | `/eos/pixmap` |
+| `eos_preset_fire` | `/eos/preset/fire` |
+| `eos_preset_get_info` | `/eos/get/preset/{number}` |
+| `eos_preset_select` | `/eos/preset` |
+| `eos_readiness_check` | Pas de mapping direct déclaré ; voir description (outil local ou orchestration) |
+| `eos_reset` | `/eos/reset` (sans arguments, sans accusé de réception) |
+| `eos_set_color_hs` | `/eos/color/hs` |
+| `eos_set_color_rgb` | `/eos/color/rgb` |
+| `eos_set_dmx` | `/eos/addr/{address}/DMX` |
+| `eos_set_pantilt_xy` | `/eos/pantilt/xy` |
+| `eos_set_user_id` | `/eos/user` |
+| `eos_set_xyz_position` | `/eos/xyz` |
+| `eos_showfile_get_patch` | Pas de mapping direct déclaré ; voir description (outil local ou orchestration) |
+| `eos_showfile_import` | Pas de mapping direct déclaré ; voir description (outil local ou orchestration) |
+| `eos_showfile_list_cues` | Pas de mapping direct déclaré ; voir description (outil local ou orchestration) |
+| `eos_showfile_list_fixtures` | Pas de mapping direct déclaré ; voir description (outil local ou orchestration) |
+| `eos_showfile_list_groups` | Pas de mapping direct déclaré ; voir description (outil local ou orchestration) |
+| `eos_showfile_list_labels` | Pas de mapping direct déclaré ; voir description (outil local ou orchestration) |
+| `eos_showfile_list_palettes` | Pas de mapping direct déclaré ; voir description (outil local ou orchestration) |
+| `eos_snapshot_get_info` | `/eos/get/snap/{number}` |
+| `eos_snapshot_recall` | `/eos/snap/fire` |
+| `eos_softkey_press` | `/eos/softkey/{index}` |
+| `eos_submaster_bump` | `/eos/sub/{submaster_number}/fire` |
+| `eos_submaster_get_info` | `/eos/get/sub/{number}` |
+| `eos_submaster_record` | Préparation sélective : Get sub, commandes utilisateur et Set label |
+| `eos_submaster_set_level` | `/eos/sub/{submaster_number}` |
+| `eos_subscribe` | `/eos/subscribe`, `/eos/subscribe/param/{name}` (entier 0 ou 1) |
+| `eos_switch_continuous` | `/eos/switch/{parameter}` |
+| `eos_toggle_staging_mode` | `/eos/key/staging_mode` |
+| `eos_wheel_tick` | `/eos/wheel/{mode}/{parameter}` |
+| `eos_workflow_autopatch_band` | Orchestration de lectures Get, commandes utilisateur et Set natifs ; voir cookbook |
+| `eos_workflow_build_groups_and_palettes` | Orchestration de lectures Get, commandes utilisateur et Set natifs ; voir cookbook |
+| `eos_workflow_create_cue_series` | Orchestration de lectures Get, commandes utilisateur et Set natifs ; voir cookbook |
+| `eos_workflow_create_look` | Orchestration de lectures Get, commandes utilisateur et Set natifs ; voir cookbook |
+| `eos_workflow_patch_fixture` | Orchestration de lectures Get, commandes utilisateur et Set natifs ; voir cookbook |
+| `eos_workflow_patch_scan` | Lectures natives `/eos/get/patch/{channel}/{part}` |
+| `eos_workflow_rehearsal_go_safe` | Orchestration de lectures Get, commandes utilisateur et Set natifs ; voir cookbook |
+| `eos_workflow_update_cue_look` | Orchestration de lectures Get, commandes utilisateur et Set natifs ; voir cookbook |
+| `ping` | Pas de mapping direct déclaré ; voir description (outil local ou orchestration) |
+| `session_clear_context` | Pas de mapping direct déclaré ; voir description (outil local ou orchestration) |
+| `session_get_context` | Pas de mapping direct déclaré ; voir description (outil local ou orchestration) |
+| `session_get_current_user` | Pas de mapping direct déclaré ; voir description (outil local ou orchestration) |
+| `session_set_context` | Pas de mapping direct déclaré ; voir description (outil local ou orchestration) |
+| `session_set_current_user` | Pas de mapping direct déclaré ; voir description (outil local ou orchestration) |

@@ -1,304 +1,29 @@
 # Documentation des outils
 
-> Ce document est généré automatiquement via `npm run docs:generate`.
-> Merci de ne pas le modifier manuellement.
+> Générée avec `npm run docs:generate -- --skip-jsdoc`. Ne pas modifier manuellement.
 
-Chaque outil expose son nom MCP, une description, la liste des arguments attendus ainsi qu'un exemple d'appel en CLI et par OSC.
+Le catalogue décrit les arguments métier et les métadonnées des outils exportés. Pour les schémas complets, y compris objets imbriqués et contrôles ajoutés à l’exécution, utiliser MCP `tools/list` ou `/schemas/tools/{toolName}.json`. Le [cookbook](cookbook.md) donne des appels MCP concrets ; le [guide agent](llm-agent-guide.md) précise la démarche de préparation.
 
-## Convention commune des resultats
+## Appels et résultats
 
-Les handlers LLM-facing doivent construire leurs reponses via `buildToolResult` (ou un helper local qui l appelle) afin de conserver une enveloppe stable dans `content[0].text` et `structuredContent`.
+Les appels MCP utilisent la méthode `tools/call`, avec `params.name` et `params.arguments`. Le serveur traduit ces arguments en messages OSC natifs typés ETC. Le JSON MCP ne doit jamais être envoyé comme chaîne OSC à une adresse Get ou de contrôle.
 
-- `content[0].text` : resume humain court, directement lisible par un operateur.
-- `structuredContent.status` : statut haut niveau (`ok`, `dry_run`, `partial_failure`, `error` ou statut EOS brut si applicable).
-- `structuredContent.summary` : meme information lisible que le texte, disponible pour les clients qui ne lisent que le contenu structure.
-- `structuredContent.commandsSent` : tableau des commandes effectivement envoyees; vide si aucune commande texte EOS n a ete envoyee.
-- `structuredContent.commands_preview` : tableau des commandes prevues/simulees, notamment en `dry_run`.
-- `structuredContent.warnings` : tableau d objets `{ detail, code? }`, vide en absence d avertissement.
-- `structuredContent.next_actions` : tableau d actions recommandees pour l assistant ou l operateur; vide si rien n est requis.
-- `structuredContent.target_console`, `structuredContent.target_address` et `structuredContent.target_port` : cible console resolue pour l appel courant.
+- `content[0].text` et `structuredContent.summary` décrivent le résultat ; consulter aussi `isError`, `status`, `warnings` et `next_actions`.
+- `commandsSent` contient les commandes texte envoyées, pas l’ensemble des messages OSC. `commands_preview` et `osc_preview` décrivent les simulations quand disponibles.
+- `sent_to_transport` signifie envoyé ; `accepted_by_eos` signifie retour corrélé de la ligne de commande ; `verified` ne vaut vrai que pour l’état effectivement relu. Ces preuves ne sont pas interchangeables.
+- `source`, `is_complete`, `observed_at`, `limitations` et les champs de vérification indiquent les limites des lectures. Une réponse absente ou incomplète n’est pas un objet vide valide.
 
-Tous les outils enregistres acceptent aussi l argument global optionnel `targetConsole`, resolu depuis `EOS_CONSOLES`, en complement de `targetAddress`/`targetPort` quand ces champs sont exposes par l outil.
+## Contrôles communs
 
-Cette convention est appliquee en priorite aux familles `cues`, `commands`, `patch`, `dmx`, `macros`, `pixelMaps` et `showControl`; les nouveaux handlers doivent suivre la meme forme afin que les snapshots de lisibilite restent stables.
+Le registre ajoute `targetConsole` (alias déclaré dans `EOS_CONSOLES`) et les contrôles applicables à l’outil. `dry_run: true` empêche l’envoi et les mutations locales du handler. Les simulations ne vérifient pas l’état de la console. Une exécution sensible exige `require_confirmation: true` et les droits de programmation configurés côté serveur ; la confirmation ne relève pas le rôle autorisé.
 
-## Comportement dry-run des workflows
+Établir la cible, le plan et l’accord de l’opérateur pour le périmètre demandé, puis contrôler la prévisualisation avant l’exécution. Ne pas redemander un accord déjà donné pour ce même périmètre. Les écritures modifiant la sortie doivent être annoncées comme telles. Les arguments inconnus sont rejetés, y compris dans les workflows.
 
-Tous les workflows `eos_workflow_*` exposent `dry_run` et `require_confirmation` en option. Quand `dry_run` est absent ou vaut `false`, le workflow refuse l execution reelle tant que `require_confirmation` ne vaut pas explicitement `true`; cette confirmation ne doit etre ajoutee qu apres validation utilisateur explicite de `structuredContent.commands_preview`.
+Les workflows de cues exigent la liste explicitement ; les palettes exigent des valeurs ou `use_current_values: true` ; le patch exige le profil exact, son empreinte DMX et un utilisateur explicite pour les écritures. Aucune inférence de footprint, position 3D ou intention artistique ne remplace ces données.
 
-Quand `dry_run=true`, aucune commande EOS n'est envoyee via `sendDeterministicCommand`; la sequence EOS complete est retournee dans `structuredContent.commands_preview`, et `structuredContent.commandsSent` reste vide. Les executions refusees faute de `require_confirmation=true` retournent aussi systematiquement `structuredContent.commands_preview` pour permettre a Claude de relire exactement les commandes avec l operateur.
+## Références OSC
 
-Tous les workflows retournent aussi une structure stable et lisible par les LLM : `structuredContent.steps` (alias moderne de `executedSteps`), `structuredContent.commands_preview` (toujours present), `structuredContent.applied_defaults` (defaults explicites comme `start_cue_number=1` ou fallback cuelist master) et `structuredContent.warnings` (avertissements non bloquants et erreurs partielles resumées).
-
-## Safety pattern
-
-> **Plan -> dry-run -> confirmation -> execution.** Pour toute modification de show (cue, patch, palette, commande texte ou declenchement live), l’assistant doit annoncer le plan d’action, proposer un dry-run avec preview des commandes, puis executer en reel uniquement apres confirmation explicite de l’operateur.
-
-Exemple concret pour modifier une cue :
-
-1. **Plan annonce** : "Je vais mettre a jour la cue 12 de la liste 1 sur les canaux `1 Thru 10`, appliquer un facteur d’intensite `0.7`, puis preparer l’update sans l’envoyer."
-2. **Dry-run propose** : appeler `eos_workflow_update_cue_look` avec `dry_run=true` afin de retourner `structuredContent.commands_preview`, par exemple `Chan 1 Thru 10 At * 0.7` puis `Update Cue 1 / 12`.
-3. **Confirmation explicite** : attendre une reponse non ambigue, par exemple "Confirme, execute la mise a jour de la cue 12".
-4. **Execution reelle** : relancer le meme workflow avec les memes arguments metier, `dry_run=false` (ou sans `dry_run`) et `require_confirmation=true` seulement apres cette confirmation explicite, puis verifier `structuredContent.command_log` et `structuredContent.commandsSent`.
-
-Les **outils bas niveau sensibles** (`eos_cue_record`, `eos_cue_update`, `eos_patch_*`, `eos_command`, `eos_new_command`, declenchements `fire`, etc.) exposent des garde-fous stricts comme `require_confirmation`, `safety_level` et le rejet des arguments inconnus. Ils sont adaptes aux integrations qui savent exactement quelle commande EOS envoyer. `eos_new_command` refuse aussi les commandes composees de programmation de cues (par exemple `At` + `Record` + `Label`). Pour une serie de cues, Claude doit privilegier `eos_workflow_create_cue_series` avec `looks[].intensity` (ou `looks[].level`) afin que le workflow emette `Chan 1 Thru 10 At Full`, puis `Record Cue 3`, puis `Cue 3 Label "Reggae"` comme commandes separees.
-
-Les **workflows haut niveau guides** (`eos_workflow_*`) orchestrent plusieurs commandes metier, acceptent des metadonnees clientes inconnues sans les executer et fournissent une preview complete via `dry_run=true`. Pour les workflows qui modifient le show (creation de looks/cues/effects, patch/autopatch, groupes/palettes, update de cue et rehearsal/go), l execution reelle est bloquee sans `require_confirmation=true`; Claude doit donc relancer exactement le meme workflow avec ce champ uniquement apres validation utilisateur explicite. Ils sont a privilegier pour les assistants conversationnels, car ils imposent un parcours operateur plus lisible avant toute action destructive ou visible en live.
-
-## Capacites de lecture OSC
-
-Avant de raisonner sur le contenu du show, Claude doit lire `eos_connect.structuredContent` ou `eos_capabilities_get.structuredContent.context.osc_limitations`. Si `can_read_queries=false`, Claude ne doit pas inventer le patch, la cuelist, les cues ou les objets EOS : il doit les presenter comme inconnus et demander une lecture reussie ou une confirmation utilisateur explicite. En `handshake_mode=degraded`, le serveur indique seulement que l’envoi est possible; la lecture reste non garantie tant qu’une requete de lecture ne retourne pas `status=ok`.
-
-### Adresses de reponse OSC acceptees pour les lectures cues/cuelists
-
-Les requetes JSON EOS attendent par defaut une reponse sur l’adresse de requete, et les outils de lecture transmettent explicitement les variantes `/eos/out/...` observees sur EOS quand elles sont supportees. Les adresses actuellement acceptees sont :
-
-| Famille | Requete envoyee | Reponses acceptees | Outils concernes |
-| --- | --- | --- | --- |
-| `queries.cue.count` | `/eos/get/cue/count` | `/eos/get/cue/count`, `/eos/out/get/cue/count` | `eos_get_count` avec `target_type: "cue"` |
-| `queries.cue.list` | `/eos/get/cue/list` | `/eos/get/cue/list`, `/eos/out/get/cue/list` | `eos_get_list_all` avec `target_type: "cue"` |
-| `queries.cuelist.list` | `/eos/get/cuelist/list` | `/eos/get/cuelist/list`, `/eos/out/get/cuelist/list` | `eos_get_list_all` avec `target_type: "cuelist"` |
-| `cues.list` | `/eos/get/cuelist` | `/eos/get/cuelist`, `/eos/out/get/cuelist` | `eos_cue_list_all` |
-| `cues.info` | `/eos/get/cue` | `/eos/get/cue`, `/eos/out/get/cue` | `eos_cue_get_info` |
-
-## Options communes de securite (outils critiques)
-
-Les outils critiques des familles **cues**, **patch**, **palettes** et **commandes texte** exposent les options suivantes :
-
-- `dry_run` (`boolean`) : calcule la commande OSC/Eos et la retourne dans `structuredContent.osc` sans envoi vers la console.
-- `require_confirmation` (`boolean`) : confirmation explicite requise pour les actions sensibles.
-- `safety_level` (`strict` | `standard` | `off`) : niveau de garde-fou applique (par defaut `strict`).
-
-En mode `strict`/`standard`, les actions sensibles (`record`, `update`, `delete`, `live fire`, et declenchements `fire`) sont bloquees sans `require_confirmation=true`.
-
-## Politique d'arguments inconnus
-
-Les workflows `eos_workflow_*` sont tolerants : leurs schemas Zod utilisent `passthrough()` pour accepter les champs MCP inconnus. Ces champs sont conserves par la validation mais ne sont pas lus par la logique metier, ce qui permet d'ignorer des metadonnees clientes sans modifier les commandes OSC generees.
-
-Les tools bas niveau et sensibles restent stricts (`strict()`) afin de rejeter les arguments non prevus avant toute action directe : GO brut (`eos_cue_go`), patch brut (`eos_patch_*`, `eos_programming_patch_set_channel`), show control (`eos_show_*`), commandes texte et reglages directs.
-
-Workflows tolerants recenses :
-
-- `eos_workflow_autopatch_band`
-- `eos_workflow_build_groups_and_palettes`
-- `eos_workflow_create_cue_series`
-- `eos_workflow_create_effect`
-- `eos_workflow_create_look`
-- `eos_workflow_patch_fixture`
-- `eos_workflow_patch_scan`
-- `eos_workflow_rehearsal_go_safe`
-- `eos_workflow_update_cue_look`
-
-## Checklist release interne — LLM-friendly workflows
-
-- [ ] Verifier que chaque nouveau workflow `eos_workflow_*` utilise un schema `passthrough()` au niveau racine et sur les objets imbriques pertinents afin d accepter les metadonnees clientes sans les executer.
-- [ ] Documenter chaque valeur par defaut observable (`dry_run=false`, `start_cue_number=1`, fallback cuelist master si `cuelist_number` ou `base_cuelist_number` est absent, defaults `direction/speed/size`, defaults `face_trad_*`, position 3D `0/0/0`).
-- [ ] Confirmer que `structuredContent.steps`, `commands_preview`, `applied_defaults` et `warnings` sont toujours presents et restent des tableaux lisibles par un LLM.
-- [ ] Comparer les noms des tools entre `src/tools/workflows/index.ts`, `manifest.json` (`featured_workflows` et `presentation_order`) et `docs/tools.md`; aucun alias divergent ne doit etre publie.
-- [ ] Executer `npm run docs:check`, `npm run lint:manifest` et les tests workflows avant tag/release.
-
-## Exemples rapides par workflow naturel
-
-Les payloads ci-dessous utilisent le format MCP `tools/call` complet. Les exemples gardent `dry_run=true` pour previsualiser les commandes sans modifier la console; passez `dry_run=false` ou omettez le champ pour executer reellement le workflow.
-
-### Workflow autopatch band
-
-**Phrase utilisateur :** "patch moi 10 Mac Aura a partir du 1/1, puis 4 faces trad en univers 2."
-
-**Payload MCP complet :**
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": "workflow-autopatch-band-1",
-  "method": "tools/call",
-  "params": {
-    "name": "eos_workflow_autopatch_band",
-    "arguments": {
-      "fixtures": [
-        {
-          "count": 10,
-          "fixture_manufacturer": "Martin",
-          "fixture_model": "MAC Aura",
-          "fixture_mode": "Extended",
-          "universe": 1,
-          "start_address": 1,
-          "label_prefix": "Mac Aura"
-        }
-      ],
-      "include_face_trad": true,
-      "face_trad_count": 4,
-      "face_trad_universe": 2,
-      "face_trad_start_address": 1,
-      "face_trad_label_prefix": "Face Trad",
-      "dry_run": true
-    }
-  }
-}
-```
-
-**Options et valeurs par defaut :** `fixtures` est obligatoire. Chaque fixture du bloc est espacee automatiquement de 10 adresses DMX estimees. `include_face_trad=false` par defaut; si `include_face_trad=true`, les valeurs par defaut sont `face_trad_count=4`, `face_trad_universe=1`, `face_trad_start_address=1`, `face_trad_label_prefix="Face Trad"` et `fixture_query="trad"`. `dry_run` absent vaut `false`. `targetAddress`, `targetPort` et `user` sont optionnels.
-
-### Workflow cue series
-
-**Phrase utilisateur :** "crée moi 10 cues reggae avec des ambiances rouge, jaune et vert sur les Mac Aura."
-
-**Payload MCP complet :**
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": "workflow-cue-series-1",
-  "method": "tools/call",
-  "params": {
-    "name": "eos_workflow_create_cue_series",
-    "arguments": {
-      "base_cuelist_number": 1,
-      "start_cue_number": 10,
-      "looks": [
-        {
-          "channels": "1 Thru 10",
-          "intensity": "Full",
-          "color_palette": 101,
-          "focus_palette": 201,
-          "beam_palette": 301,
-          "cue_label": "Reggae rouge"
-        },
-        {
-          "channels": "1 Thru 10",
-          "color_palette": 102,
-          "focus_palette": 202,
-          "beam_palette": 301,
-          "cue_label": "Reggae jaune"
-        },
-        {
-          "channels": "1 Thru 10",
-          "color_palette": 103,
-          "focus_palette": 203,
-          "beam_palette": 302,
-          "cue_label": "Reggae vert"
-        }
-      ],
-      "dry_run": true
-    }
-  }
-}
-```
-
-**Options et valeurs par defaut :** `looks` est obligatoire et doit contenir au moins un look; chaque look requiert `channels`. Pour regler un niveau, renseignez `intensity` (ou l'alias `level`) avec `Full`, `Out`, une valeur `0` a `100`, ou une valeur EOS textuelle sure (`On`, `Home`, `FL`) : le workflow genere alors une commande separee `Chan <channels> At <intensity>` avant les palettes. Ne concatenez pas `At`, `Record` ou `Label` dans `channels`. `start_cue_number` vaut `1` par defaut et s'auto-incremente si un look ne precise pas `cue_number`. `base_cuelist_number` absent utilise la cuelist master. `color_palette`, `focus_palette`, `beam_palette` et `cue_label` sont optionnels par look. Pour "10 cues", envoyez 10 objets dans `looks` ou ajoutez des `cue_number` explicites pour les positions particulieres.
-
-### Workflow groups/palettes
-
-**Phrase utilisateur :** "prépare les groupes Mac Aura et Trad, puis les palettes rouge, ambre et centre."
-
-**Payload MCP complet :**
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": "workflow-groups-palettes-1",
-  "method": "tools/call",
-  "params": {
-    "name": "eos_workflow_build_groups_and_palettes",
-    "arguments": {
-      "groups": [
-        {
-          "number": 1,
-          "label": "Mac Aura",
-          "channels": "1 Thru 10"
-        },
-        {
-          "number": 2,
-          "label": "Face Trad",
-          "channels": "11 Thru 14"
-        }
-      ],
-      "color_palettes": [
-        {
-          "number": 101,
-          "label": "Rouge reggae",
-          "channels": "1 Thru 10",
-          "hue": "Red",
-          "saturation": 100
-        },
-        {
-          "number": 102,
-          "label": "Ambre reggae",
-          "channels": "1 Thru 14",
-          "hue": "Amber",
-          "saturation": 80
-        }
-      ],
-      "focus_palettes": [
-        {
-          "number": 201,
-          "label": "Centre scene",
-          "channels": "1 Thru 10",
-          "description": "Pan 0 Tilt -20"
-        }
-      ],
-      "dry_run": true
-    }
-  }
-}
-```
-
-**Options et valeurs par defaut :** `groups`, `color_palettes` et `focus_palettes` sont tous optionnels, ce qui permet d'envoyer seulement les blocs necessaires. Dans un groupe, `number`, `label` et `channels` sont requis. Dans une color palette, `hue` et `saturation` sont optionnels. Dans une focus palette, `description` est optionnel et envoye comme commande libre avant l'enregistrement de la palette. `dry_run` absent vaut `false`.
-
-### Workflow update cue look
-
-**Phrase utilisateur :** "mets a jour la cue 12 en baissant les Mac Aura a 70% et en rechauffant le look."
-
-**Payload MCP complet :**
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": "workflow-update-cue-look-1",
-  "method": "tools/call",
-  "params": {
-    "name": "eos_workflow_update_cue_look",
-    "arguments": {
-      "cuelist_number": 1,
-      "cue_number": 12,
-      "channels": "1 Thru 10",
-      "intensity_factor": 0.7,
-      "warmify": true,
-      "dry_run": true
-    }
-  }
-}
-```
-
-**Options et valeurs par defaut :** `channels` est obligatoire. Si `cue_number` est absent, le workflow applique `Update Cue` sur la cue courante. Si `cue_number` est fourni sans `cuelist_number`, la cuelist master est utilisee. `intensity_factor` est optionnel et genere `At * <valeur>`. `warmify` et `desaturate` sont acceptes mais documentes comme transformations artistiques non calculees en v1; aucune commande implicite supplementaire n'est envoyee pour ces deux options. `dry_run` absent vaut `false`.
-
-### Workflow flyout effect
-
-**Phrase utilisateur :** "crée un flyout center-out sur les Mac Aura, effet 21, rapide et assez large."
-
-**Payload MCP complet :**
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": "workflow-flyout-effect-1",
-  "method": "tools/call",
-  "params": {
-    "name": "eos_workflow_create_effect",
-    "arguments": {
-      "channels": "1 Thru 10",
-      "effect_number": 21,
-      "group_number": 1,
-      "direction": "center_out",
-      "speed": 1.8,
-      "size": 140,
-      "dry_run": true
-    }
-  }
-}
-```
-
-**Options et valeurs par defaut :** `channels` et `effect_number` sont obligatoires. `group_number` est optionnel; s'il est fourni, le workflow enregistre d'abord le groupe correspondant. `direction` vaut `left_to_right` par defaut et accepte aussi `right_to_left` ou `center_out`. `speed` vaut `1` par defaut et `size` vaut `100` par defaut. `dry_run` absent vaut `false`.
+La [matrice OSC](osc-coverage.md) expose les chemins et les unités natifs. Les lectures Get attendent `/eos/out/get/...`, avec des arguments typés et des fragments réassemblés. Les lignes de commande, roues et softkeys sont des observations passives datées. Les [limites](native-osc-limitations.md) distinguent les capacités disponibles des opérations retirées. Les tests simulés ne certifient pas une console réelle.
 
 ## Outils mis en avant
 
@@ -314,7 +39,7 @@ Les payloads ci-dessous utilisent le format MCP `tools/call` complet. Les exempl
 
 Les champs `category`, `synonyms`, `riskLevel`, `requiresConfirmation` et `preferredWorkflow` sont publiés dans `config.annotations` pour les clients MCP et repris ci-dessous pour guider le routage LLM.
 
-Catégories documentées : `commands`, `cues`, `diagnostics`, `dmx`, `keys`, `macros`, `palettes`, `patch`, `presets`, `showControl`, `showfile`.
+Catégories documentées : `commands`, `cues`, `diagnostics`, `dmx`, `keys`, `macros`, `palettes`, `patch`, `presets`, `showControl`, `showfile`, `submasters`.
 
 <a id="eos-address-select"></a>
 ## Selection d'adresse DMX (`eos_address_select`)
@@ -343,22 +68,9 @@ Catégories documentées : `commands`, `cues`, `diagnostics`, `dmx`, `keys`, `ma
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_address_select --args '{"address_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/addr s:'{"address_number":1}'
-```
+**Routage OSC :** `/eos/addr`.
 
 <a id="eos-address-set-dmx"></a>
 ## Reglage DMX brut (`eos_address_set_dmx`)
@@ -388,22 +100,9 @@ oscsend 127.0.0.1 8001 /eos/addr s:'{"address_number":1}'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_address_set_dmx --args '{"address_number":1,"dmx_value":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/addr/{address}/DMX s:'{"address_number":1,"dmx_value":1}'
-```
+**Routage OSC :** `/eos/addr/{address}/DMX`.
 
 <a id="eos-address-set-level"></a>
 ## Reglage de niveau d'adresse DMX (`eos_address_set_level`)
@@ -433,22 +132,9 @@ oscsend 127.0.0.1 8001 /eos/addr/{address}/DMX s:'{"address_number":1,"dmx_value
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_address_set_level --args '{"address_number":1,"level":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/addr/{address} s:'{"address_number":1,"level":1}'
-```
+**Routage OSC :** `/eos/addr/{address}`.
 
 <a id="eos-beam-palette-fire"></a>
 ## Declenchement de palette de beam (`eos_beam_palette_fire`)
@@ -477,22 +163,9 @@ oscsend 127.0.0.1 8001 /eos/addr/{address} s:'{"address_number":1,"level":1}'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_beam_palette_fire --args '{"palette_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/bp/fire s:'{"palette_number":1}'
-```
+**Routage OSC :** `/eos/bp/fire`.
 
 <a id="eos-capabilities-get"></a>
 ## Capacites serveur EOS MCP (`eos_capabilities_get`)
@@ -508,19 +181,9 @@ oscsend 127.0.0.1 8001 /eos/bp/fire s:'{"palette_number":1}'
 
 **Arguments :** Aucun argument.
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_capabilities_get --args '{}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** Contexte local et capacités observées ; voir eos_connect.
 
 <a id="eos-channel-get-info"></a>
 ## Informations de canaux (`eos_channel_get_info`)
@@ -544,22 +207,9 @@ _Pas de mapping OSC documenté._
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_channel_get_info --args '{"channels":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/get/channels s:'{"channels":1}'
-```
+**Routage OSC :** `/eos/get/patch/{channel}/{part}`.
 
 <a id="eos-channel-select"></a>
 ## Selection de canaux (`eos_channel_select`)
@@ -582,22 +232,9 @@ oscsend 127.0.0.1 8001 /eos/get/channels s:'{"channels":1}'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_channel_select --args '{"channels":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/newcmd s:'Chan 1'
-```
+**Routage OSC :** `/eos/newcmd`.
 
 <a id="eos-channel-set-dmx"></a>
 ## Reglage DMX des canaux (`eos_channel_set_dmx`)
@@ -620,22 +257,9 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Chan 1'
 | `targetPort` | number | Non | — |
 | `value` | number \| enum(full, Full, FULL, out, Out, OUT) \| string | Oui | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_channel_set_dmx --args '{"channels":1,"value":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/newcmd s:'Chan 1 At 1 DMX'
-```
+**Routage OSC :** `/eos/newcmd`.
 
 <a id="eos-channel-set-level"></a>
 ## Reglage de niveau (`eos_channel_set_level`)
@@ -659,27 +283,14 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Chan 1 At 1 DMX'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_channel_set_level --args '{"channels":1,"level":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/newcmd s:'Chan 1 Sneak 1'
-```
+**Routage OSC :** `/eos/newcmd`.
 
 <a id="eos-channel-set-parameter"></a>
 ## Reglage de parametre (`eos_channel_set_parameter`)
 
-**Description :** Ajuste un parametre de canal sur une echelle de 0 a 100.
+**Description :** Regle un parametre dans ses unites natives Eos (Pan/Tilt en degres signes, intensite en pourcent). Verifier les limites du profil.
 
 **Métadonnées :**
 
@@ -702,22 +313,9 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Chan 1 Sneak 1'
 | `targetPort` | number | Non | — |
 | `value` | number \| string | Oui | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_channel_set_parameter --args '{"channels":1,"parameter":"exemple","value":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/chan/1/param/exemple f:1
-```
+**Routage OSC :** `/eos/chan/{channel}/param/{parameter}`.
 
 <a id="eos-color-palette-fire"></a>
 ## Declenchement de palette de couleur (`eos_color_palette_fire`)
@@ -746,22 +344,9 @@ oscsend 127.0.0.1 8001 /eos/chan/1/param/exemple f:1
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_color_palette_fire --args '{"palette_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cp/fire s:'{"palette_number":1}'
-```
+**Routage OSC :** `/eos/cp/fire`.
 
 <a id="eos-command"></a>
 ## Commande EOS (`eos_command`)
@@ -794,22 +379,9 @@ oscsend 127.0.0.1 8001 /eos/cp/fire s:'{"palette_number":1}'
 | `verification_timeout_ms` | number | Non | — |
 | `verify_after_send` | boolean | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_command --args '{"command":"exemple"}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cmd s:'{"command":"exemple"}'
-```
+**Routage OSC :** `/eos/cmd`.
 
 <a id="eos-command-with-substitution"></a>
 ## Commande avec substitution (`eos_command_with_substitution`)
@@ -843,22 +415,9 @@ oscsend 127.0.0.1 8001 /eos/cmd s:'{"command":"exemple"}'
 | `verification_timeout_ms` | number | Non | — |
 | `verify_after_send` | boolean | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_command_with_substitution --args '{"template":"exemple"}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cmd s:'{"template":"exemple"}'
-```
+**Routage OSC :** `/eos/cmd`.
 
 <a id="eos-configure"></a>
 ## Reconfiguration OSC EOS (`eos_configure`)
@@ -881,19 +440,9 @@ oscsend 127.0.0.1 8001 /eos/cmd s:'{"template":"exemple"}'
 | `remotePort` | number | Oui | — |
 | `tcpPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_configure --args '{"remoteAddress":"exemple","remotePort":1,"localPort":1}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** Pas de mapping direct déclaré ; voir description (outil local ou orchestration).
 
 <a id="eos-connect"></a>
 ## Connexion OSC EOS (`eos_connect`)
@@ -919,19 +468,9 @@ _Pas de mapping OSC documenté._
 | `targetPort` | number | Non | — |
 | `transportPreference` | enum(reliability, speed, auto) | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_connect --args '{"targetAddress":"exemple"}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** `/eos/get/version` (connexion locale et lecture native).
 
 <a id="eos-console-targets"></a>
 ## Diagnostics des consoles cible (`eos_console_targets`)
@@ -947,19 +486,9 @@ _Pas de mapping OSC documenté._
 
 **Arguments :** Aucun argument.
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_console_targets --args '{}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** Pas de mapping direct déclaré ; voir description (outil local ou orchestration).
 
 <a id="eos-cue-fire"></a>
 ## Declenchement de cue (`eos_cue_fire`)
@@ -990,22 +519,9 @@ _Pas de mapping OSC documenté._
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_cue_fire --args '{"cue_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cue/{cuelist}/{cue}/fire s:'{"cue_number":1}'
-```
+**Routage OSC :** `/eos/cue/{cuelist}/{cue}/fire`.
 
 <a id="eos-cue-get-info"></a>
 ## Informations de cue (`eos_cue_get_info`)
@@ -1019,7 +535,7 @@ oscsend 127.0.0.1 8001 /eos/cue/{cuelist}/{cue}/fire s:'{"cue_number":1}'
 | Catégorie | `cues` |
 | Synonymes | `cue`, `cuelist`, `playback`, `go`, `record cue` |
 | Niveau de risque | `read` |
-| Confirmation requise | Oui |
+| Confirmation requise | Non |
 | Workflow préféré | `eos_workflow_create_cue_series`, `eos_workflow_update_cue_look` |
 
 **Arguments :**
@@ -1037,22 +553,9 @@ oscsend 127.0.0.1 8001 /eos/cue/{cuelist}/{cue}/fire s:'{"cue_number":1}'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_cue_get_info --args '{"cuelist_number":1,"cue_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/get/cue s:'{"cuelist_number":1,"cue_number":1}'
-```
+**Routage OSC :** `/eos/get/cue/{cuelist}/{cue}/{part}`.
 
 <a id="eos-cue-go"></a>
 ## GO sur liste de cues (`eos_cue_go`)
@@ -1083,22 +586,9 @@ oscsend 127.0.0.1 8001 /eos/get/cue s:'{"cuelist_number":1,"cue_number":1}'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_cue_go --args '{"cuelist_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cue/{cuelist}/go s:'{"cuelist_number":1}'
-```
+**Routage OSC :** `/eos/cues/{cuelist}/fire`.
 
 <a id="eos-cue-label-set"></a>
 ## Label cue (`eos_cue_label_set`)
@@ -1117,28 +607,15 @@ oscsend 127.0.0.1 8001 /eos/cue/{cuelist}/go s:'{"cuelist_number":1}'
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
 | `cue_number` | number \| string | Oui | — |
-| `cuelist_number` | number | Non | — |
+| `cuelist_number` | number | Oui | Liste explicite requise pour adresser le label sans modifier la selection courante. |
 | `label` | string | Oui | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 | `user` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_cue_label_set --args '{"cue_number":1,"label":"exemple"}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/newcmd s:'Cue 1 Label "exemple"#'
-```
+**Routage OSC :** `/eos/set/cue/{cuelist}/{number}/label`.
 
 <a id="eos-cue-list-all"></a>
 ## Liste des cues (`eos_cue_list_all`)
@@ -1152,7 +629,7 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Cue 1 Label "exemple"#'
 | Catégorie | `cues` |
 | Synonymes | `cue`, `cuelist`, `playback`, `go`, `record cue` |
 | Niveau de risque | `read` |
-| Confirmation requise | Oui |
+| Confirmation requise | Non |
 | Workflow préféré | `eos_workflow_create_cue_series`, `eos_workflow_update_cue_look` |
 
 **Arguments :**
@@ -1167,22 +644,9 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Cue 1 Label "exemple"#'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_cue_list_all --args '{"cuelist_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/get/cuelist s:'{"cuelist_number":1}'
-```
+**Routage OSC :** `/eos/get/cue/{cuelist}/index/{index}`.
 
 <a id="eos-cue-record"></a>
 ## Record cue (`eos_cue_record`)
@@ -1206,22 +670,9 @@ oscsend 127.0.0.1 8001 /eos/get/cuelist s:'{"cuelist_number":1}'
 | `targetPort` | number | Non | — |
 | `user` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_cue_record --args '{"cue_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/newcmd s:'Record Cue {cuelist_number}/1#'
-```
+**Routage OSC :** `/eos/newcmd`.
 
 <a id="eos-cue-select"></a>
 ## Selection de cue (`eos_cue_select`)
@@ -1234,7 +685,7 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Record Cue {cuelist_number}/1#'
 | --- | --- |
 | Catégorie | `cues` |
 | Synonymes | `cue`, `cuelist`, `playback`, `go`, `record cue` |
-| Niveau de risque | `read` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_create_cue_series`, `eos_workflow_update_cue_look` |
 
@@ -1252,27 +703,14 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Record Cue {cuelist_number}/1#'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_cue_select --args '{"cue_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cue/{cue} s:'{"cue_number":1}'
-```
+**Routage OSC :** `/eos/cue`.
 
 <a id="eos-cue-stop-back"></a>
 ## Stop ou Back sur liste de cues (`eos_cue_stop_back`)
 
-**Description :** Stoppe la lecture de la liste ou effectue un back selon l'option fournie.
+**Description :** Appuie une fois sur Stop/Back pour la liste indiquee. Eos arrete un fondu en cours; sinon recule d’une cue. Le protocole ne fournit pas ici de commande Stop-seulement ou Back-seulement.
 
 **Métadonnées :**
 
@@ -1288,7 +726,6 @@ oscsend 127.0.0.1 8001 /eos/cue/{cue} s:'{"cue_number":1}'
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
-| `back` | boolean | Non | — |
 | `confirm` | boolean | Non | — |
 | `cuelist_number` | number | Oui | — |
 | `dry_run` | boolean | Non | — |
@@ -1297,22 +734,9 @@ oscsend 127.0.0.1 8001 /eos/cue/{cue} s:'{"cue_number":1}'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_cue_stop_back --args '{"cuelist_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cmd s:'Cue 1 Stop#'
-```
+**Routage OSC :** `/eos/cues/{cuelist}/stop`.
 
 <a id="eos-cue-update"></a>
 ## Update cue (`eos_cue_update`)
@@ -1336,22 +760,9 @@ oscsend 127.0.0.1 8001 /eos/cmd s:'Cue 1 Stop#'
 | `targetPort` | number | Non | — |
 | `user` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_cue_update --args '{"cue_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/newcmd s:'Update Cue 1#'
-```
+**Routage OSC :** `/eos/newcmd`.
 
 <a id="eos-cuelist-bank-create"></a>
 ## Creation de bank de cuelist (`eos_cuelist_bank_create`)
@@ -1364,7 +775,7 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Update Cue 1#'
 | --- | --- |
 | Catégorie | `cues` |
 | Synonymes | `cue`, `cuelist`, `playback`, `go`, `record cue` |
-| Niveau de risque | `read` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_create_cue_series`, `eos_workflow_update_cue_look` |
 
@@ -1384,22 +795,9 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Update Cue 1#'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_cuelist_bank_create --args '{"bank_index":1,"cuelist_number":1,"num_prev_cues":1,"num_pending_cues":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cuelist/1/config/1/1/1
-```
+**Routage OSC :** `/eos/cuelist/{bank_index}/config/{cuelist_number}/{num_prev_cues}/{num_pending_cues}`.
 
 <a id="eos-cuelist-bank-page"></a>
 ## Navigation de bank de cuelist (`eos_cuelist_bank_page`)
@@ -1412,7 +810,7 @@ oscsend 127.0.0.1 8001 /eos/cuelist/1/config/1/1/1
 | --- | --- |
 | Catégorie | `cues` |
 | Synonymes | `cue`, `cuelist`, `playback`, `go`, `record cue` |
-| Niveau de risque | `read` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_create_cue_series`, `eos_workflow_update_cue_look` |
 
@@ -1429,22 +827,9 @@ oscsend 127.0.0.1 8001 /eos/cuelist/1/config/1/1/1
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_cuelist_bank_page --args '{"bank_index":1,"delta":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cuelist/1/page/1
-```
+**Routage OSC :** `/eos/cuelist/{bank_index}/page/{delta}`.
 
 <a id="eos-cuelist-get-info"></a>
 ## Informations de cuelist (`eos_cuelist_get_info`)
@@ -1458,7 +843,7 @@ oscsend 127.0.0.1 8001 /eos/cuelist/1/page/1
 | Catégorie | `cues` |
 | Synonymes | `cue`, `cuelist`, `playback`, `go`, `record cue` |
 | Niveau de risque | `read` |
-| Confirmation requise | Oui |
+| Confirmation requise | Non |
 | Workflow préféré | `eos_workflow_create_cue_series`, `eos_workflow_update_cue_look` |
 
 **Arguments :**
@@ -1473,22 +858,9 @@ oscsend 127.0.0.1 8001 /eos/cuelist/1/page/1
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_cuelist_get_info --args '{"cuelist_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/get/cuelist/info s:'{"cuelist_number":1}'
-```
+**Routage OSC :** `/eos/get/cuelist/{cuelist}`.
 
 <a id="eos-curve-get-info"></a>
 ## Lecture des informations de courbe (`eos_curve_get_info`)
@@ -1512,22 +884,14 @@ oscsend 127.0.0.1 8001 /eos/get/cuelist/info s:'{"cuelist_number":1}'
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
+| Champ de sortie spécifique | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `curve` | object | Oui | — |
+| `status` | enum(ok, timeout, error, skipped, unsupported_transport_mode, read_capability_unconfirmed) | Oui | — |
 
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_curve_get_info --args '{"curve_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/get/curve s:'{"curve_number":1}'
-```
+**Routage OSC :** `/eos/get/curve/{number}`.
 
 <a id="eos-curve-select"></a>
 ## Selection de courbe (`eos_curve_select`)
@@ -1538,8 +902,8 @@ oscsend 127.0.0.1 8001 /eos/get/curve s:'{"curve_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `read` |
-| Confirmation requise | Non |
+| Niveau de risque | `show-modifying` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -1549,22 +913,9 @@ oscsend 127.0.0.1 8001 /eos/get/curve s:'{"curve_number":1}'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_curve_select --args '{"curve_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/curve/select s:'{"curve_number":1}'
-```
+**Routage OSC :** `/eos/curve`.
 
 <a id="eos-direct-select-bank-create"></a>
 ## Creation de bank de direct selects (`eos_direct_select_bank_create`)
@@ -1590,22 +941,9 @@ oscsend 127.0.0.1 8001 /eos/curve/select s:'{"curve_number":1}'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_direct_select_bank_create --args '{"bank_index":1,"target_type":"exemple","button_count":1,"flexi_mode":true}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/ds/{index}/{target}/{buttons} s:'{"bank_index":1,"target_type":"exemple","button_count":1,"flexi_mode":true}'
-```
+**Routage OSC :** `/eos/ds/{index}/{target}/{buttons}`.
 
 <a id="eos-direct-select-page"></a>
 ## Navigation de direct select (`eos_direct_select_page`)
@@ -1628,22 +966,9 @@ oscsend 127.0.0.1 8001 /eos/ds/{index}/{target}/{buttons} s:'{"bank_index":1,"ta
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_direct_select_page --args '{"bank_index":1,"delta":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/ds/{index}/page/1 s:'{"bank_index":1,"delta":1}'
-```
+**Routage OSC :** `/eos/ds/{index}/page/{delta}`.
 
 <a id="eos-direct-select-press"></a>
 ## Appui de direct select (`eos_direct_select_press`)
@@ -1667,22 +992,9 @@ oscsend 127.0.0.1 8001 /eos/ds/{index}/page/1 s:'{"bank_index":1,"delta":1}'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_direct_select_press --args '{"bank_index":1,"button_index":1,"state":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/ds/{index}/{button} f 1
-```
+**Routage OSC :** `/eos/ds/{index}/{button}`.
 
 <a id="eos-effect-get-info"></a>
 ## Informations d'effet (`eos_effect_get_info`)
@@ -1706,22 +1018,14 @@ oscsend 127.0.0.1 8001 /eos/ds/{index}/{button} f 1
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
+| Champ de sortie spécifique | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `effect` | object | Oui | — |
+| `status` | enum(ok, timeout, error, skipped, unsupported_transport_mode, read_capability_unconfirmed) | Oui | — |
 
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_effect_get_info --args '{"effect_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/get/effect s:'{"effect_number":1}'
-```
+**Routage OSC :** `/eos/get/fx/{number}`.
 
 <a id="eos-effect-select"></a>
 ## Selection d'effet (`eos_effect_select`)
@@ -1743,27 +1047,14 @@ oscsend 127.0.0.1 8001 /eos/get/effect s:'{"effect_number":1}'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_effect_select --args '{"effect_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cmd s:'{"effect_number":1}'
-```
+**Routage OSC :** `/eos/fx`.
 
 <a id="eos-effect-stop"></a>
 ## Arret d'effet (`eos_effect_stop`)
 
-**Description :** Stoppe un effet actif sur la selection.
+**Description :** Stoppe le numero d’effet indique, ou tous les effets actifs si le numero est absent (Effect n At Enter / Stop_Effect Enter).
 
 **Métadonnées :**
 
@@ -1780,22 +1071,9 @@ oscsend 127.0.0.1 8001 /eos/cmd s:'{"effect_number":1}'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_effect_stop --args '{"effect_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/cmd s:'{"effect_number":1}'
-```
+**Routage OSC :** `/eos/newcmd`.
 
 <a id="eos-enable-logging"></a>
 ## Basculer le logging OSC (`eos_enable_logging`)
@@ -1816,19 +1094,9 @@ oscsend 127.0.0.1 8001 /eos/cmd s:'{"effect_number":1}'
 | `incoming` | boolean | Non | — |
 | `outgoing` | boolean | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_enable_logging --args '{"incoming":true}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** Pas de mapping direct déclaré ; voir description (outil local ou orchestration).
 
 <a id="eos-fader-bank-create"></a>
 ## Creation de bank de faders (`eos_fader_bank_create`)
@@ -1852,22 +1120,9 @@ _Pas de mapping OSC documenté._
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_fader_bank_create --args '{"bank_index":1,"fader_count":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/fader/{index}/config/{faders} s:'{"bank_index":1,"fader_count":1}'
-```
+**Routage OSC :** `/eos/fader/{index}/config/{faders}`.
 
 <a id="eos-fader-load"></a>
 ## Chargement de fader (`eos_fader_load`)
@@ -1890,22 +1145,9 @@ oscsend 127.0.0.1 8001 /eos/fader/{index}/config/{faders} s:'{"bank_index":1,"fa
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_fader_load --args '{"bank_index":1,"fader_index":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/fader/{index}/{fader}/load s:'{"bank_index":1,"fader_index":1}'
-```
+**Routage OSC :** `/eos/fader/{index}/{fader}/load`.
 
 <a id="eos-fader-page"></a>
 ## Navigation de bank de faders (`eos_fader_page`)
@@ -1928,22 +1170,9 @@ oscsend 127.0.0.1 8001 /eos/fader/{index}/{fader}/load s:'{"bank_index":1,"fader
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_fader_page --args '{"bank_index":1,"delta":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/fader/{index}/page/1 s:'{"bank_index":1,"delta":1}'
-```
+**Routage OSC :** `/eos/fader/{index}/page/{delta}`.
 
 <a id="eos-fader-set-level"></a>
 ## Reglage de niveau de fader (`eos_fader_set_level`)
@@ -1967,22 +1196,9 @@ oscsend 127.0.0.1 8001 /eos/fader/{index}/page/1 s:'{"bank_index":1,"delta":1}'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_fader_set_level --args '{"bank_index":1,"fader_index":1,"level":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/fader/{index}/{fader} s:'{"bank_index":1,"fader_index":1,"level":1}'
-```
+**Routage OSC :** `/eos/fader/{index}/{fader}`.
 
 <a id="eos-fader-unload"></a>
 ## Dechargement de fader (`eos_fader_unload`)
@@ -2005,22 +1221,9 @@ oscsend 127.0.0.1 8001 /eos/fader/{index}/{fader} s:'{"bank_index":1,"fader_inde
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_fader_unload --args '{"bank_index":1,"fader_index":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/fader/{index}/{fader}/unload s:'{"bank_index":1,"fader_index":1}'
-```
+**Routage OSC :** `/eos/fader/{index}/{fader}/unload`.
 
 <a id="eos-fixture-search"></a>
 ## Recherche fixture (`eos_fixture_search`)
@@ -2045,19 +1248,9 @@ oscsend 127.0.0.1 8001 /eos/fader/{index}/{fader}/unload s:'{"bank_index":1,"fad
 | `name` | string | Non | — |
 | `query` | string | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_fixture_search --args '{"query":"exemple"}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** Pas de mapping direct déclaré ; voir description (outil local ou orchestration).
 
 <a id="eos-focus-palette-fire"></a>
 ## Declenchement de palette de focus (`eos_focus_palette_fire`)
@@ -2086,22 +1279,9 @@ _Pas de mapping OSC documenté._
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_focus_palette_fire --args '{"palette_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/fp/fire s:'{"palette_number":1}'
-```
+**Routage OSC :** `/eos/fp/fire`.
 
 <a id="eos-fpe-get-point-info"></a>
 ## Informations point FPE (`eos_fpe_get_point_info`)
@@ -2119,28 +1299,15 @@ oscsend 127.0.0.1 8001 /eos/fp/fire s:'{"palette_number":1}'
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
-| `point_number` | number | Oui | Numero de point FPE (1-9999). |
+| `point_number` | number | Oui | Numero de point FPE (0-9999, index OSC). |
 | `set_number` | number | Oui | Numero de set FPE (1-9999). |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_fpe_get_point_info --args '{"set_number":1,"point_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/get/fpe/point s:'{"set_number":1,"point_number":1}'
-```
+**Routage OSC :** `/eos/get/fpe/{set}/{point}`.
 
 <a id="eos-fpe-get-set-count"></a>
 ## Compter les sets FPE (`eos_fpe_get_set_count`)
@@ -2162,22 +1329,9 @@ oscsend 127.0.0.1 8001 /eos/get/fpe/point s:'{"set_number":1,"point_number":1}'
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_fpe_get_set_count --args '{"timeoutMs":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/get/fpe/set/count s:'{"timeoutMs":1}'
-```
+**Routage OSC :** `/eos/get/fpe/count`.
 
 <a id="eos-fpe-get-set-info"></a>
 ## Informations set FPE (`eos_fpe_get_set_info`)
@@ -2200,22 +1354,9 @@ oscsend 127.0.0.1 8001 /eos/get/fpe/set/count s:'{"timeoutMs":1}'
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_fpe_get_set_info --args '{"set_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/get/fpe/set s:'{"set_number":1}'
-```
+**Routage OSC :** `/eos/get/fpe/{set}`.
 
 <a id="eos-get-active-cue"></a>
 ## Cue active (`eos_get_active_cue`)
@@ -2229,7 +1370,7 @@ oscsend 127.0.0.1 8001 /eos/get/fpe/set s:'{"set_number":1}'
 | Catégorie | `cues` |
 | Synonymes | `cue`, `cuelist`, `playback`, `go`, `record cue` |
 | Niveau de risque | `read` |
-| Confirmation requise | Oui |
+| Confirmation requise | Non |
 | Workflow préféré | `eos_workflow_create_cue_series`, `eos_workflow_update_cue_look` |
 
 **Arguments :**
@@ -2244,22 +1385,9 @@ oscsend 127.0.0.1 8001 /eos/get/fpe/set s:'{"set_number":1}'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_get_active_cue --args '{"cuelist_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/get/active/cue s:'{"cuelist_number":1}'
-```
+**Routage OSC :** `/eos/out/active/cue`.
 
 <a id="eos-get-active-wheels"></a>
 ## Encodeurs actifs (`eos_get_active_wheels`)
@@ -2281,22 +1409,9 @@ oscsend 127.0.0.1 8001 /eos/get/active/cue s:'{"cuelist_number":1}'
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_get_active_wheels --args '{"timeoutMs":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/get/active/wheels s:'{"timeoutMs":1}'
-```
+**Routage OSC :** `/eos/out/active/wheel/{index}`.
 
 <a id="eos-get-command-line"></a>
 ## Lecture de la ligne de commande EOS (`eos_get_command_line`)
@@ -2310,7 +1425,7 @@ oscsend 127.0.0.1 8001 /eos/get/active/wheels s:'{"timeoutMs":1}'
 | Catégorie | `commands` |
 | Synonymes | `command line`, `cmd`, `newcmd`, `texte eos`, `ligne de commande` |
 | Niveau de risque | `read` |
-| Confirmation requise | Oui |
+| Confirmation requise | Non |
 | Workflow préféré | `eos_workflow_create_look`, `eos_workflow_update_cue_look` |
 
 **Arguments :**
@@ -2328,22 +1443,9 @@ oscsend 127.0.0.1 8001 /eos/get/active/wheels s:'{"timeoutMs":1}'
 | `verification_timeout_ms` | number | Non | — |
 | `verify_after_send` | boolean | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_get_command_line --args '{"user":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/get/cmd_line s:'{"user":1}'
-```
+**Routage OSC :** `/eos/out/user/{number}/cmd`.
 
 <a id="eos-get-count"></a>
 ## Compter les elements (`eos_get_count`)
@@ -2361,24 +1463,30 @@ oscsend 127.0.0.1 8001 /eos/get/cmd_line s:'{"user":1}'
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
+| `cuelist_number` | number | Non | Pour target_type=cue, liste a lire (1 par defaut). |
 | `target_type` | string | Oui | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
+| Champ de sortie spécifique | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `action` | literal("get_count") | Oui | — |
+| `confidence` | enum(high, medium, low, none) | Oui | — |
+| `count` | number | Non | — |
+| `data` | unknown | Oui | — |
+| `error` | string \| null | Oui | — |
+| `is_complete` | boolean | Oui | — |
+| `limitations` | array<string> | Oui | — |
+| `next_operator_actions` | array<string> | Oui | — |
+| `osc` | object | Oui | — |
+| `source` | record<string, unknown> | Oui | — |
+| `status` | enum(ok, timeout, error, skipped, unsupported_transport_mode, read_capability_unconfirmed) | Oui | — |
+| `target_type` | string | Oui | — |
 
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_get_count --args '{"target_type":"exemple"}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** `/eos/get/{family}/count` ; cues : `/eos/get/cue/{list}/count`.
 
 <a id="eos-get-diagnostics"></a>
 ## Diagnostics OSC (`eos_get_diagnostics`)
@@ -2394,19 +1502,9 @@ _Pas de mapping OSC documenté._
 
 **Arguments :** Aucun argument.
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_get_diagnostics --args '{}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** Pas de mapping direct déclaré ; voir description (outil local ou orchestration).
 
 <a id="eos-get-list-all"></a>
 ## Lister tous les elements (`eos_get_list_all`)
@@ -2424,24 +1522,30 @@ _Pas de mapping OSC documenté._
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
+| `cuelist_number` | number | Non | Pour target_type=cue, liste a lire (1 par defaut). |
 | `target_type` | string | Oui | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
+| Champ de sortie spécifique | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `action` | literal("list_all") | Oui | — |
+| `confidence` | enum(high, medium, low, none) | Oui | — |
+| `data` | unknown | Oui | — |
+| `error` | string \| null | Oui | — |
+| `is_complete` | boolean | Oui | — |
+| `items` | array<object> | Non | — |
+| `limitations` | array<string> | Oui | — |
+| `next_operator_actions` | array<string> | Oui | — |
+| `osc` | object | Oui | — |
+| `source` | record<string, unknown> | Oui | — |
+| `status` | enum(ok, timeout, error, skipped, unsupported_transport_mode, read_capability_unconfirmed) | Oui | — |
+| `target_type` | string | Oui | — |
 
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_get_list_all --args '{"target_type":"exemple"}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** Get count puis `/eos/get/{family}/index/{index}` ; cues : liste explicite.
 
 <a id="eos-get-live-blind-state"></a>
 ## Etat Live/Blind (`eos_get_live_blind_state`)
@@ -2455,7 +1559,7 @@ _Pas de mapping OSC documenté._
 | Catégorie | `showControl` |
 | Synonymes | `show control`, `show name`, `live blind`, `cue string`, `staging mode` |
 | Niveau de risque | `read` |
-| Confirmation requise | Oui |
+| Confirmation requise | Non |
 | Workflow préféré | `eos_workflow_rehearsal_go` |
 
 **Arguments :**
@@ -2466,22 +1570,9 @@ _Pas de mapping OSC documenté._
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | Delai maximum d'attente en millisecondes. |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_get_live_blind_state --args '{"timeoutMs":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/get/live/blind s:'{"timeoutMs":1}'
-```
+**Routage OSC :** `/eos/out/event/state`.
 
 <a id="eos-get-pending-cue"></a>
 ## Cue en attente (`eos_get_pending_cue`)
@@ -2495,7 +1586,7 @@ oscsend 127.0.0.1 8001 /eos/get/live/blind s:'{"timeoutMs":1}'
 | Catégorie | `cues` |
 | Synonymes | `cue`, `cuelist`, `playback`, `go`, `record cue` |
 | Niveau de risque | `read` |
-| Confirmation requise | Oui |
+| Confirmation requise | Non |
 | Workflow préféré | `eos_workflow_create_cue_series`, `eos_workflow_update_cue_look` |
 
 **Arguments :**
@@ -2510,22 +1601,9 @@ oscsend 127.0.0.1 8001 /eos/get/live/blind s:'{"timeoutMs":1}'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_get_pending_cue --args '{"cuelist_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/get/pending/cue s:'{"cuelist_number":1}'
-```
+**Routage OSC :** `/eos/out/pending/cue`.
 
 <a id="eos-get-setup-defaults"></a>
 ## Defaults de setup (`eos_get_setup_defaults`)
@@ -2547,19 +1625,9 @@ oscsend 127.0.0.1 8001 /eos/get/pending/cue s:'{"cuelist_number":1}'
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_get_setup_defaults --args '{"timeoutMs":1}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** Pas de mapping direct déclaré ; voir description (outil local ou orchestration).
 
 <a id="eos-get-show-name"></a>
 ## Nom du show (`eos_get_show_name`)
@@ -2573,7 +1641,7 @@ _Pas de mapping OSC documenté._
 | Catégorie | `showControl` |
 | Synonymes | `show control`, `show name`, `live blind`, `cue string`, `staging mode` |
 | Niveau de risque | `read` |
-| Confirmation requise | Oui |
+| Confirmation requise | Non |
 | Workflow préféré | `eos_workflow_rehearsal_go` |
 
 **Arguments :**
@@ -2584,22 +1652,9 @@ _Pas de mapping OSC documenté._
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | Delai maximum d'attente en millisecondes. |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_get_show_name --args '{"timeoutMs":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/get/show/name s:'{"timeoutMs":1}'
-```
+**Routage OSC :** `/eos/get/show/path`.
 
 <a id="eos-get-softkey-labels"></a>
 ## Libelles des softkeys (`eos_get_softkey_labels`)
@@ -2624,22 +1679,9 @@ oscsend 127.0.0.1 8001 /eos/get/show/name s:'{"timeoutMs":1}'
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_get_softkey_labels --args '{"timeoutMs":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/get/softkey_labels s:'{"timeoutMs":1}'
-```
+**Routage OSC :** `/eos/out/softkey/{index}`.
 
 <a id="eos-get-user-command-line"></a>
 ## Lecture de la ligne de commande utilisateur (`eos_get_user_command_line`)
@@ -2653,7 +1695,7 @@ oscsend 127.0.0.1 8001 /eos/get/softkey_labels s:'{"timeoutMs":1}'
 | Catégorie | `commands` |
 | Synonymes | `command line`, `cmd`, `newcmd`, `texte eos`, `ligne de commande` |
 | Niveau de risque | `read` |
-| Confirmation requise | Oui |
+| Confirmation requise | Non |
 | Workflow préféré | `eos_workflow_create_look`, `eos_workflow_update_cue_look` |
 
 **Arguments :**
@@ -2671,22 +1713,9 @@ oscsend 127.0.0.1 8001 /eos/get/softkey_labels s:'{"timeoutMs":1}'
 | `verification_timeout_ms` | number | Non | — |
 | `verify_after_send` | boolean | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_get_user_command_line --args '{"user":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/get/cmd_line s:'{"user":1}'
-```
+**Routage OSC :** `/eos/out/user/{number}/cmd`.
 
 <a id="eos-get-version"></a>
 ## Version de la console (`eos_get_version`)
@@ -2708,19 +1737,9 @@ oscsend 127.0.0.1 8001 /eos/get/cmd_line s:'{"user":1}'
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_get_version --args '{"timeoutMs":1}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** Pas de mapping direct déclaré ; voir description (outil local ou orchestration).
 
 <a id="eos-group-get-info"></a>
 ## Informations sur un groupe (`eos_group_get_info`)
@@ -2743,22 +1762,13 @@ _Pas de mapping OSC documenté._
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
+| Champ de sortie spécifique | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `group` | object \| null | Non | — |
 
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_group_get_info --args '{"group_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/get/group s:'{"group_number":1}'
-```
+**Routage OSC :** `/eos/get/group/{number}`.
 
 <a id="eos-group-list-all"></a>
 ## Liste des groupes (`eos_group_list_all`)
@@ -2780,22 +1790,13 @@ oscsend 127.0.0.1 8001 /eos/get/group s:'{"group_number":1}'
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
+| Champ de sortie spécifique | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `groups` | array<object> | Oui | — |
 
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_group_list_all --args '{"timeoutMs":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/get/group/list s:'{"timeoutMs":1}'
-```
+**Routage OSC :** `/eos/get/group/index/{index}`.
 
 <a id="eos-group-select"></a>
 ## Selection de groupe (`eos_group_select`)
@@ -2817,22 +1818,9 @@ oscsend 127.0.0.1 8001 /eos/get/group/list s:'{"timeoutMs":1}'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_group_select --args '{"group_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/group s:'{"group_number":1}'
-```
+**Routage OSC :** `/eos/group`.
 
 <a id="eos-group-set-level"></a>
 ## Reglage de niveau de groupe (`eos_group_set_level`)
@@ -2856,22 +1844,9 @@ oscsend 127.0.0.1 8001 /eos/group s:'{"group_number":1}'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_group_set_level --args '{"group_number":1,"level":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/group/{group}/level s:'{"group_number":1,"level":1}'
-```
+**Routage OSC :** `/eos/group/{group}`.
 
 <a id="eos-intensity-palette-fire"></a>
 ## Declenchement de palette d'intensite (`eos_intensity_palette_fire`)
@@ -2900,22 +1875,9 @@ oscsend 127.0.0.1 8001 /eos/group/{group}/level s:'{"group_number":1,"level":1}'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_intensity_palette_fire --args '{"palette_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/ip/fire s:'{"palette_number":1}'
-```
+**Routage OSC :** `/eos/ip/fire`.
 
 <a id="eos-key-press"></a>
 ## Appui sur touche (`eos_key_press`)
@@ -2945,22 +1907,9 @@ oscsend 127.0.0.1 8001 /eos/ip/fire s:'{"palette_number":1}'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_key_press --args '{"key_name":"exemple"}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/key/{key} s:'{"key_name":"exemple"}'
-```
+**Routage OSC :** `/eos/key/{key}`.
 
 <a id="eos-macro-fire"></a>
 ## Declenchement de macro (`eos_macro_fire`)
@@ -2985,22 +1934,9 @@ oscsend 127.0.0.1 8001 /eos/key/{key} s:'{"key_name":"exemple"}'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_macro_fire --args '{"macro_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/macro/fire s:'{"macro_number":1}'
-```
+**Routage OSC :** `/eos/macro/fire`.
 
 <a id="eos-macro-get-info"></a>
 ## Informations de macro (`eos_macro_get_info`)
@@ -3014,7 +1950,7 @@ oscsend 127.0.0.1 8001 /eos/macro/fire s:'{"macro_number":1}'
 | Catégorie | `macros` |
 | Synonymes | `macro`, `macro fire`, `automation`, `sequence` |
 | Niveau de risque | `read` |
-| Confirmation requise | Oui |
+| Confirmation requise | Non |
 | Workflow préféré | `eos_workflow_rehearsal_go` |
 
 **Arguments :**
@@ -3026,22 +1962,14 @@ oscsend 127.0.0.1 8001 /eos/macro/fire s:'{"macro_number":1}'
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
+| Champ de sortie spécifique | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `macro` | object | Oui | — |
+| `status` | enum(ok, timeout, error, skipped, unsupported_transport_mode, read_capability_unconfirmed) | Oui | — |
 
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_macro_get_info --args '{"macro_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/get/macro s:'{"macro_number":1}'
-```
+**Routage OSC :** `/eos/get/macro/{number}`.
 
 <a id="eos-macro-select"></a>
 ## Selection de macro (`eos_macro_select`)
@@ -3066,22 +1994,9 @@ oscsend 127.0.0.1 8001 /eos/get/macro s:'{"macro_number":1}'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_macro_select --args '{"macro_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/macro s:'{"macro_number":1}'
-```
+**Routage OSC :** `/eos/macro`.
 
 <a id="eos-magic-sheet-get-info"></a>
 ## Informations de magic sheet (`eos_magic_sheet_get_info`)
@@ -3104,22 +2019,14 @@ oscsend 127.0.0.1 8001 /eos/macro s:'{"macro_number":1}'
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
+| Champ de sortie spécifique | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `magic_sheet` | object | Oui | — |
+| `status` | enum(ok, timeout, error, skipped, unsupported_transport_mode, read_capability_unconfirmed) | Oui | — |
 
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_magic_sheet_get_info --args '{"ms_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/get/magic_sheet s:'{"ms_number":1}'
-```
+**Routage OSC :** `/eos/get/ms/{number}`.
 
 <a id="eos-magic-sheet-open"></a>
 ## Ouverture de magic sheet (`eos_magic_sheet_open`)
@@ -3130,8 +2037,8 @@ oscsend 127.0.0.1 8001 /eos/get/magic_sheet s:'{"ms_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `read` |
-| Confirmation requise | Non |
+| Niveau de risque | `show-modifying` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -3142,59 +2049,9 @@ oscsend 127.0.0.1 8001 /eos/get/magic_sheet s:'{"ms_number":1}'
 | `targetPort` | number | Non | — |
 | `view_number` | number | Non | Numero de vue (1-99). |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_magic_sheet_open --args '{"ms_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/ms s:'{"ms_number":1}'
-```
-
-<a id="eos-magic-sheet-send-string"></a>
-## Envoi de commande via magic sheet (`eos_magic_sheet_send_string`)
-
-**Description :** Envoie une commande OSC via la fonctionnalite Magic Sheet.
-
-**Métadonnées :**
-
-| Champ | Valeur |
-| --- | --- |
-| Niveau de risque | `read` |
-| Confirmation requise | Non |
-
-**Arguments :**
-
-| Nom | Type | Requis | Description |
-| --- | --- | --- | --- |
-| `osc_command` | string | Oui | Commande OSC a envoyer via le magic sheet. |
-| `targetAddress` | string | Non | — |
-| `targetPort` | number | Non | — |
-
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
-
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_magic_sheet_send_string --args '{"osc_command":"exemple"}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/newcmd s:'{"osc_command":"exemple"}'
-```
+**Routage OSC :** `/eos/ms`.
 
 <a id="eos-new-command"></a>
 ## Nouvelle commande EOS (`eos_new_command`)
@@ -3229,22 +2086,9 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'{"osc_command":"exemple"}'
 | `verification_timeout_ms` | number | Non | — |
 | `verify_after_send` | boolean | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_new_command --args '{"command":"exemple"}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/newcmd s:'{"command":"exemple"}'
-```
+**Routage OSC :** `/eos/newcmd`.
 
 <a id="eos-palette-get-info"></a>
 ## Informations de palette (`eos_palette_get_info`)
@@ -3258,7 +2102,7 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'{"command":"exemple"}'
 | Catégorie | `palettes` |
 | Synonymes | `palette`, `ip`, `fp`, `cp`, `bp`, `look building` |
 | Niveau de risque | `read` |
-| Confirmation requise | Oui |
+| Confirmation requise | Non |
 | Workflow préféré | `eos_workflow_create_look`, `eos_workflow_create_cue_series` |
 
 **Arguments :**
@@ -3276,22 +2120,9 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'{"command":"exemple"}'
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_palette_get_info --args '{"palette_type":"ip","palette_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/get/palette s:'{"palette_type":"ip","palette_number":1}'
-```
+**Routage OSC :** `/eos/get/{palette_type}/{number}`.
 
 <a id="eos-palette-label-set"></a>
 ## Label palette (`eos_palette_label_set`)
@@ -3316,22 +2147,9 @@ oscsend 127.0.0.1 8001 /eos/get/palette s:'{"palette_type":"ip","palette_number"
 | `targetPort` | number | Non | — |
 | `user` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_palette_label_set --args '{"palette_type":"ip","palette_number":1,"label":"exemple"}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/newcmd s:'IP 1 Label "exemple"#'
-```
+**Routage OSC :** `/eos/set/{palette_type}/{number}/label`.
 
 <a id="eos-palette-record"></a>
 ## Record palette (`eos_palette_record`)
@@ -3355,22 +2173,9 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'IP 1 Label "exemple"#'
 | `targetPort` | number | Non | — |
 | `user` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_palette_record --args '{"palette_type":"ip","palette_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/newcmd s:'IP 1 Record#'
-```
+**Routage OSC :** `/eos/newcmd`.
 
 <a id="eos-patch-get-augment3d-beam"></a>
 ## Faisceau Augment3d (`eos_patch_get_augment3d_beam`)
@@ -3384,7 +2189,7 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'IP 1 Record#'
 | Catégorie | `patch` |
 | Synonymes | `patch`, `fixture`, `channel setup`, `augment3d`, `adressage` |
 | Niveau de risque | `read` |
-| Confirmation requise | Oui |
+| Confirmation requise | Non |
 | Workflow préféré | `eos_workflow_autopatch_band` |
 
 **Arguments :**
@@ -3401,22 +2206,13 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'IP 1 Record#'
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
+| Champ de sortie spécifique | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `augment3d` | object | Non | — |
 
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_patch_get_augment3d_beam --args '{"channel_number":1,"part_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/get/patch/chan_beam s:'{"channel_number":1,"part_number":1}'
-```
+**Routage OSC :** `/eos/get/patch/{channel}/{part}/augment3d/beam`.
 
 <a id="eos-patch-get-augment3d-position"></a>
 ## Position Augment3d (`eos_patch_get_augment3d_position`)
@@ -3430,7 +2226,7 @@ oscsend 127.0.0.1 8001 /eos/get/patch/chan_beam s:'{"channel_number":1,"part_num
 | Catégorie | `patch` |
 | Synonymes | `patch`, `fixture`, `channel setup`, `augment3d`, `adressage` |
 | Niveau de risque | `read` |
-| Confirmation requise | Oui |
+| Confirmation requise | Non |
 | Workflow préféré | `eos_workflow_autopatch_band` |
 
 **Arguments :**
@@ -3447,22 +2243,13 @@ oscsend 127.0.0.1 8001 /eos/get/patch/chan_beam s:'{"channel_number":1,"part_num
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
+| Champ de sortie spécifique | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `augment3d` | object | Non | — |
 
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_patch_get_augment3d_position --args '{"channel_number":1,"part_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/get/patch/chan_pos s:'{"channel_number":1,"part_number":1}'
-```
+**Routage OSC :** `/eos/get/patch/{channel}/{part}/augment3d/position`.
 
 <a id="eos-patch-get-channel-info"></a>
 ## Informations de patch (`eos_patch_get_channel_info`)
@@ -3476,7 +2263,7 @@ oscsend 127.0.0.1 8001 /eos/get/patch/chan_pos s:'{"channel_number":1,"part_numb
 | Catégorie | `patch` |
 | Synonymes | `patch`, `fixture`, `channel setup`, `augment3d`, `adressage` |
 | Niveau de risque | `read` |
-| Confirmation requise | Oui |
+| Confirmation requise | Non |
 | Workflow préféré | `eos_workflow_autopatch_band` |
 
 **Arguments :**
@@ -3493,27 +2280,18 @@ oscsend 127.0.0.1 8001 /eos/get/patch/chan_pos s:'{"channel_number":1,"part_numb
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
+| Champ de sortie spécifique | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `channel` | object | Non | — |
 
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_patch_get_channel_info --args '{"channel_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/get/patch/chan_info s:'{"channel_number":1}'
-```
+**Routage OSC :** `/eos/get/patch/{channel}/{part}`.
 
 <a id="eos-patch-set-channel"></a>
 ## Set patch channel (`eos_patch_set_channel`)
 
-**Description :** Configure adresse DMX, type appareil, part et label via commande deterministe.
+**Description :** Controle et applique le patch avec relecture. Le profil complexe doit deja exister sur le canal; aucun nom OFL n’est transforme en commande Type.
 
 **Métadonnées :**
 
@@ -3526,31 +2304,23 @@ oscsend 127.0.0.1 8001 /eos/get/patch/chan_info s:'{"channel_number":1}'
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
+| `allow_readdress` | boolean | Non | — |
 | `channel_number` | number | Oui | — |
 | `device_type` | string | Oui | — |
 | `dmx_address` | number \| string | Oui | Adresse DMX au format 'univers/adresse' ou numero absolu. |
+| `dmx_footprint` | number | Non | — |
+| `dry_run` | boolean | Non | — |
+| `eos_profile` | string | Non | — |
 | `label` | string | Non | — |
 | `part` | number | Non | — |
+| `require_confirmation` | boolean | Non | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 | `user` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_patch_set_channel --args '{"channel_number":1,"dmx_address":1,"device_type":"exemple"}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/newcmd s:'Patch Chan 1 Part 1 Address 1 Type "exemple"#'
-```
+**Routage OSC :** `/eos/newcmd`.
 
 <a id="eos-ping"></a>
 ## Ping OSC EOS (`eos_ping`)
@@ -3574,22 +2344,9 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'Patch Chan 1 Part 1 Address 1 Type "exempl
 | `timeoutMs` | number | Non | — |
 | `transportPreference` | enum(reliability, speed, auto) | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_ping --args '{"message":"exemple"}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/ping s:'{"message":"exemple"}'
-```
+**Routage OSC :** `/eos/ping`.
 
 <a id="eos-pixmap-get-info"></a>
 ## Informations sur un pixel map (`eos_pixmap_get_info`)
@@ -3612,22 +2369,13 @@ oscsend 127.0.0.1 8001 /eos/ping s:'{"message":"exemple"}'
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
+| Champ de sortie spécifique | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `pixmap` | object | Non | — |
 
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_pixmap_get_info --args '{"pixmap_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/get/pixmap s:'{"pixmap_number":1}'
-```
+**Routage OSC :** `/eos/get/pixmap/{number}`.
 
 <a id="eos-pixmap-select"></a>
 ## Selection de pixel map (`eos_pixmap_select`)
@@ -3638,8 +2386,8 @@ oscsend 127.0.0.1 8001 /eos/get/pixmap s:'{"pixmap_number":1}'
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `read` |
-| Confirmation requise | Non |
+| Niveau de risque | `show-modifying` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 
@@ -3649,22 +2397,9 @@ oscsend 127.0.0.1 8001 /eos/get/pixmap s:'{"pixmap_number":1}'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_pixmap_select --args '{"pixmap_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/pixmap s:'{"pixmap_number":1}'
-```
+**Routage OSC :** `/eos/pixmap`.
 
 <a id="eos-preset-fire"></a>
 ## Declenchement de preset (`eos_preset_fire`)
@@ -3689,22 +2424,9 @@ oscsend 127.0.0.1 8001 /eos/pixmap s:'{"pixmap_number":1}'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_preset_fire --args '{"preset_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/preset/fire s:'{"preset_number":1}'
-```
+**Routage OSC :** `/eos/preset/fire`.
 
 <a id="eos-preset-get-info"></a>
 ## Informations de preset (`eos_preset_get_info`)
@@ -3718,7 +2440,7 @@ oscsend 127.0.0.1 8001 /eos/preset/fire s:'{"preset_number":1}'
 | Catégorie | `presets` |
 | Synonymes | `preset`, `look`, `preset fire`, `preset select` |
 | Niveau de risque | `read` |
-| Confirmation requise | Oui |
+| Confirmation requise | Non |
 | Workflow préféré | `eos_workflow_create_look`, `eos_workflow_create_cue_series` |
 
 **Arguments :**
@@ -3731,22 +2453,9 @@ oscsend 127.0.0.1 8001 /eos/preset/fire s:'{"preset_number":1}'
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_preset_get_info --args '{"preset_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/get/preset s:'{"preset_number":1}'
-```
+**Routage OSC :** `/eos/get/preset/{number}`.
 
 <a id="eos-preset-select"></a>
 ## Selection de preset (`eos_preset_select`)
@@ -3771,22 +2480,9 @@ oscsend 127.0.0.1 8001 /eos/get/preset s:'{"preset_number":1}'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_preset_select --args '{"preset_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/preset s:'{"preset_number":1}'
-```
+**Routage OSC :** `/eos/preset`.
 
 <a id="eos-readiness-check"></a>
 ## Verification de readiness EOS (`eos_readiness_check`)
@@ -3817,19 +2513,9 @@ oscsend 127.0.0.1 8001 /eos/preset s:'{"preset_number":1}'
 | `transportPreference` | enum(reliability, speed, auto) | Non | — |
 | `user` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_readiness_check --args '{"timeoutMs":1}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** Pas de mapping direct déclaré ; voir description (outil local ou orchestration).
 
 <a id="eos-reset"></a>
 ## Reset OSC EOS (`eos_reset`)
@@ -3853,19 +2539,9 @@ _Pas de mapping OSC documenté._
 | `timeoutMs` | number | Non | — |
 | `transportPreference` | enum(reliability, speed, auto) | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_reset --args '{"full":true}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** `/eos/reset` (sans arguments, sans accusé de réception).
 
 <a id="eos-set-color-hs"></a>
 ## Couleur HS (`eos_set_color_hs`)
@@ -3888,22 +2564,9 @@ _Pas de mapping OSC documenté._
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_set_color_hs --args '{"hue":1,"saturation":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/param/color/hs s:'{"hue":1,"saturation":1}'
-```
+**Routage OSC :** `/eos/color/hs`.
 
 <a id="eos-set-color-rgb"></a>
 ## Couleur RGB (`eos_set_color_rgb`)
@@ -3927,102 +2590,9 @@ oscsend 127.0.0.1 8001 /eos/param/color/hs s:'{"hue":1,"saturation":1}'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_set_color_rgb --args '{"red":1,"green":1,"blue":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/param/color/rgb s:'{"red":1,"green":1,"blue":1}'
-```
-
-<a id="eos-set-cue-receive-string"></a>
-## Format de reception des cues (`eos_set_cue_receive_string`)
-
-**Description :** Configure le format de reception OSC des cues (placeholders %1-%2).
-
-**Métadonnées :**
-
-| Champ | Valeur |
-| --- | --- |
-| Catégorie | `showControl` |
-| Synonymes | `show control`, `show name`, `live blind`, `cue string`, `staging mode` |
-| Niveau de risque | `dangerous` |
-| Confirmation requise | Oui |
-| Workflow préféré | `eos_workflow_rehearsal_go` |
-
-**Arguments :**
-
-| Nom | Type | Requis | Description |
-| --- | --- | --- | --- |
-| `format_string` | string | Oui | Format de reception des cues (placeholders %1-%2 disponibles). |
-| `targetAddress` | string | Non | — |
-| `targetPort` | number | Non | — |
-
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
-
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_set_cue_receive_string --args '{"format_string":"exemple"}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/newcmd s:'{"format_string":"exemple"}'
-```
-
-<a id="eos-set-cue-send-string"></a>
-## Format d'envoi des cues (`eos_set_cue_send_string`)
-
-**Description :** Configure le format d'envoi OSC des cues (placeholders %1-%5).
-
-**Métadonnées :**
-
-| Champ | Valeur |
-| --- | --- |
-| Catégorie | `showControl` |
-| Synonymes | `show control`, `show name`, `live blind`, `cue string`, `staging mode` |
-| Niveau de risque | `dangerous` |
-| Confirmation requise | Oui |
-| Workflow préféré | `eos_workflow_rehearsal_go` |
-
-**Arguments :**
-
-| Nom | Type | Requis | Description |
-| --- | --- | --- | --- |
-| `format_string` | string | Oui | Format d'envoi des cues (placeholders %1-%5 disponibles). |
-| `targetAddress` | string | Non | — |
-| `targetPort` | number | Non | — |
-
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
-
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_set_cue_send_string --args '{"format_string":"exemple"}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/newcmd s:'{"format_string":"exemple"}'
-```
+**Routage OSC :** `/eos/color/rgb`.
 
 <a id="eos-set-dmx"></a>
 ## Reglage DMX (`eos_set_dmx`)
@@ -4045,22 +2615,9 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'{"format_string":"exemple"}'
 | `targetPort` | number | Non | — |
 | `value` | number \| enum(full, Full, FULL, out, Out, OUT) \| string | Oui | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_set_dmx --args '{"addresses":1,"value":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/addr/{address}/DMX s:'{"addresses":1,"value":1}'
-```
+**Routage OSC :** `/eos/addr/{address}/DMX`.
 
 <a id="eos-set-pantilt-xy"></a>
 ## Position Pan/Tilt XY (`eos_set_pantilt_xy`)
@@ -4083,22 +2640,9 @@ oscsend 127.0.0.1 8001 /eos/addr/{address}/DMX s:'{"addresses":1,"value":1}'
 | `x` | number \| string | Oui | — |
 | `y` | number \| string | Oui | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_set_pantilt_xy --args '{"x":1,"y":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/param/position/xy s:'{"x":1,"y":1}'
-```
+**Routage OSC :** `/eos/pantilt/xy`.
 
 <a id="eos-set-user-id"></a>
 ## Definir identifiant utilisateur EOS (`eos_set_user_id`)
@@ -4124,22 +2668,9 @@ oscsend 127.0.0.1 8001 /eos/param/position/xy s:'{"x":1,"y":1}'
 | `targetPort` | number | Non | — |
 | `user_id` | number | Oui | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_set_user_id --args '{"user_id":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/user i:1
-```
+**Routage OSC :** `/eos/user`.
 
 <a id="eos-set-xyz-position"></a>
 ## Position XYZ (`eos_set_xyz_position`)
@@ -4163,22 +2694,9 @@ oscsend 127.0.0.1 8001 /eos/user i:1
 | `y` | number \| string | Oui | — |
 | `z` | number \| string | Oui | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_set_xyz_position --args '{"x":1,"y":1,"z":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/param/position/xyz s:'{"x":1,"y":1,"z":1}'
-```
+**Routage OSC :** `/eos/xyz`.
 
 <a id="eos-showfile-get-patch"></a>
 ## Lire le patch du showfile importe (`eos_showfile_get_patch`)
@@ -4200,19 +2718,9 @@ oscsend 127.0.0.1 8001 /eos/param/position/xyz s:'{"x":1,"y":1,"z":1}'
 | --- | --- | --- | --- |
 | `import_id` | string | Non | Identifiant retourne par eos_showfile_import; omis, utilise le dernier import. |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_showfile_get_patch --args '{"import_id":"exemple"}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** Pas de mapping direct déclaré ; voir description (outil local ou orchestration).
 
 <a id="eos-showfile-import"></a>
 ## Importer un showfile Eos .esf3d hors live (`eos_showfile_import`)
@@ -4242,19 +2750,9 @@ _Pas de mapping OSC documenté._
 | `uploadBase64` | string | Non | Contenu .esf3d encode en base64 pour un upload controle. |
 | `uploadFilename` | string | Non | Nom de fichier upload; doit finir par .esf3d. |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_showfile_import --args '{"operator_authorized":true}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** Pas de mapping direct déclaré ; voir description (outil local ou orchestration).
 
 <a id="eos-showfile-list-cues"></a>
 ## Lister les cues du showfile importe (`eos_showfile_list_cues`)
@@ -4276,19 +2774,9 @@ _Pas de mapping OSC documenté._
 | --- | --- | --- | --- |
 | `import_id` | string | Non | Identifiant retourne par eos_showfile_import; omis, utilise le dernier import. |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_showfile_list_cues --args '{"import_id":"exemple"}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** Pas de mapping direct déclaré ; voir description (outil local ou orchestration).
 
 <a id="eos-showfile-list-fixtures"></a>
 ## Lister les fixtures du showfile importe (`eos_showfile_list_fixtures`)
@@ -4310,19 +2798,9 @@ _Pas de mapping OSC documenté._
 | --- | --- | --- | --- |
 | `import_id` | string | Non | Identifiant retourne par eos_showfile_import; omis, utilise le dernier import. |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_showfile_list_fixtures --args '{"import_id":"exemple"}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** Pas de mapping direct déclaré ; voir description (outil local ou orchestration).
 
 <a id="eos-showfile-list-groups"></a>
 ## Lister les groupes du showfile importe (`eos_showfile_list_groups`)
@@ -4344,19 +2822,9 @@ _Pas de mapping OSC documenté._
 | --- | --- | --- | --- |
 | `import_id` | string | Non | Identifiant retourne par eos_showfile_import; omis, utilise le dernier import. |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_showfile_list_groups --args '{"import_id":"exemple"}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** Pas de mapping direct déclaré ; voir description (outil local ou orchestration).
 
 <a id="eos-showfile-list-labels"></a>
 ## Lister les labels du showfile importe (`eos_showfile_list_labels`)
@@ -4378,19 +2846,9 @@ _Pas de mapping OSC documenté._
 | --- | --- | --- | --- |
 | `import_id` | string | Non | Identifiant retourne par eos_showfile_import; omis, utilise le dernier import. |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_showfile_list_labels --args '{"import_id":"exemple"}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** Pas de mapping direct déclaré ; voir description (outil local ou orchestration).
 
 <a id="eos-showfile-list-palettes"></a>
 ## Lister les palettes du showfile importe (`eos_showfile_list_palettes`)
@@ -4412,19 +2870,9 @@ _Pas de mapping OSC documenté._
 | --- | --- | --- | --- |
 | `import_id` | string | Non | Identifiant retourne par eos_showfile_import; omis, utilise le dernier import. |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_showfile_list_palettes --args '{"import_id":"exemple"}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** Pas de mapping direct déclaré ; voir description (outil local ou orchestration).
 
 <a id="eos-snapshot-get-info"></a>
 ## Lecture des informations de snapshot (`eos_snapshot_get_info`)
@@ -4448,22 +2896,14 @@ _Pas de mapping OSC documenté._
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
+| Champ de sortie spécifique | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `snapshot` | object | Oui | — |
+| `status` | enum(ok, timeout, error, skipped, unsupported_transport_mode, read_capability_unconfirmed) | Oui | — |
 
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_snapshot_get_info --args '{"snapshot_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/get/snapshot s:'{"snapshot_number":1}'
-```
+**Routage OSC :** `/eos/get/snap/{number}`.
 
 <a id="eos-snapshot-recall"></a>
 ## Rappel de snapshot (`eos_snapshot_recall`)
@@ -4485,22 +2925,9 @@ oscsend 127.0.0.1 8001 /eos/get/snapshot s:'{"snapshot_number":1}'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_snapshot_recall --args '{"snapshot_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/snap s:'{"snapshot_number":1}'
-```
+**Routage OSC :** `/eos/snap/fire`.
 
 <a id="eos-softkey-press"></a>
 ## Appui sur softkey (`eos_softkey_press`)
@@ -4530,22 +2957,9 @@ oscsend 127.0.0.1 8001 /eos/snap s:'{"snapshot_number":1}'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_softkey_press --args '{"softkey_number":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/softkey/1 s:'{"softkey_number":1}'
-```
+**Routage OSC :** `/eos/softkey/{index}`.
 
 <a id="eos-submaster-bump"></a>
 ## Commande de bump (`eos_submaster_bump`)
@@ -4568,22 +2982,9 @@ oscsend 127.0.0.1 8001 /eos/softkey/1 s:'{"softkey_number":1}'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_submaster_bump --args '{"submaster_number":1,"state":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/sub/1/fire f 1
-```
+**Routage OSC :** `/eos/sub/{submaster_number}/fire`.
 
 <a id="eos-submaster-get-info"></a>
 ## Informations sur un submaster (`eos_submaster_get_info`)
@@ -4606,22 +3007,47 @@ oscsend 127.0.0.1 8001 /eos/sub/1/fire f 1
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
+| Champ de sortie spécifique | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `found` | boolean | Oui | — |
+| `submaster` | object | Oui | — |
 
-_CLI_
+**Routage OSC :** `/eos/get/sub/{number}`.
 
-```bash
-npx @modelcontextprotocol/cli call --tool eos_submaster_get_info --args '{"submaster_number":1}'
-```
+<a id="eos-submaster-record"></a>
+## Enregistrer un submaster selectif (`eos_submaster_record`)
 
-_OSC_
+**Description :** Enregistre sur un numero libre les canaux explicites. Intensite seule par defaut. level applique des niveaux Live; absent, conserve les niveaux courants. Preview puis confirmation; contenu final a verifier dans Eos.
 
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/get/submaster s:'{"submaster_number":1}'
-```
+**Métadonnées :**
+
+| Champ | Valeur |
+| --- | --- |
+| Catégorie | `submasters` |
+| Niveau de risque | `show-modifying` |
+| Confirmation requise | Oui |
+
+**Arguments :**
+
+| Nom | Type | Requis | Description |
+| --- | --- | --- | --- |
+| `channels` | string | Oui | — |
+| `dry_run` | boolean | Non | — |
+| `intensity_only` | boolean | Non | Enregistre uniquement l’intensite par defaut; false inclut les autres parametres courants. |
+| `label` | string | Oui | — |
+| `level` | number | Non | Si fourni, applique ce niveau aux canaux en Live avant enregistrement. Sinon conserve les valeurs courantes. |
+| `number` | number | Oui | — |
+| `require_confirmation` | boolean | Non | — |
+| `targetAddress` | string | Non | — |
+| `targetPort` | number | Non | — |
+| `user` | number | Non | — |
+| `verification_timeout_ms` | number | Non | — |
+
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
+
+**Routage OSC :** Préparation sélective : Get sub, commandes utilisateur et Set label.
 
 <a id="eos-submaster-set-level"></a>
 ## Reglage de submaster (`eos_submaster_set_level`)
@@ -4644,22 +3070,9 @@ oscsend 127.0.0.1 8001 /eos/get/submaster s:'{"submaster_number":1}'
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_submaster_set_level --args '{"submaster_number":1,"level":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/sub/1 f 1
-```
+**Routage OSC :** `/eos/sub/{submaster_number}`.
 
 <a id="eos-subscribe"></a>
 ## Souscription OSC EOS (`eos_subscribe`)
@@ -4685,24 +3098,14 @@ oscsend 127.0.0.1 8001 /eos/sub/1 f 1
 | `timeoutMs` | number | Non | — |
 | `transportPreference` | enum(reliability, speed, auto) | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_subscribe --args '{"path":"exemple"}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** `/eos/subscribe`, `/eos/subscribe/param/{name}` (entier 0 ou 1).
 
 <a id="eos-switch-continuous"></a>
 ## Mouvement continu (`eos_switch_continuous`)
 
-**Description :** Active un mouvement continu d'encodeur sur un parametre.
+**Description :** Mouvement continu de la selection courante. rate est une vitesse native signee; envoyer 0 pour arreter.
 
 **Métadonnées :**
 
@@ -4720,22 +3123,9 @@ _Pas de mapping OSC documenté._
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_switch_continuous --args '{"parameter_name":"exemple","rate":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/param/wheel/rate s:'{"parameter_name":"exemple","rate":1}'
-```
+**Routage OSC :** `/eos/switch/{parameter}`.
 
 <a id="eos-toggle-staging-mode"></a>
 ## Toggle Staging Mode (`eos_toggle_staging_mode`)
@@ -4748,7 +3138,7 @@ oscsend 127.0.0.1 8001 /eos/param/wheel/rate s:'{"parameter_name":"exemple","rat
 | --- | --- |
 | Catégorie | `showControl` |
 | Synonymes | `show control`, `show name`, `live blind`, `cue string`, `staging mode` |
-| Niveau de risque | `read` |
+| Niveau de risque | `show-modifying` |
 | Confirmation requise | Oui |
 | Workflow préféré | `eos_workflow_rehearsal_go` |
 
@@ -4759,27 +3149,14 @@ oscsend 127.0.0.1 8001 /eos/param/wheel/rate s:'{"parameter_name":"exemple","rat
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_toggle_staging_mode --args '{"targetAddress":"exemple"}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/newcmd s:'{"targetAddress":"exemple"}'
-```
+**Routage OSC :** `/eos/key/staging_mode`.
 
 <a id="eos-wheel-tick"></a>
 ## Rotation d'encodeur (`eos_wheel_tick`)
 
-**Description :** Simule une rotation d'encodeur pour un parametre donne.
+**Description :** Rotation relative de l’encodeur de la selection courante; ticks natifs signes, mode coarse ou fine.
 
 **Métadonnées :**
 
@@ -4798,27 +3175,14 @@ oscsend 127.0.0.1 8001 /eos/newcmd s:'{"targetAddress":"exemple"}'
 | `targetPort` | number | Non | — |
 | `ticks` | number \| string | Oui | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_wheel_tick --args '{"parameter_name":"exemple","ticks":1}'
-```
-
-_OSC_
-
-```bash
-# Exemple d'envoi OSC via oscsend
-oscsend 127.0.0.1 8001 /eos/param/wheel/tick s:'{"parameter_name":"exemple","ticks":1}'
-```
+**Routage OSC :** `/eos/wheel/{mode}/{parameter}`.
 
 <a id="eos-workflow-autopatch-band"></a>
 ## Patch complet du groupe sur scene (`eos_workflow_autopatch_band`)
 
-**Description :** Point d entree naturel pour patcher tout un patch band: blocs de fixtures, adresses DMX, labels et option face trad en une seule sequence.
+**Description :** Prepare un plan par empreinte DMX exacte puis verifie collisions et profils Eos avant toute ecriture. start_channel preserve la numerotation; pas de changement de profil implicite.
 
 **Métadonnées :**
 
@@ -4831,6 +3195,7 @@ oscsend 127.0.0.1 8001 /eos/param/wheel/tick s:'{"parameter_name":"exemple","tic
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
+| `allow_readdress` | boolean | Non | — |
 | `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes uniquement si require_confirmation vaut true. |
 | `face_trad_count` | number | Non | — |
 | `face_trad_label_prefix` | string | Non | — |
@@ -4839,29 +3204,21 @@ oscsend 127.0.0.1 8001 /eos/param/wheel/tick s:'{"parameter_name":"exemple","tic
 | `fixtures` | array<object> | Oui | — |
 | `include_face_trad` | boolean | Non | — |
 | `require_confirmation` | boolean | Non | Obligatoire a true pour toute execution reelle (dry_run absent ou false). Ne doit etre fourni par un assistant qu'apres validation utilisateur explicite de commands_preview. |
+| `start_channel` | number | Non | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
+| `universe_rollover` | boolean | Non | — |
 | `user` | number | Non | — |
 | `verification_timeout_ms` | number | Non | Timeout en millisecondes pour verifier apres envoi les commandes EOS sensibles. |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_workflow_autopatch_band --args '{"fixtures":[{"count":1,"universe":1,"start_address":1,"label_prefix":"exemple"}]}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** Orchestration de lectures Get, commandes utilisateur et Set natifs ; voir cookbook.
 
 <a id="eos-workflow-build-groups-and-palettes"></a>
 ## Construire groupes et palettes (`eos_workflow_build_groups_and_palettes`)
 
-**Description :** Point d entree naturel pour preparer un show: enregistrer des groupes de canaux puis creer et nommer les color palettes et focus palettes associees.
+**Description :** Prepare groupes, palettes et submasters sur des numeros libres. Preview complete, valeurs explicites, arret au premier echec et relecture des champs OSC disponibles.
 
 **Métadonnées :**
 
@@ -4875,28 +3232,19 @@ _Pas de mapping OSC documenté._
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
 | `color_palettes` | array<object> | Non | — |
-| `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes uniquement si require_confirmation vaut true. |
+| `dry_run` | boolean | Non | — |
 | `focus_palettes` | array<object> | Non | — |
 | `groups` | array<object> | Non | — |
-| `require_confirmation` | boolean | Non | Obligatoire a true pour toute execution reelle (dry_run absent ou false). Ne doit etre fourni par un assistant qu'apres validation utilisateur explicite de commands_preview. |
+| `require_confirmation` | boolean | Non | — |
+| `submasters` | array<object> | Non | — |
 | `targetAddress` | string | Non | — |
 | `targetPort` | number | Non | — |
 | `user` | number | Non | — |
-| `verification_timeout_ms` | number | Non | Timeout en millisecondes pour verifier apres envoi les commandes EOS sensibles. |
+| `verification_timeout_ms` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_workflow_build_groups_and_palettes --args '{"groups":[{"number":1,"label":"exemple","channels":"exemple"}]}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** Orchestration de lectures Get, commandes utilisateur et Set natifs ; voir cookbook.
 
 <a id="eos-workflow-create-cue-series"></a>
 ## Programmer une suite de cues reggae (`eos_workflow_create_cue_series`)
@@ -4914,7 +3262,7 @@ _Pas de mapping OSC documenté._
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
-| `base_cuelist_number` | number | Non | — |
+| `base_cuelist_number` | number | Oui | — |
 | `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes uniquement si require_confirmation vaut true. |
 | `looks` | array<object> | Oui | — |
 | `require_confirmation` | boolean | Non | Obligatoire a true pour toute execution reelle (dry_run absent ou false). Ne doit etre fourni par un assistant qu'apres validation utilisateur explicite de commands_preview. |
@@ -4924,62 +3272,9 @@ _Pas de mapping OSC documenté._
 | `user` | number | Non | — |
 | `verification_timeout_ms` | number | Non | Timeout en millisecondes pour verifier apres envoi les commandes EOS sensibles. |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_workflow_create_cue_series --args '{"looks":[{"channels":"exemple"}]}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
-
-<a id="eos-workflow-create-effect"></a>
-## Creer un effet fly-out (`eos_workflow_create_effect`)
-
-**Description :** Point d entree naturel pour creer un fly-out ou effet de mouvement: assignation aux canaux, groupe optionnel, direction center-out/left-right, speed et size.
-
-**Métadonnées :**
-
-| Champ | Valeur |
-| --- | --- |
-| Niveau de risque | `show-modifying` |
-| Confirmation requise | Oui |
-
-**Arguments :**
-
-| Nom | Type | Requis | Description |
-| --- | --- | --- | --- |
-| `channels` | string | Oui | — |
-| `direction` | enum(left_to_right, right_to_left, center_out) | Non | — |
-| `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes uniquement si require_confirmation vaut true. |
-| `effect_number` | number | Oui | — |
-| `group_number` | number | Non | — |
-| `require_confirmation` | boolean | Non | Obligatoire a true pour toute execution reelle (dry_run absent ou false). Ne doit etre fourni par un assistant qu'apres validation utilisateur explicite de commands_preview. |
-| `size` | number | Non | — |
-| `speed` | number | Non | — |
-| `targetAddress` | string | Non | — |
-| `targetPort` | number | Non | — |
-| `user` | number | Non | — |
-| `verification_timeout_ms` | number | Non | Timeout en millisecondes pour verifier apres envoi les commandes EOS sensibles. |
-
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
-
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_workflow_create_effect --args '{"channels":"exemple","effect_number":1}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** Orchestration de lectures Get, commandes utilisateur et Set natifs ; voir cookbook.
 
 <a id="eos-workflow-create-look"></a>
 ## Workflow creation de look (`eos_workflow_create_look`)
@@ -5002,7 +3297,7 @@ _Pas de mapping OSC documenté._
 | `color_palette` | number | Non | — |
 | `cue_label` | string | Non | — |
 | `cue_number` | number \| string | Oui | — |
-| `cuelist_number` | number | Non | — |
+| `cuelist_number` | number | Oui | — |
 | `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes uniquement si require_confirmation vaut true. |
 | `focus_palette` | number | Non | — |
 | `require_confirmation` | boolean | Non | Obligatoire a true pour toute execution reelle (dry_run absent ou false). Ne doit etre fourni par un assistant qu'apres validation utilisateur explicite de commands_preview. |
@@ -5011,24 +3306,14 @@ _Pas de mapping OSC documenté._
 | `user` | number | Non | — |
 | `verification_timeout_ms` | number | Non | Timeout en millisecondes pour verifier apres envoi les commandes EOS sensibles. |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_workflow_create_look --args '{"channels":"exemple","cue_number":1}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** Orchestration de lectures Get, commandes utilisateur et Set natifs ; voir cookbook.
 
 <a id="eos-workflow-patch-fixture"></a>
 ## Workflow patch fixture (`eos_workflow_patch_fixture`)
 
-**Description :** Patch un canal, applique un label et une position 3D de base.
+**Description :** Controle puis applique adresse, label et XYZ optionnel. Profils complexes a preparer dans Eos; user 1..99 requis.
 
 **Métadonnées :**
 
@@ -5041,10 +3326,13 @@ _Pas de mapping OSC documenté._
 
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
+| `allow_readdress` | boolean | Non | — |
 | `channel_number` | number | Oui | — |
 | `device_type` | string | Non | — |
 | `dmx_address` | number \| string | Oui | Adresse DMX au format 'univers/adresse' ou numero absolu. |
+| `dmx_footprint` | number | Non | — |
 | `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes uniquement si require_confirmation vaut true. |
+| `eos_profile` | string | Non | — |
 | `fixture_manufacturer` | string | Non | — |
 | `fixture_mode` | string | Non | — |
 | `fixture_model` | string | Non | — |
@@ -5061,19 +3349,9 @@ _Pas de mapping OSC documenté._
 | `user` | number | Non | — |
 | `verification_timeout_ms` | number | Non | Timeout en millisecondes pour verifier apres envoi les commandes EOS sensibles. |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_workflow_patch_fixture --args '{"channel_number":1,"dmx_address":1,"label":"exemple"}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** Orchestration de lectures Get, commandes utilisateur et Set natifs ; voir cookbook.
 
 <a id="eos-workflow-patch-scan"></a>
 ## Scanner le patch de plusieurs canaux (`eos_workflow_patch_scan`)
@@ -5084,8 +3362,8 @@ _Pas de mapping OSC documenté._
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `show-modifying` |
-| Confirmation requise | Oui |
+| Niveau de risque | `read` |
+| Confirmation requise | Non |
 
 **Arguments :**
 
@@ -5104,19 +3382,9 @@ _Pas de mapping OSC documenté._
 | `targetPort` | number | Non | — |
 | `timeoutMs` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_workflow_patch_scan --args '{"start_channel":1}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** Lectures natives `/eos/get/patch/{channel}/{part}`.
 
 <a id="eos-workflow-rehearsal-go-safe"></a>
 ## Workflow rehearsal go safe (`eos_workflow_rehearsal_go_safe`)
@@ -5148,24 +3416,14 @@ _Pas de mapping OSC documenté._
 | `user` | number | Non | — |
 | `verification_timeout_ms` | number | Non | Timeout en millisecondes pour verifier apres envoi les commandes EOS sensibles. |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_workflow_rehearsal_go_safe --args '{"cuelist_number":1}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** Orchestration de lectures Get, commandes utilisateur et Set natifs ; voir cookbook.
 
 <a id="eos-workflow-update-cue-look"></a>
 ## Mettre a jour le look d une cue (`eos_workflow_update_cue_look`)
 
-**Description :** Point d entree naturel pour modifier une cue existante ou courante: aller a la cue, selectionner les canaux, ajuster l intensite puis lancer Update.
+**Description :** Rappelle une cue explicite, applique une intensite absolue aux canaux puis Update. Modifie la sortie live; les valeurs enregistrees restent a verifier dans Eos.
 
 **Métadonnées :**
 
@@ -5179,10 +3437,11 @@ _Pas de mapping OSC documenté._
 | Nom | Type | Requis | Description |
 | --- | --- | --- | --- |
 | `channels` | string | Oui | — |
-| `cue_number` | number \| string | Non | — |
-| `cuelist_number` | number | Non | — |
+| `cue_number` | number \| string | Oui | — |
+| `cuelist_number` | number | Oui | — |
 | `desaturate` | boolean | Non | — |
 | `dry_run` | boolean | Non | Si true, aucune commande EOS n'est envoyee; la sequence complete est retournee dans structuredContent.commands_preview. Si absent ou false, le workflow execute reellement les commandes uniquement si require_confirmation vaut true. |
+| `intensity` | number | Oui | — |
 | `intensity_factor` | number | Non | — |
 | `require_confirmation` | boolean | Non | Obligatoire a true pour toute execution reelle (dry_run absent ou false). Ne doit etre fourni par un assistant qu'apres validation utilisateur explicite de commands_preview. |
 | `targetAddress` | string | Non | — |
@@ -5191,19 +3450,9 @@ _Pas de mapping OSC documenté._
 | `verification_timeout_ms` | number | Non | Timeout en millisecondes pour verifier apres envoi les commandes EOS sensibles. |
 | `warmify` | boolean | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool eos_workflow_update_cue_look --args '{"channels":"exemple"}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** Orchestration de lectures Get, commandes utilisateur et Set natifs ; voir cookbook.
 
 <a id="ping"></a>
 ## Ping tool (`ping`)
@@ -5223,19 +3472,9 @@ _Pas de mapping OSC documenté._
 | --- | --- | --- | --- |
 | `message` | string | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool ping --args '{"message":"exemple"}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** Pas de mapping direct déclaré ; voir description (outil local ou orchestration).
 
 <a id="session-clear-context"></a>
 ## Effacer contexte courant (`session_clear_context`)
@@ -5258,19 +3497,9 @@ _Pas de mapping OSC documenté._
 | `mcp_session_id` | string | Non | — |
 | `user_id` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool session_clear_context --args '{"context_id":"exemple"}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** Pas de mapping direct déclaré ; voir description (outil local ou orchestration).
 
 <a id="session-get-context"></a>
 ## Contexte courant (`session_get_context`)
@@ -5293,19 +3522,9 @@ _Pas de mapping OSC documenté._
 | `mcp_session_id` | string | Non | — |
 | `user_id` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool session_get_context --args '{"context_id":"exemple"}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** Pas de mapping direct déclaré ; voir description (outil local ou orchestration).
 
 <a id="session-get-current-user"></a>
 ## Utilisateur courant (`session_get_current_user`)
@@ -5321,19 +3540,9 @@ _Pas de mapping OSC documenté._
 
 **Arguments :** Aucun argument.
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool session_get_current_user --args '{}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** Pas de mapping direct déclaré ; voir description (outil local ou orchestration).
 
 <a id="session-set-context"></a>
 ## Definir contexte courant (`session_set_context`)
@@ -5358,19 +3567,9 @@ _Pas de mapping OSC documenté._
 | `ttl_ms` | number | Non | — |
 | `user_id` | number | Non | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool session_set_context --args '{"context":{"show":"exemple"}}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** Pas de mapping direct déclaré ; voir description (outil local ou orchestration).
 
 <a id="session-set-current-user"></a>
 ## Definir utilisateur courant (`session_set_current_user`)
@@ -5390,16 +3589,6 @@ _Pas de mapping OSC documenté._
 | --- | --- | --- | --- |
 | `user` | number | Oui | — |
 
-**Retour :** Les handlers renvoient un `ToolExecutionResult` avec un résumé texte et les données renvoyées par la console EOS.
+**Retour :** Résultat MCP structuré ; contrôler le statut et les preuves décrites ci-dessus.
 
-**Exemples :**
-
-_CLI_
-
-```bash
-npx @modelcontextprotocol/cli call --tool session_set_current_user --args '{"user":1}'
-```
-
-_OSC_
-
-_Pas de mapping OSC documenté._
+**Routage OSC :** Pas de mapping direct déclaré ; voir description (outil local ou orchestration).

@@ -69,10 +69,10 @@ exports[`tool result convention snapshots standardise les resumes lisibles des f
     "next_actions": [],
     "next_operator_actions": [],
     "source": {
-      "address": "/eos/get/patch/chan_info",
+      "address": "/eos/get/patch/{channel}/{part}",
       "args": {
         "channel": 12,
-        "part": 0,
+        "part": 1,
       },
       "type": "eos_osc",
     },
@@ -105,8 +105,8 @@ exports[`tool result convention snapshots standardise les resumes lisibles des f
     "next_operator_actions": undefined,
     "source": undefined,
     "status": "ok",
-    "summary": "Nom du show : "Festival 2026".",
-    "text": "Nom du show : "Festival 2026".",
+    "summary": "Nom du show : "Rehearsal".",
+    "text": "Nom du show : "Rehearsal".",
     "warnings": [],
   },
 }

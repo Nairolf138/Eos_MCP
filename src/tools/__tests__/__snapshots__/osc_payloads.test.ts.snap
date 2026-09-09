@@ -16,7 +16,7 @@ exports[`OSC payload snapshots captures EOS-native channel parameter payloads 1`
 
 exports[`OSC payload snapshots captures EOS-native channel parameter payloads 2`] = `
 {
-  "address": "/eos/addr/1%2F101/DMX",
+  "address": "/eos/addr/101/DMX",
   "args": [
     {
       "type": "i",
@@ -72,7 +72,7 @@ exports[`OSC payload snapshots captures EOS-native control surface payloads 1`] 
 
 exports[`OSC payload snapshots captures EOS-native control surface payloads 2`] = `
 {
-  "address": "/eos/group/5/level",
+  "address": "/eos/group/5",
   "args": [
     {
       "type": "f",
@@ -86,28 +86,28 @@ exports[`OSC payload snapshots captures EOS-native control surface payloads 2`] 
 
 exports[`OSC payload snapshots captures EOS-native effect command payloads 1`] = `
 {
-  "address": "/eos/cmd",
+  "address": "/eos/fx",
   "args": [
     {
-      "type": "s",
-      "value": "Effect 12",
+      "type": "i",
+      "value": 12,
     },
   ],
-  "arguments": "single OSC string containing \`Effect <number>\`",
-  "wireFormat": "eos-native-command",
+  "arguments": "one OSC int: effect number",
+  "wireFormat": "eos-native",
 }
 `;
 
 exports[`OSC payload snapshots captures EOS-native effect command payloads 2`] = `
 {
-  "address": "/eos/cmd",
+  "address": "/eos/newcmd",
   "args": [
     {
       "type": "s",
-      "value": "Effect 7 Stop",
+      "value": "Effect 7 At#",
     },
   ],
-  "arguments": "single OSC string containing \`Effect Stop\` or \`Effect <number> Stop\`",
+  "arguments": "single terminated OSC string: \`Effect <number> At#\` or \`Stop_Effect#\`",
   "wireFormat": "eos-native-command",
 }
 `;
@@ -127,34 +127,6 @@ exports[`OSC payload snapshots captures EOS-native layout payloads 2`] = `
   "args": [],
   "arguments": "EOS-native address path encodes bank, target, optional flexi, optional page, and buttons",
   "wireFormat": "eos-native-address",
-}
-`;
-
-exports[`OSC payload snapshots captures EOS-native show-control command payloads 1`] = `
-{
-  "address": "/eos/newcmd",
-  "args": [
-    {
-      "type": "s",
-      "value": "Show_Control Cue_Send_String "Cue %1 -> %2 (%3)"",
-    },
-  ],
-  "arguments": "single OSC string containing \`Show_Control Cue_Send_String ...\`",
-  "wireFormat": "eos-native-command",
-}
-`;
-
-exports[`OSC payload snapshots captures EOS-native show-control command payloads 2`] = `
-{
-  "address": "/eos/newcmd",
-  "args": [
-    {
-      "type": "s",
-      "value": "Show_Control Cue_Receive_String "Receive %1 [%2]"",
-    },
-  ],
-  "arguments": "single OSC string containing \`Show_Control Cue_Receive_String ...\`",
-  "wireFormat": "eos-native-command",
 }
 `;
 

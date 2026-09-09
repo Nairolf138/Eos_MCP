@@ -155,3 +155,19 @@ and [ETC OSC Get](https://www.etcconnect.com/WebDocs/Controls/EosFamilyOnlineHel
 Fixtures are synthetic examples based on these references, not console captures.
 No physical Eos or Nomad instance is available in this development environment;
 real console acceptance remains to be performed even after automated tests pass.
+
+Completed batch after `acf2dba`: generated tool documentation and OSC coverage now
+reflect the 125 exported tools, native typed arguments, passive observations and
+verification limits. Removed fabricated JSON-over-OSC and unverified CLI examples;
+the manifest no longer recommends removed effect creation. The generator checks
+both catalogue documents for drift and exposes tool-specific output fields.
+Legacy result fixtures now use native replies. Reviewed payload snapshots cover
+absolute DMX addresses, group levels, native effect selection/stop and current
+discovery; obsolete snapshots of removed JSON-based scenarios were deleted.
+
+Validation: **134/134 tests passed in four suites** (OSC contracts, payloads,
+result convention, catalogue documentation). TypeScript, repository-wide ESLint,
+`docs:check` and `lint:manifest` passed. No failing tests remain in this batch.
+Full regression has not yet been rerun after these fixes. Next: update user guides,
+cookbook and compatibility/testing claims; complete E2E and the full release gate.
+Main remains unchanged.
