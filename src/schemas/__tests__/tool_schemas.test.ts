@@ -55,7 +55,7 @@ describe('tool JSON schemas', () => {
       ['eos_palette_get_info', 'palettes'],
       ['eos_preset_fire', 'presets'],
       ['eos_patch_get_channel_info', 'patch'],
-      ['eos_set_cue_send_string', 'showControl']
+      ['eos_get_show_name', 'showControl']
     ]);
 
     for (const [toolName, category] of expectedFamilies) {

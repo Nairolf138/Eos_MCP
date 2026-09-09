@@ -171,3 +171,15 @@ result convention, catalogue documentation). TypeScript, repository-wide ESLint,
 Full regression has not yet been rerun after these fixes. Next: update user guides,
 cookbook and compatibility/testing claims; complete E2E and the full release gate.
 Main remains unchanged.
+
+Finalization scope requested by the owner, starting from remote `e2704f7`:
+finish the single failing schema reference, run one final automated gate, then
+merge if green. Optional improvements and broad documentation updates are deferred.
+The full unit inventory at `e2704f7` was **674 passed / 1 failed**, in 63 passing
+and 1 failing suites. The sole failure referenced removed `eos_set_cue_send_string`;
+the Show Control metadata check now uses exported `eos_get_show_name`.
+
+Targeted validation: **6/6 schema tests passed**, zero failures. No runtime code
+changed in this batch. Next: one final lint/TypeScript/docs/manifest/unit/conformance
+gate; HTTP E2E is already included in the unit run and need not be duplicated.
+If green, merge immediately. Physical Eos/Nomad acceptance remains unperformed.
