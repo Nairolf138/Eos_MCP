@@ -426,9 +426,7 @@ export const eosSetCueReceiveStringTool: ToolDefinition<typeof setCueReceiveStri
 export const showControlTools = withToolMetadata([
   eosGetShowNameTool,
   eosGetLiveBlindStateTool,
-  eosToggleStagingModeTool,
-  eosSetCueSendStringTool,
-  eosSetCueReceiveStringTool
+  eosToggleStagingModeTool
 ], {
   category: 'showControl',
   synonyms: ['show control', 'show name', 'live blind', 'cue string', 'staging mode'],

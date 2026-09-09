@@ -47,8 +47,7 @@ historical, not results for this batch.
 
 Next work:
 
-1. Complete remaining ETC semantics: unsupported effect-creation CLI and setup
-   send/receive-string tools; safe cue
+1. Complete remaining ETC semantics: safe cue
    workflow labels; completeness of passive wheel/softkey and patch information.
 2. Finish completeness and published-schema/readback checks, including passive
    observations, multipart patch data and submaster contents limitations.
@@ -77,6 +76,18 @@ fixtures, registry role expectations, programming tests, generated documentation
 and reviewed snapshots. Do not treat that historical inventory as a green gate.
 Next batch: resolve unsupported workflow semantics and native cue readbacks, then
 finish those remaining test families. The 6 HTTP MCP E2E tests passed in `d5f2c68`.
+
+Completed batch after `b8e96ef`: removed generic effect creation and setup cue
+send/receive-string setters from MCP discovery (126 executable tools now). The
+legacy exports return explicit errors without OSC traffic. Deleted invented
+effect parameter commands/readbacks; see `docs/native-osc-limitations.md` and its
+ETC sources. No replacement effect creation capability is claimed.
+
+Validation: **7/7 tests passed in two suites** (unsupported operations and effect
+control), TypeScript and lint on changed code passed. Whole-suite results have not
+been recomputed; old effect-creation scenarios and discovery snapshots still need
+migration. Next: deterministic cue workflows, native label writes and bounded
+readbacks, then command/registry tests and final documentation/regression gates.
 
 Primary reference: [ETC OSC Dictionary](https://www.etcconnect.com/WebDocs/Controls/EosFamilyOnlineHelp/en/Content/23_Show_Control/08_OSC/OSC_Dictionary.htm)
 and [ETC OSC Get](https://www.etcconnect.com/WebDocs/Controls/EosFamilyOnlineHelp/en/Content/23_Show_Control/08_OSC/Using_OSC_with_Eos/OSC_Third-Party_Integration/OSC_Get.htm).
