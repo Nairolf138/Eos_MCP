@@ -157,6 +157,7 @@ export function buildToolResult(options: BuildToolResultOptions): ToolExecutionR
 
   return {
     content: [{ type: 'text', text: options.text ?? summary }],
+    ...(['error', 'timeout', 'partial_failure', 'unsupported_transport_mode', 'read_capability_unconfirmed'].includes(status) ? { isError: true } : {}),
     structuredContent: {
       ...structuredContent,
       status,

@@ -24,9 +24,9 @@ const setNumberSchema = z.coerce
 const pointNumberSchema = z.coerce
   .number()
   .int()
-  .min(1)
+  .min(0)
   .max(9999)
-  .describe('Numero de point FPE (1-9999).');
+  .describe('Numero de point FPE (0-9999, index OSC).');
 
 const getSetCountInputSchema = {
   timeoutMs: timeoutSchema,

@@ -250,17 +250,14 @@ function buildOscDescriptor(command: string, user?: number | null): Record<strin
   };
 
   if (typeof user === 'number' && Number.isFinite(user)) {
-    descriptor.user_selection = {
-      address: oscMappings.system.setUserId,
-      args: [{ type: 'i', value: Math.trunc(user) }]
-    };
+    descriptor.user_scoped = Math.trunc(user);
   }
 
   return descriptor;
 }
 
 interface CommandVerificationResult {
-  status: 'verified' | 'not_verified' | 'skipped';
+  status: 'verified' | 'accepted' | 'not_verified' | 'skipped';
   accepted_by_eos: boolean | null;
   verified: boolean;
   method: string | null;
@@ -333,9 +330,9 @@ async function verifyRecordedCue(
   const found = cues.some((cue) => cueIdentifiersMatch(cue.identifier, identifier));
 
   return {
-    status: found ? 'verified' : 'not_verified',
+    status: found ? 'accepted' : 'not_verified',
     accepted_by_eos: response.status === 'ok' ? found : null,
-    verified: found,
+    verified: false,
     method: 'eos_cue_list_all',
     ...(found ? {} : { warning: unverifiedWarning }),
     details: {
@@ -348,28 +345,26 @@ async function verifyRecordedCue(
 }
 
 async function verifyCommandLineAccepted(
-  options: { user?: number; targetAddress?: string; targetPort?: number; timeoutMs?: number }
+  options: { user?: number; targetAddress?: string; targetPort?: number; timeoutMs?: number; afterSequence?: number; expectedCommand?: string }
 ): Promise<CommandVerificationResult> {
-  const result = await getOscClient().getCommandLine({
-    user: options.user,
-    targetAddress: options.targetAddress,
-    targetPort: options.targetPort,
-    timeoutMs: options.timeoutMs
-  });
-
+  const result = await getOscClient().getCommandLine({ ...options, afterSequence: options.afterSequence ?? Number.MAX_SAFE_INTEGER });
+  const normalize = (text: string): string => text.replace(/^(?:LIVE|BLIND):\s*/i, '').replace(/(?:\s+Enter|#)+\s*$/i, '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const accepted = result.status === 'ok' && result.command_error === false
+    && (result.sequence ?? -1) > (options.afterSequence ?? Number.MAX_SAFE_INTEGER)
+    && normalize(result.text) === normalize(options.expectedCommand ?? '');
   return {
-    status: result.status === 'ok' ? 'verified' : 'not_verified',
-    accepted_by_eos: result.status === 'ok' ? true : null,
-    verified: result.status === 'ok',
-    method: 'eos_get_command_line',
-    ...(result.status === 'ok' ? {} : { warning: unverifiedWarning }),
+    status: accepted ? 'accepted' : 'not_verified',
+    accepted_by_eos: result.command_error === true ? false : accepted ? true : null,
+    verified: false,
+    method: 'fresh_eos_command_line',
+    warning: accepted ? 'Commande acquittee sur la ligne Eos; contenu final non verifie.' : unverifiedWarning,
     details: result
   };
 }
 
 async function verifySensitiveCommandAfterSend(
   command: string,
-  options: { user?: number; targetAddress?: string; targetPort?: number; timeoutMs?: number }
+  options: { user?: number; targetAddress?: string; targetPort?: number; timeoutMs?: number; afterSequence?: number; expectedCommand?: string }
 ): Promise<CommandVerificationResult> {
   if (/\bRecord\s+Cue\b/i.test(command)) {
     return verifyRecordedCue(command, options);
@@ -379,7 +374,7 @@ async function verifySensitiveCommandAfterSend(
 
 async function safelyVerifySensitiveCommandAfterSend(
   command: string,
-  options: { user?: number; targetAddress?: string; targetPort?: number; timeoutMs?: number }
+  options: { user?: number; targetAddress?: string; targetPort?: number; timeoutMs?: number; afterSequence?: number; expectedCommand?: string }
 ): Promise<CommandVerificationResult> {
   try {
     return await verifySensitiveCommandAfterSend(command, options);
@@ -438,6 +433,7 @@ async function resolveSensitiveCommandVerification(
     targetPort?: number;
     timeoutMs?: number;
     verifyAfterSend?: boolean;
+    afterSequence?: number;
   }
 ): Promise<CommandVerificationResult | undefined> {
   if (!isSensitiveCommandText(command)) {
@@ -454,7 +450,9 @@ async function resolveSensitiveCommandVerification(
     user: options.user,
     targetAddress: options.targetAddress,
     targetPort: options.targetPort,
-    timeoutMs: options.timeoutMs
+    timeoutMs: options.timeoutMs,
+    afterSequence: options.afterSequence,
+    expectedCommand: command
   });
 }
 
@@ -492,7 +490,7 @@ function formatSendResult(
       verified: verification?.verified ?? false,
       ...(verification ? { verification } : {}),
       osc: {
-        address: oscAddress,
+        address: user === null ? oscAddress : oscAddress.replace('/eos/', `/eos/user/${user}/`),
         ...buildOscDescriptor(command, user)
       },
       cli: {
@@ -548,8 +546,9 @@ export interface DeterministicCommandOptions extends SafetyOptions {
 export async function sendDeterministicCommand(options: DeterministicCommandOptions): Promise<ToolExecutionResult> {
   assertNoComposedCueProgrammingCommand(options.command);
   const client = getOscClient();
-  const command = ensureTerminator(options.command, options.terminateWithEnter);
+  const command = ensureTerminator(options.command, options.terminateWithEnter ?? true);
   const shouldClear = options.clearLine !== false;
+  const afterSequence = client.getCommandLineSequence?.() ?? 0;
   const user = resolveUserId(options.user);
   const safetyLevel = options.safety_level ?? 'off';
   assertCommandSyntaxAllowed(command, safetyLevel);
@@ -576,7 +575,8 @@ export async function sendDeterministicCommand(options: DeterministicCommandOpti
       targetAddress: options.targetAddress,
       targetPort: options.targetPort,
       timeoutMs: options.verification_timeout_ms,
-      verifyAfterSend: options.verify_after_send
+      verifyAfterSend: options.verify_after_send,
+      afterSequence
     });
     return formatSendResult(command, user ?? null, oscMappings.commands.newCommand, verification);
   }
@@ -592,7 +592,8 @@ export async function sendDeterministicCommand(options: DeterministicCommandOpti
     targetAddress: options.targetAddress,
     targetPort: options.targetPort,
     timeoutMs: options.verification_timeout_ms,
-    verifyAfterSend: options.verify_after_send
+    verifyAfterSend: options.verify_after_send,
+      afterSequence
   });
 
   return formatSendResult(command, user ?? null, oscMappings.commands.command, verification);
@@ -651,6 +652,7 @@ export const eosCommandTool: ToolDefinition<typeof commandInputSchema> = {
       assertSensitiveActionAllowed(options, 'eos_command');
     }
 
+    const afterSequence = client.getCommandLineSequence?.() ?? 0;
     await client.sendCommand(command, {
       user,
       targetAddress: options.targetAddress,
@@ -662,7 +664,8 @@ export const eosCommandTool: ToolDefinition<typeof commandInputSchema> = {
       targetAddress: options.targetAddress,
       targetPort: options.targetPort,
       timeoutMs: options.verification_timeout_ms,
-      verifyAfterSend: options.verify_after_send
+      verifyAfterSend: options.verify_after_send,
+      afterSequence
     });
 
     return formatSendResult(command, user ?? null, oscMappings.commands.command, verification);
@@ -776,6 +779,7 @@ export const eosCommandWithSubstitutionTool: ToolDefinition<typeof substitutionC
       assertSensitiveActionAllowed(options, 'eos_command_with_substitution');
     }
 
+    const afterSequence = client.getCommandLineSequence?.() ?? 0;
     await client.sendCommand(command, {
       user,
       targetAddress: options.targetAddress,
@@ -787,7 +791,8 @@ export const eosCommandWithSubstitutionTool: ToolDefinition<typeof substitutionC
       targetAddress: options.targetAddress,
       targetPort: options.targetPort,
       timeoutMs: options.verification_timeout_ms,
-      verifyAfterSend: options.verify_after_send
+      verifyAfterSend: options.verify_after_send,
+      afterSequence
     });
 
     return formatSendResult(command, user ?? null, oscMappings.commands.command, verification);

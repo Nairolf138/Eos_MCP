@@ -5,7 +5,7 @@
 import { z, type ZodRawShape } from 'zod';
 import type { OscMessageArgument } from '../../services/osc/index';
 import type { BuiltOscWireMessage } from '../../services/osc/messageBuilders';
-import { buildCueFireAddress, buildCueGoAddress, buildCueSelectAddress } from '../../services/osc/addressBuilders';
+import { buildCueFireAddress, buildCueGoAddress } from '../../services/osc/addressBuilders';
 import { oscMappings } from '../../services/osc/mappings';
 import { getResourceCache } from '../../services/cache/index';
 import { cueNumberSchema as sharedCueNumberSchema, cuelistNumberSchema as sharedCuelistNumberSchema, optionalPortSchema } from '../../utils/validators';
@@ -67,7 +67,7 @@ function buildCueWireMessage(address: string, args: OscMessageArgument[] = []): 
 function cueCommandRequest(command: string, fallbackReason?: string): CueOscRequest {
   return {
     mode: 'compatibility',
-    ...buildCueWireMessage(oscMappings.cues.compatibility.fire, [{ type: 's', value: command }]),
+    ...buildCueWireMessage(oscMappings.cues.compatibility.fire, [{ type: 's', value: /(?:#|\bEnter)\s*$/i.test(command) ? command : `${command}#` }]),
     command,
     fallbackReason
   };
@@ -110,13 +110,13 @@ export function buildCueSelectOscRequest(identifier: CueIdentifier, command: str
   if (mode === 'compatibility') {
     return cueCommandRequest(command);
   }
-  if (identifier.cueNumber != null && identifier.cuelistNumber == null && canUseNativeCueAddress(identifier)) {
-    return {
-      mode: 'strict',
-      ...buildCueWireMessage(buildCueSelectAddress(identifier.cueNumber))
-    };
-  }
-  return cueCommandRequest(command, 'Selection avec cuelist ou part: commande texte requise.');
+  if (identifier.cueNumber == null) throw new Error('Numero de cue requis.');
+  const list = identifier.cuelistNumber;
+  const address = identifier.cuePart != null
+    ? `/eos/cue/${list ?? 1}/${identifier.cueNumber}`
+    : list != null ? `/eos/cue/${list}` : '/eos/cue';
+  const value = identifier.cuePart ?? Number(identifier.cueNumber);
+  return { mode: 'strict', ...buildCueWireMessage(address, [{ type: Number.isInteger(value) ? 'i' : 'f', value }]) };
 }
 
 

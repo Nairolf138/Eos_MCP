@@ -338,9 +338,7 @@ export const eosGroupGetInfoTool: ToolDefinition<typeof getInfoInputSchema> = {
     description: 'Recupere les informations detaillees pour un groupe donne.',
     inputSchema: getInfoInputSchema,
     outputSchema: {
-      group_number: groupNumberSchema,
-      label: z.string().nullable(),
-      members: z.array(groupMemberOutputSchema)
+      group: groupDetailsOutputSchema.nullable().optional()
     },
     annotations: annotate(oscMappings.groups.info)
   },
@@ -391,7 +389,7 @@ export const eosGroupGetInfoTool: ToolDefinition<typeof getInfoInputSchema> = {
           ? response.status === 'ok'
             ? `Informations recues pour le groupe ${groupNumber}.`
             : `Lecture des informations du groupe ${groupNumber} terminee avec le statut ${response.status}.`
-          : `Groupe ${groupNumber} introuvable.`;
+          : `Lecture du groupe ${groupNumber} non confirmee (${response.status}).`;
 
         return createResult(baseText, {
           action: 'get_info',

@@ -32,8 +32,8 @@ describe('OSC address builders', () => {
 
   it('construit les adresses DMX', () => {
     expect(buildDmxAddressSelectAddress()).toBe('/eos/addr');
-    expect(buildDmxAddressLevelAddress('2/041')).toBe('/eos/addr/2%2F041');
-    expect(buildDmxAddressDmxAddress('2/041')).toBe('/eos/addr/2%2F041/DMX');
+    expect(buildDmxAddressLevelAddress('2/041')).toBe('/eos/addr/553');
+    expect(buildDmxAddressDmxAddress('2/041')).toBe('/eos/addr/553/DMX');
   });
 
   it('construit les adresses de softkey', () => {
@@ -55,9 +55,9 @@ describe('OSC address builders', () => {
   });
 
   it('construit les adresses de patch', () => {
-    expect(buildPatchChannelInfoAddress()).toBe('/eos/get/patch/chan_info');
-    expect(buildPatchAugment3dPositionAddress()).toBe('/eos/get/patch/chan_pos');
-    expect(buildPatchAugment3dBeamAddress()).toBe('/eos/get/patch/chan_beam');
+    expect(buildPatchChannelInfoAddress()).toBe('/eos/get/patch/{channel}/{part}');
+    expect(buildPatchAugment3dPositionAddress()).toBe('/eos/get/patch/{channel}/{part}/augment3d/position');
+    expect(buildPatchAugment3dBeamAddress()).toBe('/eos/get/patch/{channel}/{part}/augment3d/beam');
   });
 
   it('construit les adresses de macro', () => {

@@ -6,7 +6,7 @@ export const oscMappings = {
   commands: {
     command: '/eos/cmd',
     newCommand: '/eos/newcmd',
-    getCommandLine: '/eos/get/cmd_line'
+    getCommandLine: '/eos/out/user/{number}/cmd'
   },
   connection: {
     ping: '/eos/ping'
@@ -15,12 +15,12 @@ export const oscMappings = {
     base: '/eos/key',
     press: '/eos/key/{key}',
     softkey: '/eos/softkey/{index}',
-    softkeyLabels: '/eos/get/softkey_labels'
+    softkeyLabels: '/eos/out/softkey/{index}'
   },
   channels: {
     command: '/eos/cmd',
     base: '/eos/chan',
-    info: '/eos/get/channels'
+    info: '/eos/get/patch/{channel}/{part}'
   },
   dmx: {
     command: '/eos/cmd',
@@ -30,73 +30,73 @@ export const oscMappings = {
     addressDmx: '/eos/addr/{address}/DMX',
     compatibility: {
       nonStrictLegacy: {
-        addressSelect: '/eos/dmx/address/select',
-        addressLevel: '/eos/dmx/address/level',
-        addressDmx: '/eos/dmx/address/dmx'
+        addressSelect: '/eos/addr',
+        addressLevel: '/eos/addr/{address}',
+        addressDmx: '/eos/addr/{address}/DMX'
       }
     }
   },
   groups: {
     select: '/eos/group',
-    level: '/eos/group/{group}/level',
-    info: '/eos/get/group',
-    list: '/eos/get/group/list'
+    level: '/eos/group/{group}',
+    info: '/eos/get/group/{number}',
+    list: '/eos/get/group/index/{index}'
   },
   palettes: {
-    info: '/eos/get/palette',
+    info: '/eos/get/{palette_type}/{number}',
     intensity: {
       fire: '/eos/ip/fire',
-      info: '/eos/get/ip'
+      info: '/eos/get/ip/{number}'
     },
     focus: {
       fire: '/eos/fp/fire',
-      info: '/eos/get/fp'
+      info: '/eos/get/fp/{number}'
     },
     color: {
       fire: '/eos/cp/fire',
-      info: '/eos/get/cp'
+      info: '/eos/get/cp/{number}'
     },
     beam: {
       fire: '/eos/bp/fire',
-      info: '/eos/get/bp'
+      info: '/eos/get/bp/{number}'
     }
   },
   presets: {
     fire: '/eos/preset/fire',
     select: '/eos/preset',
-    info: '/eos/get/preset'
+    info: '/eos/get/preset/{number}'
   },
   macros: {
     fire: '/eos/macro/fire',
     select: '/eos/macro',
-    info: '/eos/get/macro'
+    info: '/eos/get/macro/{number}'
   },
   snapshots: {
-    recall: '/eos/snap',
-    info: '/eos/get/snapshot'
+    recall: '/eos/snap/fire',
+    info: '/eos/get/snap/{number}'
   },
   curves: {
-    select: '/eos/curve/select',
-    info: '/eos/get/curve'
+    select: '/eos/curve',
+    info: '/eos/get/curve/{number}'
   },
   effects: {
     select: '/eos/cmd',
     stop: '/eos/cmd',
-    info: '/eos/get/effect'
+    info: '/eos/get/fx/{number}'
   },
   parameters: {
-    wheelTick: '/eos/param/wheel/tick',
-    wheelRate: '/eos/param/wheel/rate',
-    colorHs: '/eos/param/color/hs',
-    colorRgb: '/eos/param/color/rgb',
-    positionXY: '/eos/param/position/xy',
-    positionXYZ: '/eos/param/position/xyz',
-    activeWheels: '/eos/get/active/wheels'
+    wheelTick: '/eos/wheel/{mode}/{parameter}',
+    wheelRate: '/eos/switch/{parameter}',
+    colorHs: '/eos/color/hs',
+    colorRgb: '/eos/color/rgb',
+    positionXY: '/eos/pantilt/xy',
+    positionXYZ: '/eos/xyz',
+    activeWheels: '/eos/out/active/wheel/{index}'
   },
   fpe: {
-    getSetCount: '/eos/get/fpe/set/count',
-    getSetInfo: '/eos/get/fpe/set',
-    getPointInfo: '/eos/get/fpe/point'
+    getSetCount: '/eos/get/fpe/count',
+    getSetInfo: '/eos/get/fpe/{set}',
+    getPointInfo: '/eos/get/fpe/{set}/{point}'
   },
   faders: {
     base: '/eos/fader',
@@ -117,113 +117,113 @@ export const oscMappings = {
   },
   pixelMaps: {
     select: '/eos/pixmap',
-    info: '/eos/get/pixmap'
+    info: '/eos/get/pixmap/{number}'
   },
   magicSheets: {
     open: '/eos/ms',
     sendString: '/eos/newcmd',
-    info: '/eos/get/magic_sheet'
+    info: '/eos/get/ms/{number}'
   },
   queries: {
     cue: {
-      count: '/eos/get/cue/count',
-      list: '/eos/get/cue/list'
+      count: '/eos/get/cue/{cuelist}/count',
+      list: '/eos/get/cue/{cuelist}/index/{index}'
     },
     cuelist: {
       count: '/eos/get/cuelist/count',
-      list: '/eos/get/cuelist/list'
+      list: '/eos/get/cuelist/index/{index}'
     },
     group: {
       count: '/eos/get/group/count',
-      list: '/eos/get/group/list'
+      list: '/eos/get/group/index/{index}'
     },
     macro: {
       count: '/eos/get/macro/count',
-      list: '/eos/get/macro/list'
+      list: '/eos/get/macro/index/{index}'
     },
     ms: {
-      count: '/eos/get/magic_sheet/count',
-      list: '/eos/get/magic_sheet/list'
+      count: '/eos/get/ms/count',
+      list: '/eos/get/ms/index/{index}'
     },
     ip: {
       count: '/eos/get/ip/count',
-      list: '/eos/get/ip/list'
+      list: '/eos/get/ip/index/{index}'
     },
     fp: {
       count: '/eos/get/fp/count',
-      list: '/eos/get/fp/list'
+      list: '/eos/get/fp/index/{index}'
     },
     cp: {
       count: '/eos/get/cp/count',
-      list: '/eos/get/cp/list'
+      list: '/eos/get/cp/index/{index}'
     },
     bp: {
       count: '/eos/get/bp/count',
-      list: '/eos/get/bp/list'
+      list: '/eos/get/bp/index/{index}'
     },
     preset: {
       count: '/eos/get/preset/count',
-      list: '/eos/get/preset/list'
+      list: '/eos/get/preset/index/{index}'
     },
     sub: {
-      count: '/eos/get/submaster/count',
-      list: '/eos/get/submaster/list'
+      count: '/eos/get/sub/count',
+      list: '/eos/get/sub/index/{index}'
     },
     fx: {
-      count: '/eos/get/effect/count',
-      list: '/eos/get/effect/list'
+      count: '/eos/get/fx/count',
+      list: '/eos/get/fx/index/{index}'
     },
     curve: {
       count: '/eos/get/curve/count',
-      list: '/eos/get/curve/list'
+      list: '/eos/get/curve/index/{index}'
     },
     snap: {
-      count: '/eos/get/snapshot/count',
-      list: '/eos/get/snapshot/list'
+      count: '/eos/get/snap/count',
+      list: '/eos/get/snap/index/{index}'
     },
     pixmap: {
       count: '/eos/get/pixmap/count',
-      list: '/eos/get/pixmap/list'
+      list: '/eos/get/pixmap/index/{index}'
     }
   },
   patch: {
-    channelInfo: '/eos/get/patch/chan_info',
-    augment3dPosition: '/eos/get/patch/chan_pos',
-    augment3dBeam: '/eos/get/patch/chan_beam'
+    channelInfo: '/eos/get/patch/{channel}/{part}',
+    augment3dPosition: '/eos/get/patch/{channel}/{part}/augment3d/position',
+    augment3dBeam: '/eos/get/patch/{channel}/{part}/augment3d/beam'
   },
   submasters: {
     base: '/eos/sub',
-    info: '/eos/get/submaster'
+    info: '/eos/get/sub/{number}'
   },
   cues: {
     fire: '/eos/cue/{cuelist}/{cue}/fire',
     fireWithoutCuelist: '/eos/cue/{cue}/fire',
     go: '/eos/cue/{cuelist}/go',
     stopBackCommand: '/eos/cmd',
-    select: '/eos/cue/{cue}',
+    select: '/eos/cue',
     compatibility: {
       fire: '/eos/cmd',
       go: '/eos/cmd',
       select: '/eos/cmd'
     },
-    info: '/eos/get/cue',
-    list: '/eos/get/cuelist',
-    cuelistInfo: '/eos/get/cuelist/info',
+    info: '/eos/get/cue/{cuelist}/{cue}/{part}',
+    list: '/eos/get/cue/{cuelist}/index/{index}',
+    cuelistInfo: '/eos/get/cuelist/{cuelist}',
     bankCreate: '/eos/cuelist/{bank_index}/config/{cuelist_number}/{num_prev_cues}/{num_pending_cues}',
     bankPage: '/eos/cuelist/{bank_index}/page/{delta}',
-    active: '/eos/get/active/cue',
-    pending: '/eos/get/pending/cue'
+    active: '/eos/out/active/cue',
+    pending: '/eos/out/pending/cue'
   },
   showControl: {
-    showName: '/eos/get/show/name',
-    liveBlindState: '/eos/get/live/blind',
-    toggleStagingMode: '/eos/newcmd',
+    showName: '/eos/get/show/path',
+    liveBlindState: '/eos/out/event/state',
+    toggleStagingMode: '/eos/key/staging_mode',
     setCueSendString: '/eos/newcmd',
     setCueReceiveString: '/eos/newcmd'
   },
   system: {
     getVersion: '/eos/get/version',
-    getSetupDefaults: '/eos/get/setup_defaults',
+    getSetupDefaults: '/eos/get/setup',
     setUserId: '/eos/user'
   }
 } as const;
@@ -258,7 +258,7 @@ export const oscPayloadAnnotations = {
   cues: {
     fire: { wireFormat: 'eos-native-address', arguments: 'EOS-native address path encodes cue/cuelist, no OSC arguments' },
     go: { wireFormat: 'eos-native-address', arguments: 'EOS-native address path encodes cuelist, no OSC arguments' },
-    select: { wireFormat: 'eos-native-address', arguments: 'EOS-native address path encodes cue, no OSC arguments' },
+    select: { wireFormat: 'eos-native-arguments', arguments: '/eos/cue [cue]; /eos/cue/<list> [cue]; /eos/cue/<list>/<cue> [part]' },
     compatibility: { wireFormat: 'eos-native-command', arguments: 'fallback /eos/cmd with a single EOS command string when native address cannot represent the request' }
   },
   magicSheets: {

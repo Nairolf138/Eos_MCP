@@ -167,8 +167,8 @@ export class OscConnectionGateway implements OscGateway {
       this.setToolPreference(toolId, options.transportPreference);
     }
 
-    const attemptSend = (): TransportType => {
-      const transport = this.manager.send(toolId, encoded, undefined, overrides);
+    const attemptSend = async (): Promise<TransportType> => {
+      const transport = await this.manager.sendAsync(toolId, encoded, overrides);
       this.updateStats('outgoing', message, encoded.byteLength);
       if (this.loggingState.outgoing) {
         this.logger.debug(
@@ -180,7 +180,7 @@ export class OscConnectionGateway implements OscGateway {
     };
 
     try {
-      return attemptSend();
+      return await attemptSend();
     } catch (error) {
       if (this.shouldWaitForTransport(error)) {
         try {
@@ -196,7 +196,7 @@ export class OscConnectionGateway implements OscGateway {
         }
 
         try {
-          return attemptSend();
+          return await attemptSend();
         } catch (retryError) {
           this.logSendError(retryError, message, "Erreur lors de l'envoi OSC", options.correlationId);
           throw retryError instanceof Error
@@ -334,7 +334,7 @@ export class OscConnectionGateway implements OscGateway {
       this.connectionStateProvider.setStatus(manager.getStatus('udp'));
     }
 
-    manager.on('message', ({ type, data }) => {
+    manager.on('message', ({ type, data, source }) => {
       const messages = this.decodeMessages(data);
       if (messages.length === 0) {
         this.logger.error(
@@ -352,6 +352,7 @@ export class OscConnectionGateway implements OscGateway {
             : 0;
 
       messages.forEach((message, index) => {
+        if (source) message.source = { ...source, transport: type };
         this.updateStats('incoming', message, index === 0 ? totalBytes : 0);
         if (this.loggingState.incoming) {
           this.logger.debug(

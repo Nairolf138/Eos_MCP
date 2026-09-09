@@ -711,7 +711,7 @@ export function readPatchChannelInfo(options: ReadPatchChannelInfoOptions): Prom
   const client = getOscClient();
   const payload = {
     channel: options.channel_number,
-    part: options.part_number ?? 0
+    part: options.part_number ?? 1
   };
   const cacheKey = createCacheKey({
     address: PATCH_CHANNEL_INFO_ADDRESS,
@@ -796,7 +796,7 @@ export const eosPatchGetChannelInfoTool: ToolDefinition<typeof channelInfoInputS
     title: 'Informations de patch',
     description: 'Recupere les informations de patch pour un canal donne.',
     inputSchema: channelInfoInputSchema,
-    outputSchema: patchChannelInfoOutputSchema.shape,
+    outputSchema: { channel: patchChannelInfoOutputSchema.optional() },
     annotations: annotate(PATCH_CHANNEL_INFO_ADDRESS)
   },
   handler: async (args, _extra) => {
@@ -804,7 +804,7 @@ export const eosPatchGetChannelInfoTool: ToolDefinition<typeof channelInfoInputS
     const options = schema.parse(args ?? {});
     const payload = {
       channel: options.channel_number,
-      part: options.part_number ?? 0
+      part: options.part_number ?? 1
     };
     const safety = resolveSafetyOptions(options);
 
@@ -854,7 +854,7 @@ export const eosPatchGetAugment3dPositionTool: ToolDefinition<typeof augment3dIn
     title: 'Position Augment3d',
     description: "Recupere la position Augment3d d'une partie de canal.",
     inputSchema: augment3dInputSchema,
-    outputSchema: augment3dPositionOutputSchema.shape,
+    outputSchema: { augment3d: augment3dPositionOutputSchema.optional() },
     annotations: annotate(PATCH_AUGMENT3D_POSITION_ADDRESS)
   },
   handler: async (args, _extra) => {
@@ -946,7 +946,7 @@ export const eosPatchGetAugment3dBeamTool: ToolDefinition<typeof augment3dInputS
     title: 'Faisceau Augment3d',
     description: 'Recupere les informations de faisceau Augment3d pour une partie de canal.',
     inputSchema: augment3dInputSchema,
-    outputSchema: augment3dBeamOutputSchema.shape,
+    outputSchema: { augment3d: augment3dBeamOutputSchema.optional() },
     annotations: annotate(PATCH_AUGMENT3D_BEAM_ADDRESS)
   },
   handler: async (args, _extra) => {

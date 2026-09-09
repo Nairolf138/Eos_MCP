@@ -65,7 +65,7 @@ describe('dmx address tools', () => {
   it('convertit full en 100% pour le niveau', async () => {
     await runTool(eosAddressSetLevelTool, { address_number: '1/001', level: 'full' });
 
-    expect(service.sentMessages[0]?.address).toBe('/eos/addr/1%2F001');
+    expect(service.sentMessages[0]?.address).toBe('/eos/addr/1');
     expect(service.sentMessages[0]?.args).toEqual([{ type: 'f', value: 100 }]);
   });
 
@@ -75,7 +75,7 @@ describe('dmx address tools', () => {
       dmx_value: 'full'
     });
 
-    expect(service.sentMessages[0]?.address).toBe('/eos/addr/1%2F120/DMX');
+    expect(service.sentMessages[0]?.address).toBe('/eos/addr/120/DMX');
     expect(service.sentMessages[0]?.args).toEqual([{ type: 'i', value: 255 }]);
   });
 

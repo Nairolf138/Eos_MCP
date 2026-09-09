@@ -188,12 +188,14 @@ const targetTypeSchema = z
 
 const countInputSchema = {
   target_type: targetTypeSchema,
+  cuelist_number: z.coerce.number().int().min(1).max(99999).optional().describe("Pour target_type=cue, liste a lire (1 par defaut)."),
   timeoutMs: z.coerce.number().int().min(50).optional(),
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
 const listInputSchema = {
   target_type: targetTypeSchema,
+  cuelist_number: z.coerce.number().int().min(1).max(99999).optional().describe("Pour target_type=cue, liste a lire (1 par defaut)."),
   timeoutMs: z.coerce.number().int().min(50).optional(),
   ...targetOptionsSchema
 } satisfies ZodRawShape;
@@ -260,7 +262,7 @@ export const eosGetCountTool: ToolDefinition<typeof countInputSchema> = {
 
     const cacheKey = createCacheKey({
       address: config.countAddress,
-      payload: {},
+      payload: { cuelist: options.cuelist_number ?? 1 },
       targetAddress: options.targetAddress,
       targetPort: options.targetPort,
       extra: { target: config.key }
@@ -277,6 +279,7 @@ export const eosGetCountTool: ToolDefinition<typeof countInputSchema> = {
       prefixTags: [createOscPrefixTag('/eos/out/')],
       fetcher: async () => {
         const response: OscJsonResponse = await client.requestJson(config.countAddress, {
+          payload: { cuelist: options.cuelist_number ?? 1 },
           timeoutMs: options.timeoutMs,
           targetAddress: options.targetAddress,
           targetPort: options.targetPort,
@@ -340,7 +343,7 @@ export const eosGetListAllTool: ToolDefinition<typeof listInputSchema> = {
 
     const cacheKey = createCacheKey({
       address: config.listAddress,
-      payload: {},
+      payload: { cuelist: options.cuelist_number ?? 1 },
       targetAddress: options.targetAddress,
       targetPort: options.targetPort,
       extra: { target: config.key }
@@ -357,6 +360,7 @@ export const eosGetListAllTool: ToolDefinition<typeof listInputSchema> = {
       prefixTags: [createOscPrefixTag('/eos/out/')],
       fetcher: async () => {
         const response: OscJsonResponse = await client.requestJson(config.listAddress, {
+          payload: { cuelist: options.cuelist_number ?? 1 },
           timeoutMs: options.timeoutMs,
           targetAddress: options.targetAddress,
           targetPort: options.targetPort,

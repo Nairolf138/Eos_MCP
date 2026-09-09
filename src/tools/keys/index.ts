@@ -27,7 +27,7 @@ type ButtonStateInput = z.infer<typeof buttonStateSchema>;
 
 const KEY_NAME_TO_OSC_ID = {
   go: 'go_0',
-  stop_back: 'stop/back',
+  stop_back: 'stop_back',
   stop: 'stop',
   pause: 'pause',
   back: 'back',

@@ -10,7 +10,6 @@ import {
   getResourceCache
 } from '../../services/cache/index';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
-import type { OscMessageArgument } from '../../services/osc/index';
 import { oscMappings } from '../../services/osc/mappings';
 import { buildToolResult, type ToolDefinition, type ToolExecutionResult } from '../types';
 
@@ -105,14 +104,6 @@ const pixelMapInfoOutputShape = {
 
 const pixelMapInfoOutputSchema = z.object(pixelMapInfoOutputShape);
 
-function buildJsonArgs(payload: Record<string, unknown>): OscMessageArgument[] {
-  return [
-    {
-      type: 's' as const,
-      value: JSON.stringify(payload)
-    }
-  ];
-}
 
 function annotate(osc: string): Record<string, unknown> {
   return {
@@ -685,7 +676,7 @@ export const eosPixmapSelectTool: ToolDefinition<typeof selectInputSchema> = {
 
     await client.sendMessage(
       oscMappings.pixelMaps.select,
-      buildJsonArgs(payload),
+      [{ type: 'i', value: options.pixmap_number }],
       {
         targetAddress: options.targetAddress,
         targetPort: options.targetPort
@@ -718,7 +709,7 @@ export const eosPixmapGetInfoTool: ToolDefinition<typeof getInfoInputSchema> = {
     title: 'Informations sur un pixel map',
     description: 'Recupere les informations detaillees pour un pixel map donne.',
     inputSchema: getInfoInputSchema,
-    outputSchema: pixelMapInfoOutputShape,
+    outputSchema: { pixmap: z.object(pixelMapInfoOutputShape).optional() },
     annotations: annotate(oscMappings.pixelMaps.info)
   },
   handler: async (args, _extra) => {

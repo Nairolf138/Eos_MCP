@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { z, type ZodRawShape } from 'zod';
+import { eosSubmasterRecordTool } from './record';
 import {
   createCacheKey,
   createOscPrefixTag,
@@ -33,7 +34,7 @@ export interface SubmasterInfo {
   exclusive: boolean | null;
   background: boolean | null;
   restore: boolean | null;
-  priority: number | null;
+  priority: string | number | null;
   timings: SubmasterTimings | null;
 }
 
@@ -317,7 +318,7 @@ function normaliseSubmasterInfo(raw: unknown, fallbackNumber: number): Submaster
   const label = asString(source.label ?? source.name ?? source.title);
   const mode = asString(source.mode ?? source.type ?? source.submaster_mode ?? source.playback_mode);
   const faderMode = asString(source.fader_mode ?? source.faderMode ?? source.slider_mode ?? source.handle_mode);
-  const priority =
+  const priority = typeof source.priority === 'string' ? source.priority :
     asFiniteNumber(source.priority ?? source.prio ?? source.priority_level ?? source.priorityValue ?? flagsSource.priority) ??
     null;
 
@@ -473,7 +474,7 @@ export const eosSubmasterGetInfoTool: ToolDefinition<typeof getInfoInputSchema> 
         exclusive: z.boolean().nullable(),
         background: z.boolean().nullable(),
         restore: z.boolean().nullable(),
-        priority: z.number().nullable(),
+        priority: z.union([z.string(), z.number()]).nullable(),
         timings: z
           .object({
             up: z.number().nullable(),
@@ -554,6 +555,7 @@ export const eosSubmasterGetInfoTool: ToolDefinition<typeof getInfoInputSchema> 
 };
 
 const submasterTools = [
+  eosSubmasterRecordTool,
   eosSubmasterSetLevelTool,
   eosSubmasterBumpTool,
   eosSubmasterGetInfoTool

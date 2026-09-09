@@ -29,8 +29,10 @@ import {
 } from '../services/osc/compatibilityMatrix';
 import { resolveConsoleTarget, type ConsoleTargetResolution } from '../services/consoleTargets';
 import { resolveAuditMode, writeCommandAudit } from '../services/audit';
+import { OperationLock } from '../services/osc/operationLock';
 
 const logger = createLogger('tool-registry');
+const consoleOperations = new OperationLock();
 
 const SENSITIVE_FIELD_PATTERN = /(token|password|secret|authorization|api[-_]?key|cookie)/i;
 
@@ -202,7 +204,7 @@ function resolveSafetyMode(args: unknown): 'strict' | 'standard' | 'off' {
 }
 
 
-const CONFIRMATION_ARGUMENT_KEYS = ['confirm', 'require_confirmation', 'safety_level'] as const;
+const CONFIRMATION_ARGUMENT_KEYS = ['confirm', 'require_confirmation', 'safety_level', 'dry_run'] as const;
 
 type ConfirmationState = 'confirmed' | 'missing' | 'not_required';
 
@@ -223,7 +225,8 @@ function resolveGrantedToolRole(extra: unknown): ToolSafetyProfile {
   if (typeof candidate === 'string') {
     const parsed = toolSafetyProfileSchema.safeParse(candidate.trim());
     if (parsed.success) {
-      return parsed.data;
+      const ceiling = getDefaultAllowedToolProfile();
+      return isToolSafetyProfileAllowed(ceiling, parsed.data) ? parsed.data : ceiling;
     }
   }
 
@@ -232,7 +235,7 @@ function resolveGrantedToolRole(extra: unknown): ToolSafetyProfile {
 
 function hasExplicitConfirmation(args: unknown): boolean {
   const record = asObject(args);
-  return record.confirm === true || record.require_confirmation === true || record.safety_level !== undefined;
+  return record.confirm === true || record.require_confirmation === true;
 }
 
 function resolveConfirmationState(args: unknown, requiresConfirmation: boolean): ConfirmationState {
@@ -412,10 +415,26 @@ function buildToolConfigForRegistration(tool: ToolDefinition): ToolDefinition['c
   const { annotations: metadataAnnotations, ...metadataFields } = metadata;
   return {
     ...baseConfig,
+    ...(baseConfig.outputSchema ? { outputSchema: {
+      ...baseConfig.outputSchema,
+      status: z.string().optional(), action: z.string().optional(), summary: z.string().optional(),
+      commandsSent: z.array(z.string()).optional(), target: z.unknown().optional(),
+      target_console: z.string().nullable().optional(), target_address: z.string().optional(), target_port: z.number().optional(),
+      source: z.unknown().optional(), confidence: z.string().optional(), is_complete: z.boolean().optional(),
+      limitations: z.array(z.string()).optional(), next_operator_actions: z.array(z.string()).optional(),
+      osc: z.unknown().optional(), data: z.unknown().optional(), error: z.string().nullable().optional(),
+      request: z.unknown().optional(), exists: z.boolean().optional(), diagnostics: z.unknown().optional(),
+      dry_run: z.boolean().optional(), commands_preview: z.array(z.string()).optional(),
+      sent: z.boolean().optional(), accepted_by_eos: z.boolean().nullable().optional(), verified: z.boolean().optional(),
+      verification: z.unknown().optional(), warnings: z.array(z.union([z.string(), z.object({ detail: z.string(), code: z.string().optional() })])).optional()
+    } } : {}),
     annotations: {
       ...(baseConfig.annotations ?? {}),
       ...(metadataAnnotations ?? {}),
-      ...metadataFields
+      ...metadataFields,
+      readOnlyHint: classification.readOnly,
+      destructiveHint: !classification.readOnly,
+      openWorldHint: true
     }
   };
 }
@@ -620,16 +639,43 @@ class ToolRegistry {
       }
 
       const executionArgs = normalizeConfirmationArgsForTool(executionInputArgs, tool.config.inputSchema);
-      const executionResult = await runWithRequestContext(
+      const dryRun = asObject(executionInputArgs).dry_run === true;
+      const oscPreview: Array<{ address: string; args: unknown[] }> = [];
+      const perform = () => runWithRequestContext(
         {
           correlationId,
           ...(sessionId ? { sessionId } : {}),
           ...(typeof userId === 'number' ? { userId } : {}),
-          toolName
+          toolName,
+          dryRun,
+          oscPreview
         },
-        () => execute(executionArgs)
+        () => {
+          const localMutations = ['eos_configure', 'eos_enable_logging', 'session_set_current_user', 'session_set_context', 'session_clear_context', 'eos_showfile_import', 'eos_set_user_id'];
+          if (dryRun && localMutations.includes(toolName)) {
+            if (tool.config.inputSchema) z.object(tool.config.inputSchema).parse(executionArgs);
+            return Promise.resolve({ content: [{ type: 'text', text: 'Simulation de configuration; aucun etat modifie.' }], structuredContent: { status: 'dry_run', dry_run: true, action: toolName, request: executionArgs, commandsSent: [], verified: false } });
+          }
+          return execute(executionArgs);
+        }
       );
+      const executionResult = classification.readOnly || dryRun
+        ? await perform()
+        : await consoleOperations.run(`${targetConsole.address}:${targetConsole.port}`, perform);
       const result = addConsoleTargetToResult(executionResult, targetResolution);
+      if (dryRun && oscPreview.length > 0) {
+        result.content = [{ type: 'text', text: 'Simulation uniquement : aucun message OSC envoye.' }];
+        result.structuredContent = {
+          ...result.structuredContent, status: 'dry_run', dry_run: true,
+          summary: 'Simulation uniquement : aucun message OSC envoye.',
+          commandsSent: [], sent_to_transport: false, accepted_by_eos: null, verified: false,
+          osc_preview: oscPreview,
+          commands_preview: oscPreview.map((message) => `${message.address} ${JSON.stringify(message.args)}`)
+        };
+      }
+      if (['error', 'timeout', 'partial_failure', 'failed', 'unsupported', 'unsupported_transport_mode', 'read_capability_unconfirmed'].includes(String(result.structuredContent?.status))) {
+        result.isError = true;
+      }
 
       auditDryRunToolResult({
         toolName,

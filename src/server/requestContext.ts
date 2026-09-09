@@ -9,6 +9,8 @@ export interface RequestContext {
   sessionId?: string;
   userId?: number;
   toolName?: string;
+  dryRun?: boolean;
+  oscPreview?: Array<{ address: string; args: unknown[] }>;
 }
 
 const requestContextStorage = new AsyncLocalStorage<RequestContext>();
@@ -20,4 +22,3 @@ export function runWithRequestContext<T>(context: RequestContext, action: () => 
 export function getRequestContext(): RequestContext | undefined {
   return requestContextStorage.getStore();
 }
-

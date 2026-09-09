@@ -70,7 +70,7 @@ export function resolveSafetyOptions(options: SafetyOptions): {
 } {
   return {
     dryRun: options.dry_run === true,
-    requireConfirmation: options.require_confirmation === true || options.confirm === true || options.safety_level !== undefined,
+    requireConfirmation: options.require_confirmation === true || options.confirm === true,
     safetyLevel: options.safety_level ?? 'strict'
   };
 }

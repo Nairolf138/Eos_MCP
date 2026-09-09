@@ -353,8 +353,9 @@ export const eosToggleStagingModeTool: ToolDefinition<typeof targetOptionsSchema
     const options = schema.parse(args ?? {});
     const client = getOscClient();
 
-    const command = 'Staging Mode';
-    await client.sendNewCommand(command, extractTargetOptions(options));
+    const command = '/eos/key/staging_mode';
+    await client.sendMessage(command, [{ type: 'f', value: 1 }], extractTargetOptions(options));
+    await client.sendMessage(command, [{ type: 'f', value: 0 }], extractTargetOptions(options));
 
     return createResult('Mode staging bascule.', {
       action: 'toggle_staging_mode',
@@ -390,19 +391,7 @@ export const eosSetCueSendStringTool: ToolDefinition<typeof setCueSendStringInpu
   handler: async (args) => {
     const schema = z.object(setCueSendStringInputSchema).strict();
     const options = schema.parse(args ?? {});
-    const client = getOscClient();
-
-    const command = `Show_Control Cue_Send_String "${options.format_string}"`;
-    await client.sendNewCommand(command, extractTargetOptions(options));
-
-    return createResult('Format d\'envoi des cues mis a jour.', {
-      action: 'set_cue_send_string',
-      format: options.format_string,
-      osc: {
-        address: oscMappings.showControl.setCueSendString,
-        args: [command]
-      }
-    });
+    return { isError: true, content: [{ type: 'text', text: 'Regler ce format dans Setup > Show Control > OSC. Aucune affectation de ce champ par commande OSC documentee n’est implementee.' }], structuredContent: { status: 'unsupported', sent: false, verified: false, requested_format: options.format_string } };
   }
 };
 
@@ -430,19 +419,7 @@ export const eosSetCueReceiveStringTool: ToolDefinition<typeof setCueReceiveStri
   handler: async (args) => {
     const schema = z.object(setCueReceiveStringInputSchema).strict();
     const options = schema.parse(args ?? {});
-    const client = getOscClient();
-
-    const command = `Show_Control Cue_Receive_String "${options.format_string}"`;
-    await client.sendNewCommand(command, extractTargetOptions(options));
-
-    return createResult('Format de reception des cues mis a jour.', {
-      action: 'set_cue_receive_string',
-      format: options.format_string,
-      osc: {
-        address: oscMappings.showControl.setCueReceiveString,
-        args: [command]
-      }
-    });
+    return { isError: true, content: [{ type: 'text', text: 'Regler ce format dans Setup > Show Control > OSC. Aucune affectation de ce champ par commande OSC documentee n’est implementee.' }], structuredContent: { status: 'unsupported', sent: false, verified: false, requested_format: options.format_string } };
   }
 };
 

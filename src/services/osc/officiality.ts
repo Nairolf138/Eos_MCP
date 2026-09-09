@@ -1,16 +1,11 @@
 /*
  * Copyright 2026 Florian Ribes (NairolfConcept)
- * SPDX-License-Identifier: Apache-2.0
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
 import { EOS_STRICT_MODE_ENV } from '../../config/env';
+import { ETC_OSC_REFERENCE, NATIVE_GET_FAMILIES } from './nativeProtocol';
 
-export type OscOfficialitySource =
-  | 'ETC Eos OSC manual v3.0.0'
-  | 'ETC Eos command-line via /eos/cmd'
-  | 'MCP transport contract'
-  | 'MCP extension'
-  | 'Undocumented endpoint';
-
+export type OscOfficialitySource = 'ETC Eos online OSC reference' | 'ETC Eos command-line via /eos/cmd' | 'Undocumented endpoint';
 export interface OscAddressOfficiality {
   address: string;
   official: boolean;
@@ -18,210 +13,78 @@ export interface OscAddressOfficiality {
   source: OscOfficialitySource;
   notes: string;
 }
-
-const OFFICIAL_NOTES = 'Adresse OSC ETC documentee dans le manuel Eos OSC v3.0.0.';
-const COMMAND_NOTES = 'Adresse officielle de ligne de commande ETC; la semantique precise est portee par la commande texte envoyee.';
-const MCP_RUNTIME_NOTES = 'Adresse necessaire a la negociation/runtime MCP; autorisee en mode strict meme si elle ne correspond pas a une commande pupitre ETC documentee.';
-const EXTENSION_NOTES = 'Extension MCP non documentee comme commande OSC ETC; bloquee lorsque EOS_STRICT_MODE=true.';
-const UNDOCUMENTED_NOTES = 'Endpoint utilise par compatibilite ou lecture explicite MCP, non documente comme commande OSC ETC; bloque lorsque EOS_STRICT_MODE=true.';
-
-function official(address: string, notes = OFFICIAL_NOTES): OscAddressOfficiality {
-  return { address, official: true, strictModeAllowed: true, source: 'ETC Eos OSC manual v3.0.0', notes };
+function official(address: string): OscAddressOfficiality {
+  return { address, official: true, strictModeAllowed: true,
+    source: address.endsWith('/cmd') || address.endsWith('/newcmd') ? 'ETC Eos command-line via /eos/cmd' : 'ETC Eos online OSC reference',
+    notes: `Documente par ETC: ${ETC_OSC_REFERENCE}. La validite du texte CLI et l'etat final sont des controles distincts.` };
 }
-
-function command(address: string): OscAddressOfficiality {
-  return { address, official: true, strictModeAllowed: true, source: 'ETC Eos command-line via /eos/cmd', notes: COMMAND_NOTES };
+const native = [
+  '/eos/cmd', '/eos/newcmd', '/eos/user/{user}/cmd', '/eos/user/{user}/newcmd',
+  '/eos/key/{key}', '/eos/user/{user}/key/{key}', '/eos/softkey/{index}', '/eos/chan', '/eos/chan/{channel}',
+  '/eos/chan/{channel}/color/hs', '/eos/chan/{channel}/color/rgb', '/eos/chan/{channel}/param/{parameter}', '/eos/chan/{channel}/xyz',
+  '/eos/addr', '/eos/addr/{address}', '/eos/addr/{address}/DMX', '/eos/addr/{address}/dmx',
+  '/eos/group', '/eos/group/{group}', '/eos/group/{group}/level',
+  '/eos/preset', '/eos/preset/fire', '/eos/macro', '/eos/macro/fire', '/eos/snap', '/eos/snap/fire', '/eos/curve', '/eos/pixmap', '/eos/ms',
+  '/eos/wheel/{mode}/{parameter}', '/eos/wheel/{parameter}', '/eos/switch/{parameter}', '/eos/switch/{mode}/{parameter}',
+  '/eos/color/hs', '/eos/color/rgb', '/eos/pantilt/xy', '/eos/xyz',
+  '/eos/fader/{index}/config/{faders}', '/eos/fader/{index}/config/{page}/{faders}',
+  '/eos/fader/{index}/{fader}', '/eos/fader/{index}/{fader}/load', '/eos/fader/{index}/{fader}/unload', '/eos/fader/{index}/page/{delta}',
+  '/eos/ds/{index}/{button}', '/eos/ds/{index}/{target}/{buttons}', '/eos/ds/{index}/{target}/flexi/{buttons}',
+  '/eos/ds/{index}/{target}/{page}/{buttons}', '/eos/ds/{index}/{target}/flexi/{page}/{buttons}', '/eos/ds/{index}/page/{delta}',
+  '/eos/sub', '/eos/sub/{number}', '/eos/sub/fire', '/eos/sub/{number}/fire',
+  '/eos/cue', '/eos/cue/{cuelist}', '/eos/cue/{cuelist}/{cue}', '/eos/cue/{cue}/fire', '/eos/cue/{cuelist}/{cue}/fire', '/eos/cue/{cuelist}/go',
+  '/eos/cuelist/{bank_index}/config/{cuelist_number}/{num_prev_cues}/{num_pending_cues}',
+  '/eos/cuelist/{bank_index}/config/{cuelist_number}/{num_prev_cues}/{num_pending_cues}/{offset}', '/eos/cuelist/{bank_index}/page/{delta}',
+  '/eos/get/version', '/eos/get/setup', '/eos/get/show/path', '/eos/get/userlist', '/eos/get/session',
+  '/eos/get/fpe/count', '/eos/get/fpe/{set}', '/eos/get/fpe/{set}/count', '/eos/get/fpe/{set}/{point}',
+  '/eos/get/patch/count', '/eos/get/patch/index/{index}', '/eos/get/patch/{channel}', '/eos/get/patch/{channel}/{part}',
+  '/eos/get/patch/{channel}/{part}/augment3d/position', '/eos/get/patch/{channel}/{part}/augment3d/beam',
+  '/eos/get/cue/{cuelist}/count', '/eos/get/cue/{cuelist}/noparts/count', '/eos/get/cue/{cuelist}/index/{index}',
+  '/eos/get/cue/{cuelist}/{cue}', '/eos/get/cue/{cuelist}/{cue}/{part}',
+  '/eos/get/{palette_type}/{number}',
+  '/eos/user', '/eos/ping', '/eos/reset', '/eos/subscribe', '/eos/subscribe/param/{parameter}',
+  '/eos/out/cmd', '/eos/out/user/{number}/cmd', '/eos/out/ping', '/eos/out/event/state',
+  '/eos/out/active/cue', '/eos/out/pending/cue', '/eos/out/active/wheel/{index}', '/eos/out/softkey/{index}',
+  '/eos/set/patch/{channel}/label', '/eos/set/patch/{channel}/gel', '/eos/set/patch/{channel}/augment3d/position',
+  '/eos/set/group/{number}/chans'
+];
+for (const family of NATIVE_GET_FAMILIES) {
+  if (['cue', 'patch', 'fpe'].includes(family)) continue;
+  native.push(`/eos/get/${family}/count`, `/eos/get/${family}/index/{index}`, `/eos/get/${family}/{number}`, `/eos/get/${family}/uid/{uid}`);
+  native.push(`/eos/set/${family}/{number}/label`);
 }
-
-function runtime(address: string): OscAddressOfficiality {
-  return { address, official: false, strictModeAllowed: true, source: 'MCP transport contract', notes: MCP_RUNTIME_NOTES };
-}
-
-function extension(address: string): OscAddressOfficiality {
-  return { address, official: false, strictModeAllowed: false, source: 'MCP extension', notes: EXTENSION_NOTES };
-}
-
-function undocumented(address: string): OscAddressOfficiality {
-  return { address, official: false, strictModeAllowed: false, source: 'Undocumented endpoint', notes: UNDOCUMENTED_NOTES };
-}
-
-export const OSC_ADDRESS_OFFICIALITY: readonly OscAddressOfficiality[] = [
-  command('/eos/cmd'),
-  command('/eos/newcmd'),
-  extension('/eos/get/cmd_line'),
-  official('/eos/out/cmd'),
-  official('/eos/out/user/{number}/cmd'),
-  official('/eos/key'),
-  official('/eos/key/{key}'),
-  official('/eos/softkey/{index}'),
-  undocumented('/eos/get/softkey_labels'),
-  official('/eos/chan'),
-  official('/eos/chan/{channel}/param/{parameter}'),
-  undocumented('/eos/get/channels'),
-  official('/eos/addr'),
-  official('/eos/addr/{address}'),
-  official('/eos/addr/{address}/DMX'),
-  extension('/eos/dmx/address/select'),
-  extension('/eos/dmx/address/level'),
-  extension('/eos/dmx/address/dmx'),
-  official('/eos/group'),
-  official('/eos/group/{group}/level'),
-  official('/eos/get/group'),
-  official('/eos/get/group/count'),
-  official('/eos/get/group/list'),
-  official('/eos/ip/fire'),
-  official('/eos/fp/fire'),
-  official('/eos/cp/fire'),
-  official('/eos/bp/fire'),
-  official('/eos/get/palette'),
-  official('/eos/get/ip'),
-  official('/eos/get/fp'),
-  official('/eos/get/cp'),
-  official('/eos/get/bp'),
-  official('/eos/get/ip/count'),
-  official('/eos/get/fp/count'),
-  official('/eos/get/cp/count'),
-  official('/eos/get/bp/count'),
-  official('/eos/get/ip/list'),
-  official('/eos/get/fp/list'),
-  official('/eos/get/cp/list'),
-  official('/eos/get/bp/list'),
-  official('/eos/preset/fire'),
-  official('/eos/preset'),
-  official('/eos/get/preset'),
-  official('/eos/get/preset/count'),
-  official('/eos/get/preset/list'),
-  official('/eos/macro/fire'),
-  official('/eos/macro'),
-  official('/eos/get/macro'),
-  official('/eos/get/macro/count'),
-  official('/eos/get/macro/list'),
-  official('/eos/snap'),
-  official('/eos/get/snapshot'),
-  official('/eos/get/snapshot/count'),
-  official('/eos/get/snapshot/list'),
-  official('/eos/curve/select'),
-  official('/eos/get/curve'),
-  official('/eos/get/curve/count'),
-  official('/eos/get/curve/list'),
-  official('/eos/get/effect'),
-  official('/eos/get/effect/count'),
-  official('/eos/get/effect/list'),
-  official('/eos/param/wheel/tick'),
-  official('/eos/param/wheel/rate'),
-  official('/eos/param/color/hs'),
-  official('/eos/param/color/rgb'),
-  official('/eos/param/position/xy'),
-  official('/eos/param/position/xyz'),
-  official('/eos/get/active/wheels'),
-  official('/eos/fader'),
-  official('/eos/fader/{index}/config/{faders}'),
-  official('/eos/fader/{index}/config/{page}/{faders}'),
-  official('/eos/fader/{index}/{fader}'),
-  official('/eos/fader/{index}/{fader}/load'),
-  official('/eos/fader/{index}/{fader}/unload'),
-  official('/eos/fader/{index}/page/{delta}'),
-  extension('/eos/fader/{index}/{page}/{fader}'),
-  extension('/eos/fader/{index}/{page}/{fader}/load'),
-  extension('/eos/fader/{index}/{page}/{fader}/unload'),
-  official('/eos/ds/{index}/{button}'),
-  official('/eos/ds/{index}/{target}/{buttons}'),
-  official('/eos/ds/{index}/{target}/flexi/{buttons}'),
-  official('/eos/ds/{index}/{target}/{page}/{buttons}'),
-  official('/eos/ds/{index}/{target}/flexi/{page}/{buttons}'),
-  official('/eos/ds/{index}/page/{delta}'),
-  extension('/eos/ds/{index}/button/{page}/{button}'),
-  extension('/eos/ds/{index}/config/{target}/{buttons}/{flexi}/{page}'),
-  official('/eos/pixmap'),
-  official('/eos/get/pixmap'),
-  official('/eos/get/pixmap/count'),
-  official('/eos/get/pixmap/list'),
-  official('/eos/ms'),
-  official('/eos/get/magic_sheet'),
-  official('/eos/get/magic_sheet/count'),
-  official('/eos/get/magic_sheet/list'),
-  official('/eos/sub'),
-  official('/eos/sub/{number}'),
-  official('/eos/sub/fire'),
-  official('/eos/sub/{number}/fire'),
-  official('/eos/get/submaster'),
-  official('/eos/get/submaster/count'),
-  official('/eos/get/submaster/list'),
-  official('/eos/cue/{cue}'),
-  official('/eos/cue/{cue}/fire'),
-  official('/eos/cue/{cuelist}/{cue}/fire'),
-  official('/eos/cue/{cuelist}/go'),
-  official('/eos/get/cue'),
-  official('/eos/get/cue/count'),
-  official('/eos/get/cue/list'),
-  official('/eos/get/cuelist'),
-  official('/eos/get/cuelist/count'),
-  official('/eos/get/cuelist/list'),
-  official('/eos/cuelist/{bank_index}/config/{cuelist_number}/{num_prev_cues}/{num_pending_cues}'),
-  official('/eos/cuelist/{bank_index}/page/{delta}'),
-  official('/eos/get/version'),
-  official('/eos/user'),
-  official('/eos/ping'),
-  official('/eos/reset'),
-  official('/eos/subscribe'),
-  runtime('/eos/handshake'),
-  runtime('/eos/handshake/reply'),
-  runtime('/eos/protocol/select'),
-  runtime('/eos/protocol/select/reply'),
-  runtime('/eos/out/ping'),
-  runtime('/eos/reset/reply'),
-  runtime('/eos/subscribe/reply'),
-  runtime('/eos/out/{path}'),
-  undocumented('/eos/get/fpe/set/count'),
-  undocumented('/eos/get/fpe/set'),
-  undocumented('/eos/get/fpe/point'),
-  undocumented('/eos/get/patch/chan_info'),
-  extension('/eos/get/patch/chan_pos'),
-  extension('/eos/get/patch/chan_beam'),
-  undocumented('/eos/get/cuelist/info'),
-  undocumented('/eos/get/active/cue'),
-  undocumented('/eos/get/pending/cue'),
-  undocumented('/eos/get/show/name'),
-  undocumented('/eos/get/live/blind'),
-  undocumented('/eos/get/setup_defaults')
-] as const;
-
+for (const palette of ['ip', 'fp', 'cp', 'bp']) native.push(`/eos/${palette}/fire`);
+for (let field = 1; field <= 10; field++) native.push(`/eos/set/patch/{channel}/text${field}`);
+export const OSC_ADDRESS_OFFICIALITY: readonly OscAddressOfficiality[] = [...new Set(native)].map(official);
 function templateToRegExp(template: string): RegExp {
-  const escaped = template.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const pattern = escaped.replace(/\\\{[^/]+\\\}/g, '[^/]+');
-  return new RegExp(`^${pattern}$`);
+  const tokens: Record<string, string> = {
+    key: '[A-Za-z0-9_ @.+\\-]+', parameter: '[A-Za-z0-9_ .%\\-]+', uid: '[A-Za-z0-9-]+',
+    palette_type: '(?:ip|fp|cp|bp)', mode: '(?:coarse|fine)',
+    target: '(?:chan|group|cue|preset|sub|macro|ip|fp|cp|bp|fx|ms|snap|pixmap)',
+    delta: '-?\\d+', user: '\\d{1,2}'
+  };
+  const parts = template.split(/(\{[^}]+\})/g).map((part) => part.startsWith('{')
+    ? `(?:${tokens[part.slice(1, -1)] ?? '\\d+(?:\\.\\d+)?'})`
+    : part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  return new RegExp(`^${parts.join('')}$`);
 }
-
-const EXACT_ENTRIES = new Map(OSC_ADDRESS_OFFICIALITY.map((entry) => [entry.address, entry]));
-const TEMPLATE_ENTRIES = OSC_ADDRESS_OFFICIALITY
-  .filter((entry) => entry.address.includes('{'))
-  .map((entry) => ({ entry, pattern: templateToRegExp(entry.address) }));
-
+const exact = new Map(OSC_ADDRESS_OFFICIALITY.map((entry) => [entry.address, entry]));
+const patterns = OSC_ADDRESS_OFFICIALITY.map((entry) => ({ entry, pattern: templateToRegExp(entry.address) }));
+export function allowsUserScope(address: string): boolean {
+  return /^\/eos\/(?:cmd|newcmd|key|softkey|chan|addr|group|ip|fp|cp|bp|preset|macro|snap|curve|pixmap|ms|sub|cue|wheel|switch|color|pantilt|xyz)(?:\/|$)/.test(address);
+}
 export function getOscAddressOfficiality(address: string): OscAddressOfficiality | undefined {
-  return EXACT_ENTRIES.get(address) ?? TEMPLATE_ENTRIES.find(({ pattern }) => pattern.test(address))?.entry;
+  const scoped = address.match(/^\/eos\/user\/(\d{1,2})(\/.*)$/);
+  if (scoped && allowsUserScope(`/eos${scoped[2]}`)) return getOscAddressOfficiality(`/eos${scoped[2]}`);
+  return exact.get(address) ?? patterns.find(({ pattern }) => pattern.test(address))?.entry;
 }
-
 export function isEosStrictModeEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   const raw = env[EOS_STRICT_MODE_ENV];
-  if (raw === undefined || raw === null || raw.trim().length === 0) {
-    return false;
-  }
-  return ['1', 'true', 'yes', 'on'].includes(raw.trim().toLowerCase());
+  return raw === undefined || raw.trim() === '' ? false : ['1', 'true', 'yes', 'on'].includes(raw.trim().toLowerCase());
 }
-
-export function assertOscAddressStrictModeAllowed(address: string, env: NodeJS.ProcessEnv = process.env): void {
-  if (!isEosStrictModeEnabled(env)) {
-    return;
+export function assertOscAddressStrictModeAllowed(address: string, _env: NodeJS.ProcessEnv = process.env): void {
+  // All console traffic is native, irrespective of the command-text validation profile.
+  if (address.startsWith('/eos/out/') || getOscAddressOfficiality(address)?.official !== true) {
+    throw new Error(`Envoi refuse: '${address}' n'est pas une entree OSC ETC documentee et implementee.`);
   }
-
-  const classification = getOscAddressOfficiality(address);
-  if (classification?.strictModeAllowed === true) {
-    return;
-  }
-
-  const source = classification?.source ?? 'adresse non classee';
-  const notes = classification?.notes ?? 'Aucune entree dans OSC_ADDRESS_OFFICIALITY.';
-  throw new Error(
-    `EOS_STRICT_MODE bloque l'envoi OSC vers '${address}' (${source}). ${notes}`
-  );
 }

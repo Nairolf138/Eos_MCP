@@ -10,7 +10,6 @@ import {
   getResourceCache
 } from '../../services/cache/index';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
-import type { OscMessageArgument } from '../../services/osc/index';
 import { oscMappings } from '../../services/osc/mappings';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 
@@ -52,14 +51,6 @@ interface CurveInfo {
   points: CurvePoint[];
 }
 
-function buildJsonArgs(payload: Record<string, unknown>): OscMessageArgument[] {
-  return [
-    {
-      type: 's' as const,
-      value: JSON.stringify(payload)
-    }
-  ];
-}
 
 function annotate(osc: string): Record<string, unknown> {
   return {
@@ -369,7 +360,7 @@ export const eosCurveSelectTool: ToolDefinition<typeof selectInputSchema> = {
       curve: options.curve_number
     };
 
-    await client.sendMessage(oscMappings.curves.select, buildJsonArgs(payload), {
+    await client.sendMessage(oscMappings.curves.select, [{ type: 'i', value: options.curve_number }], {
       targetAddress: options.targetAddress,
       targetPort: options.targetPort
     });

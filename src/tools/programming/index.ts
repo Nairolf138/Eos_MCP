@@ -7,6 +7,7 @@ import { oscMappings } from '../../services/osc/mappings';
 import { cueNumberSchema, dmxAddressSchema, userIdSchema } from '../../utils/validators';
 import { buildRecordCueCommand, formatCueTarget } from '../cues/common';
 import { sendDeterministicCommand } from '../commands/command_tools';
+import { buildPatchSequence, applyPatchPlans } from '../workflows/patchSequence';
 import type { ToolDefinition } from '../types';
 
 const targetOptionsSchema = {
@@ -192,14 +193,14 @@ export const eosPaletteRecordTool: ToolDefinition<typeof paletteRecordInputSchem
     annotations: {
       mapping: {
         osc: oscMappings.commands.newCommand,
-        cli: '<IP|FP|CP|BP> <numero> Record#',
-        commandExample: 'IP {palette_number} Record#'
+        cli: 'Record <IP|FP|CP|BP> <numero>#',
+        commandExample: 'Record IP {palette_number}#'
       }
     }
   },
   handler: async (args) => {
     const options = z.object(paletteRecordInputSchema).strict().parse(args ?? {});
-    const command = `${palettePrefix(options.palette_type)} ${options.palette_number} Record`;
+    const command = `Record ${palettePrefix(options.palette_type)} ${options.palette_number}`;
     return sendDeterministicCommand({
       command,
       clearLine: true,
@@ -259,6 +260,11 @@ const patchSetChannelInputSchema = {
   channel_number: channelNumberSchema,
   dmx_address: dmxAddressSchema,
   device_type: z.string().trim().min(1).max(128),
+  dmx_footprint: z.coerce.number().int().min(1).max(512).optional(),
+  eos_profile: z.string().trim().min(1).max(128).optional(),
+  allow_readdress: z.boolean().optional(),
+  dry_run: z.boolean().optional(),
+  require_confirmation: z.boolean().optional(),
   part: partNumberSchema.optional(),
   label: z.string().trim().min(1).max(128).optional(),
   ...targetOptionsSchema
@@ -267,7 +273,7 @@ const patchSetChannelInputSchema = {
 /**
  * @tool eos_patch_set_channel
  * @summary Set patch channel
- * @description Configure adresse DMX, type appareil, part et label via commande deterministe.
+ * @description Controle et applique le patch avec relecture. Le profil complexe doit deja exister sur le canal; aucun nom OFL n’est transforme en commande Type.
  * @arguments Voir docs/tools.md#eos-patch-set-channel pour le schema complet.
  * @returns ToolExecutionResult avec contenu texte et objet.
  * @example CLI Consultez docs/tools.md#eos-patch-set-channel pour un exemple CLI.
@@ -277,30 +283,20 @@ export const eosPatchSetChannelTool: ToolDefinition<typeof patchSetChannelInputS
   name: 'eos_patch_set_channel',
   config: {
     title: 'Set patch channel',
-    description: 'Configure adresse DMX, type appareil, part et label via commande deterministe.',
+    description: 'Controle et applique le patch avec relecture. Le profil complexe doit deja exister sur le canal; aucun nom OFL n’est transforme en commande Type.',
     inputSchema: patchSetChannelInputSchema,
     annotations: {
       mapping: {
         osc: oscMappings.commands.newCommand,
-        cli: 'Patch Chan <ch> Part <part> Address <dmx> Type "<type>" [Label "<label>"]#',
-        commandExample: 'Patch Chan {channel_number} Part 1 Address {dmx_address} Type "{device_type}"#'
+        cli: 'Address <dmx> At <ch> Part 1#',
+        commandExample: 'Address {dmx_address} At {channel_number} Part 1#'
       }
     }
   },
   handler: async (args) => {
     const options = z.object(patchSetChannelInputSchema).strict().parse(args ?? {});
-    const part = options.part ?? 1;
-    const labelCommand = options.label ? ` Label "${escapeLabel(options.label)}"` : '';
-    const command = `Patch Chan ${options.channel_number} Part ${part} Address ${options.dmx_address.trim()} Type "${escapeLabel(options.device_type)}"${labelCommand}`;
-
-    return sendDeterministicCommand({
-      command,
-      clearLine: true,
-      terminateWithEnter: true,
-      user: options.user,
-      targetAddress: options.targetAddress,
-      targetPort: options.targetPort
-    });
+    const execution = buildPatchSequence({ ...options, label: options.label ?? '' });
+    return applyPatchPlans([execution.plan], options, 'eos_patch_set_channel');
   }
 };
 

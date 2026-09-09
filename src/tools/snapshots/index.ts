@@ -10,7 +10,6 @@ import {
   getResourceCache
 } from '../../services/cache/index';
 import { getOscClient, type OscJsonResponse } from '../../services/osc/client';
-import type { OscMessageArgument } from '../../services/osc/index';
 import { oscMappings } from '../../services/osc/mappings';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 
@@ -44,14 +43,6 @@ interface SnapshotInfo {
   uid: string | null;
 }
 
-function buildJsonArgs(payload: Record<string, unknown>): OscMessageArgument[] {
-  return [
-    {
-      type: 's' as const,
-      value: JSON.stringify(payload)
-    }
-  ];
-}
 
 function extractTargetOptions(options: { targetAddress?: string; targetPort?: number }): {
   targetAddress?: string;
@@ -307,7 +298,7 @@ export const eosSnapshotRecallTool: ToolDefinition<typeof recallInputSchema> = {
 
     await client.sendMessage(
       oscMappings.snapshots.recall,
-      buildJsonArgs(payload),
+      [{ type: 'i', value: options.snapshot_number }],
       extractTargetOptions(options)
     );
 

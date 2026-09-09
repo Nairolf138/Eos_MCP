@@ -75,7 +75,7 @@ interface TransportInternals {
 
 type OscConnectionEvents = {
   status: [TransportStatus];
-  message: [{ type: TransportType; data: Buffer }];
+  message: [{ type: TransportType; data: Buffer; source?: { address: string; port: number } }];
 };
 
 const noop = (): void => {};
@@ -237,9 +237,16 @@ export class OscConnectionManager extends EventEmitter {
     toolId: string,
     payload: Buffer | string | Uint8Array,
     encoding?: BufferEncoding,
-    overrides?: { targetConsole?: string; targetAddress?: string; targetPort?: number }
+    overrides?: { targetConsole?: string; targetAddress?: string; targetPort?: number },
+    onSent?: (error?: Error | null) => void
   ): TransportType {
-    const state = this.pickTransport(toolId);
+    let state = this.pickTransport(toolId);
+    // targetPort is the console's OSC receive port. Never reuse an unrelated TCP socket.
+    const differentTarget = (overrides?.targetAddress !== undefined && overrides.targetAddress !== this.options.host)
+      || (overrides?.targetPort !== undefined && overrides.targetPort !== this.options.udpPort && overrides.targetPort !== this.options.tcpPort);
+    if (state?.type === 'tcp' && differentTarget) {
+      state = this.transports.udp.state === 'connected' ? this.transports.udp : null;
+    }
     if (!state) {
       throw new Error(
         "Aucun transport OSC disponible pour l'outil. Les connexions TCP et UDP sont indisponibles."
@@ -247,8 +254,18 @@ export class OscConnectionManager extends EventEmitter {
     }
 
     const buffer = this.normalisePayload(payload, encoding);
-    this.sendThroughState(state, buffer, overrides);
+    this.sendThroughState(state, buffer, overrides, onSent);
     return state.type;
+  }
+
+  public sendAsync(toolId: string, payload: Buffer, overrides?: { targetConsole?: string; targetAddress?: string; targetPort?: number }): Promise<TransportType> {
+    return new Promise((resolve, reject) => {
+      let transport: TransportType;
+      transport = this.send(toolId, payload, undefined, overrides, (error) => {
+        if (error) reject(error);
+        else queueMicrotask(() => resolve(transport));
+      });
+    });
   }
 
   private createInitialTransportState(type: TransportType): TransportInternals {
@@ -323,13 +340,18 @@ export class OscConnectionManager extends EventEmitter {
 
       while (buffer.length >= 4) {
         const packetLength = buffer.readUInt32BE(0);
+        if (packetLength === 0 || packetLength > 4 * 1024 * 1024) {
+          socket.destroy(new Error('Taille de paquet OSC TCP invalide.'));
+          state.buffer = Buffer.alloc(0);
+          return;
+        }
         if (buffer.length < 4 + packetLength) {
           break;
         }
 
         const packet = buffer.subarray(4, 4 + packetLength);
         this.markHeartbeatAck(state, packet);
-        this.emit('message', { type: 'tcp', data: packet });
+        this.emit('message', { type: 'tcp', data: packet, source: { address: this.options.host, port: this.options.tcpPort } });
 
         buffer = buffer.subarray(4 + packetLength);
       }
@@ -372,16 +394,9 @@ export class OscConnectionManager extends EventEmitter {
     const socket = this.createUdpSocket();
     state.socket = socket;
 
-    if (typeof socket.setRecvBufferSize === 'function') {
-      socket.setRecvBufferSize(this.udpRecvBufferSize);
-    }
-    if (typeof socket.setSendBufferSize === 'function') {
-      socket.setSendBufferSize(this.udpSendBufferSize);
-    }
-
-    const onMessage = (message: Buffer): void => {
+    const onMessage = (message: Buffer, source?: { address: string; port: number }): void => {
       this.markHeartbeatAck(state, message);
-      this.emit('message', { type: 'udp', data: message });
+      this.emit('message', { type: 'udp', data: message, source });
     };
 
     const onError = (error: Error): void => {
@@ -402,6 +417,13 @@ export class OscConnectionManager extends EventEmitter {
       if (state.state !== 'connecting' || state.socket !== socket) {
         return;
       }
+      // Node requires an existing OS socket (bind completed) before setting buffers.
+      try {
+        socket.setRecvBufferSize?.(this.udpRecvBufferSize);
+        socket.setSendBufferSize?.(this.udpSendBufferSize);
+      } catch (error) {
+        this.logger.warn?.('[OSC][udp] Taille de buffer non applicable; valeurs systeme conservees', error);
+      }
       state.targetHost = this.options.host;
       state.targetPort = this.options.udpPort;
       this.logger.info?.(
@@ -410,11 +432,8 @@ export class OscConnectionManager extends EventEmitter {
       this.onTransportConnected(state);
     };
 
-    const shouldBind =
-      this.options.localAddress !== undefined || this.options.localPort !== undefined;
-
-    if (shouldBind) {
-      const bindOptions: BindOptions = {};
+    {
+      const bindOptions: BindOptions = { port: this.options.localPort ?? 0 };
       if (this.options.localAddress !== undefined) {
         bindOptions.address = this.options.localAddress;
       }
@@ -423,8 +442,6 @@ export class OscConnectionManager extends EventEmitter {
       }
 
       socket.bind(bindOptions, markConnected);
-    } else {
-      markConnected();
     }
   }
 
@@ -669,7 +686,8 @@ export class OscConnectionManager extends EventEmitter {
   private sendThroughState(
     state: TransportInternals,
     buffer: Buffer,
-    overrides?: { targetConsole?: string; targetAddress?: string; targetPort?: number }
+    overrides?: { targetConsole?: string; targetAddress?: string; targetPort?: number },
+    onSent?: (error?: Error | null) => void
   ): void {
     if (!state.socket || state.state !== 'connected') {
       throw new Error(
@@ -688,6 +706,7 @@ export class OscConnectionManager extends EventEmitter {
           this.logger.error?.("[OSC][tcp] Echec lors de l'envoi", error);
           this.handleTransportFailure(state, error);
         }
+        onSent?.(error);
       });
     } else {
       const socket = state.socket as UdpSocket;
@@ -698,6 +717,7 @@ export class OscConnectionManager extends EventEmitter {
           this.logger.error?.('[OSC][udp] Echec lors de l\'envoi', error);
           this.handleTransportFailure(state, error);
         }
+        onSent?.(error);
       });
     }
   }

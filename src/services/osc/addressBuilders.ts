@@ -4,11 +4,13 @@
  */
 
 function encodeOscPathSegment(value: number | string): string {
-  return encodeURIComponent(String(value));
+  const segment = String(value).trim();
+  if (!/^[A-Za-z0-9_ .%+-]+$/.test(segment)) throw new Error('Segment OSC invalide.');
+  return segment;
 }
 
 function encodeTrimmedOscPathSegment(value: number | string): string {
-  return encodeURIComponent(String(value).trim());
+  return encodeOscPathSegment(value);
 }
 
 export function buildKeyAddress(identifier: string): string {
@@ -28,7 +30,7 @@ export function buildDmxAddressSelectAddress(): string {
 }
 
 export function buildDmxAddressLevelAddress(address: number | string): string {
-  return `/eos/addr/${encodeOscPathSegment(address)}`;
+  return `/eos/addr/${toAbsoluteDmxAddress(address)}`;
 }
 
 export function buildDmxAddressDmxAddress(address: number | string): string {
@@ -84,15 +86,15 @@ export function buildUserCommandOutAddress(user: number | string): string {
 }
 
 export function buildPatchChannelInfoAddress(): string {
-  return '/eos/get/patch/chan_info';
+  return '/eos/get/patch/{channel}/{part}';
 }
 
 export function buildPatchAugment3dPositionAddress(): string {
-  return '/eos/get/patch/chan_pos';
+  return '/eos/get/patch/{channel}/{part}/augment3d/position';
 }
 
 export function buildPatchAugment3dBeamAddress(): string {
-  return '/eos/get/patch/chan_beam';
+  return '/eos/get/patch/{channel}/{part}/augment3d/beam';
 }
 
 export function buildMacroFireAddress(): string {
@@ -109,4 +111,16 @@ export function buildSubmasterLevelAddress(submasterNumber: number | string): st
 
 export function buildSubmasterBumpAddress(submasterNumber: number | string): string {
   return `${buildSubmasterLevelAddress(submasterNumber)}/fire`;
+}
+
+export function toAbsoluteDmxAddress(address: number | string): number {
+  const match = String(address).trim().match(/^(\d+)[./:-](\d+)$/);
+  const universe = match ? Number(match[1]) : null;
+  const offset = match ? Number(match[2]) : Number(address);
+  if (!Number.isInteger(offset) || offset < 1 || (universe !== null && (!Number.isInteger(universe) || universe < 1 || universe > 63999 || offset > 512))) {
+    throw new Error('Adresse DMX invalide (univers/1..512 ou adresse absolue).');
+  }
+  const absolute = universe === null ? offset : (universe - 1) * 512 + offset;
+  if (absolute > 63999 * 512) throw new Error('Adresse DMX hors limites.');
+  return absolute;
 }

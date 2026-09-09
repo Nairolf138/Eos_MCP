@@ -2,56 +2,49 @@
  * Copyright 2026 Florian Ribes (NairolfConcept)
  * SPDX-License-Identifier: Apache-2.0
  */
-import type {
-  OscDiagnostics,
-  OscLoggingOptions,
-  OscLoggingState,
-  OscMessage,
-  OscMessageArgument
-} from './index';
-import type {
-  ToolTransportPreference,
-  TransportStatus,
-  TransportType
-} from './connectionManager';
-import { createOscGatewayFromEnv } from './gateway';
-import type { OscConnectionStateProvider } from './connectionState';
 import {
-  AppError,
-  ErrorCode,
-  createConnectionLostError,
-  createTimeoutError,
-  isAppError
+    AppError,
+    ErrorCode,
+    createConnectionLostError,
+    createTimeoutError,
+    isAppError
 } from '../../server/errors';
-import { getResourceCache } from '../cache/index';
-import { resolveConsoleTarget } from '../consoleTargets';
-import { RequestQueue, type RequestQueueDiagnostics, type RequestQueueRunOptions } from './requestQueue';
 import { getRequestContext } from '../../server/requestContext';
 import { resolveAuditMode, writeCommandAudit } from '../audit';
-import { assertOscAddressStrictModeAllowed } from './officiality';
+import { getResourceCache } from '../cache/index';
+import { resolveConsoleTarget } from '../consoleTargets';
+import type {
+    ToolTransportPreference,
+    TransportStatus,
+    TransportType
+} from './connectionManager';
+import type { OscConnectionStateProvider } from './connectionState';
+import { createOscGatewayFromEnv } from './gateway';
+import type {
+    OscDiagnostics,
+    OscLoggingOptions,
+    OscLoggingState,
+    OscMessage,
+    OscMessageArgument
+} from './index';
 import {
-  extractJsonPayloadFromMessage,
-  isDocumentedJsonEndpoint,
-  validateWireMessage,
-  type BuiltOscWireMessage,
-  type OscWireContract
+    extractJsonPayloadFromMessage,
+    validateWireMessage,
+    type BuiltOscWireMessage,
+    type OscWireContract
 } from './messageBuilders';
+import { NativeQueryClient } from './nativeQueryClient';
+import { OscObservations, messagePeer, normalizePeer } from './observations';
+import { allowsUserScope, assertOscAddressStrictModeAllowed } from './officiality';
+import { RequestQueue, type RequestQueueDiagnostics, type RequestQueueRunOptions } from './requestQueue';
 
-const HANDSHAKE_REQUEST = '/eos/handshake';
-const HANDSHAKE_REPLY = '/eos/handshake/reply';
-const PROTOCOL_SELECT_REQUEST = '/eos/protocol/select';
-const PROTOCOL_SELECT_REPLY = '/eos/protocol/select/reply';
 const PING_REQUEST = '/eos/ping';
 const PING_REPLY = '/eos/out/ping';
 const RESET_REQUEST = '/eos/reset';
-const RESET_REPLY = '/eos/reset/reply';
 const SUBSCRIBE_REQUEST = '/eos/subscribe';
-const SUBSCRIBE_REPLY = '/eos/subscribe/reply';
 const COMMAND_REQUEST = '/eos/cmd';
 const NEW_COMMAND_REQUEST = '/eos/newcmd';
 const USER_REQUEST = '/eos/user';
-const COMMAND_LINE_GET_REQUEST = '/eos/get/cmd_line';
-const COMMAND_LINE_GET_REPLY = '/eos/get/cmd_line';
 const COMMAND_LINE_OUT_GLOBAL = '/eos/out/cmd';
 const COMMAND_LINE_OUT_USER_PATTERN = /^\/eos\/out\/user\/(-?\d+)\/cmd$/;
 const JSON_STATUS_REQUIRED_ENDPOINTS = new Set<string>([
@@ -121,7 +114,7 @@ export interface ConnectOptions extends TargetOptions {
   clientId?: string;
 }
 
-export type HandshakeMode = 'canonical' | 'legacy' | 'timeout' | 'degraded';
+export type HandshakeMode = 'native' | 'canonical' | 'legacy' | 'timeout' | 'degraded';
 
 export interface HandshakeData {
   version: string | null;
@@ -209,6 +202,8 @@ export interface CommandSendOptions extends TargetOptions {
 
 export interface CommandLineRequestOptions extends TargetOptions {
   user?: number;
+  afterSequence?: number;
+  maxAgeMs?: number;
   timeoutMs?: number;
 }
 
@@ -220,6 +215,9 @@ export interface CommandLineState extends Record<string, unknown> {
   user: number | null;
   payload: unknown;
   source: CommandLineSource | null;
+  sequence?: number;
+  received_at?: number;
+  command_error?: boolean;
   error?: string;
 }
 
@@ -282,6 +280,7 @@ export interface OscQueuePolicy {
 export type OscQueueDiagnostics = RequestQueueDiagnostics;
 
 export class OscClient {
+  private readonly nativeQueries = new NativeQueryClient();
   private readonly requestQueue: RequestQueue;
 
   private readonly requestQueueTimeoutMs: number;
@@ -293,12 +292,16 @@ export class OscClient {
   private readJsonCapability: OscRuntimeCapabilities = {
     canReadJsonQueries: false,
     readJsonQueriesStatus: 'read_capability_unconfirmed',
-    reason: 'Aucun handshake/probe OSC de lecture JSON reussi dans cette session.'
+    reason: 'Aucune lecture native OSC confirmee dans cette session.'
   };
 
   private readJsonCapabilityChecked = false;
 
   private readonly commandLineState = new Map<string, CommandLineState>();
+
+  private commandLineSequence = 0;
+
+  private readonly observations = new OscObservations();
 
   private readonly disposeCommandLineStateListener: () => void;
 
@@ -307,9 +310,12 @@ export class OscClient {
     this.requestQueueTimeoutMs =
       config.queueTimeoutMs ?? config.defaultTimeoutMs ?? DEFAULT_OPERATION_TIMEOUT_MS;
     this.disposeCommandLineStateListener = this.gateway.onMessage((message) => {
+      this.observations.remember(message);
       this.rememberCommandLineMessage(message);
     });
   }
+
+  public dispose(): void { this.disposeCommandLineStateListener(); }
 
   public getRuntimeCapabilities(): OscRuntimeCapabilities {
     return { ...this.readJsonCapability };
@@ -343,7 +349,7 @@ export class OscClient {
       : {
         canReadJsonQueries: false,
         readJsonQueriesStatus: 'read_capability_unconfirmed',
-        reason: response.error ?? `Probe JSON EOS termine avec le statut ${response.status}.`
+        reason: response.error ?? `Lecture native de version terminee avec le statut ${response.status}.`
       };
 
     this.setReadJsonCapability(
@@ -355,78 +361,23 @@ export class OscClient {
   }
 
   public async connect(options: ConnectOptions = {}): Promise<ConnectResult> {
-    const handshakeTimeout =
-      options.handshakeTimeoutMs ?? this.config.handshakeTimeoutMs ?? this.config.defaultTimeoutMs ?? DEFAULT_HANDSHAKE_TIMEOUT_MS;
-    const protocolTimeout =
-      options.protocolTimeoutMs ?? this.config.protocolTimeoutMs ?? this.config.defaultTimeoutMs ?? DEFAULT_OPERATION_TIMEOUT_MS;
-
-    try {
-      const handshake = await this.performHandshake(options, handshakeTimeout);
-      const protocolResult = await this.selectProtocol(handshake, options, protocolTimeout);
-      const capability = handshake.mode === 'canonical'
-        ? this.setReadJsonCapability(true, 'confirmed', null)
-        : await this.probeCapabilities({
-          targetAddress: options.targetAddress,
-          targetPort: options.targetPort,
-          toolId: options.toolId,
-          transportPreference: options.transportPreference,
-          timeoutMs: Math.min(protocolTimeout, 400)
-        });
-      if (!capability.canReadJsonQueries && handshake.mode === 'legacy') {
-        this.setReadJsonCapability(false, 'unsupported_transport_mode', capability.reason ?? 'Handshake legacy: lecture JSON non confirmee.');
-      }
-      const runtimeCapability = this.getRuntimeCapabilities();
-      this.lastHandshakeStatus = 'ok';
-      this.lastProtocolMode = protocolResult.selectedProtocol ?? handshake.mode;
-
-      return {
-        status: 'ok',
-        version: handshake.version,
-        availableProtocols: handshake.protocols,
-        selectedProtocol: protocolResult.selectedProtocol,
-        protocolStatus: protocolResult.status,
-        handshakePayload: handshake.raw,
-        can_send_commands: true,
-        can_read_queries: runtimeCapability.canReadJsonQueries,
-        handshake_mode: handshake.mode,
-        limitations: this.buildConnectionLimitations(
-          handshake.mode,
-          true,
-          runtimeCapability.canReadJsonQueries,
-          protocolResult.status,
-          protocolResult.error ?? runtimeCapability.reason ?? undefined
-        ),
-        protocolResponse: protocolResult.payload,
-        ...(protocolResult.error ? { error: protocolResult.error } : {})
-      };
-    } catch (error) {
-      const timeoutError = this.asAppError(error, ErrorCode.OSC_TIMEOUT);
-      if (timeoutError) {
-        return this.buildTimeoutConnectResult(options, timeoutError.message);
-      }
-
-      const connectionLostError = this.asAppError(error, ErrorCode.OSC_CONNECTION_LOST);
-      if (connectionLostError) {
-        this.lastHandshakeStatus = 'error';
-        this.lastProtocolMode = 'timeout';
-        this.setReadJsonCapability(false, 'read_capability_unconfirmed', connectionLostError.message);
-        return {
-          status: 'error',
-          version: null,
-          availableProtocols: [],
-          selectedProtocol: null,
-          protocolStatus: 'skipped',
-          handshakePayload: null,
-          can_send_commands: false,
-          can_read_queries: false,
-          handshake_mode: 'timeout',
-          limitations: this.buildConnectionLimitations('timeout', false, false, 'skipped', connectionLostError.message),
-          error: connectionLostError.message
-        };
-      }
-
-      throw error;
-    }
+    const response = await this.requestJsonInternal('/eos/get/version', {
+      ...options, timeoutMs: options.handshakeTimeoutMs ?? this.config.handshakeTimeoutMs ?? DEFAULT_HANDSHAKE_TIMEOUT_MS,
+      bypassReadCapabilityCheck: true
+    });
+    const readable = response.status === 'ok';
+    this.setReadJsonCapability(readable, readable ? 'confirmed' : 'read_capability_unconfirmed', response.error ?? null);
+    this.lastHandshakeStatus = response.status;
+    this.lastProtocolMode = readable ? 'etc-osc' : null;
+    const data = response.data as { version?: string } | null;
+    return {
+      status: response.status, version: readable ? data?.version ?? null : null,
+      availableProtocols: readable ? ['etc-osc'] : [], selectedProtocol: readable ? 'etc-osc' : null,
+      protocolStatus: readable ? 'ok' : 'skipped', handshakePayload: response.payload,
+      can_send_commands: readable, can_read_queries: readable, handshake_mode: readable ? 'native' : 'timeout',
+      limitations: readable ? [] : [response.error ?? 'Lecture de version Eos non confirmee.'],
+      ...(response.error ? { error: response.error } : {})
+    };
   }
 
   private setReadJsonCapability(
@@ -515,146 +466,20 @@ export class OscClient {
   }
 
   public async reset(options: ResetOptions = {}): Promise<ResetResult> {
-    const timeoutMs = options.timeoutMs ?? this.config.defaultTimeoutMs ?? DEFAULT_OPERATION_TIMEOUT_MS;
-    const message: OscMessage = {
-      address: RESET_REQUEST,
-      args: [{ type: 'i', value: options.full ? 1 : 0 }]
-    };
-
-    const awaiter = this.createResponseAwaiter(
-      (incoming) => (incoming.address === RESET_REPLY ? incoming : null),
-      timeoutMs,
-      'Aucune confirmation de reset recu avant expiration',
-      'le reset OSC',
-      { address: RESET_REPLY }
-    );
-
-    try {
-      await this.send(message, options, {
-        operation: 'le reset OSC',
-        timeoutMs,
-        details: { address: RESET_REQUEST, full: options.full ?? false }
-      });
-    } catch (error) {
-      awaiter.cancel();
-      throw error;
-    }
-
-    try {
-      const response = await awaiter.promise;
-      const payload = this.extractPayload(response);
-      const status = this.normaliseStatus(payload);
-      if (status === 'error') {
-        this.ensureConnectionActive('le reset OSC', payload, { address: RESET_REPLY });
-      }
-
-      const errorMessage = status === 'error' ? this.extractErrorMessage(payload) : null;
-      return {
-        status,
-        payload,
-        ...(errorMessage ? { error: errorMessage } : {})
-      };
-    } catch (error) {
-      const timeoutError = this.asAppError(error, ErrorCode.OSC_TIMEOUT);
-      if (timeoutError) {
-        return {
-          status: 'timeout',
-          payload: null,
-          error: timeoutError.message
-        };
-      }
-
-      const connectionLostError = this.asAppError(error, ErrorCode.OSC_CONNECTION_LOST);
-      if (connectionLostError) {
-        return {
-          status: 'error',
-          payload: null,
-          error: connectionLostError.message
-        };
-      }
-
-      throw error;
-    }
+    await this.send({ address: RESET_REQUEST, args: [] }, options);
+    this.commandLineState.clear();
+    return { status: 'ok', payload: { sent_to_transport: true, verified: false, acknowledgement: 'ETC ne documente pas de reponse /reset/reply.' } };
   }
 
   public async subscribe(options: SubscribeOptions): Promise<SubscribeResult> {
-    const timeoutMs = options.timeoutMs ?? this.config.defaultTimeoutMs ?? DEFAULT_OPERATION_TIMEOUT_MS;
-    const args = [
-      { type: 's', value: options.path },
-      { type: 'i', value: options.enable === false ? 0 : 1 }
-    ];
-
-    if (typeof options.rateHz === 'number') {
-      args.push({ type: 'f', value: options.rateHz });
+    if (options.rateHz !== undefined) throw new Error('rateHz ne fait pas partie du protocole OSC Subscribe ETC.');
+    const parameter = options.path.match(/^\/eos\/(?:out\/)?(?:subscribe\/)?param\/([^/]+)$/)?.[1];
+    if (!parameter && !['/eos', '/eos/out', '/eos/subscribe'].includes(options.path) && !/^\/eos\/out\/notify(?:\/[a-z0-9_]+)?$/i.test(options.path)) {
+      throw new Error('Abonnement invalide: utiliser /eos pour le show ou /eos/param/<parametre>.');
     }
-
-    const awaiter = this.createResponseAwaiter(
-      (incoming) => (incoming.address === SUBSCRIBE_REPLY ? incoming : null),
-      timeoutMs,
-      'Aucune confirmation de souscription recue avant expiration',
-      'la souscription OSC',
-      { address: SUBSCRIBE_REPLY, path: options.path }
-    );
-
-    try {
-      await this.send(
-        {
-          address: SUBSCRIBE_REQUEST,
-          args
-        },
-        options,
-        {
-          operation: 'la souscription OSC',
-          timeoutMs,
-          details: { address: SUBSCRIBE_REQUEST, path: options.path }
-        }
-      );
-    } catch (error) {
-      awaiter.cancel();
-      throw error;
-    }
-
-    try {
-      const response = await awaiter.promise;
-      const payload = this.extractPayload(response);
-      const status = this.normaliseStatus(payload);
-      if (status === 'error') {
-        this.ensureConnectionActive('la souscription OSC', payload, {
-          address: SUBSCRIBE_REPLY,
-          path: options.path
-        });
-      }
-
-      const errorMessage = status === 'error' ? this.extractErrorMessage(payload) : null;
-      return {
-        status,
-        path: options.path,
-        payload,
-        ...(errorMessage ? { error: errorMessage } : {})
-      };
-    } catch (error) {
-      const timeoutError = this.asAppError(error, ErrorCode.OSC_TIMEOUT);
-      if (timeoutError) {
-        return {
-          status: 'timeout',
-          path: options.path,
-          payload: null,
-          error: timeoutError.message
-        };
-      }
-
-      const connectionLostError = this.asAppError(error, ErrorCode.OSC_CONNECTION_LOST);
-      if (connectionLostError) {
-        return {
-          status: 'error',
-          path: options.path,
-          payload: null,
-          error: connectionLostError.message
-        };
-      }
-
-      throw error;
-    }
+    const address = parameter ? `/eos/subscribe/param/${parameter}` : SUBSCRIBE_REQUEST;
+    await this.send({ address, args: [{ type: 'i', value: options.enable === false ? 0 : 1 }] }, options);
+    return { status: 'ok', path: options.path, payload: { address, enabled: options.enable !== false, scope: parameter ?? 'all_show_data', sent_to_transport: true, verified: false } };
   }
 
   public async sendCommand(command: string, options: CommandSendOptions = {}): Promise<void> {
@@ -688,148 +513,34 @@ export class OscClient {
   private async requestJsonInternal(
     address: string,
     options: OscJsonRequestOptions = {},
-    internalOptions: InternalOscJsonRequestOptions = {}
+    _internalOptions: InternalOscJsonRequestOptions = {}
   ): Promise<OscJsonResponse> {
-    if (!isDocumentedJsonEndpoint(address)) {
-      throw new Error(
-        `requestJson n'est pas autorise pour l'adresse '${address}'. Utilisez un builder specialise + sendMessage.`
-      );
-    }
-    const timeoutMs = options.timeoutMs ?? this.config.defaultTimeoutMs ?? DEFAULT_OPERATION_TIMEOUT_MS;
-    if (options.bypassReadCapabilityCheck !== true && internalOptions.bypassReadCapabilityCheck !== true && this.readJsonCapabilityChecked && !this.readJsonCapability.canReadJsonQueries) {
-      const responseAddresses = this.normaliseResponseAddresses(
-        address,
-        options.responseAddress,
-        options.responseAddresses
-      );
-      return this.buildReadCapabilityRefusal(address, responseAddresses, timeoutMs);
-    }
-    const targetOptions: TargetOptions = {
-      targetConsole: options.targetConsole,
-      targetAddress: options.targetAddress,
-      targetPort: options.targetPort,
-      toolId: options.toolId,
-      transportPreference: options.transportPreference
-    };
-    const responseAddresses = this.normaliseResponseAddresses(
-      address,
-      options.responseAddress,
-      options.responseAddresses
-    );
-    const responseAddressSet = new Set(responseAddresses);
-    const payload = options.payload ?? {};
-    const hasPayload = Object.keys(payload).length > 0;
-    const operation = `la requete OSC ${address}`;
-
-    const message: OscMessage = { address };
-    if (hasPayload) {
-      message.args = [
-        {
-          type: 's',
-          value: JSON.stringify(payload)
-        }
-      ];
-    } else {
-      message.args = [];
-    }
-
-    const awaiter = this.createResponseAwaiter(
-      (incoming) => (responseAddressSet.has(incoming.address) ? incoming : null),
-      timeoutMs,
-      `Aucune reponse pour ${responseAddresses.join(' ou ')} recue avant expiration`,
-      operation,
-      { address: responseAddresses, requestAddress: address }
-    );
-
-    let transportType: TransportType | 'unknown' = 'unknown';
-
-    try {
-      transportType = await this.send(message, targetOptions, {
-        operation,
-        timeoutMs,
-        details: { address, hasPayload }
-      }) ?? 'unknown';
-    } catch (error) {
-      awaiter.cancel();
-      throw error;
-    }
-
-    try {
-      const response = await awaiter.promise;
-
-      const parsed = this.parseOscPayload(response);
-      const diagnostics = this.buildJsonDiagnostics(address, response.address, responseAddresses, parsed, timeoutMs, transportType);
-
-      const responseShape = internalOptions.responseShape ?? options.responseShape ?? 'object';
-      const requireStatusResponse = internalOptions.requireStatusResponse === true;
-      const formatError = this.validatePayloadShape(parsed, responseShape, requireStatusResponse);
-      if (formatError) {
-        return {
-          status: 'error',
-          data: parsed.type === 'json' ? parsed.data : null,
-          payload: response,
-          diagnostics,
-          error: this.withJsonDiagnostics(formatError, diagnostics)
-        };
-      }
-
-      const data = parsed.data;
-      const statusResult = this.normaliseJsonStatus(data, requireStatusResponse);
-      if (statusResult.status === 'error') {
-        this.ensureConnectionActive(operation, data, {
-          address: response.address,
-          acceptedResponseAddresses: responseAddresses,
-          requestAddress: address,
-          payloadType: diagnostics.payloadType,
-          rawPayloadExcerpt: diagnostics.rawPayloadExcerpt
+    const target = resolveConsoleTarget(options);
+    const peer = normalizePeer(target.targetAddress);
+    if (address.startsWith('/eos/out/')) {
+      const read = () => this.observations.read(address, options.payload ?? {}, peer);
+      const cached = read();
+      if (cached) return { status: 'ok', ...cached };
+      return new Promise<OscJsonResponse>((resolve) => {
+        const dispose = this.gateway.onMessage(() => {
+          const observed = read();
+          if (observed) { clearTimeout(timer); dispose(); resolve({ status: 'ok', ...observed }); }
         });
-      }
-
-      if (statusResult.status === 'ok') {
-        this.setReadJsonCapability(true, 'confirmed', null);
-      } else if (options.bypassReadCapabilityCheck === true || internalOptions.bypassReadCapabilityCheck === true) {
-        this.setReadJsonCapability(
-          false,
-          'read_capability_unconfirmed',
-          statusResult.error ?? `Probe JSON EOS termine avec le statut ${statusResult.status}.`
-        );
-      }
-
-      return {
-        status: statusResult.status,
-        data,
-        payload: response,
-        diagnostics,
-        ...(statusResult.error ? { error: statusResult.error } : {})
-      };
-    } catch (error) {
-      const timeoutError = this.asAppError(error, ErrorCode.OSC_TIMEOUT);
-      if (timeoutError) {
-        if (options.bypassReadCapabilityCheck === true || internalOptions.bypassReadCapabilityCheck === true) {
-          this.setReadJsonCapability(false, 'read_capability_unconfirmed', timeoutError.message);
-        }
-        return {
-          status: 'timeout',
-          data: null,
-          payload: null,
-          diagnostics: this.buildJsonDiagnostics(address, null, responseAddresses, this.emptyPayloadParseResult(), timeoutMs, transportType),
-          error: timeoutError.message
-        };
-      }
-
-      const connectionLostError = this.asAppError(error, ErrorCode.OSC_CONNECTION_LOST);
-      if (connectionLostError) {
-        return {
-          status: 'error',
-          data: null,
-          payload: null,
-          diagnostics: this.buildJsonDiagnostics(address, null, responseAddresses, this.emptyPayloadParseResult(), timeoutMs, transportType),
-          error: connectionLostError.message
-        };
-      }
-
-      throw error;
+        const timer = setTimeout(() => {
+          dispose(); resolve({ status: 'timeout', data: null, payload: null,
+            error: `Aucun evenement Eos recent pour ${address}; aucune requete /get equivalente documentee.` });
+        }, options.timeoutMs ?? this.config.defaultTimeoutMs ?? DEFAULT_OPERATION_TIMEOUT_MS);
+      });
     }
+    const result = await this.nativeQueries.request(address, options.payload ?? {},
+      options.timeoutMs ?? this.config.defaultTimeoutMs ?? DEFAULT_OPERATION_TIMEOUT_MS, {
+        send: (nativeAddress) => this.send({ address: nativeAddress, args: [] }, options),
+        onMessage: (listener) => this.gateway.onMessage((message) => {
+          if (messagePeer(message) === null || messagePeer(message) === peer) listener(message);
+        })
+      });
+    if (result.status === 'ok') this.setReadJsonCapability(true, 'confirmed', null);
+    return result;
   }
 
   public async requestBuiltJson(
@@ -839,53 +550,8 @@ export class OscClient {
     validateWireMessage(request.contract, request.message);
     return this.requestJson(request.message.address, {
       ...options,
-      payload: extractJsonPayloadFromMessage(request.message)
+      payload: request.query ?? extractJsonPayloadFromMessage(request.message)
     });
-  }
-
-  private buildReadCapabilityRefusal(
-    address: string,
-    responseAddresses: string[],
-    timeoutMs: number
-  ): OscJsonResponse {
-    const capability = this.getRuntimeCapabilities();
-    const status: Extract<StepStatus, 'unsupported_transport_mode' | 'read_capability_unconfirmed'> =
-      capability.readJsonQueriesStatus === 'unsupported_transport_mode'
-        ? 'unsupported_transport_mode'
-        : 'read_capability_unconfirmed';
-    const reason = capability.reason ?? 'Lecture JSON EOS non confirmee par le handshake/probe courant.';
-
-    return {
-      status,
-      data: null,
-      payload: null,
-      diagnostics: this.buildJsonDiagnostics(
-        address,
-        null,
-        responseAddresses,
-        this.emptyPayloadParseResult(),
-        timeoutMs,
-        'unknown'
-      ),
-      error: `${status}: ${reason} Reconfigurez OSC pour confirmer les requetes JSON ou fournissez une source showfile explicite.`
-    };
-  }
-
-  private normaliseResponseAddresses(
-    requestAddress: string,
-    responseAddress?: string,
-    responseAddresses?: readonly string[]
-  ): string[] {
-    const candidates = [
-      responseAddress,
-      ...(responseAddresses ?? []),
-      requestAddress
-    ];
-    return candidates.filter((candidate, index, values): candidate is string => (
-      typeof candidate === 'string' &&
-      candidate.length > 0 &&
-      values.indexOf(candidate) === index
-    ));
   }
 
   public setLogging(options: OscLoggingOptions = {}): OscLoggingState {
@@ -925,148 +591,47 @@ export class OscClient {
     return this.gateway.onStatus(listener);
   }
 
+  public getCommandLineSequence(): number { return this.commandLineSequence; }
+
   public async getCommandLine(options: CommandLineRequestOptions = {}): Promise<CommandLineState> {
-    const requestedUser = typeof options.user === 'number' && Number.isFinite(options.user)
-      ? Math.trunc(options.user)
-      : null;
-    const cached = this.getRememberedCommandLine(requestedUser);
-    if (cached) {
-      return cached;
-    }
-
+    const user = options.user ?? null;
+    const acceptable = (state: CommandLineState | undefined): state is CommandLineState => Boolean(state
+      && state.user === user
+      && (options.afterSequence === undefined || (state.sequence ?? -1) > options.afterSequence)
+      && Date.now() - (state.received_at ?? 0) <= (options.maxAgeMs ?? 2000));
+    const peer = normalizePeer(resolveConsoleTarget(options).targetAddress);
+    const key = `${peer}:${user === null ? 'global' : `user:${user}`}`;
+    const cached = this.commandLineState.get(key);
+    if (acceptable(cached)) return { ...cached };
     const timeoutMs = options.timeoutMs ?? this.config.defaultTimeoutMs ?? DEFAULT_OPERATION_TIMEOUT_MS;
-    const requestPayload: Record<string, unknown> = {};
-
-    if (requestedUser !== null) {
-      requestPayload.user = requestedUser;
-    }
-
-    const operation = 'la lecture de la ligne de commande OSC';
-
-    const awaiter = this.createResponseAwaiter(
-      (incoming) => (incoming.address === COMMAND_LINE_GET_REPLY ? incoming : null),
-      timeoutMs,
-      'Aucun etat de ligne de commande recu avant expiration',
-      operation,
-      { address: COMMAND_LINE_GET_REPLY }
-    );
-
-    try {
-      await this.send(
-        {
-          address: COMMAND_LINE_GET_REQUEST,
-          args: [
-            {
-              type: 's',
-              value: JSON.stringify(requestPayload)
-            }
-          ]
-        },
-        options,
-        {
-          operation,
-          timeoutMs,
-          details: { address: COMMAND_LINE_GET_REQUEST }
-        }
-      );
-    } catch (error) {
-      awaiter.cancel();
-      throw error;
-    }
-
-    try {
-      const response = await awaiter.promise;
-
-      const payload = this.extractPayload(response);
-      this.ensureConnectionActive(operation, payload, { address: COMMAND_LINE_GET_REPLY });
-      const decoded = this.parseCommandLinePayload(payload);
-
-      return {
-        status: 'ok',
-        text: decoded.text,
-        user: decoded.user,
-        payload,
-        source: 'mcp_extension_get_cmd_line'
-      };
-    } catch (error) {
-      const timeoutError = this.asAppError(error, ErrorCode.OSC_TIMEOUT);
-      if (timeoutError) {
-        return {
-          status: 'timeout',
-          text: '',
-          user: null,
-          payload: null,
-          source: null,
-          error: timeoutError.message
-        };
-      }
-
-      const connectionLostError = this.asAppError(error, ErrorCode.OSC_CONNECTION_LOST);
-      if (connectionLostError) {
-        return {
-          status: 'error',
-          text: '',
-          user: null,
-          payload: null,
-          source: null,
-          error: connectionLostError.message
-        };
-      }
-
-      throw error;
-    }
+    return new Promise<CommandLineState>((resolve) => {
+      const dispose = this.gateway.onMessage(() => {
+        const current = this.commandLineState.get(key);
+        if (acceptable(current)) { clearTimeout(timer); dispose(); resolve({ ...current }); }
+      });
+      const timer = setTimeout(() => {
+        dispose(); resolve({ status: 'timeout', text: '', user, payload: null, source: null,
+          error: 'Aucun retour de ligne de commande Eos recent. Aucun endpoint /get/cmd_line n’est documente.' });
+      }, timeoutMs);
+    });
   }
 
   private rememberCommandLineMessage(message: OscMessage): void {
-    const decoded = this.decodeCommandLineOutMessage(message);
-    if (!decoded) {
-      return;
-    }
-
+    const match = message.address.match(COMMAND_LINE_OUT_USER_PATTERN);
+    if (message.address !== COMMAND_LINE_OUT_GLOBAL && !match) return;
+    const text = message.args?.[0]?.value;
+    if (typeof text !== 'string') return;
+    const flag = message.args?.[1]?.type === 'T' ? true : message.args?.[1]?.type === 'F' ? false : message.args?.[1]?.value;
+    const user = match ? Number(match[1]) : null;
+    const commandError = flag === 1 || flag === true;
     const state: CommandLineState = {
-      status: 'ok',
-      text: decoded.text,
-      user: decoded.user,
-      payload: message,
-      source: 'official_osc_out'
+      status: commandError ? 'error' : 'ok', text, user, payload: message, source: 'official_osc_out',
+      sequence: ++this.commandLineSequence, received_at: Date.now(),
+      ...([0, 1, true, false].includes(flag as number | boolean) ? { command_error: commandError } : {}),
+      ...(commandError ? { error: 'Eos signale une erreur sur sa ligne de commande.' } : {})
     };
-
-    this.commandLineState.set(this.commandLineStateKey(decoded.user), state);
-    this.commandLineState.set(this.commandLineStateKey(null), state);
-  }
-
-  private getRememberedCommandLine(user: number | null): CommandLineState | null {
-    const state = this.commandLineState.get(this.commandLineStateKey(user));
-    return state ? { ...state } : null;
-  }
-
-  private commandLineStateKey(user: number | null): string {
-    return user === null ? 'global' : `user:${user}`;
-  }
-
-  private decodeCommandLineOutMessage(message: OscMessage): { text: string; user: number | null } | null {
-    if (message.address === COMMAND_LINE_OUT_GLOBAL) {
-      const first = message.args?.[0]?.value;
-      const second = message.args?.[1]?.value;
-      if (typeof first === 'number' && second !== undefined) {
-        return { text: String(second ?? ''), user: Math.trunc(first) };
-      }
-      if (typeof first === 'string' && second !== undefined) {
-        const decodedUser = this.decodeUser(first);
-        return decodedUser !== null
-          ? { text: String(second ?? ''), user: decodedUser }
-          : { text: [first, second].map((value) => String(value ?? '')).join(' '), user: null };
-      }
-      return { text: first == null ? '' : String(first), user: null };
-    }
-
-    const userMatch = message.address.match(COMMAND_LINE_OUT_USER_PATTERN);
-    if (userMatch) {
-      const first = message.args?.[0]?.value;
-      return { text: first == null ? '' : String(first), user: Number.parseInt(userMatch[1] ?? '', 10) };
-    }
-
-    return null;
+    const peer = messagePeer(message) ?? normalizePeer(resolveConsoleTarget({}).targetAddress);
+    this.commandLineState.set(`${peer}:${user === null ? 'global' : `user:${user}`}`, state);
   }
 
   private async send(
@@ -1074,7 +639,18 @@ export class OscClient {
     options: TargetOptions,
     queueOptions: SendQueueOptions = {}
   ): Promise<TransportType | null> {
+    if (options.wireContract) validateWireMessage(options.wireContract, message);
+    const user = (options as CommandSendOptions).user ?? getRequestContext()?.userId;
+    if (user !== undefined && !message.address.startsWith('/eos/user/') && allowsUserScope(message.address)) {
+      if (!Number.isInteger(user) || user < 0 || user > 99) throw new Error('Utilisateur Eos invalide (0..99).');
+      message = { ...message, address: message.address.replace('/eos/', `/eos/user/${user}/`) };
+    }
     assertOscAddressStrictModeAllowed(message.address);
+    const previewContext = getRequestContext();
+    if (previewContext?.dryRun && !message.address.startsWith('/eos/get/')) {
+      previewContext.oscPreview?.push({ address: message.address, args: message.args ?? [] });
+      return null;
+    }
     const operation = queueOptions.operation ?? `l'envoi du message OSC ${message.address}`;
     const timeoutMs = queueOptions.timeoutMs ?? this.requestQueueTimeoutMs;
     const details = {
@@ -1099,9 +675,6 @@ export class OscClient {
       transportPreference: options.transportPreference
     };
 
-    if (options.wireContract) {
-      validateWireMessage(options.wireContract, message);
-    }
 
     if (gatewayOptions.transportPreference && gatewayOptions.toolId) {
       this.gateway.setToolPreference?.(gatewayOptions.toolId, gatewayOptions.transportPreference);
@@ -1196,13 +769,12 @@ export class OscClient {
     if (
       address === COMMAND_REQUEST ||
       address === NEW_COMMAND_REQUEST ||
-      address === USER_REQUEST ||
-      address === COMMAND_LINE_GET_REQUEST
+      address === USER_REQUEST || /^\/eos\/user\/\d+\/(?:newcmd|cmd)$/.test(address)
     ) {
       return 'command-line';
     }
 
-    if (address === HANDSHAKE_REQUEST || address === PROTOCOL_SELECT_REQUEST || address === SUBSCRIBE_REQUEST) {
+    if (address === '/eos/get/version' || address === SUBSCRIBE_REQUEST) {
       return 'session-control';
     }
 
@@ -1218,21 +790,11 @@ export class OscClient {
     mode: CommandSendMode,
     options: CommandSendOptions
   ): Promise<void> {
-    const address = mode === 'replace' ? NEW_COMMAND_REQUEST : COMMAND_REQUEST;
-
-    if (typeof options.user === 'number' && Number.isFinite(options.user)) {
-      await this.send(
-        {
-          address: USER_REQUEST,
-          args: [{ type: 'i', value: Math.trunc(options.user) }]
-        },
-        options,
-        {
-          operation: `la selection de l'utilisateur OSC ${USER_REQUEST}`,
-          details: { user: Math.trunc(options.user) }
-        }
-      );
+    const baseAddress = mode === 'replace' ? NEW_COMMAND_REQUEST : COMMAND_REQUEST;
+    if (options.user !== undefined && (!Number.isInteger(options.user) || options.user < 0 || options.user > 99)) {
+      throw new Error('Un utilisateur OSC Eos doit etre un entier de 0 a 99.');
     }
+    const address = options.user === undefined ? baseAddress : baseAddress.replace('/eos/', `/eos/user/${options.user}/`);
 
     const args = this.buildCommandArgs(command);
 
@@ -1253,711 +815,6 @@ export class OscClient {
     return [
       { type: 's', value: command }
     ];
-  }
-
-  private async buildTimeoutConnectResult(options: ConnectOptions, errorMessage: string): Promise<ConnectResult> {
-    this.lastHandshakeStatus = 'timeout';
-    this.lastProtocolMode = 'degraded';
-    const timeoutMs = Math.max(1, Math.min(
-      options.handshakeTimeoutMs ?? this.config.handshakeTimeoutMs ?? this.config.defaultTimeoutMs ?? DEFAULT_HANDSHAKE_TIMEOUT_MS,
-      this.config.defaultTimeoutMs ?? DEFAULT_OPERATION_TIMEOUT_MS,
-      400
-    ));
-
-    const targetOptions: TargetOptions = {
-      targetConsole: options.targetConsole,
-      targetAddress: options.targetAddress,
-      targetPort: options.targetPort,
-      toolId: options.toolId,
-      transportPreference: options.transportPreference
-    };
-
-    let canSendCommands = false;
-    let canReadQueries = false;
-    const probeErrors: string[] = [];
-
-    const ping = await this.ping({
-      ...targetOptions,
-      message: 'degraded-connect-probe',
-      timeoutMs
-    });
-
-    if (ping.status === 'ok') {
-      canSendCommands = true;
-
-      const queryProbe = await this.getCommandLine({
-        ...targetOptions,
-        timeoutMs
-      });
-      canReadQueries = queryProbe.status === 'ok';
-      if (!canReadQueries && queryProbe.error) {
-        probeErrors.push(`Probe lecture: ${queryProbe.error}`);
-      }
-    } else if (ping.error) {
-      probeErrors.push(`Probe ping: ${ping.error}`);
-    }
-
-    const handshakeMode: HandshakeMode = canSendCommands ? 'degraded' : 'timeout';
-    this.setReadJsonCapability(
-      canReadQueries,
-      canReadQueries ? 'confirmed' : handshakeMode === 'degraded' ? 'unsupported_transport_mode' : 'read_capability_unconfirmed',
-      canReadQueries ? null : [errorMessage, ...probeErrors].join(' ')
-    );
-    const limitations = this.buildConnectionLimitations(
-      handshakeMode,
-      canSendCommands,
-      canReadQueries,
-      'skipped',
-      [errorMessage, ...probeErrors].join(' ')
-    );
-
-    return {
-      status: canSendCommands ? 'ok' : 'timeout',
-      version: null,
-      availableProtocols: [],
-      selectedProtocol: null,
-      protocolStatus: 'skipped',
-      handshakePayload: null,
-      can_send_commands: canSendCommands,
-      can_read_queries: canReadQueries,
-      handshake_mode: handshakeMode,
-      limitations,
-      error: errorMessage
-    };
-  }
-
-  private buildConnectionLimitations(
-    handshakeMode: HandshakeMode,
-    canSendCommands: boolean,
-    canReadQueries: boolean,
-    protocolStatus: StepStatus,
-    detail?: string
-  ): string[] {
-    const limitations: string[] = [];
-
-    if (handshakeMode === 'degraded') {
-      limitations.push('Mode dégradé : envoi possible, lecture non garantie.');
-      limitations.push('Handshake EOS canonique indisponible; version et protocoles non confirmés.');
-    } else if (handshakeMode === 'timeout') {
-      limitations.push('Handshake EOS expiré; aucune capacité OSC confirmée.');
-    } else if (handshakeMode === 'legacy') {
-      limitations.push('Handshake legacy détecté; les requêtes de lecture JSON ne sont pas garanties.');
-    }
-
-    if (!canSendCommands) {
-      limitations.push('Envoi de commandes EOS non confirmé.');
-    }
-
-    if (!canReadQueries) {
-      limitations.push('Lecture des requêtes EOS non garantie; ne pas inventer le patch, les cues ou les cuelists sans réponse de lecture explicite.');
-    }
-
-    if (protocolStatus === 'timeout') {
-      limitations.push('Sélection de protocole expirée; transport OSC conservé en mode best-effort.');
-    } else if (protocolStatus === 'error') {
-      limitations.push('Sélection de protocole en erreur; transport OSC conservé en mode best-effort.');
-    }
-
-    if (detail && detail.trim().length > 0) {
-      limitations.push(`Détail: ${detail.trim()}`);
-    }
-
-    return Array.from(new Set(limitations));
-  }
-
-  private async performHandshake(options: ConnectOptions, timeout: number): Promise<HandshakeData> {
-    const args = [
-      { type: 's', value: 'ETCOSC?' },
-      { type: 's', value: options.clientId ?? 'mcp' }
-    ];
-
-    if (options.preferredProtocols?.length) {
-      args.push({ type: 's', value: JSON.stringify({ preferredProtocols: options.preferredProtocols }) });
-    }
-
-    const attemptHandshake = async (attemptOptions: ConnectOptions): Promise<HandshakeData> => {
-      const awaiter = this.createResponseAwaiter(
-        (incoming) => (incoming.address === HANDSHAKE_REPLY ? incoming : null),
-        timeout,
-        'Aucune reponse de handshake recue avant expiration',
-        'le handshake OSC',
-        { address: HANDSHAKE_REPLY },
-        { autoStartTimer: false }
-      );
-
-      const legacyAwaiter = this.createLegacyHandshakeAwaiter();
-      const start = Date.now();
-      const resendInterval = Math.min(1000, Math.max(500, Math.floor(timeout / 3)));
-
-      let resendTimer: NodeJS.Timeout | null = null;
-      let closed = false;
-      let sendErrorReject: ((error: unknown) => void) | null = null;
-
-      const stopResends = (): void => {
-        if (resendTimer) {
-          clearTimeout(resendTimer);
-          resendTimer = null;
-        }
-      };
-
-      const finalizeSuccess = (): void => {
-        if (closed) {
-          return;
-        }
-        closed = true;
-        stopResends();
-        sendErrorReject = null;
-      };
-
-      const finalizeError = (): void => {
-        if (closed) {
-          return;
-        }
-        closed = true;
-        stopResends();
-        awaiter.cancel();
-        legacyAwaiter.cancel();
-        sendErrorReject = null;
-      };
-
-      const handleSendError = (error: unknown): void => {
-        const reject = sendErrorReject;
-        finalizeError();
-        reject?.(error);
-      };
-
-      const scheduleNextSend = (): void => {
-        if (closed) {
-          return;
-        }
-
-        const elapsed = Date.now() - start;
-        const remaining = timeout - elapsed;
-        if (remaining <= 0) {
-          return;
-        }
-
-        const delay = Math.min(resendInterval, remaining);
-        resendTimer = setTimeout(() => {
-          resendTimer = null;
-          if (closed) {
-            return;
-          }
-
-          void sendHandshake()
-            .then(() => {
-              scheduleNextSend();
-            })
-            .catch(() => {
-              // L'erreur est geree dans handleSendError via sendHandshake.
-            });
-        }, delay);
-      };
-
-      const sendHandshake = async (): Promise<void> => {
-        try {
-          await this.send(
-            {
-              address: HANDSHAKE_REQUEST,
-              args
-            },
-            attemptOptions,
-            {
-              operation: 'le handshake OSC',
-              timeoutMs: timeout,
-              details: { address: HANDSHAKE_REQUEST }
-            }
-          );
-        } catch (error) {
-          handleSendError(error);
-          throw error;
-        }
-      };
-
-      const sendErrorPromise = new Promise<never>((_, reject) => {
-        sendErrorReject = reject;
-      });
-
-      try {
-        await sendHandshake();
-        awaiter.startTimer();
-        scheduleNextSend();
-
-        const canonicalPromise = awaiter.promise
-          .then((response) => {
-            finalizeSuccess();
-            legacyAwaiter.cancel();
-            return this.parseHandshakeResponse(response);
-          })
-          .catch((error) => {
-            finalizeError();
-            throw error;
-          });
-
-        const legacyPromise = legacyAwaiter.promise.then((legacy) => {
-          finalizeSuccess();
-          awaiter.cancel();
-          return legacy;
-        });
-
-        return await Promise.race([canonicalPromise, legacyPromise, sendErrorPromise]);
-      } catch (error) {
-        finalizeError();
-        throw error;
-      } finally {
-        stopResends();
-      }
-    };
-
-    try {
-      return await attemptHandshake(options);
-    } catch (error) {
-      const timeoutError = this.asAppError(error, ErrorCode.OSC_TIMEOUT);
-      const transportForced =
-        options.transportPreference === 'reliability' || options.transportPreference === 'speed';
-
-      if (timeoutError && !transportForced) {
-        const retryOptions: ConnectOptions = {
-          ...options,
-          transportPreference: 'speed'
-        };
-
-        return await attemptHandshake(retryOptions);
-      }
-
-      throw error;
-    }
-  }
-
-  private async selectProtocol(
-    handshake: HandshakeData,
-    options: ConnectOptions,
-    timeout: number
-  ): Promise<{ status: StepStatus; selectedProtocol: string | null; payload?: unknown; error?: string }> {
-    const protocols = handshake.protocols;
-    if (protocols.length === 0) {
-      return { status: 'skipped', selectedProtocol: null };
-    }
-
-    const candidates = options.preferredProtocols?.length ? options.preferredProtocols : protocols;
-    const selection = candidates.find((protocol) => protocols.includes(protocol));
-    if (!selection) {
-      return { status: 'skipped', selectedProtocol: null };
-    }
-
-    const awaiter = this.createResponseAwaiter(
-      (incoming) => (incoming.address === PROTOCOL_SELECT_REPLY ? incoming : null),
-      timeout,
-      'Aucune confirmation de protocole recue avant expiration',
-      'la selection de protocole OSC',
-      { address: PROTOCOL_SELECT_REPLY, selection }
-    );
-
-    try {
-      await this.send(
-        {
-          address: PROTOCOL_SELECT_REQUEST,
-          args: [{ type: 's', value: selection }]
-        },
-        options,
-        {
-          operation: 'la selection de protocole OSC',
-          timeoutMs: timeout,
-          details: { address: PROTOCOL_SELECT_REQUEST, selection }
-        }
-      );
-    } catch (error) {
-      awaiter.cancel();
-      throw error;
-    }
-
-    try {
-      const response = await awaiter.promise;
-      const payload = this.extractPayload(response);
-      const status = this.normaliseStatus(payload);
-      if (status === 'error') {
-        this.ensureConnectionActive('la selection de protocole OSC', payload, {
-          address: PROTOCOL_SELECT_REPLY,
-          selection
-        });
-      }
-
-      const errorMessage = status === 'error' ? this.extractErrorMessage(payload) : null;
-      return {
-        status,
-        selectedProtocol: selection,
-        payload,
-        ...(errorMessage ? { error: errorMessage } : {})
-      };
-    } catch (error) {
-      const timeoutError = this.asAppError(error, ErrorCode.OSC_TIMEOUT);
-      if (timeoutError) {
-        return {
-          status: 'timeout',
-          selectedProtocol: selection,
-          error: timeoutError.message
-        };
-      }
-
-      const connectionLostError = this.asAppError(error, ErrorCode.OSC_CONNECTION_LOST);
-      if (connectionLostError) {
-        return {
-          status: 'error',
-          selectedProtocol: selection,
-          error: connectionLostError.message
-        };
-      }
-
-      throw error;
-    }
-  }
-
-  private parseHandshakeResponse(message: OscMessage): HandshakeData {
-    const args = message.args ?? [];
-    const sentinelArg = args[0];
-    const sentinelValue = typeof sentinelArg?.value === 'string' ? sentinelArg.value : null;
-
-    if (sentinelValue !== 'ETCOSC!') {
-      throw createConnectionLostError('le handshake OSC', {
-        address: HANDSHAKE_REPLY,
-        message: 'Reponse de handshake invalide: sentinelle manquante ou incorrecte.',
-        sentinelleAttendue: 'ETCOSC!',
-        valeurRecue: sentinelValue,
-        payload: message
-      });
-    }
-
-    const dataArgs = args.slice(1);
-    const firstDataValue = dataArgs[0]?.value;
-    const payload = this.parseOscValue(firstDataValue);
-
-    this.ensureConnectionActive('le handshake OSC', payload, {
-      address: HANDSHAKE_REPLY
-    });
-
-    let version: string | null = null;
-    const protocols: string[] = [];
-
-    if (payload && typeof payload === 'object') {
-      const maybeVersion = (payload as { version?: unknown }).version;
-      if (typeof maybeVersion === 'string') {
-        version = maybeVersion;
-      }
-
-      const maybeProtocols = (payload as { protocols?: unknown }).protocols;
-      if (Array.isArray(maybeProtocols)) {
-        this.appendNormalisedProtocols(protocols, maybeProtocols);
-      }
-    } else if (typeof payload === 'string' && payload.length > 0) {
-      version = payload;
-    }
-
-    if (!version && typeof firstDataValue === 'string' && firstDataValue.length > 0) {
-      version = firstDataValue;
-    }
-
-    if (dataArgs.length > 1) {
-      const remaining = dataArgs.slice(1).map((arg) => arg.value);
-      this.appendNormalisedProtocols(protocols, remaining);
-    }
-
-    return {
-      version,
-      protocols,
-      raw: payload ?? message,
-      mode: 'canonical'
-    };
-  }
-
-  private createLegacyHandshakeAwaiter(): { promise: Promise<HandshakeData>; cancel: () => void } {
-    let disposed = false;
-    let cancel = (): void => {};
-
-    const promise = new Promise<HandshakeData>((resolve) => {
-      let timer: NodeJS.Timeout | null = null;
-      const dispose = this.gateway.onMessage((message: OscMessage) => {
-        const legacy = parseLegacyHandshakeMessage(message);
-        if (!legacy) {
-          return;
-        }
-
-        timer = setTimeout(() => {
-          timer = null;
-          if (disposed) {
-            return;
-          }
-          disposed = true;
-          dispose();
-          resolve(legacy);
-        }, 0);
-      });
-
-      cancel = (): void => {
-        if (disposed) {
-          return;
-        }
-        disposed = true;
-        if (timer) {
-          clearTimeout(timer);
-          timer = null;
-        }
-        dispose();
-      };
-    });
-
-    return { promise, cancel };
-  }
-
-  private parseOscValue(value: unknown): unknown {
-    if (typeof value === 'string') {
-      try {
-        return JSON.parse(value);
-      } catch (_error) {
-        return value;
-      }
-    }
-
-    if (value === undefined) {
-      return null;
-    }
-
-    return value;
-  }
-
-  private appendNormalisedProtocols(target: string[], values: unknown[]): void {
-    for (const value of values) {
-      const normalised = this.normaliseProtocol(value);
-      if (normalised && !target.includes(normalised)) {
-        target.push(normalised);
-      }
-    }
-  }
-
-  private normaliseProtocol(value: unknown): string | null {
-    if (typeof value !== 'string') {
-      return null;
-    }
-
-    const trimmed = value.trim();
-    if (!trimmed) {
-      return null;
-    }
-
-    if (trimmed.startsWith('proto:')) {
-      const suffix = trimmed.slice('proto:'.length).trim();
-      return suffix ? suffix : null;
-    }
-
-    return trimmed;
-  }
-
-  private parseOscPayload(message: OscMessage): OscPayloadParseResult {
-    const firstArg = message.args?.[0]?.value;
-    if (firstArg === undefined || firstArg === null) {
-      return this.emptyPayloadParseResult();
-    }
-
-    if (typeof firstArg !== 'string') {
-      return {
-        type: 'json',
-        data: firstArg,
-        rawPayload: null,
-        rawPayloadExcerpt: this.buildPayloadExcerpt(firstArg)
-      };
-    }
-
-    const rawPayload = firstArg;
-    const rawPayloadExcerpt = this.buildPayloadExcerpt(rawPayload);
-    const trimmed = rawPayload.trim();
-    if (trimmed.length === 0) {
-      return this.emptyPayloadParseResult(rawPayload);
-    }
-
-    try {
-      return {
-        type: 'json',
-        data: JSON.parse(rawPayload) as unknown,
-        rawPayload,
-        rawPayloadExcerpt
-      };
-    } catch (error) {
-      const startsLikeJson = trimmed.startsWith('{') || trimmed.startsWith('[');
-      if (!startsLikeJson) {
-        return {
-          type: 'plain_text',
-          data: rawPayload,
-          rawPayload,
-          rawPayloadExcerpt
-        };
-      }
-
-      return {
-        type: 'invalid_json',
-        data: rawPayload,
-        rawPayload,
-        rawPayloadExcerpt,
-        error: error instanceof Error ? error.message : 'JSON invalide.'
-      };
-    }
-  }
-
-  private emptyPayloadParseResult(rawPayload: string | null = null): OscPayloadParseResult {
-    return {
-      type: 'empty',
-      data: null,
-      rawPayload,
-      rawPayloadExcerpt: rawPayload ? this.buildPayloadExcerpt(rawPayload) : ''
-    };
-  }
-
-  private buildJsonDiagnostics(
-    requestAddress: string,
-    responseAddress: string | null,
-    acceptedResponseAddresses: string[],
-    parsed: OscPayloadParseResult,
-    timeoutMs: number,
-    transportType: TransportType | 'unknown'
-  ): OscJsonDiagnostics {
-    return {
-      requestAddress,
-      responseAddress,
-      acceptedResponseAddresses,
-      transportType,
-      timeoutMs,
-      payloadType: parsed.type,
-      rawPayloadExcerpt: parsed.rawPayloadExcerpt,
-      handshakeStatus: this.lastHandshakeStatus,
-      protocolMode: this.lastProtocolMode
-    };
-  }
-
-  private buildPayloadExcerpt(payload: unknown): string {
-    const raw = typeof payload === 'string' ? payload : JSON.stringify(payload);
-    if (!raw) {
-      return '';
-    }
-
-    const normalised = raw.replace(/\s+/g, ' ').trim();
-    return normalised.length > 160 ? `${normalised.slice(0, 157)}...` : normalised;
-  }
-
-  private validatePayloadShape(
-    parsed: OscPayloadParseResult,
-    responseShape: OscJsonResponseShape,
-    requireStatus: boolean
-  ): string | null {
-    if (parsed.type === 'invalid_json') {
-      return `Payload JSON invalide: ${parsed.error}`;
-    }
-
-    if (parsed.type === 'empty') {
-      return `Payload vide: ${this.describeExpectedPayload(responseShape, requireStatus)} est attendu.`;
-    }
-
-    if (responseShape === 'text') {
-      if (parsed.type === 'plain_text') {
-        return null;
-      }
-      if (parsed.type === 'json' && typeof parsed.data === 'string') {
-        return null;
-      }
-      return 'Format de payload invalide: un texte est attendu.';
-    }
-
-    if (parsed.type === 'plain_text') {
-      if (responseShape === 'scalar') {
-        return null;
-      }
-      return `Payload texte recu: ${this.describeExpectedPayload(responseShape, requireStatus)} est attendu.`;
-    }
-
-    if (parsed.type !== 'json') {
-      return `Format de payload invalide: ${this.describeExpectedPayload(responseShape, requireStatus)} est attendu.`;
-    }
-
-    if (responseShape === 'any-json') {
-      return null;
-    }
-
-    if (responseShape === 'array') {
-      return Array.isArray(parsed.data) ? null : 'Format de payload invalide: un tableau JSON est attendu.';
-    }
-
-    if (responseShape === 'scalar') {
-      const scalarType = typeof parsed.data;
-      return parsed.data === null || scalarType === 'string' || scalarType === 'number' || scalarType === 'boolean'
-        ? null
-        : 'Format de payload invalide: un scalaire JSON est attendu.';
-    }
-
-    if (!parsed.data || typeof parsed.data !== 'object' || Array.isArray(parsed.data)) {
-      return `Format de payload invalide: ${this.describeExpectedPayload(responseShape, requireStatus)} est attendu.`;
-    }
-
-    return null;
-  }
-
-  private describeExpectedPayload(responseShape: OscJsonResponseShape, requireStatus: boolean): string {
-    if (responseShape === 'object') {
-      return requireStatus ? 'un objet JSON avec un champ status' : 'un objet JSON';
-    }
-
-    if (responseShape === 'any-json') {
-      return 'un payload JSON valide';
-    }
-
-    if (responseShape === 'array') {
-      return 'un tableau JSON';
-    }
-
-    if (responseShape === 'scalar') {
-      return 'un scalaire JSON ou texte';
-    }
-
-    return 'un texte';
-  }
-
-  private normaliseJsonStatus(payload: unknown, requireStatus: boolean): { status: StepStatus; error?: string } {
-    if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
-      const maybeStatus = (payload as { status?: unknown }).status;
-      if (typeof maybeStatus === 'string') {
-        const status = this.fromStatusString(maybeStatus, true);
-        if (!status) {
-          return {
-            status: 'error',
-            error: `Statut OSC inconnu '${maybeStatus}'.`
-          };
-        }
-
-        const errorMessage = status === 'error' ? this.extractErrorMessage(payload) : null;
-        return {
-          status,
-          ...(errorMessage ? { error: errorMessage } : {})
-        };
-      }
-
-      if (requireStatus) {
-        return {
-          status: 'error',
-          error: 'Payload JSON sans champ status string.'
-        };
-      }
-    }
-
-    if (typeof payload === 'string') {
-      const status = this.fromStatusString(payload);
-      if (status) {
-        return { status };
-      }
-    }
-
-    return { status: requireStatus ? 'error' : 'ok', ...(requireStatus ? { error: 'Payload JSON sans statut exploitable.' } : {}) };
-  }
-
-  private withJsonDiagnostics(message: string, diagnostics: OscJsonDiagnostics): string {
-    const response = diagnostics.responseAddress ?? 'aucune';
-    const excerpt = diagnostics.rawPayloadExcerpt ? `, extrait='${diagnostics.rawPayloadExcerpt}'` : '';
-    return `${message} (requete=${diagnostics.requestAddress}, reponse=${response}, reponses_acceptees=${diagnostics.acceptedResponseAddresses.join('|')}, payload=${diagnostics.payloadType}${excerpt})`;
   }
 
   private extractPayload(message: OscMessage): unknown {
@@ -1996,59 +853,6 @@ export class OscClient {
             return nested;
           }
         }
-      }
-    }
-
-    return null;
-  }
-
-  private parseCommandLinePayload(payload: unknown): { text: string; user: number | null } {
-    if (payload && typeof payload === 'object') {
-      return this.normaliseCommandLinePayload(payload as Record<string, unknown>);
-    }
-
-    if (typeof payload === 'string') {
-      try {
-        const parsed = JSON.parse(payload) as Record<string, unknown>;
-        return this.normaliseCommandLinePayload(parsed);
-      } catch (_error) {
-        return { text: payload, user: null };
-      }
-    }
-
-    if (typeof payload === 'number' || typeof payload === 'boolean') {
-      return { text: String(payload), user: null };
-    }
-
-    return { text: '', user: null };
-  }
-
-  private normaliseCommandLinePayload(payload: Record<string, unknown>): { text: string; user: number | null } {
-    const textValue = payload.text ?? payload.command ?? payload.value ?? '';
-    let text = '';
-
-    if (Array.isArray(textValue)) {
-      text = textValue.map((item) => (item == null ? '' : String(item))).join('');
-    } else if (textValue != null) {
-      text = String(textValue);
-    }
-
-    const userValue = payload.user ?? payload.userId ?? payload.user_id ?? payload.operator ?? payload.owner ?? null;
-    const user = this.decodeUser(userValue);
-
-    return { text, user };
-  }
-
-  private decodeUser(value: unknown): number | null {
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      return Math.trunc(value);
-    }
-
-    if (typeof value === 'string') {
-      const trimmed = value.trim();
-      const match = trimmed.match(/(-?\d+)/);
-      if (match) {
-        return Number.parseInt(match[1] ?? '', 10);
       }
     }
 
@@ -2218,6 +1022,9 @@ export class OscClient {
       }
     });
 
+    // Attach immediately: send() can still be waiting when the response timer expires.
+    // Awaiting the original promise below continues to report the rejection normally.
+    void promise.catch(() => {});
     return { promise, cancel, startTimer };
   }
 }
@@ -2284,6 +1091,7 @@ export function resetOscClient(
 }
 
 export function setOscClient(client: OscClient | null): void {
+  if (sharedClient !== client) sharedClient?.dispose?.();
   sharedClient = client;
   if (client === null) {
     sharedGateway = null;

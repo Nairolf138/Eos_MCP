@@ -28,7 +28,7 @@ class PriorityOscClient {
       payload.user = options.user;
     }
     this.calls.push({
-      address: '/eos/get/cmd_line',
+      address: '/eos/out/user/{number}/cmd',
       args: [{ type: 's', value: JSON.stringify(payload) }],
       options
     });
@@ -85,16 +85,16 @@ const nonCueCases = [
   {
     name: 'eos_address_set_level',
     args: { address_number: '1/001', level: '37.5%', targetAddress: '192.0.2.10', targetPort: 3032 },
-    expectedCalls: [{ address: '/eos/addr/1%2F001', args: [{ type: 'f', value: 37.5 }] }],
+    expectedCalls: [{ address: '/eos/addr/1', args: [{ type: 'f', value: 37.5 }] }],
     invalidArgs: { address_number: '1/001', level: 101 },
-    dryRunOscAddress: '/eos/addr/1%2F001'
+    dryRunOscAddress: '/eos/addr/1'
   },
   {
     name: 'eos_address_set_dmx',
     args: { address_number: '1/120', dmx_value: 'full', targetAddress: '192.0.2.10', targetPort: 3032 },
-    expectedCalls: [{ address: '/eos/addr/1%2F120/DMX', args: [{ type: 'i', value: 255 }] }],
+    expectedCalls: [{ address: '/eos/addr/120/DMX', args: [{ type: 'i', value: 255 }] }],
     invalidArgs: { address_number: '1/120', dmx_value: 300 },
-    dryRunOscAddress: '/eos/addr/1%2F120/DMX'
+    dryRunOscAddress: '/eos/addr/120/DMX'
   },
   {
     name: 'eos_softkey_press',
@@ -176,7 +176,7 @@ describe('suite OSC prioritaire', () => {
 
     expect(client.calls).toEqual([
       {
-        address: '/eos/get/cmd_line',
+        address: '/eos/out/user/{number}/cmd',
         args: [{ type: 's', value: JSON.stringify({ user: 7 }) }],
         options: expect.objectContaining({ user: 7, targetAddress: '192.0.2.10', targetPort: 3032, timeoutMs: 50 })
       }
@@ -190,7 +190,7 @@ describe('suite OSC prioritaire', () => {
     expect(tool.metadata?.strictModeBehavior).toBe('blocked_without_validated_cmd_fallback');
     expect(tool.metadata?.nativeOscPreferred).toBe(false);
     expect(tool.config.annotations?.oscStrictModePolicy).toMatchObject({
-      blockedOscAddresses: ['/eos/get/cmd_line']
+      blockedOscAddresses: ['/eos/out/user/{number}/cmd']
     });
 
     await expect(runTool(tool, { user: -1 })).rejects.toThrow();
@@ -200,7 +200,7 @@ describe('suite OSC prioritaire', () => {
     expect(structured(result)).toMatchObject({
       status: 'dry_run',
       dry_run: true,
-      osc: { address: '/eos/get/cmd_line', args: { user: 7 } }
+      osc: { address: '/eos/out/user/{number}/cmd', args: { user: 7 } }
     });
   });
 

@@ -3,12 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { z } from 'zod';
-import { buildDmxAddressDmxAddress, buildDmxAddressLevelAddress } from './addressBuilders';
+import { buildDmxAddressDmxAddress, buildDmxAddressLevelAddress, toAbsoluteDmxAddress } from './addressBuilders';
 import { oscMappings } from './mappings';
 import type { OscMessage, OscMessageArgument } from './index';
 import { getOscAddressOfficiality } from './officiality';
 
-const jsonArgumentSchema = z.object({
+const stringArgumentSchema = z.object({
   type: z.literal('s'),
   value: z.string()
 });
@@ -97,14 +97,10 @@ export interface OscWireContract {
 export interface BuiltOscWireMessage {
   message: OscMessage;
   contract: OscWireContract;
+  /** Local query parameters, never OSC string arguments. */
+  query?: Record<string, unknown>;
 }
 
-function serialiseJsonPayload(payload: Record<string, unknown>): OscMessageArgument {
-  return {
-    type: 's',
-    value: JSON.stringify(payload)
-  };
-}
 
 export function validateWireMessage(contract: OscWireContract, message: OscMessage): void {
   if (message.address !== contract.address) {
@@ -132,7 +128,7 @@ export function validateWireMessage(contract: OscWireContract, message: OscMessa
 
   args.forEach((arg, index) => {
     if (arg.type === 's' && contract.argumentTypes[index] === 's') {
-      jsonArgumentSchema.parse(arg);
+      stringArgumentSchema.parse(arg);
       return;
     }
     if (arg.type === 'f' && contract.argumentTypes[index] === 'f') {
@@ -169,18 +165,18 @@ export function buildCueJsonMessage(
     | typeof oscMappings.cues.pending,
   payload: Record<string, unknown>
 ): BuiltOscWireMessage {
-  return withContract('cue', address, [serialiseJsonPayload(payload)]);
+  return { ...withContract('cue', address, []), query: payload };
 }
 
 export function buildGroupJsonMessage(
   address: typeof oscMappings.groups.info | typeof oscMappings.groups.list,
   payload: Record<string, unknown>
 ): BuiltOscWireMessage {
-  return withContract('group', address, [serialiseJsonPayload(payload)]);
+  return { ...withContract('group', address, []), query: payload };
 }
 
 export function buildDmxAddressSelectMessage(address: string): BuiltOscWireMessage {
-  return withContract('dmx', oscMappings.dmx.addressSelect, [{ type: 's', value: address }]);
+  return withContract('dmx', oscMappings.dmx.addressSelect, [{ type: 'i', value: toAbsoluteDmxAddress(address) }]);
 }
 
 export function buildDmxAddressLevelMessage(address: string, level: number): BuiltOscWireMessage {
@@ -220,7 +216,7 @@ export function buildPaletteFireMessage(address: string, paletteNumber: number):
 }
 
 export function buildPaletteInfoJsonMessage(address: string, payload: Record<string, unknown>): BuiltOscWireMessage {
-  return withContract('palette', address, [serialiseJsonPayload(payload)]);
+  return { ...withContract('palette', address, []), query: payload };
 }
 
 export function extractJsonPayloadFromMessage(message: OscMessage): Record<string, unknown> {

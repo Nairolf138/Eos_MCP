@@ -99,7 +99,7 @@ describe('key tools', () => {
 
     queueMicrotask(() => {
       service.emit({
-        address: '/eos/get/softkey_labels',
+        address: '/eos/out/softkey/{index}',
         args: [
           {
             type: 's',

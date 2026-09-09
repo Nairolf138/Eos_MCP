@@ -10,14 +10,14 @@ export const TIMEOUT_MAX_MS = 60_000;
 export const EOS_OBJECT_MIN = 1;
 export const EOS_OBJECT_MAX = 99_999;
 export const EOS_USER_MIN = 0;
-export const EOS_USER_MAX = 999;
+export const EOS_USER_MAX = 99;
 export const EOS_SOFTKEY_MIN = 1;
 export const EOS_SOFTKEY_MAX = 12;
 export const EOS_MACRO_MAX = 9_999;
 export const EOS_SUBMASTER_MAX = 9_999;
-export const DMX_ABSOLUTE_ADDRESS_MAX = 65_535;
+export const DMX_ABSOLUTE_ADDRESS_MAX = 32_767_488;
 export const DMX_UNIVERSE_MIN = 1;
-export const DMX_UNIVERSE_MAX = 9_999;
+export const DMX_UNIVERSE_MAX = 63_999;
 export const DMX_SLOT_MIN = 1;
 export const DMX_SLOT_MAX = 512;
 
@@ -68,14 +68,14 @@ export const dmxAddressSchema = z
         const absolute = Number.parseInt(normalised, 10);
         return absolute >= 1 && absolute <= DMX_ABSOLUTE_ADDRESS_MAX;
       }
-      const match = /^(\d{1,4})[./:-](\d{1,3})$/.exec(normalised);
+      const match = /^(\d{1,5})[./:-](\d{1,3})$/.exec(normalised);
       if (!match) {
         return false;
       }
       const universe = Number.parseInt(match[1]!, 10);
       const slot = Number.parseInt(match[2]!, 10);
       return universe >= DMX_UNIVERSE_MIN && universe <= DMX_UNIVERSE_MAX && slot >= DMX_SLOT_MIN && slot <= DMX_SLOT_MAX;
-    }, "Adresse DMX invalide. Utilisez un numero absolu 1-65535 ou un format univers/adresse avec univers 1-9999 et adresse 1-512.")
+    }, "Adresse DMX invalide. Utilisez un numero absolu 1-32767488 ou un format univers/adresse avec univers 1-63999 et adresse 1-512.")
   ])
   .transform((value) => (typeof value === 'number' ? String(value) : value.trim()))
   .describe("Adresse DMX au format 'univers/adresse' ou numero absolu.");

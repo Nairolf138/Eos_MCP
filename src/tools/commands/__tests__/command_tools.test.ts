@@ -118,7 +118,7 @@ describe('command tools', () => {
     });
     const structured = getStructuredContent(result);
 
-    expect(service.sentMessages.map((message) => message.address)).toEqual(['/eos/cmd', '/eos/get/cuelist']);
+    expect(service.sentMessages.map((message) => message.address)).toEqual(['/eos/cmd', '/eos/get/cue/{cuelist}/index/{index}']);
     expect(structured).toMatchObject({
       status: 'partial_failure',
       sent_to_transport: true,
@@ -150,7 +150,7 @@ describe('command tools', () => {
     });
     const structured = getStructuredContent(result);
 
-    expect(service.sentMessages.map((message) => message.address)).toEqual(['/eos/cmd', '/eos/get/cuelist']);
+    expect(service.sentMessages.map((message) => message.address)).toEqual(['/eos/cmd', '/eos/get/cue/{cuelist}/index/{index}']);
     expect(structured).toMatchObject({
       status: 'partial_failure',
       verification: {
@@ -298,7 +298,7 @@ describe('command tools', () => {
 
     queueMicrotask(() => {
       service.emit({
-        address: '/eos/get/cmd_line',
+        address: '/eos/out/user/{number}/cmd',
         args: [
           {
             type: 's',
@@ -324,7 +324,7 @@ describe('command tools', () => {
     });
 
     expect(result.content?.[0]?.text).toContain('source extension MCP/simulateur /eos/get/cmd_line');
-    expect(service.sentMessages[0]).toMatchObject({ address: '/eos/get/cmd_line' });
+    expect(service.sentMessages[0]).toMatchObject({ address: '/eos/out/user/{number}/cmd' });
   });
 
   it('indique la source officielle lorsque la ligne de commande vient de /eos/out/user/<number>/cmd', async () => {
@@ -401,7 +401,7 @@ describe('command tools', () => {
       expect(JSON.parse(firstPayload)).toEqual({ user: 2 });
 
       service.emit({
-        address: '/eos/get/cmd_line',
+        address: '/eos/out/user/{number}/cmd',
         args: [
           {
             type: 's',
@@ -422,7 +422,7 @@ describe('command tools', () => {
       expect(JSON.parse(secondPayload)).toEqual({ user: 5 });
 
       service.emit({
-        address: '/eos/get/cmd_line',
+        address: '/eos/out/user/{number}/cmd',
         args: [
           {
             type: 's',

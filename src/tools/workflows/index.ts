@@ -23,9 +23,11 @@ import type { CueIdentifier } from '../cues/types';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 import {
   buildPatchSequence,
-  executePatchSequence,
+  applyPatchPlans,
+  type PatchPlan,
   extractPatchSequenceError
 } from './patchSequence';
+import { showPreparationSchema, prepareShowObjects } from './showPreparation';
 import { eosWorkflowPatchScanTool } from './patchScan';
 export { eosWorkflowPatchScanTool } from './patchScan';
 
@@ -161,8 +163,10 @@ function buildWorkflowResult(
     : commandLog.map((step) => step.command);
 
   return {
+    isError: status !== 'ok',
     content: [{ type: 'text', text: summary }],
     structuredContent: {
+      verified: false,
       workflow,
       status,
       steps,
@@ -286,7 +290,7 @@ function getWorkflowCommandVerificationError(result: ToolExecutionResult, requir
   }
 
   const structuredContent = result.structuredContent ?? {};
-  if (structuredContent.verified === true && structuredContent.accepted_by_eos === true) {
+  if (structuredContent.accepted_by_eos === true) {
     return null;
   }
 
@@ -1047,6 +1051,9 @@ export const eosWorkflowCreateCueSeriesTool: ToolDefinition<typeof createCueSeri
 const patchFixtureInputSchema = {
   channel_number: z.coerce.number().int().min(1).max(99999),
   dmx_address: dmxAddressSchema,
+  dmx_footprint: z.coerce.number().int().min(1).max(512).optional(),
+  eos_profile: z.string().trim().min(1).max(128).optional(),
+  allow_readdress: z.boolean().optional(),
   device_type: z.string().trim().min(1).max(128).optional(),
   fixture_query: z.string().trim().min(1).max(128).optional(),
   fixture_manufacturer: z.string().trim().min(1).max(128).optional(),
@@ -1066,7 +1073,7 @@ const patchFixtureInputSchema = {
 /**
  * @tool eos_workflow_patch_fixture
  * @summary Workflow patch fixture
- * @description Patch un canal, applique un label et une position 3D de base.
+ * @description Controle puis applique adresse, label et XYZ optionnel. Profils complexes a preparer dans Eos; user 1..99 requis.
  * @arguments Voir docs/tools.md#eos-workflow-patch-fixture pour le schema complet.
  * @returns ToolExecutionResult avec contenu texte et objet.
  * @example CLI Consultez docs/tools.md#eos-workflow-patch-fixture pour un exemple CLI.
@@ -1076,88 +1083,25 @@ export const eosWorkflowPatchFixtureTool: ToolDefinition<typeof patchFixtureInpu
   name: 'eos_workflow_patch_fixture',
   config: {
     title: 'Workflow patch fixture',
-    description: 'Patch un canal, applique un label et une position 3D de base.',
+    description: 'Controle puis applique adresse, label et XYZ optionnel. Profils complexes a preparer dans Eos; user 1..99 requis.',
     inputSchema: patchFixtureInputSchema
   },
   handler: async (args) => {
     const options = workflowObject(patchFixtureInputSchema).parse(args ?? {});
-    const dryRun = options.dry_run === true;
-    const blockUnconfirmedExecution = shouldBlockUnconfirmedExecution(options);
-    const steps: WorkflowStepLog[] = [];
-    const partialErrors: Array<{ step: string; error: string }> = [];
-    const commandsPreview: string[] = [];
     const execution = buildPatchSequence(options);
-    if (execution.fixtureResolution) {
-      steps.push({
-        step: 'resolve_fixture',
-        status: 'ok',
-        detail: `${execution.fixtureResolution.fixture.manufacturer} ${execution.fixtureResolution.fixture.model} (${execution.fixtureResolution.mode.name})`
-      });
-    }
-
-    for (const commandStep of execution.commands) {
-      commandsPreview.push(commandStep.command);
-      if (dryRun || blockUnconfirmedExecution) {
-        steps.push({ step: commandStep.step, status: 'skipped', command: commandStep.command, detail: previewSkipDetail(dryRun) });
-        continue;
-      }
-
-      const ok = await runCommandStep(steps, partialErrors, commandStep.step, commandStep.command, options);
-      if (!ok) {
-        return buildWorkflowResult(
-          'eos_workflow_patch_fixture',
-          'partial_failure',
-          `Workflow patch fixture interrompu a l'etape ${commandStep.step}.`,
-          steps,
-          partialErrors
-        );
-      }
-    }
-
-    if (blockUnconfirmedExecution) {
-      return buildUnconfirmedExecutionResult('eos_workflow_patch_fixture', steps, partialErrors, commandsPreview, {
-        ...(execution.fixtureResolution
-          ? {
-              fixture_resolution: {
-                manufacturer: execution.fixtureResolution.fixture.manufacturer,
-                model: execution.fixtureResolution.fixture.model,
-                name: execution.fixtureResolution.fixture.name,
-                mode: execution.fixtureResolution.mode.name,
-                device_type: execution.fixtureResolution.deviceType,
-                score: execution.fixtureResolution.score
-              }
-            }
-          : {})
-      });
-    }
-
-    return buildWorkflowResult(
-      'eos_workflow_patch_fixture',
-      'ok',
-      dryRun ? 'Dry run patch fixture genere.' : 'Workflow patch fixture execute avec succes.',
-      steps,
-      partialErrors,
-      {
-        ...(execution.fixtureResolution
-          ? {
-              fixture_resolution: {
-                manufacturer: execution.fixtureResolution.fixture.manufacturer,
-                model: execution.fixtureResolution.fixture.model,
-                name: execution.fixtureResolution.fixture.name,
-                mode: execution.fixtureResolution.mode.name,
-                device_type: execution.fixtureResolution.deviceType,
-                score: execution.fixtureResolution.score
-              }
-            }
-          : {}),
-        ...(dryRun ? { commands_preview: commandsPreview } : {})
-      }
-    );
+    return applyPatchPlans([execution.plan], options, 'eos_workflow_patch_fixture');
   }
 };
 
 const autopatchBandInputSchema = {
+  start_channel: z.coerce.number().int().min(1).max(99999).optional(),
+  allow_readdress: z.boolean().optional(),
+  universe_rollover: z.boolean().optional(),
   fixtures: z.array(workflowObject({
+    start_channel: z.coerce.number().int().min(1).max(99999).optional(),
+    dmx_footprint: z.coerce.number().int().min(1).max(512).optional(),
+    eos_profile: z.string().trim().min(1).max(128).optional(),
+    device_type: z.string().trim().min(1).max(128).optional(),
     count: z.coerce.number().int().min(1).max(999),
     fixture_query: z.string().trim().min(1).max(128).optional(),
     fixture_manufacturer: z.string().trim().min(1).max(128).optional(),
@@ -1183,7 +1127,7 @@ const autopatchBandInputSchema = {
 /**
  * @tool eos_workflow_autopatch_band
  * @summary Patch complet du groupe sur scene
- * @description Point d entree naturel pour patcher tout un patch band: blocs de fixtures, adresses DMX, labels et option face trad en une seule sequence.
+ * @description Prepare un plan par empreinte DMX exacte puis verifie collisions et profils Eos avant toute ecriture. start_channel preserve la numerotation; pas de changement de profil implicite.
  * @arguments Voir docs/tools.md#eos-workflow-autopatch-band pour le schema complet.
  * @returns ToolExecutionResult avec contenu texte et objet.
  * @example CLI Consultez docs/tools.md#eos-workflow-autopatch-band pour un exemple CLI.
@@ -1193,117 +1137,36 @@ export const eosWorkflowAutopatchBandTool: ToolDefinition<typeof autopatchBandIn
   name: 'eos_workflow_autopatch_band',
   config: {
     title: 'Patch complet du groupe sur scene',
-    description: 'Point d entree naturel pour patcher tout un patch band: blocs de fixtures, adresses DMX, labels et option face trad en une seule sequence.',
+    description: 'Prepare un plan par empreinte DMX exacte puis verifie collisions et profils Eos avant toute ecriture. start_channel preserve la numerotation; pas de changement de profil implicite.',
     annotations: primaryWorkflowAnnotations,
     inputSchema: autopatchBandInputSchema
   },
   handler: async (args) => {
     const options = workflowObject(autopatchBandInputSchema).parse(args ?? {});
-    const dryRun = options.dry_run === true;
-    const blockUnconfirmedExecution = shouldBlockUnconfirmedExecution(options);
-    const logs: Array<Record<string, unknown>> = [];
-    const steps: WorkflowStepLog[] = [];
-    const commandsPreview: string[] = [];
-    const partialErrors: Array<{ step: string; error: string }> = [];
-    let channel = 1;
-
+    let channel = options.start_channel ?? 1;
+    const plans: PatchPlan[] = [];
     const groups = [...options.fixtures];
-    if (options.include_face_trad === true) {
-      groups.push({
-        count: options.face_trad_count ?? 4,
-        universe: options.face_trad_universe ?? 1,
-        start_address: options.face_trad_start_address ?? 1,
-        label_prefix: options.face_trad_label_prefix ?? 'Face Trad',
-        fixture_query: 'trad'
-      });
+    if (options.include_face_trad) {
+      if (options.face_trad_count === undefined || options.face_trad_universe === undefined || options.face_trad_start_address === undefined) throw new Error('Preciser nombre, univers et adresse de la face trad; aucune adresse par defaut.');
+      groups.push({ count: options.face_trad_count, universe: options.face_trad_universe, start_address: options.face_trad_start_address, label_prefix: options.face_trad_label_prefix ?? 'Face', device_type: 'Dimmer', dmx_footprint: 1 });
     }
-
     for (const group of groups) {
-      for (let index = 0; index < group.count; index += 1) {
-        const startAddress = group.start_address + (index * 10);
-        const dmxAddress = `${group.universe}/${startAddress}`;
-        const label = `${group.label_prefix} ${index + 1}`;
-
-        try {
-          const execution = buildPatchSequence({
-            channel_number: channel,
-            dmx_address: dmxAddress,
-            fixture_query: group.fixture_query,
-            fixture_manufacturer: group.fixture_manufacturer,
-            fixture_model: group.fixture_model,
-            fixture_mode: group.fixture_mode,
-            label,
-            position_x: group.position_x,
-            position_y: group.position_y,
-            position_z: group.position_z,
-            targetAddress: options.targetAddress,
-            targetPort: options.targetPort,
-            user: options.user
-          });
-
-          for (const command of execution.commands) {
-            commandsPreview.push(command.command);
-            if (dryRun || blockUnconfirmedExecution) {
-              steps.push({ step: `fixture_${channel}_${command.step}`, status: 'skipped', command: command.command, detail: previewSkipDetail(dryRun) });
-              continue;
-            }
-
-            const executionResult = await executePatchSequence([command], options);
-            steps.push(...executionResult.steps.map((step) => ({
-              step: `fixture_${channel}_${step.step}`,
-              status: step.status,
-              command: step.command,
-              ...(step.error != null ? { error: step.error } : {})
-            })));
-            partialErrors.push(...executionResult.partialErrors.map((entry) => ({
-              step: `fixture_${channel}_${entry.step}`,
-              error: entry.error
-            })));
-            if (!executionResult.success) {
-              throw new Error(executionResult.partialErrors[executionResult.partialErrors.length - 1]?.error ?? 'Erreur patch');
-            }
-          }
-
-          logs.push({
-            step: `fixture_${channel}`,
-            status: 'ok',
-            detail: label,
-            dmx_start: dmxAddress,
-            estimated_end_address: `${group.universe}/${Math.min(startAddress + 9, 512)}`
-          });
-        } catch (error) {
-          const message = extractPatchSequenceError(error);
-          logs.push({
-            step: `fixture_${channel}`,
-            status: 'error',
-            detail: label,
-            dmx_start: dmxAddress,
-            estimated_end_address: `${group.universe}/${Math.min(startAddress + 9, 512)}`,
-            error: message
-          });
-          partialErrors.push({ step: `fixture_${channel}`, error: message });
+      channel = group.start_channel ?? channel;
+      let universe = group.universe;
+      let slot = group.start_address;
+      // Resolve the footprint before allocating consecutive addresses.
+      const sample = buildPatchSequence({ ...group, channel_number: channel, dmx_address: `${universe}/1`, label: group.label_prefix });
+      for (let index = 0; index < group.count; index++) {
+        if (slot + sample.plan.footprint - 1 > 512) {
+          if (!options.universe_rollover) throw new Error(`Bloc ${group.label_prefix}: depassement d’univers. Corriger le plan ou demander universe_rollover=true.`);
+          universe++; slot = 1;
         }
-
-        channel += 1;
+        const execution = buildPatchSequence({ ...group, channel_number: channel++, dmx_address: `${universe}/${slot}`, label: `${group.label_prefix} ${index + 1}` });
+        plans.push(execution.plan);
+        slot += execution.plan.footprint;
       }
     }
-
-    if (blockUnconfirmedExecution) {
-      return buildUnconfirmedExecutionResult('eos_workflow_autopatch_band', steps, partialErrors, commandsPreview, { fixture_logs: logs });
-    }
-
-    const hasErrors = logs.some((entry) => entry.status === 'error');
-    return buildWorkflowResult(
-      'eos_workflow_autopatch_band',
-      hasErrors ? 'partial_failure' : 'ok',
-      dryRun ? 'Dry run autopatch band genere.' : 'Workflow autopatch band execute.',
-      steps,
-      partialErrors,
-      {
-        fixture_logs: logs,
-        ...(dryRun ? { commands_preview: commandsPreview } : {})
-      }
-    );
+    return applyPatchPlans(plans, options, 'eos_workflow_autopatch_band');
   }
 };
 
@@ -1320,29 +1183,7 @@ const rehearsalGoSafeInputSchema = {
   ...targetOptionsSchema
 } satisfies ZodRawShape;
 
-const buildGroupsAndPalettesInputSchema = {
-  groups: z.array(workflowObject({
-    number: z.coerce.number().int().min(1).max(99999),
-    label: z.string().trim().min(1).max(128),
-    channels: safeChannelRangeTextSchema
-  })).optional(),
-  color_palettes: z.array(workflowObject({
-    number: z.coerce.number().int().min(1).max(99999),
-    label: z.string().trim().min(1).max(128),
-    channels: safeChannelRangeTextSchema,
-    hue: z.coerce.string().trim().min(1).max(128).optional(),
-    saturation: z.coerce.number().finite().optional()
-  })).optional(),
-  focus_palettes: z.array(workflowObject({
-    number: z.coerce.number().int().min(1).max(99999),
-    label: z.string().trim().min(1).max(128),
-    channels: safeChannelRangeTextSchema,
-    description: z.string().trim().min(1).max(256).optional()
-  })).optional(),
-  dry_run: workflowDryRunSchema,
-  require_confirmation: workflowRequireConfirmationSchema,
-  ...targetOptionsSchema
-} satisfies ZodRawShape;
+const buildGroupsAndPalettesInputSchema = showPreparationSchema;
 
 const updateCueLookInputSchema = {
   cuelist_number: cuelistNumberSchema.optional(),
@@ -1510,7 +1351,7 @@ export const eosWorkflowRehearsalGoSafeTool: ToolDefinition<typeof rehearsalGoSa
 /**
  * @tool eos_workflow_build_groups_and_palettes
  * @summary Construire groupes et palettes
- * @description Point d entree naturel pour preparer un show: enregistrer des groupes de canaux puis creer et nommer les color palettes et focus palettes associees.
+ * @description Prepare groupes, palettes et submasters sur des numeros libres. Preview complete, valeurs explicites, arret au premier echec et relecture des champs OSC disponibles.
  * @arguments Voir docs/tools.md#eos-workflow-build-groups-and-palettes pour le schema complet.
  * @returns ToolExecutionResult avec contenu texte et objet.
  * @example CLI Consultez docs/tools.md#eos-workflow-build-groups-and-palettes pour un exemple CLI.
@@ -1520,59 +1361,12 @@ export const eosWorkflowBuildGroupsAndPalettesTool: ToolDefinition<typeof buildG
   name: 'eos_workflow_build_groups_and_palettes',
   config: {
     title: 'Construire groupes et palettes',
-    description: 'Point d entree naturel pour preparer un show: enregistrer des groupes de canaux puis creer et nommer les color palettes et focus palettes associees.',
+    description: 'Prepare groupes, palettes et submasters sur des numeros libres. Preview complete, valeurs explicites, arret au premier echec et relecture des champs OSC disponibles.',
     annotations: primaryWorkflowAnnotations,
     inputSchema: buildGroupsAndPalettesInputSchema
   },
   handler: async (args) => {
-    const options = workflowObject(buildGroupsAndPalettesInputSchema).parse(args ?? {});
-    const dryRun = options.dry_run === true;
-    const blockUnconfirmedExecution = shouldBlockUnconfirmedExecution(options);
-    const steps: WorkflowStepLog[] = [];
-    const partialErrors: Array<{ step: string; error: string }> = [];
-    const commandsPreview: string[] = [];
-
-    const queueCommand = async (step: string, command: string): Promise<void> => {
-      commandsPreview.push(command);
-      if (dryRun || blockUnconfirmedExecution) {
-        steps.push({ step, status: 'skipped', command, detail: previewSkipDetail(dryRun) });
-        return;
-      }
-      await runCommandStep(steps, partialErrors, step, command, options);
-    };
-
-    for (const group of options.groups ?? []) {
-      await queueCommand(`group_${group.number}_record`, `Chan ${group.channels} Record Group ${group.number}`);
-      await queueCommand(`group_${group.number}_label`, `Group ${group.number} Label "${group.label.replace(/"/g, '\\"')}"`);
-    }
-
-    for (const palette of options.color_palettes ?? []) {
-      await queueCommand(`cp_${palette.number}_select_channels`, `Chan ${palette.channels}`);
-      if (palette.hue != null && palette.hue !== '') await queueCommand(`cp_${palette.number}_set_hue`, `Hue ${palette.hue}`);
-      if (palette.saturation != null) await queueCommand(`cp_${palette.number}_set_saturation`, `Saturation ${palette.saturation}`);
-      await queueCommand(`cp_${palette.number}_record`, `Record CP ${palette.number}`);
-      await queueCommand(`cp_${palette.number}_label`, `CP ${palette.number} Label "${palette.label.replace(/"/g, '\\"')}"`);
-    }
-
-    for (const palette of options.focus_palettes ?? []) {
-      await queueCommand(`fp_${palette.number}_select_channels`, `Chan ${palette.channels}`);
-      if (palette.description) await queueCommand(`fp_${palette.number}_set_description`, palette.description);
-      await queueCommand(`fp_${palette.number}_record`, `Record FP ${palette.number}`);
-      await queueCommand(`fp_${palette.number}_label`, `FP ${palette.number} Label "${palette.label.replace(/"/g, '\\"')}"`);
-    }
-
-    if (blockUnconfirmedExecution) {
-      return buildUnconfirmedExecutionResult('eos_workflow_build_groups_and_palettes', steps, partialErrors, commandsPreview);
-    }
-
-    return buildWorkflowResult(
-      'eos_workflow_build_groups_and_palettes',
-      partialErrors.length > 0 ? 'partial_failure' : 'ok',
-      dryRun ? 'Dry run build groups and palettes genere.' : 'Workflow build groups and palettes execute.',
-      steps,
-      partialErrors,
-      { ...(dryRun ? { commands_preview: commandsPreview } : {}) }
-    );
+    return prepareShowObjects(args, 'eos_workflow_build_groups_and_palettes');
   }
 };
 

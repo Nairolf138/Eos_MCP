@@ -84,7 +84,7 @@ class MockOscClient {
       payload.user = options.user;
     }
     this.calls.push({
-      address: '/eos/get/cmd_line',
+      address: '/eos/out/user/{number}/cmd',
       args: [{ type: 's', value: JSON.stringify(payload) }],
       options
     });
@@ -536,7 +536,7 @@ describe('OSC tool contracts exported from src/tools/index.ts', () => {
 
     expect(client.calls).toEqual([
       {
-        address: '/eos/addr/1%2F001',
+        address: '/eos/addr/1',
         args: [{ type: 'f', value: 37.5 }],
         options: expect.objectContaining({ targetAddress: '192.0.2.10', targetPort: 3032 })
       }
@@ -558,7 +558,7 @@ describe('OSC tool contracts exported from src/tools/index.ts', () => {
 
     expect(client.calls).toEqual([
       {
-        address: '/eos/addr/1%2F001/DMX',
+        address: '/eos/addr/1/DMX',
         args: [{ type: 'i', value: 255 }],
         options: expect.objectContaining({ targetAddress: '192.0.2.10', targetPort: 3032 })
       }

@@ -442,7 +442,7 @@ describe('ToolRegistry schema-less tools', () => {
     registry.register({
       name: 'eos_get_command_line',
       config: {
-        annotations: { mapping: { osc: '/eos/get/cmd_line' } }
+        annotations: { mapping: { osc: '/eos/out/user/{number}/cmd' } }
       },
       handler
     });

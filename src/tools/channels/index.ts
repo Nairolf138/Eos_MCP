@@ -65,7 +65,7 @@ function toNumber(value: string): number | null {
   }
   const withoutPercent = trimmed.endsWith('%') ? trimmed.slice(0, -1) : trimmed;
   const normalised = withoutPercent.replace(',', '.');
-  const parsed = Number.parseFloat(normalised);
+  const parsed = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(normalised) ? Number(normalised) : NaN;
   return Number.isFinite(parsed) ? parsed : null;
 }
 
@@ -117,7 +117,7 @@ function resolveDmxValue(value: number | string): number {
 }
 
 function resolveParameterValue(value: number | string): number {
-  return resolveNumericValue(value, LEVEL_KEYWORDS, 0, 100, 'de parametre', false);
+  return resolveNumericValue(value, LEVEL_KEYWORDS, -Number.MAX_VALUE, Number.MAX_VALUE, 'de parametre', false);
 }
 
 
@@ -581,7 +581,7 @@ export const eosSetDmxTool: ToolDefinition<typeof setDmxSchema> = {
 /**
  * @tool eos_channel_set_parameter
  * @summary Reglage de parametre
- * @description Ajuste un parametre de canal sur une echelle de 0 a 100.
+ * @description Regle un parametre dans ses unites natives Eos (Pan/Tilt en degres signes, intensite en pourcent). Verifier les limites du profil.
  * @arguments Voir docs/tools.md#eos-channel-set-parameter pour le schema complet.
  * @returns ToolExecutionResult avec contenu texte et objet.
  * @example CLI Consultez docs/tools.md#eos-channel-set-parameter pour un exemple CLI.
@@ -591,7 +591,7 @@ export const eosChannelSetParameterTool: ToolDefinition<typeof setParameterSchem
   name: 'eos_channel_set_parameter',
   config: {
     title: 'Reglage de parametre',
-    description: 'Ajuste un parametre de canal sur une echelle de 0 a 100.',
+    description: 'Regle un parametre dans ses unites natives Eos (Pan/Tilt en degres signes, intensite en pourcent). Verifier les limites du profil.',
     inputSchema: setParameterSchema,
     annotations: annotate('/eos/chan/{channel}/param/{parameter}', undefined, ['f:{value}'])
   },

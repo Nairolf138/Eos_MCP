@@ -15,13 +15,8 @@ const targetOptionsSchema = {
 
 const numericInputSchema = z.union([z.number(), z.string().min(1)]);
 
-function buildJsonArgs(payload: Record<string, unknown>): OscMessageArgument[] {
-  return [
-    {
-      type: 's' as const,
-      value: JSON.stringify(payload)
-    }
-  ];
+function numericArgs(values: number[]): OscMessageArgument[] {
+  return values.map((value) => ({ type: 'f', value }));
 }
 
 function extractTargetOptions(options: { targetAddress?: string; targetPort?: number }): {
@@ -71,7 +66,7 @@ function parseNumeric(value: unknown): { value: number; hadPercent: boolean } | 
 
     cleaned = cleaned.replace(/,/g, '.');
     cleaned = cleaned.replace(/\u00b0|deg|degrees/gi, '');
-    cleaned = cleaned.replace(/[^0-9.+-]/g, '');
+    if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(cleaned.trim())) return null;
 
     if (cleaned.length === 0) {
       return null;
@@ -88,8 +83,9 @@ function parseNumeric(value: unknown): { value: number; hadPercent: boolean } | 
   return null;
 }
 
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
+function inRange(value: number, min: number, max: number): number {
+  if (value < min || value > max) throw new Error(`Valeur hors plage ${min}..${max}.`);
+  return value;
 }
 
 function normaliseTicks(value: unknown): number {
@@ -98,7 +94,8 @@ function normaliseTicks(value: unknown): number {
     throw new Error('Impossible de normaliser le nombre de ticks.');
   }
 
-  return Math.round(numeric.value);
+  if (numeric.hadPercent) throw new Error("Les ticks ne sont pas un pourcentage.");
+  return numeric.value;
 }
 
 function normaliseRate(value: unknown): number {
@@ -107,18 +104,8 @@ function normaliseRate(value: unknown): number {
     throw new Error("Impossible d'interpreter le taux continue.");
   }
 
-  let rate = numeric.value;
-
-  const shouldConvertToPercent =
-    numeric.hadPercent ||
-    (Math.abs(rate) > 1 && Math.abs(rate) <= 100 && Number.isInteger(rate));
-
-  if (shouldConvertToPercent) {
-    rate /= 100;
-  }
-
-  rate = clamp(rate, -1, 1);
-  return roundTo(rate, 3);
+  if (numeric.hadPercent) throw new Error('Le taux OSC est une vitesse native, pas un pourcentage.');
+  return numeric.value;
 }
 
 function normaliseHue(value: unknown): number {
@@ -127,7 +114,7 @@ function normaliseHue(value: unknown): number {
     throw new Error("Impossible d'interpreter la teinte (hue).");
   }
 
-  const hue = clamp(numeric.value, 0, 360);
+  const hue = inRange(numeric.value, 0, 360);
   return roundTo(hue, 2);
 }
 
@@ -145,7 +132,7 @@ function normalisePercentage(value: unknown, label: string): number {
     resolved /= 100;
   }
 
-  resolved = clamp(resolved, 0, 1);
+  resolved = inRange(resolved, 0, 1);
   return roundTo(resolved, 4);
 }
 
@@ -179,8 +166,8 @@ function normaliseParameterName(name: unknown): string {
   }
 
   const trimmed = name.trim();
-  if (trimmed.length === 0) {
-    throw new Error('Le nom du parametre ne peut pas etre vide.');
+  if (!/^[A-Za-z0-9_ .%-]+$/.test(trimmed)) {
+    throw new Error('Nom de parametre OSC invalide.');
   }
 
   return trimmed;
@@ -353,7 +340,7 @@ const getActiveWheelsSchema = {
 /**
  * @tool eos_wheel_tick
  * @summary Rotation d'encodeur
- * @description Simule une rotation d'encodeur pour un parametre donne.
+ * @description Rotation relative de l’encodeur de la selection courante; ticks natifs signes, mode coarse ou fine.
  * @arguments Voir docs/tools.md#eos-wheel-tick pour le schema complet.
  * @returns ToolExecutionResult avec contenu texte et objet.
  * @example CLI Consultez docs/tools.md#eos-wheel-tick pour un exemple CLI.
@@ -363,7 +350,7 @@ export const eosWheelTickTool: ToolDefinition<typeof wheelTickInputSchema> = {
   name: 'eos_wheel_tick',
   config: {
     title: "Rotation d'encodeur",
-    description: "Simule une rotation d'encodeur pour un parametre donne.",
+    description: "Rotation relative de l’encodeur de la selection courante; ticks natifs signes, mode coarse ou fine.",
     inputSchema: wheelTickInputSchema,
     annotations: annotate(oscMappings.parameters.wheelTick)
   },
@@ -375,15 +362,12 @@ export const eosWheelTickTool: ToolDefinition<typeof wheelTickInputSchema> = {
     const ticks = normaliseTicks(options.ticks);
     const mode = options.mode ?? 'coarse';
 
-    const payload = {
-      parameter,
-      ticks,
-      mode
-    };
+    const address = `/eos/wheel/${mode}/${parameter}`;
+    const oscArgs = numericArgs([ticks]);
 
     await client.sendMessage(
-      oscMappings.parameters.wheelTick,
-      buildJsonArgs(payload),
+      address,
+      oscArgs,
       extractTargetOptions(options)
     );
 
@@ -392,8 +376,8 @@ export const eosWheelTickTool: ToolDefinition<typeof wheelTickInputSchema> = {
       ticks,
       mode,
       osc: {
-        address: oscMappings.parameters.wheelTick,
-        args: payload
+        address,
+        args: oscArgs
       }
     });
   }
@@ -402,7 +386,7 @@ export const eosWheelTickTool: ToolDefinition<typeof wheelTickInputSchema> = {
 /**
  * @tool eos_switch_continuous
  * @summary Mouvement continu
- * @description Active un mouvement continu d'encodeur sur un parametre.
+ * @description Mouvement continu de la selection courante. rate est une vitesse native signee; envoyer 0 pour arreter.
  * @arguments Voir docs/tools.md#eos-switch-continuous pour le schema complet.
  * @returns ToolExecutionResult avec contenu texte et objet.
  * @example CLI Consultez docs/tools.md#eos-switch-continuous pour un exemple CLI.
@@ -412,7 +396,7 @@ export const eosWheelSwitchContinuousTool: ToolDefinition<typeof wheelRateInputS
   name: 'eos_switch_continuous',
   config: {
     title: 'Mouvement continu',
-    description: "Active un mouvement continu d'encodeur sur un parametre.",
+    description: "Mouvement continu de la selection courante. rate est une vitesse native signee; envoyer 0 pour arreter.",
     inputSchema: wheelRateInputSchema,
     annotations: annotate(oscMappings.parameters.wheelRate)
   },
@@ -423,14 +407,12 @@ export const eosWheelSwitchContinuousTool: ToolDefinition<typeof wheelRateInputS
     const parameter = normaliseParameterName(options.parameter_name);
     const rate = normaliseRate(options.rate);
 
-    const payload = {
-      parameter,
-      rate
-    };
+    const address = `/eos/switch/${parameter}`;
+    const oscArgs = numericArgs([rate]);
 
     await client.sendMessage(
-      oscMappings.parameters.wheelRate,
-      buildJsonArgs(payload),
+      address,
+      oscArgs,
       extractTargetOptions(options)
     );
 
@@ -438,8 +420,8 @@ export const eosWheelSwitchContinuousTool: ToolDefinition<typeof wheelRateInputS
       parameter,
       rate,
       osc: {
-        address: oscMappings.parameters.wheelRate,
-        args: payload
+        address,
+        args: oscArgs
       }
     });
   }
@@ -474,7 +456,7 @@ export const eosSetColorHsTool: ToolDefinition<typeof colorHsInputSchema> = {
 
     await client.sendMessage(
       oscMappings.parameters.colorHs,
-      buildJsonArgs(payload),
+      numericArgs([payload.hue, payload.saturation]),
       extractTargetOptions(options)
     );
 
@@ -483,7 +465,7 @@ export const eosSetColorHsTool: ToolDefinition<typeof colorHsInputSchema> = {
       saturation: roundTo(payload.saturation, 2),
       osc: {
         address: oscMappings.parameters.colorHs,
-        args: payload
+        args: numericArgs([payload.hue, payload.saturation])
       }
     });
   }
@@ -519,7 +501,7 @@ export const eosSetColorRgbTool: ToolDefinition<typeof colorRgbInputSchema> = {
 
     await client.sendMessage(
       oscMappings.parameters.colorRgb,
-      buildJsonArgs(payload),
+      numericArgs([payload.red, payload.green, payload.blue]),
       extractTargetOptions(options)
     );
 
@@ -527,7 +509,7 @@ export const eosSetColorRgbTool: ToolDefinition<typeof colorRgbInputSchema> = {
       ...payload,
       osc: {
         address: oscMappings.parameters.colorRgb,
-        args: payload
+        args: numericArgs([payload.red, payload.green, payload.blue])
       }
     });
   }
@@ -562,7 +544,7 @@ export const eosSetPanTiltXYTool: ToolDefinition<typeof panTiltInputSchema> = {
 
     await client.sendMessage(
       oscMappings.parameters.positionXY,
-      buildJsonArgs(payload),
+      numericArgs([payload.x, payload.y]),
       extractTargetOptions(options)
     );
 
@@ -570,7 +552,7 @@ export const eosSetPanTiltXYTool: ToolDefinition<typeof panTiltInputSchema> = {
       ...payload,
       osc: {
         address: oscMappings.parameters.positionXY,
-        args: payload
+        args: numericArgs([payload.x, payload.y])
       }
     });
   }
@@ -606,7 +588,7 @@ export const eosSetXYZPositionTool: ToolDefinition<typeof xyzInputSchema> = {
 
     await client.sendMessage(
       oscMappings.parameters.positionXYZ,
-      buildJsonArgs(payload),
+      numericArgs([payload.x, payload.y, payload.z]),
       extractTargetOptions(options)
     );
 
@@ -614,7 +596,7 @@ export const eosSetXYZPositionTool: ToolDefinition<typeof xyzInputSchema> = {
       ...payload,
       osc: {
         address: oscMappings.parameters.positionXYZ,
-        args: payload
+        args: numericArgs([payload.x, payload.y, payload.z])
       }
     });
   }

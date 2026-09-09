@@ -86,12 +86,12 @@ class FakeOscService implements OscGateway {
       }
     }
 
-    if (message.address === '/eos/get/cuelist') {
+    if (message.address === '/eos/get/cue/{cuelist}/index/{index}') {
       const payload = this.consoleErrorOnCueList
         ? { status: 'error', error: 'Erreur console simulee' }
         : { cues: this.omitRecordedCuesFromVerification ? [] : this.recordedCues.map((cue) => ({ cuelist: cue.cuelist, cue: cue.cue })) };
       const reply: OscMessage = {
-        address: '/eos/get/cuelist',
+        address: '/eos/get/cue/{cuelist}/index/{index}',
         args: [{ type: 's', value: JSON.stringify(payload) }]
       };
       queueMicrotask(() => {
@@ -102,7 +102,7 @@ class FakeOscService implements OscGateway {
     }
 
 
-    if (message.address === '/eos/get/effect' && !this.suppressEffectInfoReply) {
+    if (message.address === '/eos/get/fx/{number}' && !this.suppressEffectInfoReply) {
       const rawPayload = message.args?.[0]?.value;
       const payload = typeof rawPayload === 'string' ? JSON.parse(rawPayload) as { effect?: number } : {};
       const effect = Number(payload.effect ?? 0);
@@ -111,7 +111,7 @@ class FakeOscService implements OscGateway {
         ? { status: 'error', error: 'Effect not found' }
         : { effect: { effect_number: effect, direction: recorded.direction, speed: recorded.speed, size: recorded.size } };
       const reply: OscMessage = {
-        address: '/eos/get/effect',
+        address: '/eos/get/fx/{number}',
         args: [{ type: 's', value: JSON.stringify(responsePayload) }]
       };
       queueMicrotask(() => {
@@ -121,7 +121,7 @@ class FakeOscService implements OscGateway {
       });
     }
 
-    if (message.address === '/eos/get/patch/chan_info') {
+    if (message.address === '/eos/get/patch/{channel}/{part}') {
       const rawPayload = message.args?.[0]?.value;
       const payload = typeof rawPayload === 'string' ? JSON.parse(rawPayload) as { channel?: number; part?: number } : {};
       const channel = Number(payload.channel ?? 0);
@@ -146,9 +146,9 @@ class FakeOscService implements OscGateway {
       });
     }
 
-    if (message.address === '/eos/get/cmd_line' && !this.suppressCommandLineReply) {
+    if (message.address === '/eos/out/user/{number}/cmd' && !this.suppressCommandLineReply) {
       const reply: OscMessage = {
-        address: '/eos/get/cmd_line',
+        address: '/eos/out/user/{number}/cmd',
         args: [{ type: 's', value: JSON.stringify({ text: this.commandLineText, user: 0 }) }]
       };
       queueMicrotask(() => {
@@ -198,9 +198,9 @@ describe('workflow tools', () => {
       '/eos/newcmd',
       '/eos/newcmd',
       '/eos/newcmd',
-      '/eos/get/cuelist',
+      '/eos/get/cue/{cuelist}/index/{index}',
       '/eos/newcmd',
-      '/eos/get/cmd_line'
+      '/eos/out/user/{number}/cmd'
     ]);
 
     const structured = getStructuredContent(result);
@@ -266,8 +266,8 @@ describe('workflow tools', () => {
 
     const structured = getStructuredContent(result);
     expect(service.sentMessages.map((msg) => msg.address)).toEqual([
-      '/eos/get/patch/chan_info',
-      '/eos/get/patch/chan_info'
+      '/eos/get/patch/{channel}/{part}',
+      '/eos/get/patch/{channel}/{part}'
     ]);
     expect(structured?.status).toBe('partial_failure');
     expect(structured?.scan).toEqual(expect.objectContaining({ processed: 2, failures: 1, aborted: true }));

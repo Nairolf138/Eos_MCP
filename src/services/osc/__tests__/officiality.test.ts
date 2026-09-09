@@ -49,15 +49,15 @@ describe('OSC address officiality classification', () => {
   });
 
   it('identifie les extensions MCP bloquees en mode strict', () => {
-    const extension = getOscAddressOfficiality('/eos/get/patch/chan_pos');
+    const extension = getOscAddressOfficiality('/eos/get/patch/{channel}/{part}/augment3d/position');
     expect(extension).toMatchObject({ official: false, strictModeAllowed: false, source: 'MCP extension' });
-    expect(getOscAddressOfficiality('/eos/get/cmd_line')).toMatchObject({
+    expect(getOscAddressOfficiality('/eos/out/user/{number}/cmd')).toMatchObject({
       official: false,
       strictModeAllowed: false,
       source: 'MCP extension'
     });
-    expect(() => assertOscAddressStrictModeAllowed('/eos/get/patch/chan_pos', strictEnv)).toThrow(/EOS_STRICT_MODE bloque/);
-    expect(() => assertOscAddressStrictModeAllowed('/eos/get/cmd_line', strictEnv)).toThrow(/EOS_STRICT_MODE bloque/);
+    expect(() => assertOscAddressStrictModeAllowed('/eos/get/patch/{channel}/{part}/augment3d/position', strictEnv)).toThrow(/EOS_STRICT_MODE bloque/);
+    expect(() => assertOscAddressStrictModeAllowed('/eos/out/user/{number}/cmd', strictEnv)).toThrow(/EOS_STRICT_MODE bloque/);
   });
 
   it('classe toutes les adresses /eos/get declarees dans les mappings MCP', () => {
@@ -71,15 +71,15 @@ describe('OSC address officiality classification', () => {
 
   it('bloque en mode strict les endpoints /eos/get non confirmes officiellement', () => {
     const nonOfficialGetEndpoints = [
-      '/eos/get/channels',
-      '/eos/get/softkey_labels',
-      '/eos/get/setup_defaults',
-      '/eos/get/patch/chan_info',
-      '/eos/get/patch/chan_pos',
-      '/eos/get/patch/chan_beam',
-      '/eos/get/fpe/set/count',
-      '/eos/get/fpe/set',
-      '/eos/get/fpe/point'
+      '/eos/get/patch/{channel}/{part}',
+      '/eos/out/softkey/{index}',
+      '/eos/get/setup',
+      '/eos/get/patch/{channel}/{part}',
+      '/eos/get/patch/{channel}/{part}/augment3d/position',
+      '/eos/get/patch/{channel}/{part}/augment3d/beam',
+      '/eos/get/fpe/count',
+      '/eos/get/fpe/{set}',
+      '/eos/get/fpe/{set}/{point}'
     ];
 
     for (const address of nonOfficialGetEndpoints) {
@@ -95,9 +95,9 @@ describe('OSC address officiality classification', () => {
 
   it('autorise les chemins DMX /eos/addr et bloque les aliases legacy en mode strict', () => {
     expect(() => assertOscAddressStrictModeAllowed('/eos/addr', strictEnv)).not.toThrow();
-    expect(() => assertOscAddressStrictModeAllowed('/eos/addr/1%2F001', strictEnv)).not.toThrow();
-    expect(() => assertOscAddressStrictModeAllowed('/eos/addr/1%2F001/DMX', strictEnv)).not.toThrow();
-    expect(() => assertOscAddressStrictModeAllowed('/eos/dmx/address/dmx', strictEnv)).toThrow(/EOS_STRICT_MODE bloque/);
+    expect(() => assertOscAddressStrictModeAllowed('/eos/addr/1', strictEnv)).not.toThrow();
+    expect(() => assertOscAddressStrictModeAllowed('/eos/addr/1/DMX', strictEnv)).not.toThrow();
+    expect(() => assertOscAddressStrictModeAllowed('/eos/addr/{address}/DMX', strictEnv)).toThrow(/EOS_STRICT_MODE bloque/);
   });
 
   it('parse EOS_STRICT_MODE comme un booleen opt-in', () => {
