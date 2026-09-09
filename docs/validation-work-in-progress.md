@@ -2,8 +2,11 @@
 
 Branch: `fix/etc-osc-professional-workflows`, based on `d7fd2a6`.
 
-This is an **unfinished implementation checkpoint**, saved so work can resume
-without depending on a chat session. Do not deploy this checkpoint to a show.
+**Current state: automated merge gate passed on 2026-09-09.** The owner requested
+minimal finalization and merge, deferring optional improvements and broad guide
+updates. The entries below preserve historical checkpoints; see the final entry
+for current results. Physical Eos/Nomad acceptance remains unperformed; automated
+success does not certify deployment to a live show.
 
 Implemented: native ETC typed Get replies and fragmented lists, native version
 negotiation, request source filtering, user-scoped commands, dry-run interception,
@@ -183,3 +186,19 @@ Targeted validation: **6/6 schema tests passed**, zero failures. No runtime code
 changed in this batch. Next: one final lint/TypeScript/docs/manifest/unit/conformance
 gate; HTTP E2E is already included in the unit run and need not be duplicated.
 If green, merge immediately. Physical Eos/Nomad acceptance remains unperformed.
+
+Final automated validation of `86e3f9d18f2b8b1d63a2554c3651fe48cd9b6305`:
+
+- `npm run lint`: passed.
+- `npm run tsc`: passed.
+- `npm run docs:check`: passed (both generated documents current).
+- `npm run lint:manifest`: passed.
+- `npm run test:unit -- --runInBand`: **675/675 passed, 64 suites**,
+  including the six real MCP SDK/HTTP E2E tests.
+- `npm run test:conformance -- --runInBand`: **4/4 passed, one suite**,
+  actual UDP/TCP loopback with synthetic ETC-format replies.
+
+The final gate ran once; HTTP E2E was not duplicated. No blocking failure remains.
+This final checkpoint-only commit changes no tested source or test logic. Next
+action authorized by the owner: fast-forward merge into main, then verify remote
+main HEAD. No further improvements are part of this finalization session.
