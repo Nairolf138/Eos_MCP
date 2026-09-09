@@ -29,6 +29,7 @@ const EXACT_TOOL_ROLES: Readonly<Record<string, ToolSafetyProfile>> = {
   eos_cue_go: 'live_playback',
   eos_cue_stop_back: 'live_playback',
   eos_patch_set_channel: 'admin',
+  eos_workflow_patch_scan: 'read_only',
   eos_macro_fire: 'admin',
   eos_macro_select: 'admin',
   eos_snapshot_recall: 'admin',

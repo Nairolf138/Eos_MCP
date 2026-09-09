@@ -5,12 +5,12 @@
 import { z, type ZodRawShape } from 'zod';
 import { dmxAddressSchema, safeChannelRangeTextSchema, userIdSchema, validateCueArgumentsPair, optionalTimeoutMsSchema } from '../../utils/validators';
 import { getOscClient } from '../../services/osc/client';
-import { buildCueJsonMessage } from '../../services/osc/messageBuilders';
 import { oscMappings } from '../../services/osc/mappings';
 import { isSensitiveCommandText } from '../common/safety';
+import { pollReadback } from '../common/readback';
+import { buildCueGoOscRequest } from '../cues/common';
 import { sendDeterministicCommand } from '../commands/command_tools';
 import {
-  buildCueCommandPayload,
   buildRecordCueCommand,
   createCueIdentifierFromOptions,
   cueNumberSchema,
@@ -18,8 +18,6 @@ import {
   formatCueDescription,
   formatCueTarget
 } from '../cues/common';
-import { mapCueList } from '../cues/mappers';
-import type { CueIdentifier } from '../cues/types';
 import type { ToolDefinition, ToolExecutionResult } from '../types';
 import {
   buildPatchSequence,
@@ -88,8 +86,8 @@ function buildUnconfirmedExecutionResult(
   );
 }
 
-function workflowObject<T extends ZodRawShape>(shape: T): z.ZodObject<T, 'passthrough'> {
-  return z.object(shape).passthrough();
+function workflowObject<T extends ZodRawShape>(shape: T): z.ZodObject<T, 'strict'> {
+  return z.object(shape).strict();
 }
 
 type WorkflowStepStatus = 'ok' | 'error' | 'skipped';
@@ -162,13 +160,16 @@ function buildWorkflowResult(
     ? explicitCommandsPreview.filter((command): command is string => typeof command === 'string')
     : commandLog.map((step) => step.command);
 
+  const simulated = status === 'ok' && steps.some(step => step.detail === 'dry_run');
   return {
     isError: status !== 'ok',
     content: [{ type: 'text', text: summary }],
     structuredContent: {
       verified: false,
+      limitations: ['La presence et le label des cues peuvent etre relus; les valeurs enregistrees et le rendu lumineux ne sont pas verifies par ce workflow.'],
       workflow,
-      status,
+      status: simulated ? 'dry_run' : status,
+      dry_run: simulated,
       steps,
       executedSteps: steps,
       commands_preview: commandsPreview,
@@ -197,49 +198,49 @@ function resolveNumericCueNumber(value: string | number, field: string): number 
   return numeric;
 }
 
-function cueIdentifiersMatch(actual: CueIdentifier, expected: CueIdentifier): boolean {
-  const sameCue = actual.cueNumber != null && expected.cueNumber != null && String(actual.cueNumber) === String(expected.cueNumber);
-  const sameList = expected.cuelistNumber == null || actual.cuelistNumber == null || actual.cuelistNumber === expected.cuelistNumber;
-  const expectedPart = expected.cuePart ?? null;
-  const actualPart = actual.cuePart ?? null;
-  const samePart = expectedPart == null || expectedPart === actualPart;
-  return sameCue && sameList && samePart;
+async function readCue(cueNumber: string | number, cuelistNumber: number, options: WorkflowCommandStepOptions, timeoutMs?: number) {
+  return getOscClient().requestJson(oscMappings.cues.info, {
+    payload: { cue: cueNumber, cuelist: cuelistNumber, part: 0 },
+    targetAddress: options.targetAddress, targetPort: options.targetPort,
+    timeoutMs: timeoutMs ?? options.verification_timeout_ms ?? 1000
+  });
 }
 
-async function verifyCueExistsAfterRecord(
-  cueNumber: string | number,
-  cuelistNumber: number | null | undefined,
-  options: { targetAddress?: string; targetPort?: number }
-): Promise<{ ok: boolean; detail: string; error?: string }> {
-  const identifier = createCueIdentifierFromOptions({
-    cue_number: cueNumber,
-    cuelist_number: cuelistNumber
-  });
-  const client = getOscClient();
-  const payload = buildCueCommandPayload({
-    cuelistNumber: identifier.cuelistNumber,
-    cueNumber: null,
-    cuePart: null
-  });
-  const request = buildCueJsonMessage(oscMappings.cues.list, payload);
-  const response = await client.requestBuiltJson(request, {
-    targetAddress: options.targetAddress,
-    targetPort: options.targetPort
-  });
-
-  if (response.status !== 'ok') {
-    return {
-      ok: false,
-      detail: `verification cue status=${response.status}`,
-      error: response.error ?? 'commande envoyée mais non vérifiée dans EOS'
-    };
+async function requireFreeCueTargets(cues: Array<string | number>, list: number, options: WorkflowCommandStepOptions): Promise<void> {
+  if (new Set(cues.map(Number)).size !== cues.length) throw new Error('Numeros de cues dupliques dans le plan.');
+  for (const cue of cues) {
+    const response = await readCue(cue, list, options);
+    if ((response.data as {exists?: boolean} | null)?.exists !== false) {
+      throw new Error(response.status === 'ok' ? `Cue ${list}/${cue} deja presente: creation refusee.` : `Preflight cue ${list}/${cue} incomplet: ${response.error ?? response.status}`);
+    }
   }
+}
 
-  const cues = mapCueList(response.data, identifier);
-  const found = cues.some((cue) => cueIdentifiersMatch(cue.identifier, identifier));
-  return found
-    ? { ok: true, detail: 'cue verifiee dans EOS' }
-    : { ok: false, detail: 'cue absente apres Record Cue', error: 'commande envoyée mais non vérifiée dans EOS' };
+async function verifyCueExistsAfterRecord(cueNumber: string | number, cuelistNumber: number, options: WorkflowCommandStepOptions) {
+  const matches = (data: unknown) => {
+    const cue = data as {number?: number; cuelist?: number; exists?: boolean} | null;
+    return cue?.exists === true && cue.number === Number(cueNumber) && cue.cuelist === cuelistNumber;
+  };
+  const response = await pollReadback(remaining => readCue(cueNumber, cuelistNumber, options, remaining), matches, options.verification_timeout_ms ?? 1000);
+  return response.status === 'ok' && matches(response.data)
+    ? {ok:true, detail:'Presence de la cue relue dans Eos; valeurs enregistrees non verifiees.'}
+    : {ok:false, detail:'Cue absente ou lecture incomplete apres Record.', error:response.error ?? 'commande envoyée mais non vérifiée dans EOS'};
+}
+
+interface NativeCueLabel { cue: string | number; list: number; label: string }
+function cueLabelPreview(value: NativeCueLabel): string { return `/eos/set/cue/${value.list}/${value.cue}/label ${JSON.stringify(value.label)}`; }
+async function runNativeStep(steps: WorkflowStepLog[], errors: Array<{step:string;error:string}>, step: string, address: string, options: WorkflowCommandStepOptions, label?: NativeCueLabel): Promise<boolean> {
+  const command = label ? cueLabelPreview(label) : address;
+  try {
+    await getOscClient().sendMessage(address, label ? [{type:'s',value:label.label}] : [], {targetAddress:options.targetAddress,targetPort:options.targetPort});
+    if (label) {
+      const response = await pollReadback(remaining => readCue(label.cue,label.list,options,remaining), data => (data as {label?:string} | null)?.label === label.label, options.verification_timeout_ms ?? 1000);
+      if (response.status !== 'ok' || (response.data as {label?:string} | null)?.label !== label.label) throw new Error('Label cue non confirme apres envoi.');
+    }
+    steps.push({step,status:'ok',command}); return true;
+  } catch(error) {
+    const message = extractPatchSequenceError(error); steps.push({step,status:'error',command,error:message}); errors.push({step,error:message}); return false;
+  }
 }
 
 async function verifyRecordCueStep(
@@ -247,8 +248,8 @@ async function verifyRecordCueStep(
   partialErrors: Array<{ step: string; error: string }>,
   step: string,
   cueNumber: string | number,
-  cuelistNumber: number | null | undefined,
-  options: { targetAddress?: string; targetPort?: number }
+  cuelistNumber: number,
+  options: WorkflowCommandStepOptions
 ): Promise<boolean> {
   try {
     const verification = await verifyCueExistsAfterRecord(cueNumber, cuelistNumber, options);
@@ -354,7 +355,7 @@ async function runCommandStep(
 const createLookInputSchema = {
   channels: safeChannelRangeTextSchema,
   cue_number: cueNumberSchema,
-  cuelist_number: cuelistNumberSchema.optional(),
+  cuelist_number: cuelistNumberSchema,
   color_palette: z.coerce.number().int().min(1).max(99999).optional(),
   focus_palette: z.coerce.number().int().min(1).max(99999).optional(),
   beam_palette: z.coerce.number().int().min(1).max(99999).optional(),
@@ -407,6 +408,8 @@ export const eosWorkflowCreateLookTool: ToolDefinition<typeof createLookInputSch
       pushDefaultLog(steps, 'default_cuelist_number', 'cuelist_number absent: utilisation automatique de la cuelist master.');
     }
 
+    if (!dryRun && !blockUnconfirmedExecution) await requireFreeCueTargets([options.cue_number], options.cuelist_number, options);
+
     const commands = [
       { step: 'select_channels', command: `Chan ${options.channels}` },
       ...(options.color_palette != null ? [{ step: 'apply_color_palette', command: `CP ${options.color_palette}` }] : []),
@@ -421,7 +424,8 @@ export const eosWorkflowCreateLookTool: ToolDefinition<typeof createLookInputSch
         ? [
             {
               step: 'label_cue',
-              command: `${formatCueTarget(options.cue_number, options.cuelist_number)} Label "${options.cue_label.replace(/"/g, '\\"')}"`
+              command: cueLabelPreview({cue:options.cue_number,list:options.cuelist_number,label:options.cue_label}),
+              nativeLabel: {cue:options.cue_number,list:options.cuelist_number,label:options.cue_label}
             }
           ]
         : [])
@@ -433,7 +437,9 @@ export const eosWorkflowCreateLookTool: ToolDefinition<typeof createLookInputSch
         continue;
       }
 
-      const ok = await runCommandStep(
+      const ok = 'nativeLabel' in commandStep && commandStep.nativeLabel
+        ? await runNativeStep(steps, partialErrors, commandStep.step, `/eos/set/cue/${commandStep.nativeLabel.list}/${commandStep.nativeLabel.cue}/label`, options, commandStep.nativeLabel)
+        : await runCommandStep(
         steps,
         partialErrors,
         commandStep.step,
@@ -547,7 +553,7 @@ function formatCueSeriesIntensity(value: string | number | undefined): string | 
 }
 
 const createCueSeriesInputSchema = {
-  base_cuelist_number: cuelistNumberSchema.optional(),
+  base_cuelist_number: cuelistNumberSchema,
   start_cue_number: cueNumberSchema.optional().default(1),
   looks: z.array(workflowObject({
     channels: safeChannelRangeTextSchema,
@@ -599,9 +605,18 @@ export const eosWorkflowCreateCueSeriesTool: ToolDefinition<typeof createCueSeri
       pushDefaultLog(steps, 'default_start_cue_number', 'start_cue_number absent: valeur par defaut 1 appliquee automatiquement.');
     }
 
+    const targets = options.looks.map(look => {
+      const current = cueNumberSchema.parse(look.cue_number ?? cueNumber);
+      cueNumber = Number(current) + 1;
+      if (look.intensity != null && look.level != null && String(look.intensity) !== String(look.level)) throw new Error('intensity et level contradictoires.');
+      return current;
+    });
+    if (new Set(targets.map(Number)).size !== targets.length) throw new Error('Numeros de cues dupliques dans le plan.');
+    if (!dryRun && !blockUnconfirmedExecution) await requireFreeCueTargets(targets, options.base_cuelist_number, options);
+
     for (let index = 0; index < options.looks.length; index += 1) {
       const look = options.looks[index];
-      const effectiveCueNumber = look.cue_number ?? cueNumber;
+      const effectiveCueNumber = targets[index];
       if (look.cue_number == null) {
         pushDefaultLog(steps, `look_${index + 1}_default_cue_number`, `cue_number absent: auto-increment applique avec la valeur ${effectiveCueNumber}.`);
       }
@@ -624,7 +639,8 @@ export const eosWorkflowCreateCueSeriesTool: ToolDefinition<typeof createCueSeri
           ? [
               {
                 step: `${cueStepPrefix}_label_cue`,
-                command: `${formatCueTarget(effectiveCueNumber, options.base_cuelist_number)} Label "${look.cue_label.replace(/"/g, '\\"')}"`
+                command: cueLabelPreview({cue:effectiveCueNumber,list:options.base_cuelist_number,label:look.cue_label}),
+                nativeLabel: {cue:effectiveCueNumber,list:options.base_cuelist_number,label:look.cue_label}
               }
             ]
           : [])
@@ -637,7 +653,9 @@ export const eosWorkflowCreateCueSeriesTool: ToolDefinition<typeof createCueSeri
           continue;
         }
 
-        const ok = await runCommandStep(
+        const ok = 'nativeLabel' in commandStep && commandStep.nativeLabel
+        ? await runNativeStep(steps, partialErrors, commandStep.step, `/eos/set/cue/${commandStep.nativeLabel.list}/${commandStep.nativeLabel.cue}/label`, options, commandStep.nativeLabel)
+        : await runCommandStep(
           steps,
           partialErrors,
           commandStep.step,
@@ -834,9 +852,10 @@ const rehearsalGoSafeInputSchema = {
 const buildGroupsAndPalettesInputSchema = showPreparationSchema;
 
 const updateCueLookInputSchema = {
-  cuelist_number: cuelistNumberSchema.optional(),
-  cue_number: cueNumberSchema.optional(),
+  cuelist_number: cuelistNumberSchema,
+  cue_number: cueNumberSchema,
   channels: safeChannelRangeTextSchema,
+  intensity: z.coerce.number().finite().min(0).max(100),
   intensity_factor: z.coerce.number().finite().positive().optional(),
   desaturate: z.boolean().optional(),
   warmify: z.boolean().optional(),
@@ -884,13 +903,9 @@ export const eosWorkflowRehearsalGoSafeTool: ToolDefinition<typeof rehearsalGoSa
       ...(options.cue_number != null ? { cue_number: options.cue_number } : {})
     });
 
-    const goCommand = options.cue_number == null
-      ? `Cue ${options.cuelist_number} Go`
-      : `Go To Cue ${options.cuelist_number}/${String(options.cue_number).trim()}`;
+    const goCommand = buildCueGoOscRequest(goIdentifier).message.address;
     const rollbackCommand = options.rollback_on_failure && options.rollback_cue_number != null
-      ? (options.rollback_cuelist_number == null
-          ? `Go To Cue ${String(options.rollback_cue_number).trim()}`
-          : `Go To Cue ${options.rollback_cuelist_number}/${String(options.rollback_cue_number).trim()}`)
+      ? buildCueGoOscRequest(createCueIdentifierFromOptions({cuelist_number:options.rollback_cuelist_number ?? options.cuelist_number,cue_number:options.rollback_cue_number})).message.address
       : null;
     const commandsPreview = rollbackCommand == null ? [goCommand] : [goCommand, rollbackCommand];
 
@@ -960,7 +975,7 @@ export const eosWorkflowRehearsalGoSafeTool: ToolDefinition<typeof rehearsalGoSa
 
     steps.push({ step: 'precheck_console_state', status: 'ok', detail: 'command_line_empty' });
 
-    const goOk = await runCommandStep(steps, partialErrors, 'go', goCommand, options);
+    const goOk = await runNativeStep(steps, partialErrors, 'go', goCommand, options);
     if (goOk) {
       return buildWorkflowResult(
         'eos_workflow_rehearsal_go_safe',
@@ -972,7 +987,7 @@ export const eosWorkflowRehearsalGoSafeTool: ToolDefinition<typeof rehearsalGoSa
     }
 
     if (rollbackCommand != null) {
-      const rollbackOk = await runCommandStep(steps, partialErrors, 'rollback', rollbackCommand, options);
+      const rollbackOk = await runNativeStep(steps, partialErrors, 'rollback', rollbackCommand, options);
       if (!rollbackOk) {
         return buildWorkflowResult(
           'eos_workflow_rehearsal_go_safe',
@@ -1021,7 +1036,7 @@ export const eosWorkflowBuildGroupsAndPalettesTool: ToolDefinition<typeof buildG
 /**
  * @tool eos_workflow_update_cue_look
  * @summary Mettre a jour le look d une cue
- * @description Point d entree naturel pour modifier une cue existante ou courante: aller a la cue, selectionner les canaux, ajuster l intensite puis lancer Update.
+ * @description Rappelle une cue explicite, applique une intensite absolue aux canaux puis Update. Modifie la sortie live; les valeurs enregistrees restent a verifier dans Eos.
  * @arguments Voir docs/tools.md#eos-workflow-update-cue-look pour le schema complet.
  * @returns ToolExecutionResult avec contenu texte et objet.
  * @example CLI Consultez docs/tools.md#eos-workflow-update-cue-look pour un exemple CLI.
@@ -1031,13 +1046,16 @@ export const eosWorkflowUpdateCueLookTool: ToolDefinition<typeof updateCueLookIn
   name: 'eos_workflow_update_cue_look',
   config: {
     title: 'Mettre a jour le look d une cue',
-    description: 'Point d entree naturel pour modifier une cue existante ou courante: aller a la cue, selectionner les canaux, ajuster l intensite puis lancer Update.',
+    description: 'Rappelle une cue explicite, applique une intensite absolue aux canaux puis Update. Modifie la sortie live; les valeurs enregistrees restent a verifier dans Eos.',
     annotations: primaryWorkflowAnnotations,
     inputSchema: updateCueLookInputSchema
   },
   handler: async (args) => {
     const options = workflowObject(updateCueLookInputSchema).parse(args ?? {});
 
+    if (options.desaturate || options.warmify || options.intensity_factor != null) {
+      throw new Error('Transformation relative ou artistique indisponible: fournir une intensite absolue explicite. Aucune commande envoyee.');
+    }
     const dryRun = options.dry_run === true;
     const blockUnconfirmedExecution = shouldBlockUnconfirmedExecution(options);
     const steps: WorkflowStepLog[] = [];
@@ -1051,33 +1069,15 @@ export const eosWorkflowUpdateCueLookTool: ToolDefinition<typeof updateCueLookIn
     if (options.cue_number == null) {
       pushDefaultLog(steps, 'default_cue_number', 'cue_number absent: modification appliquee a la cue courante via Update Cue.');
     }
-    const updateTarget = options.cue_number == null
-      ? 'Update Cue'
-      : `Update ${formatCueTarget(options.cue_number, options.cuelist_number)}`;
-
+    const updateTarget = `Update ${formatCueTarget(options.cue_number, options.cuelist_number)}`;
     const commands = [
-      ...(options.cue_number != null
-        ? [{ step: 'go_to_cue', command: `Go To ${formatCueTarget(options.cue_number, options.cuelist_number)}` }]
-        : []),
-      { step: 'select_channels', command: `Chan ${options.channels}` },
-      ...(options.intensity_factor != null ? [{ step: 'apply_intensity_factor', command: `At * ${options.intensity_factor}` }] : []),
-      { step: 'update_cue', command: updateTarget }
+      {step:'go_to_cue', command:`Go To ${formatCueTarget(options.cue_number,options.cuelist_number)}`},
+      {step:'set_intensity', command:`Chan ${options.channels} At ${options.intensity}`},
+      {step:'update_cue', command:updateTarget}
     ];
-
-    if (options.desaturate === true) {
-      steps.push({
-        step: 'apply_desaturate',
-        status: 'skipped',
-        detail: 'Transformation artistique non calculee en v1: aucune commande implicite envoyee.'
-      });
-    }
-
-    if (options.warmify === true) {
-      steps.push({
-        step: 'apply_warmify',
-        status: 'skipped',
-        detail: 'Transformation artistique non calculee en v1: aucune commande implicite envoyee.'
-      });
+    if (!dryRun && !blockUnconfirmedExecution) {
+      const existing = await readCue(options.cue_number,options.cuelist_number,options);
+      if (existing.status !== 'ok') throw new Error('La cue cible doit etre presente et lisible avant sa modification.');
     }
 
     for (const commandStep of commands) {

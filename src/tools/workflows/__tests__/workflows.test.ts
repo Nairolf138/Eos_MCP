@@ -1,1013 +1,147 @@
 /*
  * Copyright 2026 Florian Ribes (NairolfConcept)
- * SPDX-License-Identifier: Apache-2.0
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
-import fs from 'node:fs';
-import path from 'node:path';
-import type { OscMessage } from '../../../services/osc/index';
-import { OscClient, setOscClient, type OscGateway, type OscGatewaySendOptions } from '../../../services/osc/client';
-import { runTool, getStructuredContent } from '../../__tests__/helpers/runTool';
-import {
-  eosWorkflowCreateLookTool,
-  eosWorkflowCreateEffectTool,
-  eosWorkflowCreateCueSeriesTool,
-  eosWorkflowAutopatchBandTool,
-  eosWorkflowPatchFixtureTool,
-  eosWorkflowPatchScanTool,
-  eosWorkflowRehearsalGoSafeTool,
-  eosWorkflowBuildGroupsAndPalettesTool,
-  eosWorkflowUpdateCueLookTool
-} from '../index';
-import { eosCueGoTool } from '../../cues/index';
+import { OscClient, setOscClient } from '../../../services/osc/client';
+import { frame } from '../../../services/osc/__tests__/fixtures/nativePeer';
+import { getResourceCache } from '../../../services/cache';
+import { runTool } from '../../__tests__/helpers/runTool';
+import { eosWorkflowCreateLookTool as look, eosWorkflowCreateCueSeriesTool as series,
+  eosWorkflowRehearsalGoSafeTool as rehearsal, eosWorkflowUpdateCueLookTool as update,
+  eosWorkflowPatchFixtureTool as patch, eosWorkflowBuildGroupsAndPalettesTool as prepare,
+  eosWorkflowPatchScanTool as scan } from '../index';
+import { CuePeer } from './fixtures/cuePeer';
 
-class FakeOscService implements OscGateway {
-  public readonly sentMessages: OscMessage[] = [];
-
-  public failAtSendIndex: number | null = null;
-
-  public commandLineText = '';
-
-  public omitRecordedCuesFromVerification = false;
-
-  public consoleErrorOnCueList = false;
-
-  public suppressCommandLineReply = false;
-
-  public suppressEffectInfoReply = false;
-
-  public patchReadErrors = new Set<number>();
-
-  private readonly recordedCues: Array<{ cuelist: number | null; cue: string }> = [];
-
-  private readonly recordedEffects = new Map<number, { direction: string; speed: number; size: number }>();
-
-  private pendingEffect: { effect: number; direction?: string; speed?: number; size?: number } | null = null;
-
-  private readonly listeners = new Set<(message: OscMessage) => void>();
-
-  public async send(message: OscMessage, _options?: OscGatewaySendOptions): Promise<void> {
-    this.sentMessages.push(message);
-    const currentIndex = this.sentMessages.length;
-
-    if (this.failAtSendIndex != null && this.failAtSendIndex === currentIndex) {
-      throw new Error(`Echec simule envoi #${currentIndex}`);
-    }
-
-    const command = message.args?.[0]?.value;
-    if (typeof command === 'string' && message.address === '/eos/newcmd') {
-      const match = /Record\s+Cue\s+(?:(\d+)\s*\/\s*)?([^#\s]+)/i.exec(command);
-      if (match) {
-        this.recordedCues.push({ cuelist: match[1] == null ? null : Number(match[1]), cue: match[2] ?? '' });
-      }
-
-      const speedMatch = /Effect\s+(\d+)\s+Speed\s+([0-9.]+)/i.exec(command);
-      if (speedMatch) {
-        this.pendingEffect = { ...(this.pendingEffect ?? { effect: Number(speedMatch[1]) }), effect: Number(speedMatch[1]), speed: Number(speedMatch[2]) };
-      }
-
-      const sizeMatch = /Effect\s+(\d+)\s+Size\s+([0-9.]+)/i.exec(command);
-      if (sizeMatch) {
-        this.pendingEffect = { ...(this.pendingEffect ?? { effect: Number(sizeMatch[1]) }), effect: Number(sizeMatch[1]), size: Number(sizeMatch[2]) };
-      }
-
-      const directionMatch = /Effect\s+(\d+)\s+Direction\s+(.+)/i.exec(command);
-      if (directionMatch) {
-        this.pendingEffect = { ...(this.pendingEffect ?? { effect: Number(directionMatch[1]) }), effect: Number(directionMatch[1]), direction: directionMatch[2]?.replace(/#$/, '').trim() };
-      }
-
-      const effectMatch = /Record\s+Effect\s+(\d+)/i.exec(command);
-      if (effectMatch) {
-        const effect = Number(effectMatch[1]);
-        this.recordedEffects.set(effect, {
-          direction: this.pendingEffect?.effect === effect ? this.pendingEffect.direction ?? 'Left To Right' : 'Left To Right',
-          speed: this.pendingEffect?.effect === effect ? this.pendingEffect.speed ?? 1 : 1,
-          size: this.pendingEffect?.effect === effect ? this.pendingEffect.size ?? 100 : 100
-        });
-      }
-    }
-
-    if (message.address === '/eos/get/cue/{cuelist}/index/{index}') {
-      const payload = this.consoleErrorOnCueList
-        ? { status: 'error', error: 'Erreur console simulee' }
-        : { cues: this.omitRecordedCuesFromVerification ? [] : this.recordedCues.map((cue) => ({ cuelist: cue.cuelist, cue: cue.cue })) };
-      const reply: OscMessage = {
-        address: '/eos/get/cue/{cuelist}/index/{index}',
-        args: [{ type: 's', value: JSON.stringify(payload) }]
-      };
-      queueMicrotask(() => {
-        for (const listener of this.listeners) {
-          listener(reply);
-        }
-      });
-    }
-
-
-    if (message.address === '/eos/get/fx/{number}' && !this.suppressEffectInfoReply) {
-      const rawPayload = message.args?.[0]?.value;
-      const payload = typeof rawPayload === 'string' ? JSON.parse(rawPayload) as { effect?: number } : {};
-      const effect = Number(payload.effect ?? 0);
-      const recorded = this.recordedEffects.get(effect);
-      const responsePayload = recorded == null
-        ? { status: 'error', error: 'Effect not found' }
-        : { effect: { effect_number: effect, direction: recorded.direction, speed: recorded.speed, size: recorded.size } };
-      const reply: OscMessage = {
-        address: '/eos/get/fx/{number}',
-        args: [{ type: 's', value: JSON.stringify(responsePayload) }]
-      };
-      queueMicrotask(() => {
-        for (const listener of this.listeners) {
-          listener(reply);
-        }
-      });
-    }
-
-    if (message.address === '/eos/get/patch/{channel}/{part}') {
-      const rawPayload = message.args?.[0]?.value;
-      const payload = typeof rawPayload === 'string' ? JSON.parse(rawPayload) as { channel?: number; part?: number } : {};
-      const channel = Number(payload.channel ?? 0);
-      const responsePayload = this.patchReadErrors.has(channel)
-        ? { status: 'error', error: `Erreur patch simulee canal ${channel}` }
-        : {
-            channel: {
-              channel_number: channel,
-              label: `Fixture ${channel}`,
-              part_count: 1,
-              parts: [{ part_number: Number(payload.part ?? 0) || 1, label: `Fixture ${channel}`, manufacturer: 'ETC', model: 'Source Four', dmx_address: `1/${channel}` }]
-            }
-          };
-      const reply: OscMessage = {
-        address: '/eos/out/get/patch/chan_info',
-        args: [{ type: 's', value: JSON.stringify(responsePayload) }]
-      };
-      queueMicrotask(() => {
-        for (const listener of this.listeners) {
-          listener(reply);
-        }
-      });
-    }
-
-    if (message.address === '/eos/out/user/{number}/cmd' && !this.suppressCommandLineReply) {
-      const reply: OscMessage = {
-        address: '/eos/out/user/{number}/cmd',
-        args: [{ type: 's', value: JSON.stringify({ text: this.commandLineText, user: 0 }) }]
-      };
-      queueMicrotask(() => {
-        for (const listener of this.listeners) {
-          listener(reply);
-        }
-      });
-    }
-  }
-
-  public onMessage(listener: (message: OscMessage) => void): () => void {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
-  }
-}
-
-describe('workflow tools', () => {
-  let service: FakeOscService;
-
-  beforeEach(() => {
-    service = new FakeOscService();
-    setOscClient(new OscClient(service, { defaultTimeoutMs: 100 }));
-  });
-
-  afterEach(() => {
-    setOscClient(null);
-  });
-
-  it('orchestre eos_workflow_create_look et journalise les commandes', async () => {
-    const result = await runTool(eosWorkflowCreateLookTool, {
-      channels: '1 Thru 3',
-      cue_number: 101,
-      cuelist_number: 2,
-      color_palette: 11,
-      focus_palette: 12,
-      beam_palette: 13,
-      cue_label: 'Look Intro',
-      require_confirmation: true
-    });
-
-    expect(service.sentMessages).toHaveLength(8);
-    expect(service.sentMessages.map((msg) => msg.address)).toEqual([
-      '/eos/newcmd',
-      '/eos/newcmd',
-      '/eos/newcmd',
-      '/eos/newcmd',
-      '/eos/newcmd',
-      '/eos/get/cue/{cuelist}/index/{index}',
-      '/eos/newcmd',
-      '/eos/out/user/{number}/cmd'
+// Replaces legacy JSON-over-OSC scenarios. Patch/group/sub execution is also
+// covered by native_preparation.test.ts; this suite exercises exported workflows.
+describe('Exported workflows with native cue replies', () => {
+  let peer: CuePeer;
+  const confirmed = {user:3,require_confirmation:true,verification_timeout_ms:50};
+  const target = {channels:'101 Thru 102',cuelist_number:2,cue_number:10};
+  beforeEach(() => {getResourceCache().clearAll();peer=new CuePeer();setOscClient(new OscClient(peer,{defaultTimeoutMs:50}));});
+  afterEach(() => {setOscClient(null);getResourceCache().clearAll();});
+  test('creates a look on a free explicit cue, then reads back its native label', async () => {
+    const result=await runTool(look,{...target,...confirmed,color_palette:7,cue_label:'Intro'});
+    expect(result.structuredContent).toMatchObject({status:'ok',verified:false});
+    expect(peer.writes()).toEqual([
+      {address:'/eos/user/3/newcmd',args:[{type:'s',value:'Chan 101 Thru 102#'}]},
+      {address:'/eos/user/3/newcmd',args:[{type:'s',value:'CP 7#'}]},
+      {address:'/eos/user/3/newcmd',args:[{type:'s',value:'Record Cue 2/10#'}]},
+      {address:'/eos/set/cue/2/10/label',args:[{type:'s',value:'Intro'}]}
     ]);
-
-    const structured = getStructuredContent(result);
-    expect(structured?.status).toBe('ok');
-    expect(structured?.commandsSent).toEqual([
-      'Chan 1 Thru 3',
-      'CP 11',
-      'FP 12',
-      'BP 13',
-      'Record Cue 2/101',
-      'Cue 2/101 Label "Look Intro"'
-    ]);
+    expect(peer.sent.filter(message=>message.address.startsWith('/eos/get/')).every(message=>message.address==='/eos/get/cue/2/10/0')).toBe(true);
   });
-
-  it('genere commands_preview en dry run pour create_look sans envoyer de commande', async () => {
-    const result = await runTool(eosWorkflowCreateLookTool, {
-      channels: '1 Thru 3',
-      cue_number: 101,
-      color_palette: 11,
-      dry_run: true
-    });
-
-    expect(service.sentMessages).toHaveLength(0);
-    const structured = getStructuredContent(result);
-    expect(structured?.commandsSent).toEqual([]);
-    expect(structured?.commands_preview).toEqual([
-      'Chan 1 Thru 3',
-      'CP 11',
-      'Record Cue 101'
-    ]);
-    expect(structured?.command_log).toEqual(expect.arrayContaining([
-      expect.objectContaining({ step: 'select_channels', status: 'skipped', command: 'Chan 1 Thru 3' })
-    ]));
+  test('previews complete native labels with no reads or writes', async () => {
+    const label='Face "Jardin" # Delete Cue 1';
+    const result=await runTool(look,{...target,cue_label:label,dry_run:true});
+    expect(result.structuredContent).toMatchObject({status:'dry_run',verified:false,commandsSent:[]});
+    expect(result.structuredContent?.commands_preview).toContain(`/eos/set/cue/2/10/label ${JSON.stringify(label)}`);
+    expect(peer.sent).toEqual([]);
   });
-
-  it('scanne le patch en dry_run sans envoyer de requete OSC', async () => {
-    const result = await runTool(eosWorkflowPatchScanTool, {
-      start_channel: 1,
-      end_channel: 3,
-      dry_run: true
-    });
-
-    expect(service.sentMessages).toHaveLength(0);
-    const structured = getStructuredContent(result);
-    expect(structured?.status).toBe('ok');
-    expect(structured?.channels).toEqual([1, 2, 3]);
-    expect(structured?.results).toEqual([
-      expect.objectContaining({ status: 'skipped', channel: { channel_number: 1 }, source: expect.objectContaining({ type: 'dry_run' }) }),
-      expect.objectContaining({ status: 'skipped', channel: { channel_number: 2 }, source: expect.objectContaining({ type: 'dry_run' }) }),
-      expect.objectContaining({ status: 'skipped', channel: { channel_number: 3 }, source: expect.objectContaining({ type: 'dry_run' }) })
-    ]);
+  test('never puts label text into a command line', async () => {
+    const label='Face "Jardin" # Delete Cue 1';
+    await runTool(look,{...target,...confirmed,cue_label:label});
+    expect(peer.cues.get('2/10')).toBe(label);
+    expect(peer.writes().filter(message=>message.address.endsWith('/newcmd')).some(message=>String(message.args?.[0]?.value).includes('Delete'))).toBe(false);
   });
-
-  it('scanne le patch avec garde-fous de concurrence et arret sur taux d echec', async () => {
-    service.patchReadErrors = new Set([2]);
-
-    const result = await runTool(eosWorkflowPatchScanTool, {
-      channels: [1, 2, 3],
-      max_concurrency: 1,
-      rate_limit_ms: 0,
-      failure_rate_threshold: 0.25
-    });
-
-    const structured = getStructuredContent(result);
-    expect(service.sentMessages.map((msg) => msg.address)).toEqual([
-      '/eos/get/patch/{channel}/{part}',
-      '/eos/get/patch/{channel}/{part}'
-    ]);
-    expect(structured?.status).toBe('partial_failure');
-    expect(structured?.scan).toEqual(expect.objectContaining({ processed: 2, failures: 1, aborted: true }));
-    expect(structured?.results).toEqual(expect.arrayContaining([
-      expect.objectContaining({ status: 'ok', channel: expect.objectContaining({ channel_number: 1 }), error: null }),
-      expect.objectContaining({ status: 'error', channel: expect.objectContaining({ channel_number: 2 }), error: 'Erreur patch simulee canal 2' })
-    ]));
+  test('refuses real execution without explicit confirmation before reads', async () => {
+    const result=await runTool(look,target);
+    expect(result.isError).toBe(true);expect(peer.sent).toEqual([]);
+    expect(result.structuredContent?.commands_preview).toContain('Record Cue 2/10');
   });
-
-  it('refuse l execution reelle des workflows show sans require_confirmation tout en retournant commands_preview', async () => {
-    const result = await runTool(eosWorkflowCreateLookTool, {
-      channels: '1 Thru 3',
-      cue_number: 101,
-      color_palette: 11
-    });
-
-    expect(service.sentMessages).toHaveLength(0);
-    const structured = getStructuredContent(result);
-    expect(structured?.status).toBe('failed');
-    expect(structured?.commandsSent).toEqual([]);
-    expect(structured?.commands_preview).toEqual([
-      'Chan 1 Thru 3',
-      'CP 11',
-      'Record Cue 101'
-    ]);
-    expect(structured?.partialErrors).toEqual(expect.arrayContaining([
-      expect.objectContaining({ step: 'require_confirmation' })
-    ]));
+  test.each([{channels:'101',cue_number:10},{...target,cu_number:12}])('rejects ambiguous targets or misspelled arguments: %j', async args=>{
+    await expect(runTool(look,{...args,...confirmed})).rejects.toThrow();expect(peer.sent).toEqual([]);
   });
-
-
-  it('orchestre eos_workflow_create_effect avec groupe optionnel et parametres', async () => {
-    const result = await runTool(eosWorkflowCreateEffectTool, {
-      channels: '1 Thru 6',
-      effect_number: 21,
-      group_number: 3,
-      direction: 'right_to_left',
-      speed: 1.5,
-      size: 75,
-      require_confirmation: true
-    });
-
-    const structured = getStructuredContent(result);
-    expect(structured?.status).toBe('ok');
-    expect(structured?.commandsSent).toEqual([
-      'Chan 1 Thru 6 Record Group 3',
-      'Chan 1 Thru 6 Effect 21',
-      'Effect 21 Speed 1.5',
-      'Effect 21 Size 75',
-      'Effect 21 Direction Right To Left',
-      'Record Effect 21'
-    ]);
-    expect(structured?.effect).toEqual({
-      effect_number: 21,
-      channels: '1 Thru 6',
-      group_number: 3,
-      parameters: {
-        direction: 'right_to_left',
-        speed: 1.5,
-        size: 75
-      }
-    });
-    expect(structured?.verification).toEqual(expect.objectContaining({
-      status: 'verified',
-      verified: true,
-      method: 'effect_json',
-      exists: true,
-      parameters: {
-        direction: { expected: 'right_to_left', actual: 'Right To Left', confirmed: true },
-        speed: { expected: 1.5, actual: 1.5, confirmed: true },
-        size: { expected: 75, actual: 75, confirmed: true }
-      }
-    }));
-    expect(structured?.executedSteps).toEqual(expect.arrayContaining([
-      expect.objectContaining({ step: 'record_effect_verify', status: 'ok', detail: 'effect_verified' })
-    ]));
+  test('refuses overwriting an existing cue before any write', async () => {
+    peer.cues.set('2/10','Existing');
+    await expect(runTool(look,{...target,...confirmed})).rejects.toThrow('deja presente');
+    expect(peer.writes()).toEqual([]);
   });
-
-  it('applique les valeurs par defaut et dry_run pour create_effect', async () => {
-    const result = await runTool(eosWorkflowCreateEffectTool, {
-      channels: '10',
-      effect_number: 22,
-      dry_run: true
-    });
-
-    expect(service.sentMessages).toHaveLength(0);
-    const structured = getStructuredContent(result);
-    expect(structured?.status).toBe('ok');
-    expect(structured?.commands_preview).toEqual([
-      'Chan 10 Effect 22',
-      'Effect 22 Speed 1',
-      'Effect 22 Size 100',
-      'Effect 22 Direction Left To Right',
-      'Record Effect 22'
-    ]);
-    expect(structured?.effect).toEqual({
-      effect_number: 22,
-      channels: '10',
-      group_number: null,
-      parameters: {
-        direction: 'left_to_right',
-        speed: 1,
-        size: 100
-      }
-    });
+  test('does not treat a silent console as an empty cue target', async () => {
+    peer.silent=true;
+    await expect(runTool(look,{...target,...confirmed})).rejects.toThrow('incomplet');expect(peer.writes()).toEqual([]);
   });
-
-
-  it('retourne un warning not_verified quand Record Effect ne peut pas etre confirme apres envoi', async () => {
-    service.suppressEffectInfoReply = true;
-    service.suppressCommandLineReply = true;
-
-    const result = await runTool(eosWorkflowCreateEffectTool, {
-      channels: '10',
-      effect_number: 23,
-      require_confirmation: true,
-      verification_timeout_ms: 10
-    });
-
-    const structured = getStructuredContent(result);
-    expect(structured?.status).toBe('ok');
-    expect(structured?.partialErrors).toEqual([]);
-    expect(structured?.verification).toEqual(expect.objectContaining({
-      status: 'not_verified',
-      verified: false,
-      method: 'command_line',
-      exists: null,
-      warning: 'not_verified'
-    }));
-    expect(structured?.warnings).toEqual(expect.arrayContaining([
-      expect.objectContaining({ step: 'record_effect_verify', detail: 'not_verified' })
-    ]));
-    expect(structured?.executedSteps).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        step: 'record_effect',
-        status: 'ok',
-        command: 'Record Effect 23'
-      }),
-      expect.objectContaining({
-        step: 'record_effect_verify',
-        status: 'skipped',
-        detail: 'not_verified'
-      })
-    ]));
+  test('stops when Record is not observed and never replays the write', async () => {
+    peer.ignoreRecord=true;
+    const result=await runTool(look,{...target,...confirmed,cue_label:'Unwritten'});
+    expect(result.structuredContent).toMatchObject({status:'partial_failure',verified:false});
+    expect(peer.writes()).toHaveLength(2);
+    expect(peer.writes().filter(message=>String(message.args?.[0]?.value).includes('Record'))).toHaveLength(1);
   });
-
-  it('retourne un echec partiel sur erreur intermediaire de workflow create_look', async () => {
-    service.failAtSendIndex = 2;
-
-    const result = await runTool(eosWorkflowCreateLookTool, {
-      channels: '5',
-      cue_number: 2,
-      color_palette: 101,
-      require_confirmation: true
-    });
-
-    expect(service.sentMessages).toHaveLength(2);
-    const structured = getStructuredContent(result);
-    expect(structured?.status).toBe('partial_failure');
-    expect(structured?.partialErrors).toEqual([{ step: 'apply_color_palette', error: 'Echec simule envoi #2' }]);
-    expect(structured?.executedSteps).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        step: 'default_cuelist_number',
-        detail: 'cuelist_number absent: utilisation automatique de la cuelist master.'
-      })
-    ]));
+  test('stops when a native label cannot be read back', async () => {
+    peer.ignoreLabel=true;
+    const result=await runTool(series,{...confirmed,base_cuelist_number:2,looks:[{channels:'101',cue_number:10,cue_label:'Intro'},{channels:'102',cue_number:11}]});
+    expect(result.structuredContent?.status).toBe('partial_failure');expect(peer.cues.has('2/11')).toBe(false);
   });
-
-
-  it('retourne partial_failure si EOS signale une erreur console pendant la verification apres Record Cue', async () => {
-    service.consoleErrorOnCueList = true;
-
-    const result = await runTool(eosWorkflowCreateLookTool, {
-      channels: '5',
-      cue_number: 2,
-      require_confirmation: true
-    });
-
-    const structured = getStructuredContent(result);
-    expect(structured?.status).toBe('partial_failure');
-    expect(structured?.warnings).toEqual(expect.arrayContaining([
-      expect.objectContaining({ detail: 'Erreur console simulee' })
-    ]));
-    expect(structured?.executedSteps).toEqual(expect.arrayContaining([
-      expect.objectContaining({ step: 'record_cue', status: 'ok', command: 'Record Cue 2' }),
-      expect.objectContaining({ step: 'record_cue_verify', status: 'error' })
-    ]));
+  test('checks every target of a series before its first write', async () => {
+    peer.cues.set('2/11','Existing');
+    await expect(runTool(series,{...confirmed,base_cuelist_number:2,start_cue_number:10,looks:[{channels:'101'},{channels:'102'}]})).rejects.toThrow('deja presente');
+    expect(peer.writes()).toEqual([]);
   });
-
-  it('retourne partial_failure si la cue reste absente apres Record Cue', async () => {
-    service.omitRecordedCuesFromVerification = true;
-
-    const result = await runTool(eosWorkflowCreateCueSeriesTool, {
-      looks: [{ channels: '5', cue_number: 7 }],
-      require_confirmation: true
-    });
-
-    const structured = getStructuredContent(result);
-    expect(structured?.status).toBe('partial_failure');
-    expect(structured?.warnings).toEqual(expect.arrayContaining([
-      expect.objectContaining({ detail: 'commande envoyée mais non vérifiée dans EOS' })
-    ]));
-    expect(structured?.executedSteps).toEqual(expect.arrayContaining([
-      expect.objectContaining({ step: 'look_1_cue_7_record_cue', status: 'ok', command: 'Record Cue 7' }),
-      expect.objectContaining({ step: 'look_1_cue_7_record_cue_verify', status: 'error' })
-    ]));
+  test('increments after an explicit cue and applies intensity separately from Record', async () => {
+    const result=await runTool(series,{...confirmed,base_cuelist_number:2,start_cue_number:10,looks:[{channels:'101',intensity:75},{channels:'102',cue_number:20.5},{channels:'103'}]});
+    expect(result.structuredContent).toMatchObject({status:'ok',verified:false});
+    expect([...peer.cues.keys()]).toEqual(['2/10','2/20.5','2/21.5']);
+    expect(peer.writes()[0]).toMatchObject({args:[{type:'s',value:'Chan 101 At 75#'}]});
   });
-
-
-  it('ignore les champs inconnus sur les workflows sans modifier la logique metier', async () => {
-    const result = await runTool(eosWorkflowCreateCueSeriesTool, {
-      looks: [
-        {
-          channels: '7',
-          cue_label: 'Solo',
-          client_note: 'metadata ignored'
-        }
-      ],
-      dry_run: true,
-      client_request_id: 'abc-123'
-    });
-
-    expect(service.sentMessages).toHaveLength(0);
-    const structured = getStructuredContent(result);
-    expect(structured?.status).toBe('ok');
-    expect(structured?.commands_preview).toEqual([
-      'Chan 7',
-      'Record Cue 1',
-      'Cue 1 Label "Solo"'
-    ]);
-    expect(structured).not.toHaveProperty('client_request_id');
+  test.each([
+    [{channels:'101',cue_number:5},{channels:'102',cue_number:5}],
+    [{channels:'101',intensity:50,level:75}],
+    [{channels:'101'},{channels:'102',cue_number:0}]
+  ])('validates the whole series before console traffic: %j', async looks=>{
+    await expect(runTool(series,{...confirmed,base_cuelist_number:2,looks})).rejects.toThrow();expect(peer.sent).toEqual([]);
   });
-
-  it('conserve strict sur les tools bas niveau sensibles', async () => {
-    await expect(
-      runTool(eosCueGoTool, {
-        cuelist_number: 1,
-        dry_run: true,
-        client_request_id: 'abc-123'
-      })
-    ).rejects.toThrow(/Unrecognized key/);
+  test('stops after a fresh command error before the following Record', async () => {
+    peer.rejectCommand='At 75';
+    const result=await runTool(series,{...confirmed,base_cuelist_number:2,looks:[{channels:'101',intensity:75}]});
+    expect(result.structuredContent?.status).toBe('partial_failure');expect(peer.writes()).toHaveLength(1);
   });
-
-  it('accepte le passthrough et retourne une structure LLM stable sur tous les workflows', async () => {
-    const workflowCases = [
-      {
-        tool: eosWorkflowCreateLookTool,
-        args: { channels: '1', cue_number: 1, dry_run: true, client_trace_id: 'trace-create-look' }
-      },
-      {
-        tool: eosWorkflowCreateEffectTool,
-        args: { channels: '1', effect_number: 1, dry_run: true, client_trace_id: 'trace-create-effect' }
-      },
-      {
-        tool: eosWorkflowCreateCueSeriesTool,
-        args: {
-          looks: [{ channels: '1', cue_label: 'A', client_note: 'nested passthrough' }],
-          dry_run: true,
-          client_trace_id: 'trace-cue-series'
-        }
-      },
-      {
-        tool: eosWorkflowPatchFixtureTool,
-        args: {
-          channel_number: 1,
-          dmx_address: '1/1',
-          device_type: 'Dimmer',
-          label: 'Dimmer 1',
-          dry_run: true,
-          client_trace_id: 'trace-patch-fixture'
-        }
-      },
-      {
-        tool: eosWorkflowAutopatchBandTool,
-        args: {
-          fixtures: [{ count: 1, fixture_query: 'Spica', universe: 1, start_address: 1, label_prefix: 'Wash', client_note: 'nested passthrough' }],
-          dry_run: true,
-          client_trace_id: 'trace-autopatch-band'
-        }
-      },
-      {
-        tool: eosWorkflowPatchScanTool,
-        args: { channels: [1, 2], dry_run: true, client_trace_id: 'trace-patch-scan' }
-      },
-      {
-        tool: eosWorkflowRehearsalGoSafeTool,
-        args: { cuelist_number: 1, dry_run: true, client_trace_id: 'trace-rehearsal-go-safe' }
-      },
-      {
-        tool: eosWorkflowBuildGroupsAndPalettesTool,
-        args: {
-          groups: [{ number: 1, label: 'Face', channels: '1', client_note: 'nested passthrough' }],
-          dry_run: true,
-          client_trace_id: 'trace-groups-palettes'
-        }
-      },
-      {
-        tool: eosWorkflowUpdateCueLookTool,
-        args: { channels: '1', dry_run: true, client_trace_id: 'trace-update-cue-look' }
-      }
-    ];
-
-    for (const workflowCase of workflowCases) {
-      const result = await runTool(workflowCase.tool, workflowCase.args);
-      const structured = getStructuredContent(result);
-      expect(structured?.workflow).toBe(workflowCase.tool.name);
-      expect(Array.isArray(structured?.steps)).toBe(true);
-      expect(Array.isArray(structured?.commands_preview)).toBe(true);
-      expect(Array.isArray(structured?.applied_defaults)).toBe(true);
-      expect(Array.isArray(structured?.warnings)).toBe(true);
-      expect(structured).not.toHaveProperty('client_trace_id');
-    }
+  test('prechecks a recent command line then sends the native cue-list GO', async () => {
+    peer.emit(frame('/eos/out/user/3/cmd',['',0]));
+    const result=await runTool(rehearsal,{...confirmed,cuelist_number:2});
+    expect(result.structuredContent).toMatchObject({status:'ok',verified:false});
+    expect(peer.writes()).toEqual([{address:'/eos/cues/2/fire'}]);
   });
-
-  it('expose les defaults documentes dans applied_defaults', async () => {
-    const cueSeriesResult = await runTool(eosWorkflowCreateCueSeriesTool, {
-      looks: [{ channels: '7', cue_label: 'Solo' }],
-      dry_run: true
-    });
-    const cueSeriesStructured = getStructuredContent(cueSeriesResult);
-    expect(cueSeriesStructured?.applied_defaults).toEqual(expect.arrayContaining([
-      {
-        step: 'default_base_cuelist_number',
-        detail: 'base_cuelist_number absent: utilisation automatique de la cuelist master.'
-      },
-      {
-        step: 'default_start_cue_number',
-        detail: 'start_cue_number absent: valeur par defaut 1 appliquee automatiquement.'
-      },
-      {
-        step: 'look_1_default_cue_number',
-        detail: 'cue_number absent: auto-increment applique avec la valeur 1.'
-      }
-    ]));
-
-    const updateResult = await runTool(eosWorkflowUpdateCueLookTool, {
-      cue_number: 5,
-      channels: '9',
-      dry_run: true
-    });
-    const updateStructured = getStructuredContent(updateResult);
-    expect(updateStructured?.applied_defaults).toEqual(expect.arrayContaining([
-      {
-        step: 'default_cuelist_number',
-        detail: 'cuelist_number absent: utilisation automatique de la cuelist master pour la cue cible.'
-      }
-    ]));
+  test.each(['busy','silent'])('refuses rehearsal GO on %s command feedback', async kind=>{
+    if(kind==='busy')peer.emit(frame('/eos/out/user/3/cmd',['Chan 1',0]));
+    const result=await runTool(rehearsal,{...confirmed,cuelist_number:2,precheck_timeout_ms:50});
+    expect(result.isError).toBe(true);expect(peer.writes()).toEqual([]);
   });
-
-  it('garde les noms de workflows homogenes entre code, manifest et docs', () => {
-    const repoRoot = path.resolve(__dirname, '../../../..');
-    const manifest = JSON.parse(fs.readFileSync(path.join(repoRoot, 'manifest.json'), 'utf8')) as {
-      mcp: { capabilities: { tools: { presentation_order: string[]; featured_workflows: Array<{ id: string }> } } };
-    };
-    const docs = fs.readFileSync(path.join(repoRoot, 'docs/tools.md'), 'utf8');
-    const codeWorkflowNames = [
-      eosWorkflowCreateLookTool,
-      eosWorkflowCreateEffectTool,
-      eosWorkflowCreateCueSeriesTool,
-      eosWorkflowPatchFixtureTool,
-      eosWorkflowPatchScanTool,
-      eosWorkflowAutopatchBandTool,
-      eosWorkflowRehearsalGoSafeTool,
-      eosWorkflowBuildGroupsAndPalettesTool,
-      eosWorkflowUpdateCueLookTool
-    ].map((tool) => tool.name).sort();
-    const manifestWorkflowNames = manifest.mcp.capabilities.tools.presentation_order.filter((name) => name.startsWith('eos_workflow_')).sort();
-
-    expect(manifestWorkflowNames).toEqual(codeWorkflowNames);
-    for (const workflow of manifest.mcp.capabilities.tools.featured_workflows) {
-      expect(codeWorkflowNames).toContain(workflow.id);
-      expect(docs).toContain(`\`${workflow.id}\``);
-    }
-    for (const name of codeWorkflowNames) {
-      expect(docs).toContain(`\`${name}\``);
-    }
+  test('uses the same explicit list for an authorized rollback after transport failure', async () => {
+    peer.emit(frame('/eos/out/user/3/cmd',['',0]));peer.failAddress='/eos/cues/2/fire';
+    const result=await runTool(rehearsal,{...confirmed,cuelist_number:2,rollback_on_failure:true,rollback_cue_number:8});
+    expect(result.structuredContent?.status).toBe('partial_failure');
+    expect(peer.writes().map(message=>message.address)).toEqual(['/eos/cues/2/fire','/eos/cue/2/8/fire']);
   });
-
-  it('orchestre eos_workflow_create_cue_series avec increment automatique des cues', async () => {
-    const result = await runTool(eosWorkflowCreateCueSeriesTool, {
-      base_cuelist_number: 2,
-      start_cue_number: 10,
-      looks: [
-        { channels: '1 Thru 3', color_palette: 11, cue_label: 'Intro' },
-        { channels: '4 Thru 6', focus_palette: 20, beam_palette: 30, cue_label: 'Verse' }
-      ],
-      require_confirmation: true
-    });
-
-    const structured = getStructuredContent(result);
-    expect(structured?.status).toBe('ok');
-    expect(structured?.commandsSent).toEqual([
-      'Chan 1 Thru 3',
-      'CP 11',
-      'Record Cue 2/10',
-      'Cue 2/10 Label "Intro"',
-      'Chan 4 Thru 6',
-      'FP 20',
-      'BP 30',
-      'Record Cue 2/11',
-      'Cue 2/11 Label "Verse"'
-    ]);
+  test('updates a readable explicit cue with an absolute intensity', async () => {
+    peer.cues.set('2/10','Existing');
+    const result=await runTool(update,{...target,...confirmed,intensity:45});
+    expect(result.structuredContent).toMatchObject({status:'ok',verified:false});
+    expect(peer.writes().map(message=>message.args?.[0]?.value)).toEqual(['Go To Cue 2/10#','Chan 101 Thru 102 At 45#','Update Cue 2/10#']);
   });
-
-  it('applique une intensite separee avant palettes, record et label dans create_cue_series', async () => {
-    const result = await runTool(eosWorkflowCreateCueSeriesTool, {
-      start_cue_number: 3,
-      looks: [
-        {
-          channels: '1 Thru 10',
-          intensity: 'Full',
-          cue_label: 'Reggae'
-        }
-      ],
-      require_confirmation: true
-    });
-
-    const structured = getStructuredContent(result);
-    expect(structured?.status).toBe('ok');
-    expect(structured?.commands_preview).toEqual([
-      'Chan 1 Thru 10 At Full',
-      'Record Cue 3',
-      'Cue 3 Label "Reggae"'
-    ]);
-    expect(structured?.commandsSent).toEqual([
-      'Chan 1 Thru 10 At Full',
-      'Record Cue 3',
-      'Cue 3 Label "Reggae"'
-    ]);
+  test.each([{intensity_factor:0.8},{warmify:true},{desaturate:true}])('rejects unimplemented transformations before writes: %j', async flags=>{
+    await expect(runTool(update,{...target,...confirmed,intensity:50,...flags})).rejects.toThrow('indisponible');expect(peer.sent).toEqual([]);
   });
-
-  it('genere commands_preview en dry run pour create_cue_series et fallback master cuelist', async () => {
-    const result = await runTool(eosWorkflowCreateCueSeriesTool, {
-      looks: [
-        { channels: '7', cue_label: 'Solo' },
-        { channels: '8', color_palette: 12 }
-      ],
-      dry_run: true
-    });
-
-    expect(service.sentMessages).toHaveLength(0);
-    const structured = getStructuredContent(result);
-    expect(structured?.status).toBe('ok');
-    expect(structured?.commands_preview).toEqual([
-      'Chan 7',
-      'Record Cue 1',
-      'Cue 1 Label "Solo"',
-      'Chan 8',
-      'CP 12',
-      'Record Cue 2'
-    ]);
-    expect(structured?.executedSteps).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        step: 'default_base_cuelist_number',
-        detail: 'base_cuelist_number absent: utilisation automatique de la cuelist master.'
-      }),
-      expect.objectContaining({
-        step: 'default_start_cue_number',
-        detail: 'start_cue_number absent: valeur par defaut 1 appliquee automatiquement.'
-      }),
-      expect.objectContaining({
-        step: 'look_1_default_cue_number',
-        detail: 'cue_number absent: auto-increment applique avec la valeur 1.'
-      })
-    ]));
+  test('patch wrapper preserves omitted XYZ and exposes no invented fixture profile', async () => {
+    const result=await runTool(patch,{channel_number:101,dmx_address:'2/1',device_type:'Dimmer',label:'Face',dry_run:true});
+    expect(result.structuredContent).toMatchObject({status:'dry_run',verified:false,commandsSent:[]});expect(peer.sent).toEqual([]);
+    expect(JSON.stringify(result.structuredContent?.commands_preview)).not.toContain('augment3d');
   });
-
-  it('autorise un cue_number ponctuel dans create_cue_series puis reprend l auto-increment', async () => {
-    const result = await runTool(eosWorkflowCreateCueSeriesTool, {
-      start_cue_number: 10,
-      looks: [
-        { channels: '1', cue_number: 20, cue_label: 'Jump' },
-        { channels: '2', cue_label: 'Next' }
-      ],
-      dry_run: true
-    });
-
-    const structured = getStructuredContent(result);
-    expect(structured?.commands_preview).toEqual([
-      'Chan 1',
-      'Record Cue 20',
-      'Cue 20 Label "Jump"',
-      'Chan 2',
-      'Record Cue 21',
-      'Cue 21 Label "Next"'
-    ]);
-    expect(structured?.executedSteps).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        step: 'look_2_default_cue_number',
-        detail: 'cue_number absent: auto-increment applique avec la valeur 21.'
-      })
-    ]));
+  test('preparation wrapper previews selective groups and submasters', async () => {
+    const result=await runTool(prepare,{dry_run:true,groups:[{number:5,label:'Faces',channels:'101'}],submasters:[{number:6,label:'Faces',channels:'101',level:75}]});
+    expect(result.structuredContent).toMatchObject({status:'dry_run',verified:false,commandsSent:[]});expect(peer.sent).toEqual([]);
   });
-
-  it('orchestre eos_workflow_patch_fixture avec position 3D par defaut', async () => {
-    const result = await runTool(eosWorkflowPatchFixtureTool, {
-      channel_number: 201,
-      dmx_address: '2/101',
-      device_type: 'LED Wash',
-      label: 'Contre',
-      require_confirmation: true
-    });
-
-    expect(service.sentMessages).toHaveLength(5);
-    const structured = getStructuredContent(result);
-    expect(structured?.status).toBe('ok');
-    expect(structured?.commandsSent).toEqual([
-      'Patch Chan 201 Part 1 Address 2/101 Type "LED Wash"',
-      'Chan 201 Part 1 Label "Contre"',
-      'Chan 201 Part 1 Position X 0 Y 0 Z 0'
-    ]);
+  test('patch scan preview emits no query', async () => {
+    const result=await runTool(scan,{start_channel:1,end_channel:10,dry_run:true});
+    expect(result.structuredContent?.dry_run).toBe(true);expect(peer.sent).toEqual([]);
   });
-
-  it('genere commands_preview en dry run pour patch_fixture', async () => {
-    const result = await runTool(eosWorkflowPatchFixtureTool, {
-      channel_number: 201,
-      dmx_address: '2/101',
-      device_type: 'LED Wash',
-      label: 'Contre',
-      dry_run: true
-    });
-
-    expect(service.sentMessages).toHaveLength(0);
-    const structured = getStructuredContent(result);
-    expect(structured?.commandsSent).toEqual([]);
-    expect(structured?.commands_preview).toEqual([
-      'Patch Chan 201 Part 1 Address 2/101 Type "LED Wash"',
-      'Chan 201 Part 1 Label "Contre"',
-      'Chan 201 Part 1 Position X 0 Y 0 Z 0'
-    ]);
+  test('patch scan stops on failure and never reports unanswered channels as valid', async () => {
+    const result=await runTool(scan,{start_channel:1,end_channel:5,timeoutMs:50,max_concurrency:1,rate_limit_ms:0,continue_on_error:false});
+    expect(result.structuredContent).toMatchObject({status:'partial_failure',scan:{processed:1,failures:1,aborted:true}});
+    expect(peer.sent).toEqual([{address:'/eos/get/patch/1/1',args:[]}]);
   });
-
-
-  it('bloque rehearsal_go_safe si la ligne de commande est non vide', async () => {
-    service.commandLineText = 'Chan 1 At Full';
-
-    const result = await runTool(eosWorkflowRehearsalGoSafeTool, {
-      cuelist_number: 1,
-      require_confirmation: true
-    });
-
-    const structured = getStructuredContent(result);
-    expect(structured?.status).toBe('failed');
-    expect(structured?.commandsSent).toEqual([]);
-  });
-
-
-  it('refuse rollback_cuelist_number sans rollback_cue_number', async () => {
-    await expect(
-      runTool(eosWorkflowRehearsalGoSafeTool, {
-        cuelist_number: 1,
-        rollback_on_failure: true,
-        rollback_cuelist_number: 2
-      })
-    ).rejects.toThrow('rollback_cue_number est obligatoire si rollback_cuelist_number est fourni');
-  });
-
-  it('applique rollback optionnel lors dun echec du go', async () => {
-    service.failAtSendIndex = 2;
-
-    const result = await runTool(eosWorkflowRehearsalGoSafeTool, {
-      cuelist_number: 1,
-      cue_number: 15,
-      rollback_on_failure: true,
-      rollback_cue_number: 10,
-      require_confirmation: true
-    });
-
-    const structured = getStructuredContent(result);
-    expect(structured?.status).toBe('partial_failure');
-    expect(structured?.commandsSent).toEqual(['Go To Cue 1/15', 'Go To Cue 10']);
-  });
-
-  it('genere commands_preview en dry run pour rehearsal_go_safe sans precheck OSC', async () => {
-    service.commandLineText = 'Chan 1 At Full';
-
-    const result = await runTool(eosWorkflowRehearsalGoSafeTool, {
-      cuelist_number: 1,
-      cue_number: 15,
-      rollback_on_failure: true,
-      rollback_cue_number: 10,
-      dry_run: true
-    });
-
-    expect(service.sentMessages).toHaveLength(0);
-    const structured = getStructuredContent(result);
-    expect(structured?.status).toBe('ok');
-    expect(structured?.commandsSent).toEqual([]);
-    expect(structured?.commands_preview).toEqual(['Go To Cue 1/15', 'Go To Cue 10']);
-  });
-
-
-  it('genere commands_preview en dry run pour autopatch band', async () => {
-    const result = await runTool(eosWorkflowAutopatchBandTool, {
-      fixtures: [
-        {
-          count: 2,
-          fixture_query: 'Spica',
-          universe: 2,
-          start_address: 101,
-          label_prefix: 'Wash'
-        }
-      ],
-      dry_run: true
-    });
-
-    expect(service.sentMessages).toHaveLength(0);
-    const structured = getStructuredContent(result);
-    expect(Array.isArray(structured?.commands_preview)).toBe(true);
-    expect(structured?.fixture_logs).toHaveLength(2);
-    expect(structured?.status).toBe('partial_failure');
-  });
-
-  it('orchestre eos_workflow_build_groups_and_palettes avec blocs partiels', async () => {
-    const result = await runTool(eosWorkflowBuildGroupsAndPalettesTool, {
-      groups: [{ number: 1, label: 'Face', channels: '1 Thru 4' }],
-      focus_palettes: [{ number: 2, label: 'Down', channels: '1 Thru 4', description: 'Pan 50 Tilt 30' }],
-      require_confirmation: true
-    });
-
-    const structured = getStructuredContent(result);
-    expect(structured?.status).toBe('ok');
-    expect(structured?.commandsSent).toEqual([
-      'Chan 1 Thru 4 Record Group 1',
-      'Group 1 Label "Face"',
-      'Chan 1 Thru 4',
-      'Pan 50 Tilt 30',
-      'Record FP 2',
-      'FP 2 Label "Down"'
-    ]);
-  });
-
-
-  it('retourne partial_failure pour build_groups_and_palettes si Record CP est non verifie', async () => {
-    service.suppressCommandLineReply = true;
-
-    const result = await runTool(eosWorkflowBuildGroupsAndPalettesTool, {
-      color_palettes: [{ number: 10, label: 'Warm', channels: '5', hue: 'Amber' }],
-      require_confirmation: true,
-      verification_timeout_ms: 10
-    });
-
-    const structured = getStructuredContent(result);
-    expect(structured?.status).toBe('partial_failure');
-    expect(structured?.partialErrors).toEqual(expect.arrayContaining([
-      expect.objectContaining({ step: 'cp_10_record', error: 'commande envoyée mais non vérifiée dans EOS' })
-    ]));
-    expect(structured?.warnings).toEqual(expect.arrayContaining([
-      expect.objectContaining({ step: 'cp_10_record', detail: 'commande envoyée mais non vérifiée dans EOS' })
-    ]));
-    expect(structured?.executedSteps).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        step: 'cp_10_record',
-        status: 'error',
-        command: 'Record CP 10',
-        detail: 'verification_after_send_failed'
-      })
-    ]));
-  });
-
-  it('genere commands_preview en dry run pour build_groups_and_palettes', async () => {
-    const result = await runTool(eosWorkflowBuildGroupsAndPalettesTool, {
-      color_palettes: [{ number: 10, label: 'Warm', channels: '5', hue: 0, saturation: 45 }],
-      dry_run: true
-    });
-
-    expect(service.sentMessages).toHaveLength(0);
-    const structured = getStructuredContent(result);
-    expect(structured?.commands_preview).toEqual([
-      'Chan 5',
-      'Hue 0',
-      'Saturation 45',
-      'Record CP 10',
-      'CP 10 Label "Warm"'
-    ]);
-  });
-
-  it('orchestre eos_workflow_update_cue_look avec go-to + update', async () => {
-    const result = await runTool(eosWorkflowUpdateCueLookTool, {
-      cuelist_number: 4,
-      cue_number: 12,
-      channels: '1 Thru 5',
-      intensity_factor: 0.8,
-      require_confirmation: true
-    });
-
-    const structured = getStructuredContent(result);
-    expect(structured?.status).toBe('ok');
-    expect(structured?.commandsSent).toEqual([
-      'Go To Cue 4/12',
-      'Chan 1 Thru 5',
-      'At * 0.8',
-      'Update Cue 4/12'
-    ]);
-  });
-
-  it('genere commands_preview en dry run pour update_cue_look', async () => {
-    const result = await runTool(eosWorkflowUpdateCueLookTool, {
-      channels: '9',
-      desaturate: true,
-      warmify: true,
-      dry_run: true
-    });
-
-    expect(service.sentMessages).toHaveLength(0);
-    const structured = getStructuredContent(result);
-    expect(structured?.commands_preview).toEqual([
-      'Chan 9',
-      'Update Cue'
-    ]);
-    expect(structured?.executedSteps).toEqual(expect.arrayContaining([
-      expect.objectContaining({ step: 'apply_desaturate', status: 'skipped' }),
-      expect.objectContaining({ step: 'apply_warmify', status: 'skipped' })
-    ]));
-    expect(structured?.executedSteps).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        step: 'default_cue_number',
-        detail: 'cue_number absent: modification appliquee a la cue courante via Update Cue.'
-      })
-    ]));
-  });
-
-  it('applique le fallback cuelist master dans update_cue_look quand seule la cue est fournie', async () => {
-    const result = await runTool(eosWorkflowUpdateCueLookTool, {
-      cue_number: 5,
-      channels: '9',
-      dry_run: true
-    });
-
-    const structured = getStructuredContent(result);
-    expect(structured?.commands_preview).toEqual([
-      'Go To Cue 5',
-      'Chan 9',
-      'Update Cue 5'
-    ]);
-    expect(structured?.executedSteps).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        step: 'default_cuelist_number',
-        detail: 'cuelist_number absent: utilisation automatique de la cuelist master pour la cue cible.'
-      })
-    ]));
+  test('patch scan bounds ranges as well as explicit channel arrays', async () => {
+    await expect(runTool(scan,{start_channel:1,end_channel:1001,dry_run:true})).rejects.toThrow('1000');
+    expect(peer.sent).toEqual([]);
   });
 });

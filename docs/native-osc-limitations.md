@@ -13,6 +13,21 @@ The default MCP catalogue no longer advertises these three unimplemented operati
 Their TypeScript exports remain explicit `unsupported` responses for compatibility
 with direct imports; neither dry-run nor confirmation causes console traffic.
 
+Cue preparation requires an explicit `cuelist_number` (`base_cuelist_number` for
+a series). All target cue numbers are validated and checked as unused before any
+write. Missing replies are not proof that a target is free. Labels use native
+`/eos/set/cue/<list>/<cue>/label` string arguments and are read back; they never
+enter the console command line. Existing cue contents and rendered output still
+require inspection in Eos.
+
+`eos_workflow_update_cue_look` requires an explicit list, cue and absolute
+`intensity` (0–100). It recalls the cue, changes the selected channels and updates
+that cue, so it affects live output. The former `intensity_factor`, `warmify` and
+`desaturate` operations are rejected before writing; their requested changes must
+not be silently skipped. Rehearsal GO uses the native cue-list or cue fire path,
+including any explicitly requested rollback. A successful transport send does
+not establish that playback reached the desired lighting state.
+
 Sources: [ETC effect programming examples](https://support.etcconnect.com/ETC/Consoles/Eos_Family/Software_and_Programming/Common_Effects_and_How_to_Program_Them_on_an_Eos_Family_Console),
 [OSC Dictionary](https://www.etcconnect.com/WebDocs/Controls/EosFamilyOnlineHelp/en/Content/23_Show_Control/08_OSC/OSC_Dictionary.htm),
 [OSC Get](https://www.etcconnect.com/WebDocs/Controls/EosFamilyOnlineHelp/en/Content/23_Show_Control/08_OSC/Using_OSC_with_Eos/OSC_Third-Party_Integration/OSC_Get.htm).

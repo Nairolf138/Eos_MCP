@@ -53,6 +53,7 @@ function resolveChannels(options: z.infer<z.ZodObject<typeof patchScanInputSchem
   if (options.end_channel < options.start_channel) {
     throw new Error('end_channel doit etre superieur ou egal a start_channel.');
   }
+  if (options.end_channel - options.start_channel + 1 > 1000) throw new Error('Limiter chaque scan a 1000 canaux.');
 
   const channels: number[] = [];
   for (let channel = options.start_channel; channel <= options.end_channel; channel += 1) {
@@ -86,7 +87,7 @@ export const eosWorkflowPatchScanTool: ToolDefinition<typeof patchScanInputSchem
     inputSchema: patchScanInputSchema
   },
   handler: async (args) => {
-    const schema = z.object(patchScanInputSchema).passthrough();
+    const schema = z.object(patchScanInputSchema).strict();
     const options = schema.parse(args ?? {});
     const requestedChannels = resolveChannels(options);
     const partNumber = partNumberFromMode(options.part_mode);
@@ -134,7 +135,9 @@ export const eosWorkflowPatchScanTool: ToolDefinition<typeof patchScanInputSchem
         text: `Dry run patch scan genere pour ${requestedChannels.length} canal(aux).`,
         structuredContent: {
           workflow: 'eos_workflow_patch_scan',
-          status: 'ok',
+          status: 'dry_run',
+          dry_run: true,
+          verified: false,
           steps: results.map((entry) => ({ step: `scan_channel_${entry.channel.channel_number}`, status: entry.status, detail: 'dry_run' })),
           executedSteps: results.map((entry) => ({ step: `scan_channel_${entry.channel.channel_number}`, status: entry.status, detail: 'dry_run' })),
           applied_defaults: [],

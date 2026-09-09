@@ -47,8 +47,8 @@ historical, not results for this batch.
 
 Next work:
 
-1. Complete remaining ETC semantics: safe cue
-   workflow labels; completeness of passive wheel/softkey and patch information.
+1. Finish native command verification: an existing cue alone must not acknowledge
+   a new Record; migrate remaining command and registry tests.
 2. Finish completeness and published-schema/readback checks, including passive
    observations, multipart patch data and submaster contents limitations.
 3. Migrate remaining fictional JSON wire fixtures and obsolete command/user/role
@@ -88,6 +88,23 @@ control), TypeScript and lint on changed code passed. Whole-suite results have n
 been recomputed; old effect-creation scenarios and discovery snapshots still need
 migration. Next: deterministic cue workflows, native label writes and bounded
 readbacks, then command/registry tests and final documentation/regression gates.
+
+Completed batch after `a1ff67a`: cue workflows require explicit lists and validate
+the whole series before writes, refuse occupied/unknown targets, use native label
+setters and bounded cue/label readbacks, and stop after a failed step. Labels are
+never interpolated into CLI. Simulations consistently return `dry_run` and no
+sent commands. Rehearsal GO/rollback use native fire paths. Cue update requires
+absolute `intensity`; unimplemented relative/artistic transforms fail before OSC.
+Patch scan is read-only, bounds ranges to 1000 channels, rejects unknown arguments
+and reports simulations explicitly. Replaced its and cue workflows' fictional
+JSON wire fixtures with synthetic typed native replies, retaining failure coverage.
+
+Validation: **54/54 tests passed in three suites** (29 exported workflow scenarios,
+19 native preparation cases, 6 SDK/HTTP E2E), **TypeScript and global ESLint passed**.
+Next: generic command acceptance must use fresh feedback instead of cue existence;
+finish command/programming/registry legacy tests, passive and multipart readback
+completeness, generated/reference documentation and contract snapshots. Then run
+the full contributor gate. No merge: whole-repository regression is not yet green.
 
 Primary reference: [ETC OSC Dictionary](https://www.etcconnect.com/WebDocs/Controls/EosFamilyOnlineHelp/en/Content/23_Show_Control/08_OSC/OSC_Dictionary.htm)
 and [ETC OSC Get](https://www.etcconnect.com/WebDocs/Controls/EosFamilyOnlineHelp/en/Content/23_Show_Control/08_OSC/Using_OSC_with_Eos/OSC_Third-Party_Integration/OSC_Get.htm).
