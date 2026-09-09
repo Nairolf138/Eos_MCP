@@ -50,6 +50,10 @@ export function buildCueGoAddress(cuelistNumber: number): string {
   return `/eos/cues/${encodeTrimmedOscPathSegment(cuelistNumber)}/fire`;
 }
 
+export function buildUserCommandAddress(address: string, user?: number | null): string {
+  return user == null ? address : address.replace('/eos/', `/eos/user/${user}/`);
+}
+
 export function buildCueSelectAddress(cuelistNumber?: number | null, cueNumber?: string | number | null): string {
   if (cueNumber != null && cuelistNumber == null) throw new Error('Liste explicite requise pour selectionner une part.');
   return cuelistNumber == null ? '/eos/cue' : `/eos/cue/${encodeTrimmedOscPathSegment(cuelistNumber)}${cueNumber != null ? `/${encodeTrimmedOscPathSegment(cueNumber)}` : ''}`;

@@ -2,6 +2,7 @@
  * Copyright 2026 Florian Ribes (NairolfConcept)
  * SPDX-License-Identifier: Apache-2.0
  */
+import { frame, nativeObject } from '../../../services/osc/__tests__/fixtures/nativePeer';
 import type { OscMessage } from '../../../services/osc/index';
 import { OscClient, setOscClient, type OscGateway, type OscGatewaySendOptions } from '../../../services/osc/client';
 import {
@@ -71,7 +72,7 @@ describe('command tools', () => {
     expect(structured).toMatchObject({
       action: 'command',
       dry_run: true,
-      osc: { address: '/eos/cmd' },
+      osc: { address: '/eos/user/3/cmd' },
       cli: { text: 'Go To Cue 9' }
     });
   });
@@ -118,7 +119,7 @@ describe('command tools', () => {
     });
     const structured = getStructuredContent(result);
 
-    expect(service.sentMessages.map((message) => message.address)).toEqual(['/eos/cmd', '/eos/get/cue/{cuelist}/index/{index}']);
+    expect(service.sentMessages.map((message) => message.address)).toEqual(['/eos/cmd']);
     expect(structured).toMatchObject({
       status: 'partial_failure',
       sent_to_transport: true,
@@ -126,18 +127,18 @@ describe('command tools', () => {
       verified: false,
       verification: {
         status: 'not_verified',
-        method: 'eos_cue_list_all',
+        method: 'fresh_eos_command_line',
         warning: 'commande envoyée mais non vérifiée dans EOS'
       }
     });
   });
 
-  it('active la verification par defaut pour une commande sensible quand la lecture JSON est confirmee', async () => {
+  it('active la verification par defaut pour une commande sensible quand la lecture OSC native est confirmee', async () => {
     const probe = client.probeCapabilities({ timeoutMs: 20 });
     queueMicrotask(() => {
       service.emit({
-        address: '/eos/get/version',
-        args: [{ type: 's', value: JSON.stringify({ version: '3.2.10' }) }]
+        address: '/eos/out/get/version',
+        args: [{ type: 's', value: '3.2.10' }, {type:'s',value:'Fixture Library'}, {type:'F',value:false}]
       });
     });
     await probe;
@@ -150,12 +151,12 @@ describe('command tools', () => {
     });
     const structured = getStructuredContent(result);
 
-    expect(service.sentMessages.map((message) => message.address)).toEqual(['/eos/cmd', '/eos/get/cue/{cuelist}/index/{index}']);
+    expect(service.sentMessages.map((message) => message.address)).toEqual(['/eos/cmd']);
     expect(structured).toMatchObject({
       status: 'partial_failure',
       verification: {
         status: 'not_verified',
-        method: 'eos_cue_list_all'
+        method: 'fresh_eos_command_line'
       }
     });
   });
@@ -178,7 +179,7 @@ describe('command tools', () => {
       verification: {
         status: 'skipped',
         details: {
-          reason: 'json_read_unavailable'
+          reason: 'native_read_unavailable'
         }
       }
     });
@@ -194,15 +195,7 @@ describe('command tools', () => {
   it('envoie une commande en respectant le terminateur', async () => {
     const result = await runTool(eosCommandTool, { command: 'Go To Cue 1', terminateWithEnter: true, user: 2, confirm: true });
 
-    expect(service.sentMessages).toHaveLength(2);
-    expect(service.sentMessages[0]).toMatchObject({
-      address: '/eos/user',
-      args: [{ type: 'i', value: 2 }]
-    });
-    expect(service.sentMessages[1]).toMatchObject({
-      address: '/eos/cmd',
-      args: [{ type: 's', value: 'Go To Cue 1#' }]
-    });
+    expect(service.sentMessages).toEqual([{address:'/eos/user/2/cmd',args:[{type:'s',value:'Go To Cue 1#'}]}]);
 
     expect(getStructuredContent(result)).toBeDefined();
   });
@@ -258,9 +251,9 @@ describe('command tools', () => {
 
     expect(service.sentMessages).toHaveLength(3);
     expect(service.sentMessages.map((message) => message.args?.[0]?.value)).toEqual([
-      'Chan 1 Thru 10 At Full',
-      'Record Cue 3',
-      'Cue 3 Label "Reggae"'
+      'Chan 1 Thru 10 At Full#',
+      'Record Cue 3#',
+      'Cue 3 Label "Reggae"#'
     ]);
   });
 
@@ -293,44 +286,18 @@ describe('command tools', () => {
     });
   });
 
-  it('recupere la ligne de commande et decode le numero utilisateur', async () => {
-    const promise = runTool(eosGetCommandLineTool, { user: 4 });
-
-    queueMicrotask(() => {
-      service.emit({
-        address: '/eos/out/user/{number}/cmd',
-        args: [
-          {
-            type: 's',
-            value: JSON.stringify({ text: 'Chan 1 At 50', user: 'User 4' })
-          }
-        ]
-      });
-    });
-
-    const result = await promise;
-    const structuredContent = getStructuredContent(result);
-
-    expect(structuredContent).toBeDefined();
-    if (!structuredContent) {
-      throw new Error('Expected structured content');
-    }
-    expect(structuredContent).toMatchObject({
-      status: 'ok',
-      text: 'Chan 1 At 50',
-      user: 4,
-      source: 'mcp_extension_get_cmd_line',
-      source_description: 'source extension MCP/simulateur /eos/get/cmd_line'
-    });
-
-    expect(result.content?.[0]?.text).toContain('source extension MCP/simulateur /eos/get/cmd_line');
-    expect(service.sentMessages[0]).toMatchObject({ address: '/eos/out/user/{number}/cmd' });
+  it('attend une diffusion native pour un utilisateur sans envoyer de requete', async () => {
+    const promise=runTool(eosGetCommandLineTool,{user:4});
+    queueMicrotask(()=>service.emit(frame('/eos/out/user/4/cmd',['Chan 1 At 50',0])));
+    const result=await promise;
+    expect(result.structuredContent).toMatchObject({status:'ok',text:'Chan 1 At 50',user:4,source:'official_osc_out',command_error:false});
+    expect(service.sentMessages).toEqual([]);
   });
 
   it('indique la source officielle lorsque la ligne de commande vient de /eos/out/user/<number>/cmd', async () => {
     service.emit({
       address: '/eos/out/user/4/cmd',
-      args: [{ type: 's', value: 'Chan 4 At 80' }]
+      args: [{ type: 's', value: 'Chan 4 At 80' }, {type:'i',value:0}]
     });
 
     const result = await runTool(eosGetCommandLineTool, { user: 4 });
@@ -352,19 +319,11 @@ describe('command tools', () => {
 
     await runTool(eosCommandTool, { command: 'Go', terminateWithEnter: true, confirm: true });
 
-    expect(service.sentMessages).toHaveLength(2);
-    expect(service.sentMessages[0]).toMatchObject({
-      address: '/eos/user',
-      args: [{ type: 'i', value: 6 }]
-    });
-    expect(service.sentMessages[1]).toMatchObject({
-      address: '/eos/cmd',
-      args: [{ type: 's', value: 'Go#' }]
-    });
+    expect(service.sentMessages).toEqual([{address:'/eos/user/6/cmd',args:[{type:'s',value:'Go#'}]}]);
   });
 
   it('autorise les commandes patch en mode standard', async () => {
-    await runTool(eosCommandTool, { command: 'Patch 101 Enter', safety_level: 'standard' });
+    await runTool(eosCommandTool, { command: 'Patch 101 Enter', safety_level: 'standard', require_confirmation: true });
 
     expect(service.sentMessages).toHaveLength(1);
     expect(service.sentMessages[0]?.address).toBe('/eos/cmd');
@@ -391,47 +350,26 @@ describe('command tools', () => {
     );
   });
 
-  it('permet des interactions multi-utilisateurs pour la recuperation de ligne de commande', async () => {
-    setCurrentUserId(2);
-    const firstPromise = runTool(eosGetCommandLineTool, {});
+  it('separe les retours de deux utilisateurs sans changer l utilisateur global de la console', async () => {
+    const first=runTool(eosGetCommandLineTool,{user:2});
+    const second=runTool(eosGetCommandLineTool,{user:5});
+    service.emit(frame('/eos/out/user/5/cmd',['User 5 Cmd',0]));
+    service.emit(frame('/eos/out/user/2/cmd',['User 2 Cmd',1]));
+    expect((await first).structuredContent).toMatchObject({user:2,text:'User 2 Cmd',command_error:true});
+    expect((await second).structuredContent).toMatchObject({user:5,text:'User 5 Cmd',command_error:false});
+    expect(service.sentMessages).toEqual([]);
+  });
 
-    queueMicrotask(() => {
-      const [first] = service.sentMessages;
-      const firstPayload = first?.args?.[0]?.value as string;
-      expect(JSON.parse(firstPayload)).toEqual({ user: 2 });
-
-      service.emit({
-        address: '/eos/out/user/{number}/cmd',
-        args: [
-          {
-            type: 's',
-            value: JSON.stringify({ text: 'User 2 Cmd', user: 'User 2' })
-          }
-        ]
-      });
-    });
-
-    await firstPromise;
-
-    setCurrentUserId(5);
-    const secondPromise = runTool(eosGetCommandLineTool, {});
-
-    queueMicrotask(() => {
-      const [, second] = service.sentMessages;
-      const secondPayload = second?.args?.[0]?.value as string;
-      expect(JSON.parse(secondPayload)).toEqual({ user: 5 });
-
-      service.emit({
-        address: '/eos/out/user/{number}/cmd',
-        args: [
-          {
-            type: 's',
-            value: JSON.stringify({ text: 'User 5 Cmd', user: 'User 5' })
-          }
-        ]
-      });
-    });
-
-    await secondPromise;
+  it.each(['stale','wrong_user','existing_cue','error','fresh'])('Record acknowledgement requires fresh matching feedback: %s', async mode=>{
+    const command='Record Cue 2/10#';
+    if(mode==='stale')service.emit(frame('/eos/out/user/3/cmd',[command,0]));
+    service.send=async message=>{
+      service.sentMessages.push(message);
+      if(mode==='existing_cue')for(const response of nativeObject('cue',10,-1,'Already there',2))service.emit(response);
+      else if(mode!=='stale')service.emit(frame(`/eos/out/user/${mode==='wrong_user'?4:3}/cmd`,[command,mode==='error'?1:0]));
+    };
+    const result=await runTool(eosNewCommandTool,{command,user:3,require_confirmation:true,verify_after_send:true,verification_timeout_ms:15});
+    expect(result.structuredContent).toMatchObject({verified:false,accepted_by_eos:mode==='fresh'?true:mode==='error'?false:null,status:mode==='fresh'?'ok':'partial_failure'});
+    expect(service.sentMessages).toHaveLength(1);
   });
 });

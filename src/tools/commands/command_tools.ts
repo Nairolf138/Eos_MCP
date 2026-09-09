@@ -4,7 +4,7 @@
  */
 import { z } from 'zod';
 import { getOscClient, type CommandLineState, type OscRuntimeCapabilities } from '../../services/osc/client';
-import { buildCueJsonMessage } from '../../services/osc/messageBuilders';
+import { buildUserCommandAddress } from '../../services/osc/addressBuilders';
 import { oscMappings } from '../../services/osc/mappings';
 import { userIdSchema } from '../../utils/validators';
 import { getCurrentUserId } from '../session/index';
@@ -17,9 +17,6 @@ import {
   type SafetyOptions
 } from '../common/safety';
 import { buildToolResult, withToolMetadata, type ToolDefinition, type ToolExecutionResult } from '../types';
-import { buildCueCommandPayload, createCueIdentifierFromOptions, formatCueDescription } from '../cues/common';
-import { mapCueList } from '../cues/mappers';
-import type { CueIdentifier } from '../cues/types';
 import eosV3CommandProfile from './commandProfiles/eos-v3.json';
 
 type SubstitutionValue = string | number | boolean;
@@ -275,75 +272,6 @@ const manualRereadNextAction =
 const confirmStateNextAction =
   'Confirmer explicitement l etat EOS attendu avec un operateur avant d enchainer record/update/delete/patch.';
 
-function parseRecordCueIdentifier(command: string): CueIdentifier | null {
-  const normalized = command.replace(/#/g, ' ').replace(/\s+/g, ' ').trim();
-  const match = /(?:^|\s)Record\s+Cue\s+(?:(\d+)\s*\/\s*)?([^\s]+)(?:\s+Part\s+(\d+))?/i.exec(normalized);
-  if (!match) {
-    return null;
-  }
-
-  return createCueIdentifierFromOptions({
-    cuelist_number: match[1] != null ? Number(match[1]) : undefined,
-    cue_number: match[2],
-    cue_part: match[3] != null ? Number(match[3]) : undefined
-  });
-}
-
-function cueIdentifiersMatch(actual: CueIdentifier, expected: CueIdentifier): boolean {
-  const sameCue = actual.cueNumber != null && expected.cueNumber != null && String(actual.cueNumber) === String(expected.cueNumber);
-  const sameList = expected.cuelistNumber == null || actual.cuelistNumber == null || actual.cuelistNumber === expected.cuelistNumber;
-  const expectedPart = expected.cuePart ?? null;
-  const actualPart = actual.cuePart ?? null;
-  const samePart = expectedPart == null || expectedPart === actualPart;
-  return sameCue && sameList && samePart;
-}
-
-async function verifyRecordedCue(
-  command: string,
-  options: { targetAddress?: string; targetPort?: number; timeoutMs?: number }
-): Promise<CommandVerificationResult> {
-  const identifier = parseRecordCueIdentifier(command);
-  if (!identifier?.cueNumber) {
-    return {
-      status: 'not_verified',
-      accepted_by_eos: null,
-      verified: false,
-      method: 'eos_cue_list_all',
-      warning: unverifiedWarning,
-      details: { reason: 'record_cue_target_not_parsed' }
-    };
-  }
-
-  const client = getOscClient();
-  const payload = buildCueCommandPayload({
-    cuelistNumber: identifier.cuelistNumber,
-    cueNumber: null,
-    cuePart: null
-  });
-  const request = buildCueJsonMessage(oscMappings.cues.list, payload);
-  const response = await client.requestBuiltJson(request, {
-    targetAddress: options.targetAddress,
-    targetPort: options.targetPort,
-    timeoutMs: options.timeoutMs
-  });
-  const cues = response.status === 'ok' ? mapCueList(response.data, identifier) : [];
-  const found = cues.some((cue) => cueIdentifiersMatch(cue.identifier, identifier));
-
-  return {
-    status: found ? 'accepted' : 'not_verified',
-    accepted_by_eos: response.status === 'ok' ? found : null,
-    verified: false,
-    method: 'eos_cue_list_all',
-    ...(found ? {} : { warning: unverifiedWarning }),
-    details: {
-      status: response.status,
-      identifier,
-      cue_description: formatCueDescription(identifier),
-      ...(response.error ? { error: response.error } : {})
-    }
-  };
-}
-
 async function verifyCommandLineAccepted(
   options: { user?: number; targetAddress?: string; targetPort?: number; timeoutMs?: number; afterSequence?: number; expectedCommand?: string }
 ): Promise<CommandVerificationResult> {
@@ -363,12 +291,9 @@ async function verifyCommandLineAccepted(
 }
 
 async function verifySensitiveCommandAfterSend(
-  command: string,
+  _command: string,
   options: { user?: number; targetAddress?: string; targetPort?: number; timeoutMs?: number; afterSequence?: number; expectedCommand?: string }
 ): Promise<CommandVerificationResult> {
-  if (/\bRecord\s+Cue\b/i.test(command)) {
-    return verifyRecordedCue(command, options);
-  }
   return verifyCommandLineAccepted(options);
 }
 
@@ -395,7 +320,7 @@ function getRuntimeCapabilitiesSafe(): OscRuntimeCapabilities {
   return client.getRuntimeCapabilities?.() ?? {
     canReadJsonQueries: false,
     readJsonQueriesStatus: 'read_capability_unconfirmed',
-    reason: 'Client OSC de test ou legacy sans API de capacites de lecture JSON.'
+    reason: 'Client OSC de test ou legacy sans API de capacites de lecture OSC native.'
   };
 }
 
@@ -404,7 +329,7 @@ function buildSensitiveSkippedVerification(command: string, requestedVerifyAfter
   const readUnavailable = !capability.canReadJsonQueries;
   const warning = requestedVerifyAfterSend === false
     ? `${sensitiveUnverifiedWarning} Verification desactivee explicitement par verify_after_send=false.`
-    : `${sensitiveUnverifiedWarning} Lecture JSON EOS non disponible (${capability.readJsonQueriesStatus}).`;
+    : `${sensitiveUnverifiedWarning} Lecture OSC native EOS non disponible (${capability.readJsonQueriesStatus}).`;
   const nextActions = readUnavailable
     ? [manualRereadNextAction, confirmStateNextAction]
     : [confirmStateNextAction];
@@ -418,7 +343,7 @@ function buildSensitiveSkippedVerification(command: string, requestedVerifyAfter
     warnings: [warning],
     next_actions: nextActions,
     details: {
-      reason: requestedVerifyAfterSend === false ? 'verify_after_send_disabled' : 'json_read_unavailable',
+      reason: requestedVerifyAfterSend === false ? 'verify_after_send_disabled' : 'native_read_unavailable',
       command,
       runtime_capabilities: capability
     }
@@ -490,7 +415,7 @@ function formatSendResult(
       verified: verification?.verified ?? false,
       ...(verification ? { verification } : {}),
       osc: {
-        address: user === null ? oscAddress : oscAddress.replace('/eos/', `/eos/user/${user}/`),
+        address: buildUserCommandAddress(oscAddress, user),
         ...buildOscDescriptor(command, user)
       },
       cli: {
@@ -503,9 +428,7 @@ function formatSendResult(
 function formatCommandLineState(result: CommandLineState): ToolExecutionResult {
   const sourceLabel = result.source === 'official_osc_out'
     ? 'source officielle /eos/out/cmd ou /eos/out/user/<number>/cmd'
-    : result.source === 'mcp_extension_get_cmd_line'
-      ? 'source extension MCP/simulateur /eos/get/cmd_line'
-      : 'source inconnue';
+    : 'source inconnue';
   const text = result.status === 'ok'
     ? `Ligne de commande utilisateur ${result.user ?? 'global'} (${sourceLabel}): ${result.text}`
     : `Lecture de la ligne de commande indisponible (${result.status}, ${sourceLabel})`;
@@ -558,7 +481,7 @@ export async function sendDeterministicCommand(options: DeterministicCommandOpti
       text: `Commande simulee: ${command}`,
       action: shouldClear ? 'new_command' : 'command',
       request: { command, clearLine: shouldClear, user: user ?? null },
-      oscAddress: shouldClear ? oscMappings.commands.newCommand : oscMappings.commands.command,
+      oscAddress: buildUserCommandAddress(shouldClear ? oscMappings.commands.newCommand : oscMappings.commands.command, user),
       oscArgs: buildOscDescriptor(command, user ?? null).args,
       cli: { text: command }
     });
@@ -642,7 +565,7 @@ export const eosCommandTool: ToolDefinition<typeof commandInputSchema> = {
         text: `Commande simulee: ${command}`,
         action: 'command',
         request: { command, user: user ?? null },
-        oscAddress: oscMappings.commands.command,
+        oscAddress: buildUserCommandAddress(oscMappings.commands.command, user),
         oscArgs: buildOscDescriptor(command, user ?? null).args,
         cli: { text: command }
       });
@@ -769,7 +692,7 @@ export const eosCommandWithSubstitutionTool: ToolDefinition<typeof substitutionC
         text: `Commande simulee: ${command}`,
         action: 'command',
         request: { command, user: user ?? null },
-        oscAddress: oscMappings.commands.command,
+        oscAddress: buildUserCommandAddress(oscMappings.commands.command, user),
         oscArgs: buildOscDescriptor(command, user ?? null).args,
         cli: { text: command }
       });

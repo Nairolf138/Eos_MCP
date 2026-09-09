@@ -30,6 +30,7 @@ jest.mock('../logger.js', () => ({
 }));
 
 import { ToolRegistry } from '../toolRegistry';
+import { toolDefinitions } from '../../tools';
 
 const { __mockLogger: mockLogger } = jest.requireMock('../logger.js') as {
   __mockLogger: {
@@ -55,17 +56,20 @@ const createMockServer = (): McpServer & {
 };
 
 describe('ToolRegistry schema-less tools', () => {
+  const originalProfile = process.env.EOS_MCP_ALLOWED_TOOL_PROFILE;
   const originalReadOnly = process.env.EOS_READ_ONLY;
   const originalStrictMode = process.env.EOS_STRICT_MODE;
 
   beforeEach(() => {
     mockLogger.info.mockClear();
     mockLogger.warn.mockClear();
+    delete process.env.EOS_MCP_ALLOWED_TOOL_PROFILE;
     delete process.env.EOS_READ_ONLY;
     delete process.env.EOS_STRICT_MODE;
   });
 
   afterEach(() => {
+    if(originalProfile===undefined)delete process.env.EOS_MCP_ALLOWED_TOOL_PROFILE;else process.env.EOS_MCP_ALLOWED_TOOL_PROFILE=originalProfile;
     if (originalReadOnly === undefined) {
       delete process.env.EOS_READ_ONLY;
     } else {
@@ -76,6 +80,10 @@ describe('ToolRegistry schema-less tools', () => {
     } else {
       process.env.EOS_STRICT_MODE = originalStrictMode;
     }
+  });
+
+  it.each(['eos_magic_sheet_send_string','eos_cue_select','eos_cuelist_bank_create','eos_cuelist_bank_page','eos_magic_sheet_open','eos_pixmap_select','eos_curve_select','eos_toggle_staging_mode'])('does not advertise console action %s as read-only', name=>{
+    expect(toolDefinitions.find(tool=>tool.name===name)?.metadata).toMatchObject({readOnly:false,allowedInReadOnly:false,requiresConfirmation:true});
   });
 
   it('invokes handlers with undefined args while preserving extra', async () => {
@@ -167,6 +175,8 @@ describe('ToolRegistry schema-less tools', () => {
         annotations: { mapping: { osc: '/eos/cmd' } }
       },
       metadata: {
+        readOnly: false,
+        requiredRole: 'programming',
         category: 'commands',
         synonyms: ['cmd', 'ligne de commande'],
         riskLevel: 'show-modifying',
@@ -442,7 +452,7 @@ describe('ToolRegistry schema-less tools', () => {
     registry.register({
       name: 'eos_get_command_line',
       config: {
-        annotations: { mapping: { osc: '/eos/out/user/{number}/cmd' } }
+        annotations: { mapping: { osc: '/eos/get/cmd_line' } }
       },
       handler
     });
@@ -462,6 +472,7 @@ describe('ToolRegistry schema-less tools', () => {
   });
 
   it('refuse un outil sensible lorsque le profil accorde satisfait le profil requis mais que la confirmation manque', async () => {
+    process.env.EOS_MCP_ALLOWED_TOOL_PROFILE='admin';
     const server = createMockServer();
     const registry = new ToolRegistry(server);
     const handler = jest.fn(async () => ({ content: [{ type: 'text', text: 'ok' }] }));
@@ -491,6 +502,7 @@ describe('ToolRegistry schema-less tools', () => {
   });
 
   it('autorise un outil sensible avec confirm=true et retire l alias si le schema ne le declare pas', async () => {
+    process.env.EOS_MCP_ALLOWED_TOOL_PROFILE='admin';
     const server = createMockServer();
     const registry = new ToolRegistry(server);
     const handler = jest.fn(async () => ({ content: [{ type: 'text', text: 'ok' }] }));
@@ -519,33 +531,12 @@ describe('ToolRegistry schema-less tools', () => {
     });
   });
 
-  it('autorise un outil sensible lorsque le profil accorde est fourni dans les metadonnees MCP', async () => {
-    const server = createMockServer();
-    const registry = new ToolRegistry(server);
-    const handler = jest.fn(async () => ({ content: [{ type: 'text', text: 'ok' }] }));
-
-    registry.register({
-      name: 'eos_workflow_create_cue_series',
-      config: { inputSchema: { require_confirmation: z.boolean().optional() } },
-      handler
-    });
-
-    const [, , registeredHandler] = server.registerTool.mock.calls[0];
-
-    await expect(
-      (registeredHandler as RegisteredTestHandler)(
-        { require_confirmation: true },
-        { requestId: 'role-ok-meta', _meta: { grantedRole: 'admin' } }
-      )
-    ).resolves.toBeDefined();
-
-    expect(handler).toHaveBeenCalledTimes(1);
-    const [payload] = mockLogger.info.mock.calls[0] as [Record<string, unknown>];
-    expect(payload).toMatchObject({
-      required_role: 'admin',
-      granted_role: 'admin',
-      confirmation_state: 'confirmed'
-    });
+  it('refuse une elevation de profil fournie par les metadonnees MCP', async () => {
+    const server=createMockServer(); const registry=new ToolRegistry(server); const handler=jest.fn(async()=>({content:[]}));
+    registry.register({name:'eos_workflow_create_cue_series',config:{inputSchema:{require_confirmation:z.boolean().optional()}},handler});
+    const callback=server.registerTool.mock.calls[0][2] as RegisteredTestHandler;
+    await expect(callback({require_confirmation:true},{_meta:{grantedRole:'admin'}})).rejects.toThrow('profil accorde read_only');
+    expect(handler).not.toHaveBeenCalled();
   });
 
   it('journalise les champs minimaux d\'audit en succes', async () => {
@@ -640,6 +631,7 @@ describe('ToolRegistry schema-less tools', () => {
   });
 
   it('bloque un outil critique si le role requis est incompatible', async () => {
+    process.env.EOS_MCP_ALLOWED_TOOL_PROFILE='admin';
     const server = createMockServer();
     const registry = new ToolRegistry(server);
 
@@ -655,13 +647,14 @@ describe('ToolRegistry schema-less tools', () => {
 
     await expect(
       (registeredHandler as RegisteredTestHandler)(
-        { text: 'hello' },
+        { text: 'hello', confirm:true },
         { connection: { role: 'Secondary' } }
       )
     ).rejects.toThrow('incompatible avec le contexte EOS courant');
   });
 
   it('autorise un outil critique lorsque le contexte est compatible', async () => {
+    process.env.EOS_MCP_ALLOWED_TOOL_PROFILE='admin';
     const server = createMockServer();
     const registry = new ToolRegistry(server);
 
@@ -679,7 +672,7 @@ describe('ToolRegistry schema-less tools', () => {
 
     await expect(
       (registeredHandler as RegisteredTestHandler)(
-        { text: 'hello', eos_version: '3.2.0' },
+        { text: 'hello', confirm:true, eos_version: '3.2.0' },
         { connection: { role: 'Primary' } }
       )
     ).resolves.toBeDefined();

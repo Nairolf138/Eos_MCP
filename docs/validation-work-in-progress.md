@@ -47,8 +47,7 @@ historical, not results for this batch.
 
 Next work:
 
-1. Finish native command verification: an existing cue alone must not acknowledge
-   a new Record; migrate remaining command and registry tests.
+1. Finish completeness of passive wheel/softkey and multipart patch information.
 2. Finish completeness and published-schema/readback checks, including passive
    observations, multipart patch data and submaster contents limitations.
 3. Migrate remaining fictional JSON wire fixtures and obsolete command/user/role
@@ -105,6 +104,23 @@ Next: generic command acceptance must use fresh feedback instead of cue existenc
 finish command/programming/registry legacy tests, passive and multipart readback
 completeness, generated/reference documentation and contract snapshots. Then run
 the full contributor gate. No merge: whole-repository regression is not yet green.
+
+Completed batch after `e0edccb`: generic Record verification now uses fresh,
+matching user command feedback, like other commands. Existing cue data, stale
+feedback, another user's feedback and explicit Eos command errors cannot produce
+a positive acknowledgement; even acknowledged commands remain `verified:false`.
+Command previews include the atomic user address. Migrated command/programming
+fixtures and registry authorization tests; client metadata cannot grant a role
+above the configured ceiling. Corrected eight console UI/action tools previously
+misclassified as read-only, including magic-sheet Send_String.
+
+Validation: **74/74 tests passed in four suites**, confirmed by Jest JSON results
+(commands, registry, programming, address builders). **TypeScript and global ESLint
+passed**. The combined six-suite invocation produced no final summary, so it is
+not counted as a completed regression run. The last completed workflow/E2E run
+remains the 54-test run above. Next: passive/multipart read completeness; update
+manifest recommendations, tool documentation and legacy result/OSC snapshots;
+then the full unit, native conformance and SDK E2E gates with final summaries.
 
 Primary reference: [ETC OSC Dictionary](https://www.etcconnect.com/WebDocs/Controls/EosFamilyOnlineHelp/en/Content/23_Show_Control/08_OSC/OSC_Dictionary.htm)
 and [ETC OSC Get](https://www.etcconnect.com/WebDocs/Controls/EosFamilyOnlineHelp/en/Content/23_Show_Control/08_OSC/Using_OSC_with_Eos/OSC_Third-Party_Integration/OSC_Get.htm).

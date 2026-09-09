@@ -56,17 +56,14 @@ describe('programming tools', () => {
 
   it('envoie eos_cue_update et eos_cue_label_set avec labels echappes', async () => {
     await runTool(eosCueUpdateTool, { cue_number: '7' });
-    await runTool(eosCueLabelSetTool, { cue_number: '7', label: 'Intro "Blue"' });
+    await runTool(eosCueLabelSetTool, { cue_number: '7', cuelist_number: 2, label: 'Intro "Blue"' });
 
     expect(service.sentMessages).toHaveLength(2);
     expect(service.sentMessages[0]).toMatchObject({
       address: '/eos/newcmd',
       args: [{ type: 's', value: 'Update Cue 7#' }]
     });
-    expect(service.sentMessages[1]).toMatchObject({
-      address: '/eos/newcmd',
-      args: [{ type: 's', value: 'Cue 7 Label "Intro \\"Blue\\""#' }]
-    });
+    expect(service.sentMessages[1]).toMatchObject({address:'/eos/set/cue/2/7/label',args:[{type:'s',value:'Intro "Blue"'}]});
   });
 
   it('envoie eos_palette_record et eos_palette_label_set avec les prefixes palette', async () => {
@@ -76,32 +73,20 @@ describe('programming tools', () => {
     expect(service.sentMessages).toHaveLength(2);
     expect(service.sentMessages[0]).toMatchObject({
       address: '/eos/newcmd',
-      args: [{ type: 's', value: 'CP 8 Record#' }]
+      args: [{ type: 's', value: 'Record CP 8#' }]
     });
-    expect(service.sentMessages[1]).toMatchObject({
-      address: '/eos/newcmd',
-      args: [{ type: 's', value: 'BP 14 Label "Beam Tight"#' }]
-    });
+    expect(service.sentMessages[1]).toMatchObject({address:'/eos/set/bp/14/label',args:[{type:'s',value:'Beam Tight'}]});
   });
 
-  it('envoie eos_patch_set_channel avec part par defaut et label optionnel', async () => {
-    await runTool(eosPatchSetChannelTool, {
-      channel_number: 101,
-      dmx_address: '1/120',
-      device_type: 'ETC Source Four LED',
-      label: 'Face Cour'
-    });
-
-    expect(service.sentMessages).toHaveLength(1);
-    expect(service.sentMessages[0]).toMatchObject({
-      address: '/eos/newcmd',
-      args: [
-        {
-          type: 's',
-          value: 'Patch Chan 101 Part 1 Address 1/120 Type "ETC Source Four LED" Label "Face Cour"#'
-        }
-      ]
-    });
+  it('preview du patch dimmer via le meme preflight que le workflow', async () => {
+    const result=await runTool(eosPatchSetChannelTool,{channel_number:101,dmx_address:'1/120',device_type:'Dimmer',dry_run:true});
+    expect(result.structuredContent).toMatchObject({status:'dry_run',verified:false,commandsSent:[]});
+    expect(JSON.stringify(result.structuredContent?.commands_preview)).toContain('Address 120 At 101 Part 1');
+    expect(service.sentMessages).toEqual([]);
+  });
+  it('refuse de deviner l empreinte et le mode d un projecteur complexe avant OSC', async () => {
+    await expect(runTool(eosPatchSetChannelTool,{channel_number:101,dmx_address:'1/120',device_type:'ETC Source Four LED',require_confirmation:true,user:3})).rejects.toThrow('Empreinte');
+    expect(service.sentMessages).toEqual([]);
   });
 
   it('rejette les proprietes non declarees grace aux schemas stricts', async () => {
