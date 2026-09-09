@@ -47,6 +47,9 @@ describe('MCP HTTP end to end with native OSC replies',()=>{
   const catalog=await sdk.listTools();
   expect(catalog.tools.map(tool=>tool.name)).toContain('eos_submaster_record');
   expect(catalog.tools.find(tool=>tool.name==='eos_group_get_info')?.annotations?.readOnlyHint).toBe(true);
+  for (const tool of catalog.tools.filter(tool=>tool.annotations?.readOnlyHint)) {
+   expect(tool.annotations).toMatchObject({requiresConfirmation:false,defaultDryRun:false});
+  }
   const connect=await call('eos_connect');
   expect(connect.structuredContent).toMatchObject({status:'ok',handshake_mode:'native',selectedProtocol:'etc-osc'});
   for(const [name,args] of [
@@ -87,7 +90,10 @@ describe('MCP HTTP end to end with native OSC replies',()=>{
   const results=await Promise.all([3,4].map(user=>call('eos_new_command',{command:`Chan ${100+user} At 50`,terminateWithEnter:true,verify_after_send:false,safety_level:'off',confirm:true,user})));
   expect(results.every(result=>!result.isError)).toBe(true);
   const messages=writes().slice(before).map(entry=>entry.message);
-  expect(messages.map(message=>message.address)).toEqual(['/eos/user/3/newcmd','/eos/user/4/newcmd']);
+  expect(messages).toEqual(expect.arrayContaining([
+   expect.objectContaining({address:'/eos/user/3/newcmd',args:[{type:'s',value:'Chan 103 At 50#'}]}),
+   expect.objectContaining({address:'/eos/user/4/newcmd',args:[{type:'s',value:'Chan 104 At 50#'}]})
+  ]));
   expect(messages.map(message=>message.args?.length)).toEqual([1,1]);
  });
  test('submaster preparation can be inspected with no reads or writes',async()=>{

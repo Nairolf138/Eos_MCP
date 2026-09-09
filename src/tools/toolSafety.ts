@@ -149,10 +149,10 @@ export function classifyToolSafety(tool: ToolDefinition): ToolSafetyClassificati
   const requiredRole = resolveToolRequiredRole(tool);
   const readOnly = tool.metadata?.readOnly ?? requiredRole === 'read_only';
   const riskLevel = resolveRiskLevel(tool, readOnly, requiredRole);
-  const requiresConfirmation = tool.metadata?.requiresConfirmation ?? (!['read', 'preview'].includes(riskLevel));
+  const requiresConfirmation = !readOnly && (tool.metadata?.requiresConfirmation ?? (!['read', 'preview'].includes(riskLevel)));
   const allowedInReadOnly = tool.metadata?.allowedInReadOnly ?? (readOnly || riskLevel === 'preview');
   const allowedInStrictMode = resolveAllowedInStrictMode(tool);
-  const defaultDryRun = tool.metadata?.defaultDryRun ?? ['live', 'show-modifying', 'dangerous'].includes(riskLevel);
+  const defaultDryRun = !readOnly && (tool.metadata?.defaultDryRun ?? ['live', 'show-modifying', 'dangerous'].includes(riskLevel));
 
   return {
     riskLevel,

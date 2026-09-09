@@ -32,13 +32,26 @@ the concurrent-user test wrongly assumes arrival order). Last lint run: 43 unuse
 imports/helpers left by legacy fixture replacement; some were subsequently removed.
 These are unfinished results, not a successful regression gate.
 
+Latest completed batch (after recovered checkpoint `ef5693a`): read-only tools now
+publish consistent confirmation/dry-run metadata; patch reads no longer require
+confirmation. Simulations report `verified: false`, `sent_to_transport: false`,
+`accepted_by_eos: null` and a native message preview. Common published output
+schemas accept those fields. Concurrent-user E2E checks assert each user's exact
+address and command without assuming network arrival order.
+
+Batch validation: **68/68 tests passed** (6 real SDK/HTTP E2E + 62 native read
+schema tests), TypeScript and lint on the five changed source/test files passed.
+All three previously reported HTTP E2E failures are resolved. Full regression and
+repository-wide lint remain outstanding; older whole-suite counts above remain
+historical, not results for this batch.
+
 Next work:
 
-1. Fix the three HTTP MCP E2E failures above; validate safety metadata, dry-run
-   envelopes and actual published output schemas/readbacks.
-2. Complete remaining ETC semantics: cue fire without an explicit list/part;
+1. Complete remaining ETC semantics: cue fire without an explicit list/part;
    unsupported effect-creation CLI and setup send/receive-string tools; safe cue
    workflow labels; completeness of passive wheel/softkey and patch information.
+2. Finish completeness and published-schema/readback checks, including passive
+   observations, multipart patch data and submaster contents limitations.
 3. Migrate remaining fictional JSON wire fixtures and obsolete command/user/role
    expectations; clean unused test code and refresh reviewed contract snapshots.
    Preserve negative, transport and workflow coverage.

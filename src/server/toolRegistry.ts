@@ -425,6 +425,7 @@ function buildToolConfigForRegistration(tool: ToolDefinition): ToolDefinition['c
       request: z.unknown().optional(), exists: z.boolean().optional(), diagnostics: z.unknown().optional(),
       dry_run: z.boolean().optional(), commands_preview: z.array(z.string()).optional(),
       sent: z.boolean().optional(), accepted_by_eos: z.boolean().nullable().optional(), verified: z.boolean().optional(),
+      sent_to_transport: z.boolean().optional(), osc_preview: z.array(z.unknown()).optional(),
       next_actions: z.array(z.string()).optional(), observed_at: z.number().optional(),
       verification: z.unknown().optional(), warnings: z.array(z.union([z.string(), z.object({ detail: z.string(), code: z.string().optional() })])).optional()
       , ...baseConfig.outputSchema

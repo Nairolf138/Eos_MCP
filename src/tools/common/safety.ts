@@ -97,10 +97,13 @@ export function createDryRunResult(params: {
     text: `[dry_run] ${params.text}`,
     status: 'dry_run',
     summary: `[dry_run] ${params.text}`,
-    commands_preview: params.cli?.text ? [params.cli.text] : [],
+    commands_preview: params.cli?.text ? [params.cli.text] : [`${params.oscAddress} ${JSON.stringify(params.oscArgs)}`],
     structuredContent: {
       action: params.action,
       dry_run: true,
+      verified: false,
+      sent_to_transport: false,
+      accepted_by_eos: null,
       request: params.request,
       osc: {
         address: params.oscAddress,
