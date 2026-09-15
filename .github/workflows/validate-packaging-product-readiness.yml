@@ -1,0 +1,48 @@
+name: Validate packaging (product readiness)
+
+on:
+  push:
+    branches: [chore/product-readiness]
+  pull_request:
+    branches: [main]
+
+jobs:
+  package-smoke:
+    if: github.head_ref == 'chore/product-readiness' || github.ref_name == 'chore/product-readiness'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            script: package:linux
+            output: dist/bin/eos-mcp
+          - os: windows-latest
+            script: package:windows
+            output: dist/bin/eos-mcp.exe
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: chore/product-readiness
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify SPDX headers
+        run: npm run license:check
+
+      - name: Build packaged binary
+        run: npm run ${{ matrix.script }}
+
+      - name: Verify packaged output
+        shell: bash
+        run: test -f "${{ matrix.output }}"
