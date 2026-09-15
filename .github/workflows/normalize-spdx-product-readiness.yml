@@ -3,6 +3,8 @@ name: Normalize SPDX headers (product readiness)
 on:
   push:
     branches: [chore/product-readiness]
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: write
