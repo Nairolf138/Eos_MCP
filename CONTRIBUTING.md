@@ -32,31 +32,22 @@ Avant d'ouvrir une PR, vérifier :
 
 ## Contributor License Agreement (CLA)
 
-Pour sécuriser juridiquement une stratégie de dual licence/relicence, les contributions externes doivent être couvertes par un accord CLA traçable.
+Les contributions externes doivent être couvertes par l'[Eos MCP Individual Contributor License Agreement v1.0](CONTRIBUTOR_LICENSE_AGREEMENT.md). Le contributeur conserve la propriété de sa contribution et accorde à Florian Ribes (NairolfConcept) les droits nécessaires pour maintenir Eos MCP sous AGPL et proposer des licences commerciales distinctes.
 
-Référence : `CONTRIBUTOR_LICENSE_AGREEMENT.md`.
+Pour accepter le CLA, cochez dans la description de votre pull request la case exacte fournie par le template :
 
-### Exigence PR (obligatoire)
+`- [x] I have read and agree to the Eos MCP Individual Contributor License Agreement v1.0.`
 
-Ajouter **dans la description de la Pull Request** la mention exacte suivante :
+Le compte GitHub authentifié, la pull request et son horodatage constituent la trace d'acceptation. Le mainteneur peut demander un document signé séparément pour une contribution faite pour le compte d'un employeur ou d'une organisation.
 
-`I agree to CLA`
-
-Une vérification CI bloque la PR si cette mention est absente.
-
-### Signature traçable
-
-Deux mécanismes sont acceptés :
-
-- Bot CLA (recommandé) avec journal d'acceptation horodaté.
-- Signature manuelle conservée dans un registre interne traçable (signataire, date, version du CLA, périmètre couvert).
+Une contribution non couverte par le CLA peut être refusée. Pour une contribution d'entreprise, contactez **licensing@nairolfconcept.fr** avant de soumettre le code.
 
 ## Onboarding contributeurs (checkpoint licence)
 
 Lors de l'onboarding de tout nouveau contributeur :
 
 1. Présenter le cadre de licence du projet (AGPL-3.0-only + stratégie commerciale).
-2. Faire valider le CLA (`CONTRIBUTOR_LICENSE_AGREEMENT.md`) avant première contribution.
+2. Faire accepter le CLA avant la première contribution.
 3. Expliquer le checkpoint **License review** exigé dans chaque PR.
 
 ### Revue trimestrielle obligatoire

@@ -6,8 +6,10 @@ Décrivez brièvement le contexte et les changements.
 
 - [ ] Tests exécutés localement.
 - [ ] Documentation mise à jour si nécessaire.
-- [ ] `I agree to CLA` ajouté dans la description de la PR.
+- [ ] I have read and agree to the Eos MCP Individual Contributor License Agreement v1.0.
 - [ ] **License review** effectuée (nouvelles dépendances, nouveaux partenaires commerciaux, impacts de distribution AGPL/commerciale).
+
+> En cochant la case CLA, vous acceptez le [CLA v1.0](../CONTRIBUTOR_LICENSE_AGREEMENT.md) pour cette contribution et vos contributions futures, conformément à sa section 7.
 
 ## License review (checkpoint obligatoire)
 

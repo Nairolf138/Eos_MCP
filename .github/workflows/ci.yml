@@ -11,27 +11,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Verify CLA agreement in PR body
+      - name: Verify CLA acceptance in PR body
         env:
           EVENT_NAME: ${{ github.event_name }}
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
           if [ "${EVENT_NAME}" != "pull_request" ]; then
-            echo "Not a pull_request event, skipping CLA body verification."
+            echo "Not a pull_request event, skipping CLA verification."
             exit 0
           fi
 
-          if [ -z "${PR_BODY}" ]; then
-            echo "PR body is empty. Please add: I agree to CLA"
+          AGREEMENT='- [x] I have read and agree to the Eos MCP Individual Contributor License Agreement v1.0.'
+          if ! printf '%s\n' "${PR_BODY}" | grep -Fqi -- "${AGREEMENT}"; then
+            echo "CLA v1.0 has not been accepted. Check the CLA box in the pull request template."
             exit 1
           fi
 
-          if ! printf '%s' "${PR_BODY}" | grep -Fqi "I agree to CLA"; then
-            echo "Missing required CLA statement in PR body: I agree to CLA"
-            exit 1
-          fi
-
-          echo "CLA statement found in PR body."
+          echo "CLA v1.0 acceptance found in pull request body."
 
   build:
     runs-on: ubuntu-latest
@@ -45,6 +41,9 @@ jobs:
         with:
           node-version: 20
           cache: npm
+
+      - name: Install test system dependencies
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
 
       - name: Prepare log directory
         run: mkdir -p artifacts
