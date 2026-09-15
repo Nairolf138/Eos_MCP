@@ -1,6 +1,6 @@
 /*
  * Copyright 2026 Florian Ribes (NairolfConcept)
- * SPDX-License-Identifier: Apache-2.0
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
 import { frame, nativeObject } from '../../../services/osc/__tests__/fixtures/nativePeer';
 import type { OscMessage } from '../../../services/osc/index';

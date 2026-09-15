@@ -1,4 +1,4 @@
-name: Publier le binaire empaquete
+name: Publier les binaires empaquetes
 
 on:
   release:
@@ -9,23 +9,40 @@ permissions:
 
 jobs:
   package:
-    name: Construire et publier le binaire Linux
-    runs-on: ubuntu-latest
+    name: Construire ${{ matrix.asset_name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            package_script: package:linux
+            asset_path: dist/bin/eos-mcp
+            asset_name: eos-mcp-linux-x64
+          - os: windows-latest
+            package_script: package:windows
+            asset_path: dist/bin/eos-mcp.exe
+            asset_name: eos-mcp-windows-x64.exe
+
+    runs-on: ${{ matrix.os }}
+
     steps:
       - name: Recuperer le code
         uses: actions/checkout@v4
 
-      - name: Configurer Node.js
+      - name: Configurer Node.js pour le packaging
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Installer les dependances
         run: npm ci
 
+      - name: Verifier les licences
+        run: npm run license:check
+
       - name: Generer le binaire autonome
-        run: npm run package
+        run: npm run ${{ matrix.package_script }}
 
       - name: Joindre le binaire a la release
         uses: actions/upload-release-asset@v1
@@ -33,6 +50,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: dist/bin/eos-mcp
-          asset_name: eos-mcp-linux-x64
+          asset_path: ${{ matrix.asset_path }}
+          asset_name: ${{ matrix.asset_name }}
           asset_content_type: application/octet-stream

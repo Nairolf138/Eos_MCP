@@ -1,6 +1,6 @@
 /*
  * Copyright 2026 Florian Ribes (NairolfConcept)
- * SPDX-License-Identifier: Apache-2.0
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { createHttpGateway, type HttpGateway } from '../httpGateway';
