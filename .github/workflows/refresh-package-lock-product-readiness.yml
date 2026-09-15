@@ -1,0 +1,42 @@
+name: Refresh package lock (product readiness)
+
+on:
+  push:
+    branches: [chore/product-readiness]
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-lock:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: chore/product-readiness
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Refresh package-lock.json
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Commit lockfile update
+        shell: bash
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            echo "package-lock.json is already synchronized."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "build: refresh lockfile for yao-pkg"
+          git push origin HEAD:chore/product-readiness
