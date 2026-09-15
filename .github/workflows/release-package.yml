@@ -29,10 +29,10 @@ jobs:
       - name: Recuperer le code
         uses: actions/checkout@v4
 
-      - name: Configurer Node.js
+      - name: Configurer Node.js pour le packaging
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Installer les dependances
