@@ -1,6 +1,6 @@
 /*
  * Copyright 2026 Florian Ribes (NairolfConcept)
- * SPDX-License-Identifier: Apache-2.0
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
 import { getOscClient, getOscConnectionStateProvider, type OscJsonResponse } from '../../services/osc/client';
 import { getDefaultAllowedToolProfile } from '../../config/env';

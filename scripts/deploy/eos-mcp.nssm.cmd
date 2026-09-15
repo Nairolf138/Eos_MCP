@@ -1,5 +1,5 @@
 @REM Copyright 2026 Florian Ribes (NairolfConcept)
-@REM SPDX-License-Identifier: Apache-2.0
+@REM SPDX-License-Identifier: AGPL-3.0-only
 
 @echo off
 setlocal enabledelayedexpansion
