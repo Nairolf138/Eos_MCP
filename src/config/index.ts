@@ -116,6 +116,7 @@ export interface HttpGatewaySecurityConfig {
 }
 
 export interface HttpGatewayConfig {
+  readonly host?: string;
   readonly publicUrl?: string;
   readonly trustProxy: boolean;
   readonly security: HttpGatewaySecurityConfig;
@@ -568,6 +569,7 @@ const configSchema = z
     httpMcpTokens: createStringArraySchema('MCP_HTTP_MCP_TOKENS', {
       defaultValue: [DEFAULT_HTTP_MCP_TOKEN]
     }),
+    httpHost: createAddressSchema('MCP_HTTP_HOST', '127.0.0.1'),
     httpIpAllowlist: createStringArraySchema('MCP_HTTP_IP_ALLOWLIST', { defaultValue: [] }),
     httpAllowedOrigins: createStringArraySchema('MCP_HTTP_ALLOWED_ORIGINS', { defaultValue: [] }),
     httpPublicUrl: createOptionalHttpUrlSchema('MCP_HTTP_PUBLIC_URL'),
@@ -670,6 +672,7 @@ const configSchema = z
         logFile: values.auditLogFile
       },
       httpGateway: {
+        host: values.httpHost,
         publicUrl: values.httpPublicUrl,
         trustProxy: values.httpTrustProxy ?? false,
         security: {
@@ -731,6 +734,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     eosReadOnly: env.EOS_READ_ONLY,
     httpApiKeys: env.MCP_HTTP_API_KEYS,
     httpMcpTokens: env.MCP_HTTP_MCP_TOKENS,
+    httpHost: env.MCP_HTTP_HOST,
     httpIpAllowlist: env.MCP_HTTP_IP_ALLOWLIST,
     httpAllowedOrigins: env.MCP_HTTP_ALLOWED_ORIGINS,
     httpPublicUrl: env.MCP_HTTP_PUBLIC_URL,

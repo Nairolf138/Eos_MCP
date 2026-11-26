@@ -30,16 +30,16 @@ Eos MCP is not just a thin “send an OSC string” bridge. It provides a struct
 | Magic Sheets, Pixel Maps and show-control tools | ✅ |
 | Read-only observation mode | ✅ |
 | Strict ETC OSC mode | ✅ |
-| Dry-run + explicit operator confirmation | ✅ |
+| Dry-run + client confirmation; optional separate operator approval | ✅ |
 | Audit logging | ✅ |
 | MCP over STDIO | ✅ |
-| Streamable HTTP MCP + HTTP/WS gateway | ✅ |
+| Streamable HTTP MCP | ✅ |
 | Eos version / OSC compatibility tracking | ✅ |
 | Higher-level workflows designed for LLM agents | ✅ |
 
 ## What can an AI agent do with Eos MCP?
 
-Depending on the active safety profile and operator confirmation, an MCP client can use Eos MCP to:
+Depending on the active safety profile, client confirmation and optional separate operator approval, an MCP client can use Eos MCP to:
 
 - inspect connection state, capabilities, Eos version and show context;
 - read or manipulate channels and intensity levels;
@@ -139,10 +139,11 @@ npm start
 
 ### Streamable HTTP MCP / HTTP gateway
 
-Set `MCP_TCP_PORT` to expose the HTTP MCP endpoint and the optional HTTP/WS gateway:
+Set `MCP_TCP_PORT` to expose the Streamable HTTP MCP endpoint. Choose a secret token and an explicit IP allowlist:
 
 ```bash
-MCP_TCP_PORT=3032 npm run start:dev
+MCP_TCP_PORT=3032 MCP_HTTP_HOST=127.0.0.1 MCP_HTTP_IP_ALLOWLIST=127.0.0.1 \
+  MCP_HTTP_MCP_TOKENS=replace-with-a-random-secret npm run start:dev
 ```
 
 Relevant endpoints include:
@@ -151,10 +152,8 @@ Relevant endpoints include:
 - `GET /tools`
 - `GET /manifest.json`
 - `POST /mcp`
-- `POST /tools/:name`
-- `WS /ws`
 
-When exposing the HTTP transport beyond localhost, configure MCP tokens, IP allowlists, allowed origins and rate limiting. See [`docs/deployment.md`](docs/deployment.md) and [`docs/live-safety-checklist.md`](docs/live-safety-checklist.md).
+HTTP listens on localhost by default. Set `MCP_HTTP_HOST=0.0.0.0` only when remote access is required, and configure tokens, IP allowlists, allowed browser origins and rate limiting. TLS requires a reverse proxy; `MCP_TLS_ENABLED` does not turn on HTTPS. See [`docs/deployment.md`](docs/deployment.md) and [`docs/live-safety-checklist.md`](docs/live-safety-checklist.md).
 
 ## Safety model for live lighting control
 
@@ -170,7 +169,8 @@ Key safeguards include:
 - `EOS_STRICT_MODE=true` to prefer documented ETC OSC behaviour and reject unsupported or non-official paths according to the compatibility policy;
 - MCP tool metadata describing read-only state, risk level and confirmation requirements;
 - `dry_run=true` on supported high-level workflows;
-- explicit `confirm` / `require_confirmation` gates for mutating actions;
+- explicit `confirm` / `require_confirmation` gates for mutating actions (the client supplies these flags; they do not prove a human approved);
+- optional `EOS_OPERATOR_APPROVAL_DIR` and `EOS_OPERATOR_APPROVAL_SECRET` gate: a human approves a single, argument-bound, short-lived code using `eos-mcp --approve <challenge>` in a local terminal;
 - optional audit logging for MCP/OSC actions;
 - readiness checks before live reads or writes.
 

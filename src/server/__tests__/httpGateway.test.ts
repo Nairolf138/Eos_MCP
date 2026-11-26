@@ -391,6 +391,25 @@ describe('HttpGateway security options', () => {
     expect(response.status).toBe(401);
   });
 
+  test('denies every IP when an explicit allowlist is empty', async () => {
+    const closedGateway = createHttpGateway(registry, {
+      port: 0,
+      security: { ...securityOptions, ipAllowlist: [] },
+      serverFactory: () => createSessionServer()
+    });
+    await closedGateway.start();
+    try {
+      const address = closedGateway.getAddress();
+      expect(address?.address).toBe('127.0.0.1');
+      const response = await fetch(`http://127.0.0.1:${address!.port}/health`, {
+        headers: { 'x-api-key': securityOptions.apiKeys[0], 'x-mcp-token': securityOptions.mcpTokens[0] }
+      });
+      expect(response.status).toBe(403);
+    } finally {
+      await closedGateway.stop();
+    }
+  });
+
   test('uses X-Forwarded-For when trust proxy is enabled', async () => {
     const forwardedIp = '203.0.113.42';
     const strictSecurity = {

@@ -11,6 +11,8 @@ Ce guide explique comment executer Eos MCP en tant que service durable sous Linu
    ```
 2. Le binaire autonome est produit dans `dist/bin/eos-mcp`. Copiez-le sur la machine cible avec votre fichier `.env` et le dossier `logs/` si vous souhaitez reutiliser la meme arborescence.
 3. Ajustez l'URL publique exposee par la passerelle HTTP si necessaire : le manifest contient le placeholder `http://{HOST}:{PORT}` et le serveur le remplace automatiquement. Pour une adresse statique (reverse proxy, tunnel), declarez `MCP_HTTP_PUBLIC_URL=https://mcp.example.com` dans votre fichier `.env` afin que le manifest distribue l'URL correcte.
+4. Si vous activez `MCP_TCP_PORT`, définissez un jeton `MCP_HTTP_MCP_TOKENS` distinct de `change-me` et une liste `MCP_HTTP_IP_ALLOWLIST` explicite. L'écoute se limite par défaut à `127.0.0.1` ; `MCP_HTTP_HOST=0.0.0.0` ouvre l'écoute réseau. Une liste IP vide bloque aussi localhost. Pour HTTPS, terminez TLS dans un reverse proxy : Eos MCP sert HTTP.
+5. Pour une approbation humaine distincte des booléens fournis par le client MCP, définissez `EOS_OPERATOR_APPROVAL_DIR` vers un répertoire privé accessible au même utilisateur que le service, ainsi que `EOS_OPERATOR_APPROVAL_SECRET` (au moins 32 caractères privés) dans son environnement et celui du terminal opérateur. Après avoir examiné le `dry_run`, l'opérateur peut lancer le binaire avec `--approve <challenge>` dans un terminal local ; le code résultant autorise une seule exécution pendant deux minutes.
 
 ## Linux (systemd)
 

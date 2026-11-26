@@ -6,8 +6,9 @@ Ce mini tutoriel explique comment piloter dynamiquement le point d'accès du ser
 
 | Variable | Description | Valeur par défaut |
 | --- | --- | --- |
-| `MCP_TCP_PORT` | Active la passerelle HTTP/WebSocket et définit le port d'écoute. | Non défini (mode STDIO uniquement) |
-| `MCP_TLS_ENABLED` | Force l'utilisation du protocole HTTPS. Les valeurs acceptées sont `1`, `true`, `yes`, `on`, `enable`, `enabled`. | `false` |
+| `MCP_TCP_PORT` | Active le transport MCP Streamable HTTP et définit le port d'écoute. | Non défini (mode STDIO uniquement) |
+| `MCP_HTTP_HOST` | Adresse locale d'écoute HTTP (`0.0.0.0` pour écouter sur le réseau). | `127.0.0.1` |
+| `MCP_TLS_ENABLED` | Ancien drapeau ignoré : le serveur ne fournit pas TLS. Utiliser un reverse proxy HTTPS et `MCP_HTTP_PUBLIC_URL` pour annoncer une URL publique. | Sans effet |
 | `OSC_REMOTE_ADDRESS` | Adresse du serveur OSC distant à contacter. | `127.0.0.1` |
 | `OSC_TCP_PORT` | Port TCP distant utilisé pour la négociation OSC. | `3032` |
 | `OSC_UDP_OUT_PORT` | Port UDP distant pour l'envoi des messages OSC. | `8001` |
@@ -18,9 +19,9 @@ Ce mini tutoriel explique comment piloter dynamiquement le point d'accès du ser
 | `OSC_UDP_RECV_BUFFER_SIZE` | Taille du buffer de réception UDP (octets). | `262144` |
 | `OSC_UDP_SEND_BUFFER_SIZE` | Taille du buffer d'émission UDP (octets). | `524288` |
 | `MCP_HTTP_API_KEYS` | Clés API supplémentaires exigées côté HTTP (`X-API-Key`). | Vide (aucune clé) |
-| `MCP_HTTP_MCP_TOKENS` | Jetons MCP (`X-MCP-Token` / `Authorization: Bearer`) requis pour authentifier les clients. | `change-me` |
-| `MCP_HTTP_IP_ALLOWLIST` | Liste d'IP autorisées à consommer la passerelle HTTP/WS (`*` pour tout autoriser). | Vide ⇒ deny all |
-| `MCP_HTTP_ALLOWED_ORIGINS` | Origines HTTP/WS autorisées (`*` pour tout autoriser). | Vide ⇒ deny all |
+| `MCP_HTTP_MCP_TOKENS` | Jetons MCP (`X-MCP-Token` / `Authorization: Bearer`) requis pour authentifier les clients ; le serveur refuse de démarrer si aucun jeton secret n'est fourni ou si `change-me` figure encore dans la liste. | `change-me` (à remplacer avant d'activer HTTP) |
+| `MCP_HTTP_IP_ALLOWLIST` | Liste d'IP autorisées à consommer HTTP (`*` pour tout autoriser). | Vide ⇒ aucun accès, même local |
+| `MCP_HTTP_ALLOWED_ORIGINS` | Origines de navigateur autorisées (`*` pour tout autoriser). Les clients sans en-tête Origin restent soumis au jeton et à la liste IP. | Vide ⇒ aucune origine de navigateur |
 | `MCP_HTTP_RATE_LIMIT_WINDOW` | Fenêtre du rate-limit (en millisecondes). | `60000` |
 | `MCP_HTTP_RATE_LIMIT_MAX` | Nombre maximal de requêtes par IP dans la fenêtre. | `60` |
 
@@ -30,7 +31,9 @@ Ce mini tutoriel explique comment piloter dynamiquement le point d'accès du ser
 
 ```bash
 export MCP_TCP_PORT=5173
-export MCP_TLS_ENABLED=0
+export MCP_HTTP_HOST=127.0.0.1
+export MCP_HTTP_IP_ALLOWLIST=127.0.0.1
+export MCP_HTTP_MCP_TOKENS=replace-with-a-random-secret
 export OSC_REMOTE_ADDRESS=127.0.0.1
 npm run start:dev
 ```
@@ -41,7 +44,10 @@ Le journal de démarrage affichera une URL du type `http://localhost:5173`, dire
 
 ```bash
 export MCP_TCP_PORT=7443
-export MCP_TLS_ENABLED=true
+export MCP_HTTP_HOST=0.0.0.0
+export MCP_HTTP_PUBLIC_URL=https://mcp-backend.internal:7443
+export MCP_HTTP_IP_ALLOWLIST=192.168.1.10
+export MCP_HTTP_MCP_TOKENS=replace-with-a-random-secret
 export OSC_REMOTE_ADDRESS=mcp-backend.internal
 export OSC_TCP_PORT=4000
 export OSC_UDP_OUT_PORT=4600
@@ -49,7 +55,7 @@ export OSC_UDP_IN_PORT=4601
 npm run start:dev
 ```
 
-Le serveur annoncera `https://mcp-backend.internal:7443`. Vous pouvez transmettre cette URL au LLM pour créer une connexion HTTP ou WebSocket sécurisée.
+Placez un reverse proxy HTTPS devant le service HTTP local : `MCP_HTTP_PUBLIC_URL` annonce son URL publique, sans activer TLS dans Eos MCP. Adaptez l'adresse IP autorisée à celle du proxy et ne transmettez le jeton qu'au client autorisé.
 
 ### 3. Mode STDIO uniquement
 
@@ -64,6 +70,7 @@ Aucun point d'accès réseau n'est créé ; seuls les clients MCP capables de co
 
 ```bash
 export MCP_TCP_PORT=3032
+export MCP_HTTP_HOST=0.0.0.0
 export MCP_HTTP_IP_ALLOWLIST=192.168.1.10,192.168.1.15
 export MCP_HTTP_ALLOWED_ORIGINS=http://192.168.1.10,http://192.168.1.15
 export MCP_HTTP_MCP_TOKENS=remplacez-moi-par-un-jeton-solide
@@ -73,7 +80,7 @@ export MCP_HTTP_RATE_LIMIT_MAX=120
 npm run start:dev
 ```
 
-Seules les machines explicitement listées (`192.168.1.10` et `192.168.1.15`) pourront accéder à la passerelle, et elles devront fournir le jeton MCP (et la clé API le cas échéant). Ajustez les origines pour autoriser les navigateurs ou clients WebSocket du LAN.
+Seules les machines explicitement listées (`192.168.1.10` et `192.168.1.15`) pourront accéder à la passerelle, et elles devront fournir le jeton MCP (et la clé API le cas échéant). Ajustez les origines pour autoriser les navigateurs du LAN.
 
 ## Bonnes pratiques
 

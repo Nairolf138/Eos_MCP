@@ -8,7 +8,7 @@ Cette checklist doit être relue avant toute connexion d'Eos MCP à une console 
 - [ ] Vérifier l'adresse IP de la console et confirmer que `OSC_REMOTE_ADDRESS` pointe vers la bonne machine.
 - [ ] Vérifier les ports OSC côté Eos et côté Eos MCP (`OSC_UDP_OUT_PORT`, `OSC_UDP_IN_PORT`) ainsi que les règles firewall UDP associées.
 - [ ] Activer le **mode strict** afin de bloquer les commandes ambiguës, incomplètes ou non conformes à la politique d'exploitation.
-- [ ] Activer les **confirmations** pour empêcher toute exécution réelle sans validation explicite.
+- [ ] Si une validation humaine est requise, définir `EOS_OPERATOR_APPROVAL_DIR` et un secret d'au moins 32 caractères dans `EOS_OPERATOR_APPROVAL_SECRET`, puis faire approuver chaque exécution par un opérateur depuis un terminal local.
 - [ ] Utiliser `dry_run` pour tous les workflows avant exécution, puis comparer la prévisualisation avec l'intention opérateur.
 - [ ] Ne pas exposer le serveur MCP publiquement sur Internet ou sur un réseau non maîtrisé.
 - [ ] Ne pas créer de bridge entre Wi-Fi et Ethernet, et ne pas activer le partage Internet entre le réseau bureautique et le réseau lumière.
@@ -47,6 +47,7 @@ Règles d'exécution associées :
 
 1. `EOS_READ_ONLY=true` bloque tout outil dont `allowedInReadOnly=false`, même si le profil client est élevé.
 2. `EOS_STRICT_MODE=true` bloque tout outil dont `allowedInStrictMode=false`, avant l'envoi OSC.
-3. Les risques `live`, `show-modifying` et `dangerous` exigent une confirmation explicite (`confirm=true`, `require_confirmation=true` ou `safety_level` défini) pour une exécution réelle.
+3. Les risques `live`, `show-modifying` et `dangerous` exigent une confirmation du client (`confirm=true` ou `require_confirmation=true`) pour une exécution réelle. Le paramètre `safety_level` seul ne confirme rien. Un agent peut fournir lui-même ces booléens : ils ne constituent pas une approbation humaine.
 4. Quand `defaultDryRun=true`, que l'outil déclare `dry_run` dans son schéma et qu'aucune confirmation explicite n'est fournie, le registre ajoute `dry_run=true` avant d'appeler le handler afin de produire une prévisualisation au lieu d'une action réelle.
 5. Le profil MCP accordé (`read_only`, `programming`, `live_playback`, `admin`) reste requis pour l'exécution réelle ; une prévisualisation `dry_run=true` ne déclenche pas d'envoi OSC.
+6. Si `EOS_OPERATOR_APPROVAL_DIR` est défini sur le serveur, définir également `EOS_OPERATOR_APPROVAL_SECRET` (au moins 32 caractères, gardé privé). Une exécution réelle nécessitant confirmation exige alors un code `operator_approval`. Après examen de la demande et de sa simulation, l'opérateur lance **sur la machine du serveur, dans un terminal interactif** `eos-mcp --approve <challenge>` (ou `node dist/server/index.js --approve <challenge>`). Le challenge signé apparaît dans le refus initial. Le terminal affiche les arguments avant validation ; le code obtenu expire au bout de deux minutes, n'autorise que cet outil, ces arguments et cette console, et ne fonctionne qu'une fois. Le terminal doit partager le secret et l'accès au répertoire avec le service. Sans cette option, l'accord humain relève du client MCP ou de sa procédure d'exploitation.

@@ -31,6 +31,8 @@ import { createHttpGateway, type HttpGateway } from './httpGateway';
 import { ToolRegistry } from './toolRegistry';
 import { getPackageVersion } from '../utils/version';
 import { assertTcpPortAvailable, assertUdpPortAvailable } from './startupChecks';
+import { grantOperatorApproval, inspectApprovalChallenge } from './operatorApproval';
+import { createInterface } from 'node:readline/promises';
 import { getResourceCache } from '../services/cache/index';
 
 const logger = createLogger('mcp-server');
@@ -46,14 +48,9 @@ function isTruthyFlag(candidate: unknown): boolean {
   return TRUE_FLAG_VALUES.has(normalised);
 }
 
-function isTlsEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  const candidate = env.MCP_TLS_ENABLED ?? env.MCP_TLS ?? env.MCP_USE_TLS;
-  return isTruthyFlag(candidate);
-}
-
 export function buildHttpAccessDetails(
   httpAddress: AddressInfo,
-  env: NodeJS.ProcessEnv = process.env
+  _env: NodeJS.ProcessEnv = process.env
 ): { host: string; protocol: 'http' | 'https'; accessUrl: string } {
   const rawHost = httpAddress.address;
   const family = httpAddress.family;
@@ -67,7 +64,9 @@ export function buildHttpAccessDetails(
     host = rawHost;
   }
 
-  const protocol: 'http' | 'https' = isTlsEnabled(env) ? 'https' : 'http';
+  // This server is plain HTTP. TLS belongs to a reverse proxy, whose public
+  // URL is configured separately through MCP_HTTP_PUBLIC_URL.
+  const protocol = 'http' as const;
   const accessUrl = `${protocol}://${host}:${httpAddress.port}`;
 
   return { host, protocol, accessUrl };
@@ -82,6 +81,7 @@ interface CliOptions {
   jsonLogs: boolean;
   statsIntervalMs?: number;
   skipOscCheck: boolean;
+  approveChallenge?: string;
   unknown: string[];
   errors: string[];
 }
@@ -121,6 +121,7 @@ function parseCliArguments(argv: readonly string[]): CliOptions {
     jsonLogs: false,
     statsIntervalMs: undefined,
     skipOscCheck: false,
+    approveChallenge: undefined,
     unknown: [] as string[],
     errors: [] as string[]
   };
@@ -164,6 +165,17 @@ function parseCliArguments(argv: readonly string[]): CliOptions {
 
     if (token === '--skip-osc-check') {
       options.skipOscCheck = true;
+      continue;
+    }
+
+    if (token === '--approve') {
+      const challenge = argv[index + 1];
+      if (!challenge || challenge.startsWith('--')) {
+        options.errors.push('--approve exige le challenge fourni par le serveur.');
+      } else {
+        options.approveChallenge = challenge;
+        index += 1;
+      }
       continue;
     }
 
@@ -215,6 +227,7 @@ function printHelp(scriptName: string): void {
     '  --verbose           Active le log détaillé des messages OSC.\n' +
     '  --json-logs         Force une sortie JSON sur STDOUT pour les logs.\n' +
     '  --skip-osc-check    Ignore le handshake OSC de démarrage (développement/test).\n' +
+    '  --approve CODE      Approuve une seule execution depuis un terminal operateur local.\n' +
     '  --stats-interval X  Publie périodiquement les compteurs OSC (ex: 30s, 5s, 10000ms).';
 
   console.log(usage);
@@ -289,7 +302,7 @@ function buildOscHandshakeStartupNotice(handshakeResult: {
 
 function validateMcpTokenConfiguration(
   config: AppConfig,
-  env: NodeJS.ProcessEnv = process.env
+  _env: NodeJS.ProcessEnv = process.env
 ): McpTokenValidationResult {
   const tcpPort = config.mcp.tcpPort;
   if (tcpPort === undefined || tcpPort === null) {
@@ -299,21 +312,14 @@ function validateMcpTokenConfiguration(
   const rawTokens = config.httpGateway.security.mcpTokens ?? [];
   const tokens = rawTokens.map((token) => token.trim()).filter((token) => token.length > 0);
 
-  const hasNoTokens = tokens.length === 0;
-  const onlyPlaceholderTokens =
-    tokens.length > 0 && tokens.every((token) => token === DEFAULT_MCP_HTTP_TOKEN_PLACEHOLDER);
-
-  if (!hasNoTokens && !onlyPlaceholderTokens) {
+  if (tokens.length > 0 && !tokens.includes(DEFAULT_MCP_HTTP_TOKEN_PLACEHOLDER)) {
     return { status: 'ok' };
   }
 
   const message =
-    'Passerelle HTTP/WS MCP activee mais aucun jeton MCP securise n\'est defini (valeur par defaut "change-me"). ' +
-    'Definissez MCP_HTTP_MCP_TOKENS avec au moins une valeur robuste avant d\'exposer le service.';
-  const nodeEnv = env.NODE_ENV ?? '';
-  const status: 'warn' | 'error' = nodeEnv === 'production' ? 'error' : 'warn';
-
-  return { status, message };
+    'Passerelle HTTP MCP activee sans jeton securise, ou avec le jeton public "change-me". ' +
+    'Definissez MCP_HTTP_MCP_TOKENS avec un secret et retirez "change-me".';
+  return { status: 'error', message };
 }
 
 interface StdioStatusSnapshot {
@@ -573,6 +579,7 @@ async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapConte
   if (tcpPort) {
     gateway = createHttpGateway(registry, {
       port: tcpPort,
+      host: effectiveConfig.httpGateway.host,
       publicUrl: effectiveConfig.httpGateway.publicUrl,
       trustProxy: effectiveConfig.httpGateway.trustProxy,
       serverFactory: async () => (await createConfiguredServer()).server,
@@ -749,6 +756,25 @@ async function runFromCommandLine(argv: NodeJS.Process['argv']): Promise<void> {
     const version = getPackageVersion();
     console.log(`Eos MCP ${version}`);
     process.exit(0);
+    return;
+  }
+
+  if (options.approveChallenge) {
+    const directory = process.env.EOS_OPERATOR_APPROVAL_DIR?.trim();
+    if (!directory) throw new Error('Definissez EOS_OPERATOR_APPROVAL_DIR sur le serveur avant d approuver.');
+    if (!process.stdin.isTTY || !process.stdout.isTTY) throw new Error('L approbation exige un terminal operateur interactif.');
+    const challenge = inspectApprovalChallenge(options.approveChallenge);
+    console.log(`Outil : ${challenge.tool}\nConsole : ${challenge.target.name ?? challenge.target.address}:${challenge.target.port}\nArguments : ${challenge.preview}\nEmpreinte des arguments : ${challenge.digest}`);
+    console.log('Comparez la demande et sa simulation dans le client MCP avant de confirmer.');
+    const prompt = createInterface({ input: process.stdin, output: process.stdout });
+    try {
+      if ((await prompt.question('Tapez APPROUVER pour autoriser une seule execution (2 minutes) : ')).trim() !== 'APPROUVER') {
+        throw new Error('Approbation annulee.');
+      }
+    } finally {
+      prompt.close();
+    }
+    console.log(`Code a transmettre au client MCP (operator_approval) : ${await grantOperatorApproval(directory, options.approveChallenge)}`);
     return;
   }
 

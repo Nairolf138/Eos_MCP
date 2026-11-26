@@ -4,6 +4,9 @@
  */
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import type { ToolDefinition, ToolExecutionResult, ToolMiddleware } from '../../tools/types';
 import {
   sessionGetCurrentUserTool,
@@ -31,6 +34,7 @@ jest.mock('../logger.js', () => ({
 
 import { ToolRegistry } from '../toolRegistry';
 import { toolDefinitions } from '../../tools';
+import { buildApprovalChallenge, grantOperatorApproval } from '../operatorApproval';
 
 const { __mockLogger: mockLogger } = jest.requireMock('../logger.js') as {
   __mockLogger: {
@@ -59,6 +63,8 @@ describe('ToolRegistry schema-less tools', () => {
   const originalProfile = process.env.EOS_MCP_ALLOWED_TOOL_PROFILE;
   const originalReadOnly = process.env.EOS_READ_ONLY;
   const originalStrictMode = process.env.EOS_STRICT_MODE;
+  const originalApprovalDir = process.env.EOS_OPERATOR_APPROVAL_DIR;
+  const originalApprovalSecret = process.env.EOS_OPERATOR_APPROVAL_SECRET;
 
   beforeEach(() => {
     mockLogger.info.mockClear();
@@ -66,6 +72,8 @@ describe('ToolRegistry schema-less tools', () => {
     delete process.env.EOS_MCP_ALLOWED_TOOL_PROFILE;
     delete process.env.EOS_READ_ONLY;
     delete process.env.EOS_STRICT_MODE;
+    delete process.env.EOS_OPERATOR_APPROVAL_DIR;
+    delete process.env.EOS_OPERATOR_APPROVAL_SECRET;
   });
 
   afterEach(() => {
@@ -80,6 +88,10 @@ describe('ToolRegistry schema-less tools', () => {
     } else {
       process.env.EOS_STRICT_MODE = originalStrictMode;
     }
+    if (originalApprovalDir === undefined) delete process.env.EOS_OPERATOR_APPROVAL_DIR;
+    else process.env.EOS_OPERATOR_APPROVAL_DIR = originalApprovalDir;
+    if (originalApprovalSecret === undefined) delete process.env.EOS_OPERATOR_APPROVAL_SECRET;
+    else process.env.EOS_OPERATOR_APPROVAL_SECRET = originalApprovalSecret;
   });
 
   it.each(['eos_cue_select','eos_cuelist_bank_create','eos_cuelist_bank_page','eos_magic_sheet_open','eos_pixmap_select','eos_curve_select','eos_toggle_staging_mode'])('does not advertise console action %s as read-only', name=>{
@@ -356,6 +368,20 @@ describe('ToolRegistry schema-less tools', () => {
     });
   });
 
+  it('classe la reconfiguration OSC comme administrative et la refuse en lecture seule', async () => {
+    process.env.EOS_READ_ONLY = 'true';
+    const server = createMockServer();
+    const registry = new ToolRegistry(server);
+    const tool = toolDefinitions.find((item) => item.name === 'eos_configure')!;
+    registry.register(tool);
+    expect(registry.getRegisteredSummaries()[0]?.config.metadata).toMatchObject({
+      requiredRole: 'admin', readOnly: false, allowedInReadOnly: false
+    });
+    await expect(registry.invoke('eos_configure', {
+      remoteAddress: '192.0.2.3', remotePort: 8001, localPort: 8000, confirm: true
+    })).rejects.toThrow('EOS_READ_ONLY=true');
+  });
+
   it('autorise les outils de diagnostic en mode EOS_READ_ONLY', async () => {
     process.env.EOS_READ_ONLY = 'true';
     const server = createMockServer();
@@ -529,6 +555,38 @@ describe('ToolRegistry schema-less tools', () => {
       granted_role: 'admin',
       confirmation_state: 'confirmed'
     });
+  });
+
+  it('exige un code operateur distinct, lie aux arguments et consomme une seule fois', async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'eos-registry-approval-'));
+    process.env.EOS_OPERATOR_APPROVAL_DIR = directory;
+    process.env.EOS_OPERATOR_APPROVAL_SECRET = '0123456789abcdef0123456789abcdef';
+    process.env.EOS_MCP_ALLOWED_TOOL_PROFILE = 'admin';
+    try {
+      const server = createMockServer();
+      const registry = new ToolRegistry(server);
+      const handler = jest.fn(async () => ({ content: [{ type: 'text', text: 'sent' }] }));
+      registry.register({ name: 'eos_new_command', config: { inputSchema: { command: z.string() } }, handler });
+      const callback = server.registerTool.mock.calls[0][2] as RegisteredTestHandler;
+      const args = { command: 'Record Cue 1', confirm: true };
+      await expect(callback(args)).rejects.toThrow('Approbation operateur distincte requise');
+      expect(handler).not.toHaveBeenCalled();
+
+      const challenge = buildApprovalChallenge('eos_new_command', args, { address: '127.0.0.1', port: 8001 });
+      const token = await grantOperatorApproval(directory, challenge);
+      await expect(callback({ command: 'Record Cue 2', confirm: true, operator_approval: token }))
+        .rejects.toThrow('Approbation operateur distincte requise');
+      await expect(callback({ ...args, operator_approval: token }))
+        .rejects.toThrow('Approbation operateur distincte requise');
+
+      const secondToken = await grantOperatorApproval(directory, challenge);
+      await expect(callback({ ...args, operator_approval: secondToken })).resolves.toBeDefined();
+      expect(handler).toHaveBeenCalledTimes(1);
+      await expect(callback({ ...args, operator_approval: secondToken }))
+        .rejects.toThrow('Approbation operateur distincte requise');
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 
   it('refuse une elevation de profil fournie par les metadonnees MCP', async () => {

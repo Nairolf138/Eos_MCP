@@ -697,7 +697,8 @@ export class OscClient {
         }),
         {
           timeoutMs,
-          timeoutMessage: queueOptions.timeoutMessage,
+          timeoutMessage: queueOptions.timeoutMessage ??
+            'Envoi OSC non confirme: la commande peut encore etre en cours. Verifiez la console avant de relancer.',
           details,
           targetKey: queuePolicy.targetKey,
           familyKey: queueOptions.familyKey ?? queuePolicy.familyKey
@@ -746,12 +747,10 @@ export class OscClient {
   }
 
   private buildQueueTargetKey(options: OscGatewaySendOptions): string {
-    return [
-      options.targetConsole ?? 'default-console',
-      options.targetAddress ?? 'default-address',
-      typeof options.targetPort === 'number' ? String(options.targetPort) : 'default-port',
-      options.transportPreference ?? 'auto'
-    ].join('|');
+    // The same physical console must share an ordering slot even when one
+    // caller uses its alias and another selects a different transport.
+    const target = resolveConsoleTarget(options);
+    return `${normalizePeer(target.targetAddress)}:${target.targetPort}`;
   }
 
   private getSensitiveFamily(address: string): OscQueueFamily | undefined {

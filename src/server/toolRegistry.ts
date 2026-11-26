@@ -30,11 +30,12 @@ import {
 import { resolveConsoleTarget, type ConsoleTargetResolution } from '../services/consoleTargets';
 import { resolveAuditMode, writeCommandAudit } from '../services/audit';
 import { OperationLock } from '../services/osc/operationLock';
+import { buildApprovalChallenge, consumeOperatorApproval } from './operatorApproval';
 
 const logger = createLogger('tool-registry');
 const consoleOperations = new OperationLock();
 
-const SENSITIVE_FIELD_PATTERN = /(token|password|secret|authorization|api[-_]?key|cookie)/i;
+const SENSITIVE_FIELD_PATTERN = /(token|password|secret|authorization|api[-_]?key|cookie|operator_approval)/i;
 
 const globalConsoleTargetSchema = {
   targetConsole: z.string().min(1).optional()
@@ -45,7 +46,8 @@ const confirmationInputSchema = {
   dry_run: z.boolean().optional(),
   confirm: z.boolean().optional(),
   require_confirmation: z.boolean().optional(),
-  safety_level: z.enum(['strict', 'standard', 'off']).optional()
+  safety_level: z.enum(['strict', 'standard', 'off']).optional(),
+  operator_approval: z.string().optional()
 };
 
 function withConfirmationInputSchema(
@@ -204,7 +206,7 @@ function resolveSafetyMode(args: unknown): 'strict' | 'standard' | 'off' {
 }
 
 
-const CONFIRMATION_ARGUMENT_KEYS = ['confirm', 'require_confirmation', 'safety_level', 'dry_run'] as const;
+const CONFIRMATION_ARGUMENT_KEYS = ['confirm', 'require_confirmation', 'safety_level', 'dry_run', 'operator_approval'] as const;
 
 type ConfirmationState = 'confirmed' | 'missing' | 'not_required';
 
@@ -638,6 +640,17 @@ class ToolRegistry {
         throw new Error(
           `Outil ${toolName} refuse: confirmation explicite absente. Relancez d'abord en dry_run=true pour verifier commands_preview, puis executez avec confirm=true ou require_confirmation=true apres validation operateur.`
         );
+      }
+
+      const approvalDirectory = process.env.EOS_OPERATOR_APPROVAL_DIR?.trim();
+      if (approvalDirectory && classification.requiresConfirmation && asObject(executionInputArgs).dry_run !== true) {
+        const challenge = buildApprovalChallenge(toolName, executionInputArgs, targetConsole);
+        const approval = asObject(executionInputArgs).operator_approval;
+        if (typeof approval !== 'string' || !await consumeOperatorApproval(approvalDirectory, approval, challenge)) {
+          throw new Error(`Approbation operateur distincte requise pour ${toolName} (${targetConsole.address}:${targetConsole.port}). ` +
+            `Sur la machine du serveur, examinez la simulation puis lancez eos-mcp --approve ${challenge}. ` +
+            'Transmettez le code obtenu dans operator_approval pour cet appel uniquement.');
+        }
       }
 
       const executionArgs = normalizeConfirmationArgsForTool(executionInputArgs, tool.config.inputSchema);

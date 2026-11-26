@@ -56,8 +56,8 @@ jest.mock('../../config/index.js', () => ({
       trustProxy: false,
       security: {
         apiKeys: [],
-        mcpTokens: ['change-me'],
-        ipAllowlist: [],
+        mcpTokens: ['test-token-with-at-least-32-characters'],
+        ipAllowlist: ['127.0.0.1'],
         allowedOrigins: [],
         rateLimit: { windowMs: 60000, max: 60 }
       }
