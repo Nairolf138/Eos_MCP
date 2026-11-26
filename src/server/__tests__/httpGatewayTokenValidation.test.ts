@@ -45,13 +45,13 @@ function createConfig(options?: {
 }
 
 describe('validateMcpTokenConfiguration', () => {
-  it("signale un avertissement en developpement lorsque le jeton par defaut est conserve", () => {
+  it("refuse le jeton public meme en developpement", () => {
     const config = createConfig({ tokens: ['change-me'] });
     const result = validateMcpTokenConfiguration(config, {
       NODE_ENV: 'development'
     } as NodeJS.ProcessEnv);
 
-    expect(result.status).toBe('warn');
+    expect(result.status).toBe('error');
     expect(result).toHaveProperty('message');
     expect(result.message).toContain('MCP_HTTP_MCP_TOKENS');
   });
@@ -75,12 +75,12 @@ describe('validateMcpTokenConfiguration', () => {
     expect(result.status).toBe('ok');
   });
 
-  it('accepte des jetons valides meme si le jeton par defaut reste present', () => {
+  it('refuse un jeton public conserve parmi les jetons valides', () => {
     const config = createConfig({ tokens: ['change-me', 'secret-123'] });
     const result = validateMcpTokenConfiguration(config, {
       NODE_ENV: 'production'
     } as NodeJS.ProcessEnv);
 
-    expect(result.status).toBe('ok');
+    expect(result.status).toBe('error');
   });
 });

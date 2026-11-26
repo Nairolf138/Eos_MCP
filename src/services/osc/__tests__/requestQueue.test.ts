@@ -29,15 +29,16 @@ describe('RequestQueue', () => {
     expect(completions).toEqual(['a', 'b', 'c']);
   });
 
-  it('declenche un timeout personnalise et libere la tache suivante', async () => {
+  it('signale le timeout sans laisser la tache suivante depasser un envoi encore en cours', async () => {
     const queue = new RequestQueue({ concurrency: 1 });
     const starts: string[] = [];
+    let releaseSlow!: () => void;
 
     const timeout = queue.run(
       'operation lente',
       async () => {
         starts.push('slow');
-        await delay(30);
+        await new Promise<void>((resolve) => { releaseSlow = resolve; });
       },
       { timeoutMs: 5 }
     );
@@ -47,6 +48,9 @@ describe('RequestQueue', () => {
     });
 
     await expect(timeout).rejects.toMatchObject({ code: ErrorCode.OSC_TIMEOUT });
+    expect(starts).toEqual(['slow']);
+    expect(queue.getDiagnostics()).toMatchObject({ pending: 1, activeCount: 1 });
+    releaseSlow();
     await expect(next).resolves.toBe('done');
     expect(starts).toEqual(['slow', 'next']);
   });

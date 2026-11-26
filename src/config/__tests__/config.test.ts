@@ -90,6 +90,7 @@ describe('configuration', () => {
         logFile: resolve(process.cwd(), 'logs/audit.log')
       },
       httpGateway: {
+        host: '127.0.0.1',
         publicUrl: undefined,
         trustProxy: false,
         security: {
@@ -137,6 +138,7 @@ describe('configuration', () => {
       LOG_DESTINATIONS: 'stdout,file',
       MCP_HTTP_API_KEYS: 'admin-key',
       MCP_HTTP_MCP_TOKENS: 'token-one,token-two',
+      MCP_HTTP_HOST: '192.168.1.2',
       MCP_HTTP_IP_ALLOWLIST: '127.0.0.1,::1',
       MCP_HTTP_ALLOWED_ORIGINS: 'http://localhost',
       MCP_HTTP_PUBLIC_URL: 'https://public.example/mcp/',
@@ -179,6 +181,7 @@ describe('configuration', () => {
       enabled: true,
       logFile: resolve(process.cwd(), 'var/log/eos-audit.jsonl')
     });
+    expect(config.httpGateway.host).toBe('192.168.1.2');
     expect(config.httpGateway.security).toEqual({
       apiKeys: ['admin-key'],
       mcpTokens: ['token-one', 'token-two'],

@@ -25,6 +25,22 @@ describe('ETC native OSC client', () => {
   let peer: Peer; let client: OscClient;
   beforeEach(() => { peer = new Peer(); client = new OscClient(peer, { defaultTimeoutMs: 35 }); });
   afterEach(() => client.dispose());
+  test('keeps one queue for the same console across aliases and transport preferences', async () => {
+    let releaseFirst!: () => void;
+    const sent: string[] = [];
+    peer.send = async (message) => {
+      sent.push(message.args?.[0]?.value as string);
+      if (sent.length === 1) await new Promise<void>((resolve) => { releaseFirst = resolve; });
+    };
+    const first = client.sendNewCommand('Chan 101 At 50#', { transportPreference: 'speed' });
+    const second = client.sendNewCommand('Chan 102 At 50#', {
+      targetAddress: '127.0.0.1', targetPort: 8001, transportPreference: 'reliability'
+    });
+    expect(sent).toEqual(['Chan 101 At 50#']);
+    releaseFirst();
+    await Promise.all([first, second]);
+    expect(sent).toEqual(['Chan 101 At 50#', 'Chan 102 At 50#']);
+  });
   test('connect queries native version without a JSON handshake or protocol negotiation', async () => {
     await expect(client.connect()).resolves.toMatchObject({ status: 'ok', version: '3.3.6 Build 14', selectedProtocol: 'etc-osc', handshake_mode: 'native' });
     expect(peer.messages).toEqual([{ address: '/eos/get/version', args: [] }]);

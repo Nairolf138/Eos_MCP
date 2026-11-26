@@ -428,8 +428,8 @@ Catégories documentées : `commands`, `cues`, `diagnostics`, `dmx`, `keys`, `ma
 
 | Champ | Valeur |
 | --- | --- |
-| Niveau de risque | `read` |
-| Confirmation requise | Non |
+| Niveau de risque | `dangerous` |
+| Confirmation requise | Oui |
 
 **Arguments :**
 

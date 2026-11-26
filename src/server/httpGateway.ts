@@ -478,7 +478,7 @@ class HttpGateway {
 
     await new Promise<void>((resolve, reject) => {
       server.once('error', reject);
-      server.listen(this.options.port, this.options.host ?? '0.0.0.0', () => {
+      server.listen(this.options.port, this.options.host ?? '127.0.0.1', () => {
         server.off('error', reject);
         this.started = true;
         this.startTimestamp = Date.now();
@@ -1033,7 +1033,7 @@ class HttpGateway {
     }
 
     if (allowlist.length === 0) {
-      return true;
+      return false;
     }
 
     if (allowlist.includes('*')) {

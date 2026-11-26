@@ -17,25 +17,25 @@ describe('buildHttpAccessDetails', () => {
     });
   });
 
-  it('normalise une adresse IPv6 et active le protocole HTTPS', () => {
+  it('ne pretend pas servir HTTPS quand seul le drapeau TLS est defini', () => {
     const address = { address: '2001:db8::1', family: 'IPv6', port: 7443 } as AddressInfo;
     const result = buildHttpAccessDetails(address, { MCP_TLS_ENABLED: 'true' });
 
     expect(result).toEqual({
       host: '[2001:db8::1]',
-      protocol: 'https',
-      accessUrl: 'https://[2001:db8::1]:7443'
+      protocol: 'http',
+      accessUrl: 'http://[2001:db8::1]:7443'
     });
   });
 
-  it('reconnaît les alias TLS supplementaires et preserve localhost en IPv6', () => {
+  it('ne presente pas un alias TLS comme une terminaison HTTPS', () => {
     const address = { address: 'localhost', family: 'IPv6', port: 9000 } as AddressInfo;
     const result = buildHttpAccessDetails(address, { MCP_TLS: 'ENABLED' });
 
     expect(result).toEqual({
       host: 'localhost',
-      protocol: 'https',
-      accessUrl: 'https://localhost:9000'
+      protocol: 'http',
+      accessUrl: 'http://localhost:9000'
     });
   });
 });

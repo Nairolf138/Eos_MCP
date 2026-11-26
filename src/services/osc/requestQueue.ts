@@ -183,12 +183,14 @@ export class RequestQueue {
   private async execute<T>(task: QueueTask<T>): Promise<void> {
     const { execute, resolve, reject, options, operation } = task;
     let timeoutHandle: NodeJS.Timeout | null = null;
+    let timedOut = false;
 
     const timeoutMs = options.timeoutMs;
     const timeoutPromise =
       typeof timeoutMs === 'number' && Number.isFinite(timeoutMs) && timeoutMs > 0
         ? new Promise<never>((_resolve, rejectTimeout) => {
             timeoutHandle = setTimeout(() => {
+              timedOut = true;
               rejectTimeout(
                 createTimeoutError(operation, timeoutMs, options.timeoutMessage, options.details)
               );
@@ -217,6 +219,12 @@ export class RequestQueue {
     } finally {
       if (timeoutHandle) {
         clearTimeout(timeoutHandle);
+      }
+      // A timeout rejects the caller, but cannot cancel an OSC send already in
+      // progress. Keep the target/family slot until the underlying operation
+      // settles, so a subsequent command cannot overtake a late send.
+      if (timedOut) {
+        await executionPromise.catch(() => undefined);
       }
     }
   }
